@@ -1,0 +1,49 @@
+# Environment and secrets
+.env
+.env.*
+
+# Python
+.venv/
+__pycache__/
+*.pyc
+*.pyo
+*.egg-info/
+dist/
+build/
+
+# Symlinked external context directories
+architecture-context
+odh-tests-context
+
+# Generated data and workspaces
+fix-workspaces/
+issues/
+logs/
+
+# Log files in project root
+*.log
+
+# Internal notes and analysis (not for public consumption)
+notes/
+docs/
+BUG_BASH_PLAN.md
+
+# Workflow definitions (not ready for public)
+ambient-code.workflows/
+
+# Claude Code local config
+.claude/
+
+# Lock files (optional - uncomment to include)
+# uv.lock
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
