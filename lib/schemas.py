@@ -304,41 +304,63 @@ FIX_ATTEMPT_SCHEMA = {
                 "properties": {
                     "iteration": {"type": "integer"},
                     "all_passed": {"type": "boolean"},
+                    "full_suite": {"type": "boolean"},
                     "results": {
                         "type": "array",
                         "items": {
                             "type": "object",
-                            "required": [
-                                "repo_name",
-                                "overall_passed",
-                                "skipped",
-                            ],
+                            "required": ["repo_name"],
                             "properties": {
                                 "repo_name": {"type": "string"},
-                                "agent_readiness": {"type": "string"},
-                                "setup_success": {"type": "boolean"},
-                                "lint_passed": {"type": "boolean"},
-                                "tests_passed": {"type": "boolean"},
                                 "overall_passed": {"type": "boolean"},
+                                "lint_passed": {"type": "boolean"},
+                                "selective_tests_passed": {
+                                    "type": ["boolean", "null"],
+                                },
+                                "full_tests_passed": {
+                                    "type": ["boolean", "null"],
+                                },
+                                "setup_success": {"type": "boolean"},
                                 "skipped": {"type": "boolean"},
                                 "skip_reason": {"type": "string"},
-                                "duration_seconds": {"type": "number"},
-                                "commands": {
+                                "summary": {"type": "string"},
+                                "test_context_helpfulness": {
+                                    "type": "object",
+                                    "properties": {
+                                        "rating": {
+                                            "type": "string",
+                                            "enum": [
+                                                "high",
+                                                "medium",
+                                                "low",
+                                                "none",
+                                            ],
+                                        },
+                                        "explanation": {
+                                            "type": "string",
+                                        },
+                                    },
+                                },
+                                "commands_run": {
                                     "type": "array",
                                     "items": {
                                         "type": "object",
                                         "properties": {
-                                            "command": {"type": "string"},
-                                            "category": {"type": "string"},
+                                            "command": {
+                                                "type": "string",
+                                            },
+                                            "category": {
+                                                "type": "string",
+                                            },
                                             "exit_code": {
                                                 "type": ["integer", "null"],
                                             },
-                                            "stdout": {"type": "string"},
-                                            "stderr": {"type": "string"},
-                                            "duration_seconds": {
-                                                "type": "number",
+                                            "passed": {
+                                                "type": "boolean",
                                             },
-                                            "passed": {"type": "boolean"},
+                                            "output_summary": {
+                                                "type": "string",
+                                            },
                                         },
                                     },
                                 },

@@ -621,39 +621,56 @@ DETAIL = """\
 
     {% for vi in fa.validation %}
     <details{% if loop.last %} open{% endif %}>
-      <summary>Iteration {{ vi.iteration }}{% if vi.full_suite is defined and vi.full_suite %} (full suite){% else %} (selective){% endif %}{% if vi.all_passed %} — <span class="badge badge-val-pass">passed</span>{% else %} — <span class="badge badge-val-fail">failed</span>{% endif %}</summary>
+      <summary>Iteration {{ vi.iteration }}{% if vi.full_suite is defined and vi.full_suite %} (full suite){% endif %}{% if vi.all_passed %} — <span class="badge badge-val-pass">passed</span>{% else %} — <span class="badge badge-val-fail">failed</span>{% endif %}</summary>
       {% for vr in vi.results %}
       <p><strong>{{ vr.repo_name }}</strong>
-        (readiness: {{ vr.agent_readiness or 'unknown' }})
-        {% if vr.skipped %}
-          — <span class="badge badge-val-skip">skipped</span> {{ vr.skip_reason }}
-        {% elif vr.overall_passed %}
+        {% if vr.skipped is defined and vr.skipped %}
+          — <span class="badge badge-val-skip">skipped</span> {{ vr.skip_reason if vr.skip_reason is defined else '' }}
+        {% elif vr.overall_passed is defined and vr.overall_passed %}
           — <span class="badge badge-val-pass">passed</span>
         {% else %}
           —
-          {% if vr.lint_passed %}<span class="badge badge-val-pass">lint ok</span>{% else %}<span class="badge badge-val-fail">lint fail</span>{% endif %}
-          {% if vr.tests_passed %}<span class="badge badge-val-pass">tests ok</span>{% else %}<span class="badge badge-val-fail">tests fail</span>{% endif %}
+          {% if vr.lint_passed is defined %}
+            {% if vr.lint_passed %}<span class="badge badge-val-pass">lint ok</span>{% else %}<span class="badge badge-val-fail">lint fail</span>{% endif %}
+          {% endif %}
+          {% if vr.selective_tests_passed is defined and vr.selective_tests_passed is not none %}
+            {% if vr.selective_tests_passed %}<span class="badge badge-val-pass">tests ok</span>{% else %}<span class="badge badge-val-fail">tests fail</span>{% endif %}
+          {% elif vr.full_tests_passed is defined and vr.full_tests_passed is not none %}
+            {% if vr.full_tests_passed %}<span class="badge badge-val-pass">tests ok</span>{% else %}<span class="badge badge-val-fail">tests fail</span>{% endif %}
+          {% endif %}
         {% endif %}
-        ({{ "%.1f" | format(vr.duration_seconds) }}s)
       </p>
-      {% if not vr.skipped and vr.commands %}
-        {% for cmd in vr.commands %}
+      {% if vr.test_context_helpfulness is defined and vr.test_context_helpfulness %}
+      <p style="font-size:0.9em;">
+        <strong>Test context helpfulness:</strong>
+        <span class="badge {{ 'badge-val-pass' if vr.test_context_helpfulness.rating == 'high' else ('badge-default' if vr.test_context_helpfulness.rating == 'medium' else 'badge-val-fail') }}">
+          {{ vr.test_context_helpfulness.rating }}
+        </span>
+        {% if vr.test_context_helpfulness.explanation is defined %}
+          &mdash; {{ vr.test_context_helpfulness.explanation }}
+        {% endif %}
+      </p>
+      {% endif %}
+      {% if vr.summary is defined and vr.summary %}
+      <p style="font-size:0.9em;"><em>{{ vr.summary }}</em></p>
+      {% endif %}
+      {% if not (vr.skipped is defined and vr.skipped) and vr.commands_run is defined and vr.commands_run %}
+        {% for cmd in vr.commands_run %}
         <div class="val-cmd {{ 'val-cmd-pass' if cmd.passed else 'val-cmd-fail' }}">
           <code>{{ cmd.command }}</code>
           &nbsp;
-          {% if cmd.exit_code == -1 %}
+          {% if cmd.exit_code is defined and cmd.exit_code == -1 %}
             <span class="badge badge-val-timeout">timeout</span>
-          {% elif cmd.passed %}
-            <span class="badge badge-val-pass">exit 0</span>
+          {% elif cmd.passed is defined and cmd.passed %}
+            <span class="badge badge-val-pass">exit {{ cmd.exit_code if cmd.exit_code is defined else 0 }}</span>
           {% else %}
-            <span class="badge badge-val-fail">exit {{ cmd.exit_code }}</span>
+            <span class="badge badge-val-fail">exit {{ cmd.exit_code if cmd.exit_code is defined else '?' }}</span>
           {% endif %}
-          <span style="opacity:0.6; font-size:0.85em">({{ cmd.category }}, {{ "%.1f" | format(cmd.duration_seconds) }}s)</span>
-          {% if cmd.stdout and cmd.stdout.strip() %}
-          <pre>{{ cmd.stdout.strip() }}</pre>
+          {% if cmd.category is defined %}
+          <span style="opacity:0.6; font-size:0.85em">({{ cmd.category }})</span>
           {% endif %}
-          {% if cmd.stderr and cmd.stderr.strip() %}
-          <pre style="color:#c0392b">{{ cmd.stderr.strip() }}</pre>
+          {% if cmd.output_summary is defined and cmd.output_summary and cmd.output_summary.strip() %}
+          <pre>{{ cmd.output_summary.strip() }}</pre>
           {% endif %}
         </div>
         {% endfor %}

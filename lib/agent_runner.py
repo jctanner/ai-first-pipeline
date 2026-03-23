@@ -41,7 +41,14 @@ def format_duration(seconds: float) -> str:
     return " ".join(parts)
 
 
-async def run_agent(name: str, cwd: str, prompt: str, log_dir: Path, model: str = "sonnet") -> dict:
+async def run_agent(
+    name: str,
+    cwd: str,
+    prompt: str,
+    log_dir: Path,
+    model: str = "sonnet",
+    allowed_tools: list[str] | None = None,
+) -> dict:
     """
     Launch one independent Claude agent session.
 
@@ -51,16 +58,20 @@ async def run_agent(name: str, cwd: str, prompt: str, log_dir: Path, model: str 
         prompt: Prompt to send to the agent
         log_dir: Directory to write log files
         model: Claude model to use (sonnet, opus, or haiku)
+        allowed_tools: Tools the agent can use (default: Read, Write, Glob, Grep)
 
     Returns:
         dict with 'name', 'success', 'log_file', and optional 'error' keys
     """
+    if allowed_tools is None:
+        allowed_tools = ["Read", "Write", "Glob", "Grep"]
+
     log_file = log_dir / f"{name.replace('/', '_')}.log"
     model_id = get_model_id(model)
 
     options = ClaudeAgentOptions(
         cwd=cwd,
-        allowed_tools=["Read", "Write", "Glob", "Grep"],
+        allowed_tools=allowed_tools,
         permission_mode="bypassPermissions",
         model=model_id,
     )

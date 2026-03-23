@@ -24,14 +24,9 @@ from lib.validation import (
     is_validation_eligible,
     resolve_container_recipes,
     start_validation_container,
-    run_setup_commands,
-    run_validation_commands,
     stop_validation_container,
-    validate_patch,
-    validate_patch_reuse_container,
-    format_validation_feedback,
     get_changed_files_from_workspace,
-    ValidationResult,
+    run_validation_agent,
 )
 
 # ---------------------------------------------------------------------------
@@ -429,6 +424,7 @@ async def _run_single_agent(
     semaphore: asyncio.Semaphore,
     log_dir: Path,
     model: str,
+    allowed_tools: list[str] | None = None,
 ) -> dict:
     """Acquire semaphore, delete stale files, run one agent, validate output.
 
@@ -445,7 +441,7 @@ async def _run_single_agent(
             if stale_path.exists():
                 stale_path.unlink()
 
-        result = await run_agent(key, cwd, prompt, log_dir, model)
+        result = await run_agent(key, cwd, prompt, log_dir, model, allowed_tools=allowed_tools)
 
     if isinstance(result, dict):
         _log_activity(
@@ -948,6 +944,62 @@ def _load_test_context_for_components(component_names: list[str]) -> str:
     return "\n\n---\n\n".join(sections) if sections else ""
 
 
+def _resolve_test_context_md_path(repo_name: str) -> str | None:
+    """Return the absolute path to the test context .md file, or None."""
+    from lib.validation import TESTS_CONTEXT_DIR
+    from lib.repo_mapping import get_midstream
+
+    # Try downstream name first
+    md_path = TESTS_CONTEXT_DIR / f"{repo_name}.md"
+    if md_path.exists():
+        return str(md_path)
+
+    # Try midstream name
+    midstream = get_midstream(repo_name)
+    if midstream:
+        _org, midstream_repo = midstream
+        md_path = TESTS_CONTEXT_DIR / f"{midstream_repo}.md"
+        if md_path.exists():
+            return str(md_path)
+
+    return None
+
+
+def _format_agent_validation_feedback(result: dict) -> str:
+    """Format a validation agent's result dict into markdown for a retry prompt."""
+    sections: list[str] = []
+
+    if not result.get("setup_success", True):
+        sections.append("**Setup failed** -- container setup commands did not complete successfully.")
+
+    failed_cmds = [
+        c for c in result.get("commands_run", [])
+        if not c.get("passed", True)
+    ]
+    for cmd in failed_cmds:
+        lines = [
+            f"**{cmd.get('category', 'unknown').upper()} FAILED:** `{cmd.get('command', '')}`",
+            f"- Exit code: {cmd.get('exit_code', 'unknown')}",
+        ]
+        summary = cmd.get("output_summary", "")
+        if summary:
+            lines.append(f"- Output:")
+            lines.append(f"```")
+            lines.append(summary)
+            lines.append(f"```")
+        sections.append("\n".join(lines))
+
+    if not sections:
+        return ""
+
+    header = (
+        "## Validation Feedback\n\n"
+        "The following lint/test commands failed after applying your patch. "
+        "Please fix the errors and re-apply your changes.\n\n"
+    )
+    return header + "\n\n".join(sections)
+
+
 async def _run_validation_loop(
     key: str,
     workspace_dir: Path,
@@ -963,22 +1015,23 @@ async def _run_validation_loop(
     output_file: Path,
     output_md: Path,
 ) -> list[dict]:
-    """Run validation loop: validate patch, retry with feedback on failure.
+    """Run validation loop: launch validation agent, retry with feedback on failure.
+
+    The validation agent has Bash access and reads the test context markdown
+    to figure out how to run setup, lint, and tests via ``podman exec``.
 
     Returns a list of iteration dicts suitable for the ``validation`` field
     in the fix-attempt JSON.
     """
     validation_iterations: list[dict] = []
 
-    # Set up containers once for reuse across iterations
-    # Map: repo_name -> list of container names
-    active_containers: dict[str, list[str]] = {}
-    # Map: repo_name -> list of (lang_key, recipe) tuples
-    active_recipes: dict[str, list[tuple[str, dict]]] = {}
+    # Start containers once for reuse across iterations
+    # Map: repo_name -> container_name
+    active_containers: dict[str, str] = {}
 
     try:
         for iteration in range(1, max_iterations + 1):
-            print(f"  [{key}] validation iteration {iteration}/{max_iterations} (selective)")
+            print(f"  [{key}] validation iteration {iteration}/{max_iterations}")
 
             # Get changed files per repo
             changed_files_map = get_changed_files_from_workspace(workspace_dir)
@@ -986,76 +1039,135 @@ async def _run_validation_loop(
                 print(f"  [{key}] no changed files found, skipping validation")
                 break
 
-            iter_results: list[ValidationResult] = []
+            iter_results: list[dict] = []
 
             for repo_dir_name, changed_files in changed_files_map.items():
                 repo_path = workspace_dir / repo_dir_name
 
+                # Start container on first iteration
                 if iteration == 1:
-                    # First iteration: start containers, run setup, selective tests
-                    vr = validate_patch(
-                        repo_dir_name, repo_path, changed_files, selective=True,
-                    )
-                    # If validation was not skipped and setup succeeded,
-                    # start persistent containers for subsequent iterations
-                    if not vr.skipped:
-                        test_ctx = load_test_context(repo_dir_name)
-                        if test_ctx:
-                            recipes = resolve_container_recipes(test_ctx, changed_files)
-                            if recipes:
-                                containers_for_repo: list[str] = []
-                                for lang_key, recipe in recipes:
-                                    cn = start_validation_container(
-                                        f"{repo_dir_name}-{lang_key}", recipe, repo_path,
-                                    )
-                                    if cn:
-                                        run_setup_commands(cn, recipe)
-                                        containers_for_repo.append(cn)
-                                active_containers[repo_dir_name] = containers_for_repo
-                                active_recipes[repo_dir_name] = recipes
-                else:
-                    # Subsequent iterations: reuse containers, still selective
-                    vr = validate_patch_reuse_container(
-                        repo_dir_name, repo_path, changed_files,
-                        active_containers, active_recipes,
-                        selective=True,
-                    )
+                    test_ctx = load_test_context(repo_dir_name)
+                    if test_ctx and is_validation_eligible(test_ctx):
+                        recipes = resolve_container_recipes(test_ctx, changed_files)
+                        if recipes:
+                            # Use first recipe for the container
+                            lang_key, recipe = recipes[0]
+                            cn = start_validation_container(
+                                f"{repo_dir_name}-{lang_key}", recipe, repo_path,
+                            )
+                            if cn:
+                                active_containers[repo_dir_name] = cn
+                            else:
+                                print(f"  [{key}] failed to start container for {repo_dir_name}")
+                                iter_results.append({
+                                    "repo_name": repo_dir_name,
+                                    "overall_passed": False,
+                                    "setup_success": False,
+                                    "skipped": False,
+                                    "summary": "Failed to start validation container",
+                                })
+                                continue
+                        else:
+                            iter_results.append({
+                                "repo_name": repo_dir_name,
+                                "overall_passed": False,
+                                "skipped": True,
+                                "skip_reason": "no matching container recipe",
+                            })
+                            continue
+                    else:
+                        readiness = test_ctx.get("agent_readiness", "unknown") if test_ctx else "no test context"
+                        iter_results.append({
+                            "repo_name": repo_dir_name,
+                            "overall_passed": False,
+                            "skipped": True,
+                            "skip_reason": f"not eligible (readiness: {readiness})",
+                        })
+                        continue
 
-                iter_results.append(vr)
-                status = "PASS" if vr.overall_passed else ("SKIP" if vr.skipped else "FAIL")
-                print(f"  [{key}]   {repo_dir_name}: {status} ({vr.duration_seconds}s)")
+                container_name = active_containers.get(repo_dir_name)
+                if not container_name:
+                    # No container from first iteration -- skip
+                    iter_results.append({
+                        "repo_name": repo_dir_name,
+                        "overall_passed": False,
+                        "skipped": True,
+                        "skip_reason": "no container from initial setup",
+                    })
+                    continue
+
+                # Resolve test context .md path for the agent
+                test_context_md_path = _resolve_test_context_md_path(repo_dir_name)
+
+                # Write validation result to a temp path
+                result_path = log_dir / f"{key}-{repo_dir_name}-val-{iteration}.json"
+
+                # Launch validation agent
+                print(f"  [{key}]   launching validation agent for {repo_dir_name}")
+                val_result = await run_validation_agent(
+                    key=key,
+                    container_name=container_name,
+                    test_context_md_path=test_context_md_path,
+                    changed_files=changed_files,
+                    result_output_path=result_path,
+                    log_dir=log_dir,
+                    model=model,
+                )
+
+                if val_result:
+                    val_result["repo_name"] = repo_dir_name
+                    val_result.setdefault("skipped", False)
+                    iter_results.append(val_result)
+                    status = "PASS" if val_result.get("overall_passed") else "FAIL"
+                    print(f"  [{key}]   {repo_dir_name}: {status}")
+                else:
+                    iter_results.append({
+                        "repo_name": repo_dir_name,
+                        "overall_passed": False,
+                        "skipped": False,
+                        "summary": "Validation agent failed to produce results",
+                    })
+                    print(f"  [{key}]   {repo_dir_name}: AGENT FAILED")
 
             all_passed = all(
-                vr.overall_passed or vr.skipped for vr in iter_results
+                r.get("overall_passed") or r.get("skipped")
+                for r in iter_results
             )
 
             # Record iteration
             validation_iterations.append({
                 "iteration": iteration,
                 "all_passed": all_passed,
-                "results": [vr.to_dict() for vr in iter_results],
+                "results": iter_results,
             })
 
             if all_passed:
-                print(f"  [{key}] selective validation passed on iteration {iteration}")
+                print(f"  [{key}] validation passed on iteration {iteration}")
                 break
 
             if iteration == max_iterations:
-                print(f"  [{key}] selective validation failed after {max_iterations} iterations")
+                print(f"  [{key}] validation failed after {max_iterations} iterations")
                 break
 
-            # Build retry prompt with validation feedback
-            feedback = format_validation_feedback(iter_results)
-            if not feedback:
+            # Build retry prompt with validation feedback from failed results
+            feedback_parts: list[str] = []
+            for r in iter_results:
+                if not r.get("overall_passed") and not r.get("skipped"):
+                    fb = _format_agent_validation_feedback(r)
+                    if fb:
+                        repo = r.get("repo_name", "unknown")
+                        feedback_parts.append(f"### {repo}\n\n{fb}")
+
+            if not feedback_parts:
                 print(f"  [{key}] no actionable validation feedback, stopping retries")
                 break
 
-            retry_prompt = original_prompt + "\n\n" + feedback
+            retry_prompt = original_prompt + "\n\n" + "\n\n".join(feedback_parts)
 
             # Reset workspace for the retry
             _reset_workspace(workspace_dir)
 
-            # Launch a new agent session with the retry prompt
+            # Launch a new fix agent session with the retry prompt
             print(f"  [{key}] launching retry agent (iteration {iteration + 1})")
             _log_activity(key, "fix-attempt", "validation_retry", iteration=iteration + 1)
 
@@ -1073,51 +1185,10 @@ async def _run_validation_loop(
             if captured_diff:
                 _update_fix_json_patch(json_path, captured_diff)
 
-        # --- Full test suite after selective iterations pass ---
-        selective_passed = (
-            validation_iterations
-            and validation_iterations[-1].get("all_passed", False)
-        )
-        if selective_passed and active_containers:
-            print(f"  [{key}] running full test suite")
-            changed_files_map = get_changed_files_from_workspace(workspace_dir)
-            full_results: list[ValidationResult] = []
-
-            for repo_dir_name, changed_files in changed_files_map.items():
-                repo_path = workspace_dir / repo_dir_name
-                if repo_dir_name in active_containers:
-                    vr = validate_patch_reuse_container(
-                        repo_dir_name, repo_path, changed_files,
-                        active_containers, active_recipes,
-                        selective=False,
-                    )
-                else:
-                    vr = validate_patch(
-                        repo_dir_name, repo_path, changed_files, selective=False,
-                    )
-                full_results.append(vr)
-                status = "PASS" if vr.overall_passed else ("SKIP" if vr.skipped else "FAIL")
-                print(f"  [{key}]   {repo_dir_name} (full): {status} ({vr.duration_seconds}s)")
-
-            full_all_passed = all(
-                vr.overall_passed or vr.skipped for vr in full_results
-            )
-            validation_iterations.append({
-                "iteration": len(validation_iterations) + 1,
-                "all_passed": full_all_passed,
-                "full_suite": True,
-                "results": [vr.to_dict() for vr in full_results],
-            })
-            if full_all_passed:
-                print(f"  [{key}] full test suite passed")
-            else:
-                print(f"  [{key}] full test suite failed")
-
     finally:
         # Clean up all containers
-        for containers in active_containers.values():
-            for cn in containers:
-                stop_validation_container(cn)
+        for cn in active_containers.values():
+            stop_validation_container(cn)
 
     return validation_iterations
 
