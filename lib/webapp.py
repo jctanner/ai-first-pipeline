@@ -44,6 +44,15 @@ LAYOUT = """\
     .badge-fix-upstream-required { background: #d35400; color: #fff; }
     .badge-fix-insufficient-info { background: #f39c12; color: #fff; }
     .badge-fix-ai-could-not-fix { background: #c0392b; color: #fff; }
+    .badge-val-pass { background: #27ae60; color: #fff; }
+    .badge-val-fail { background: #c0392b; color: #fff; }
+    .badge-val-skip { background: #95a5a6; color: #fff; }
+    .badge-val-timeout { background: #d35400; color: #fff; }
+    .val-cmd { margin-bottom: 0.8em; padding: 0.5em; border-radius: 4px; font-size: 0.9em; }
+    .val-cmd-pass { background: #eafaf1; border-left: 3px solid #27ae60; }
+    .val-cmd-fail { background: #fdedec; border-left: 3px solid #c0392b; }
+    .val-cmd code { font-size: 0.85em; }
+    .val-cmd pre { font-size: 0.8em; max-height: 12em; overflow-y: auto; margin: 0.3em 0 0 0; }
     table { font-size: 0.9em; }
     th.sortable { cursor: pointer; user-select: none; }
     th.sortable:hover { text-decoration: underline; }
@@ -595,6 +604,63 @@ DETAIL = """\
     {% if fa.blockers %}
     <h4>Blockers</h4>
     <ul>{% for b in fa.blockers %}<li>{{ b }}</li>{% endfor %}</ul>
+    {% endif %}
+
+    {% if fa.validation %}
+    <h4>Patch Validation</h4>
+    {% set last_iter = fa.validation[-1] %}
+    <p>
+      <strong>Result:</strong>
+      {% if last_iter.all_passed %}
+        <span class="badge badge-val-pass">PASSED</span>
+      {% else %}
+        <span class="badge badge-val-fail">FAILED</span>
+      {% endif %}
+      &middot; <strong>Iterations:</strong> {{ fa.validation | length }}
+    </p>
+
+    {% for vi in fa.validation %}
+    <details{% if loop.last %} open{% endif %}>
+      <summary>Iteration {{ vi.iteration }}{% if vi.full_suite is defined and vi.full_suite %} (full suite){% else %} (selective){% endif %}{% if vi.all_passed %} — <span class="badge badge-val-pass">passed</span>{% else %} — <span class="badge badge-val-fail">failed</span>{% endif %}</summary>
+      {% for vr in vi.results %}
+      <p><strong>{{ vr.repo_name }}</strong>
+        (readiness: {{ vr.agent_readiness or 'unknown' }})
+        {% if vr.skipped %}
+          — <span class="badge badge-val-skip">skipped</span> {{ vr.skip_reason }}
+        {% elif vr.overall_passed %}
+          — <span class="badge badge-val-pass">passed</span>
+        {% else %}
+          —
+          {% if vr.lint_passed %}<span class="badge badge-val-pass">lint ok</span>{% else %}<span class="badge badge-val-fail">lint fail</span>{% endif %}
+          {% if vr.tests_passed %}<span class="badge badge-val-pass">tests ok</span>{% else %}<span class="badge badge-val-fail">tests fail</span>{% endif %}
+        {% endif %}
+        ({{ "%.1f" | format(vr.duration_seconds) }}s)
+      </p>
+      {% if not vr.skipped and vr.commands %}
+        {% for cmd in vr.commands %}
+        <div class="val-cmd {{ 'val-cmd-pass' if cmd.passed else 'val-cmd-fail' }}">
+          <code>{{ cmd.command }}</code>
+          &nbsp;
+          {% if cmd.exit_code == -1 %}
+            <span class="badge badge-val-timeout">timeout</span>
+          {% elif cmd.passed %}
+            <span class="badge badge-val-pass">exit 0</span>
+          {% else %}
+            <span class="badge badge-val-fail">exit {{ cmd.exit_code }}</span>
+          {% endif %}
+          <span style="opacity:0.6; font-size:0.85em">({{ cmd.category }}, {{ "%.1f" | format(cmd.duration_seconds) }}s)</span>
+          {% if cmd.stdout and cmd.stdout.strip() %}
+          <pre>{{ cmd.stdout.strip() }}</pre>
+          {% endif %}
+          {% if cmd.stderr and cmd.stderr.strip() %}
+          <pre style="color:#c0392b">{{ cmd.stderr.strip() }}</pre>
+          {% endif %}
+        </div>
+        {% endfor %}
+      {% endif %}
+      {% endfor %}
+    </details>
+    {% endfor %}
     {% endif %}
   {% else %}
     <p><em>No fix attempt available.</em></p>

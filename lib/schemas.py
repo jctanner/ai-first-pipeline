@@ -296,6 +296,58 @@ FIX_ATTEMPT_SCHEMA = {
         },
         "target_repo": {"type": "string"},
         "upstream_consideration": {"type": ["string", "null"]},
+        "validation": {
+            "type": "array",
+            "items": {
+                "type": "object",
+                "required": ["iteration", "results", "all_passed"],
+                "properties": {
+                    "iteration": {"type": "integer"},
+                    "all_passed": {"type": "boolean"},
+                    "results": {
+                        "type": "array",
+                        "items": {
+                            "type": "object",
+                            "required": [
+                                "repo_name",
+                                "overall_passed",
+                                "skipped",
+                            ],
+                            "properties": {
+                                "repo_name": {"type": "string"},
+                                "agent_readiness": {"type": "string"},
+                                "setup_success": {"type": "boolean"},
+                                "lint_passed": {"type": "boolean"},
+                                "tests_passed": {"type": "boolean"},
+                                "overall_passed": {"type": "boolean"},
+                                "skipped": {"type": "boolean"},
+                                "skip_reason": {"type": "string"},
+                                "duration_seconds": {"type": "number"},
+                                "commands": {
+                                    "type": "array",
+                                    "items": {
+                                        "type": "object",
+                                        "properties": {
+                                            "command": {"type": "string"},
+                                            "category": {"type": "string"},
+                                            "exit_code": {
+                                                "type": ["integer", "null"],
+                                            },
+                                            "stdout": {"type": "string"},
+                                            "stderr": {"type": "string"},
+                                            "duration_seconds": {
+                                                "type": "number",
+                                            },
+                                            "passed": {"type": "boolean"},
+                                        },
+                                    },
+                                },
+                            },
+                        },
+                    },
+                },
+            },
+        },
     },
     "additionalProperties": False,
 }

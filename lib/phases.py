@@ -18,6 +18,21 @@ from lib.repo_mapping import (
     get_midstream, get_upstream, clone_midstream_repo,
     normalize_component_name, DOWNSTREAM_ONLY,
 )
+from lib.validation import (
+    load_test_context,
+    load_test_context_markdown,
+    is_validation_eligible,
+    resolve_container_recipes,
+    start_validation_container,
+    run_setup_commands,
+    run_validation_commands,
+    stop_validation_container,
+    validate_patch,
+    validate_patch_reuse_container,
+    format_validation_feedback,
+    get_changed_files_from_workspace,
+    ValidationResult,
+)
 
 # ---------------------------------------------------------------------------
 # Shared helpers
@@ -892,6 +907,221 @@ def _update_fix_json_patch(json_path: Path, captured_diff: str) -> None:
         pass
 
 
+def _update_fix_json_validation(json_path: Path, validation_iterations: list[dict]) -> None:
+    """Inject the validation results array into the fix-attempt JSON."""
+    if not json_path.exists() or not validation_iterations:
+        return
+    try:
+        with open(json_path) as f:
+            data = json.load(f)
+        data["validation"] = validation_iterations
+        with open(json_path, "w") as f:
+            json.dump(data, f, indent=2)
+    except (json.JSONDecodeError, KeyError):
+        pass
+
+
+def _reset_workspace(workspace_dir: Path) -> None:
+    """Reset all git repos in a workspace to clean state."""
+    import subprocess as _sp
+    if not workspace_dir.exists():
+        return
+    for child in workspace_dir.iterdir():
+        if child.is_dir() and (child / ".git").exists():
+            _sp.run(
+                ["git", "-C", str(child), "checkout", "."],
+                capture_output=True, timeout=30,
+            )
+            _sp.run(
+                ["git", "-C", str(child), "clean", "-fd"],
+                capture_output=True, timeout=30,
+            )
+
+
+def _load_test_context_for_components(component_names: list[str]) -> str:
+    """Load test context markdown for components, returning combined text."""
+    sections: list[str] = []
+    for comp_name in component_names:
+        md = load_test_context_markdown(comp_name)
+        if md:
+            sections.append(md)
+    return "\n\n---\n\n".join(sections) if sections else ""
+
+
+async def _run_validation_loop(
+    key: str,
+    workspace_dir: Path,
+    component_names: list[str],
+    cloned_repos: dict[str, Path],
+    original_prompt: str,
+    agent_cwd: str,
+    semaphore: asyncio.Semaphore,
+    log_dir: Path,
+    model: str,
+    max_iterations: int,
+    json_path: Path,
+    output_file: Path,
+    output_md: Path,
+) -> list[dict]:
+    """Run validation loop: validate patch, retry with feedback on failure.
+
+    Returns a list of iteration dicts suitable for the ``validation`` field
+    in the fix-attempt JSON.
+    """
+    validation_iterations: list[dict] = []
+
+    # Set up containers once for reuse across iterations
+    # Map: repo_name -> list of container names
+    active_containers: dict[str, list[str]] = {}
+    # Map: repo_name -> list of (lang_key, recipe) tuples
+    active_recipes: dict[str, list[tuple[str, dict]]] = {}
+
+    try:
+        for iteration in range(1, max_iterations + 1):
+            print(f"  [{key}] validation iteration {iteration}/{max_iterations} (selective)")
+
+            # Get changed files per repo
+            changed_files_map = get_changed_files_from_workspace(workspace_dir)
+            if not changed_files_map:
+                print(f"  [{key}] no changed files found, skipping validation")
+                break
+
+            iter_results: list[ValidationResult] = []
+
+            for repo_dir_name, changed_files in changed_files_map.items():
+                repo_path = workspace_dir / repo_dir_name
+
+                if iteration == 1:
+                    # First iteration: start containers, run setup, selective tests
+                    vr = validate_patch(
+                        repo_dir_name, repo_path, changed_files, selective=True,
+                    )
+                    # If validation was not skipped and setup succeeded,
+                    # start persistent containers for subsequent iterations
+                    if not vr.skipped:
+                        test_ctx = load_test_context(repo_dir_name)
+                        if test_ctx:
+                            recipes = resolve_container_recipes(test_ctx, changed_files)
+                            if recipes:
+                                containers_for_repo: list[str] = []
+                                for lang_key, recipe in recipes:
+                                    cn = start_validation_container(
+                                        f"{repo_dir_name}-{lang_key}", recipe, repo_path,
+                                    )
+                                    if cn:
+                                        run_setup_commands(cn, recipe)
+                                        containers_for_repo.append(cn)
+                                active_containers[repo_dir_name] = containers_for_repo
+                                active_recipes[repo_dir_name] = recipes
+                else:
+                    # Subsequent iterations: reuse containers, still selective
+                    vr = validate_patch_reuse_container(
+                        repo_dir_name, repo_path, changed_files,
+                        active_containers, active_recipes,
+                        selective=True,
+                    )
+
+                iter_results.append(vr)
+                status = "PASS" if vr.overall_passed else ("SKIP" if vr.skipped else "FAIL")
+                print(f"  [{key}]   {repo_dir_name}: {status} ({vr.duration_seconds}s)")
+
+            all_passed = all(
+                vr.overall_passed or vr.skipped for vr in iter_results
+            )
+
+            # Record iteration
+            validation_iterations.append({
+                "iteration": iteration,
+                "all_passed": all_passed,
+                "results": [vr.to_dict() for vr in iter_results],
+            })
+
+            if all_passed:
+                print(f"  [{key}] selective validation passed on iteration {iteration}")
+                break
+
+            if iteration == max_iterations:
+                print(f"  [{key}] selective validation failed after {max_iterations} iterations")
+                break
+
+            # Build retry prompt with validation feedback
+            feedback = format_validation_feedback(iter_results)
+            if not feedback:
+                print(f"  [{key}] no actionable validation feedback, stopping retries")
+                break
+
+            retry_prompt = original_prompt + "\n\n" + feedback
+
+            # Reset workspace for the retry
+            _reset_workspace(workspace_dir)
+
+            # Launch a new agent session with the retry prompt
+            print(f"  [{key}] launching retry agent (iteration {iteration + 1})")
+            _log_activity(key, "fix-attempt", "validation_retry", iteration=iteration + 1)
+
+            retry_result = await _run_single_agent(
+                key, "fix-attempt", agent_cwd, retry_prompt,
+                [output_file, output_md], semaphore, log_dir, model,
+            )
+
+            if not isinstance(retry_result, dict) or not retry_result.get("success"):
+                print(f"  [{key}] retry agent failed, stopping validation loop")
+                break
+
+            # Re-capture git diff after retry
+            captured_diff = _capture_git_diffs(workspace_dir)
+            if captured_diff:
+                _update_fix_json_patch(json_path, captured_diff)
+
+        # --- Full test suite after selective iterations pass ---
+        selective_passed = (
+            validation_iterations
+            and validation_iterations[-1].get("all_passed", False)
+        )
+        if selective_passed and active_containers:
+            print(f"  [{key}] running full test suite")
+            changed_files_map = get_changed_files_from_workspace(workspace_dir)
+            full_results: list[ValidationResult] = []
+
+            for repo_dir_name, changed_files in changed_files_map.items():
+                repo_path = workspace_dir / repo_dir_name
+                if repo_dir_name in active_containers:
+                    vr = validate_patch_reuse_container(
+                        repo_dir_name, repo_path, changed_files,
+                        active_containers, active_recipes,
+                        selective=False,
+                    )
+                else:
+                    vr = validate_patch(
+                        repo_dir_name, repo_path, changed_files, selective=False,
+                    )
+                full_results.append(vr)
+                status = "PASS" if vr.overall_passed else ("SKIP" if vr.skipped else "FAIL")
+                print(f"  [{key}]   {repo_dir_name} (full): {status} ({vr.duration_seconds}s)")
+
+            full_all_passed = all(
+                vr.overall_passed or vr.skipped for vr in full_results
+            )
+            validation_iterations.append({
+                "iteration": len(validation_iterations) + 1,
+                "all_passed": full_all_passed,
+                "full_suite": True,
+                "results": [vr.to_dict() for vr in full_results],
+            })
+            if full_all_passed:
+                print(f"  [{key}] full test suite passed")
+            else:
+                print(f"  [{key}] full test suite failed")
+
+    finally:
+        # Clean up all containers
+        for containers in active_containers.values():
+            for cn in containers:
+                stop_validation_container(cn)
+
+    return validation_iterations
+
+
 async def run_fix_attempt_phase(args) -> list:
     """Attempt fixes for eligible bugs using midstream repo clones."""
     issue_paths = _discover_issues(args)
@@ -1012,11 +1242,20 @@ async def run_fix_attempt_phase(args) -> list:
         issue_text = _issue_to_text(issue)
         completeness_text = completeness_path.read_text()
         context_map_text = context_map_path.read_text()
-        prompt = build_phase_prompt(
-            "bug-fix-attempt", key, issue_text,
+
+        # Load test context markdown for the agent prompt
+        test_context_text = _load_test_context_for_components(component_names)
+
+        prompt_kwargs = dict(
             completeness_analysis=completeness_text,
             context_map=context_map_text,
             workspace_info=workspace_info,
+        )
+        if test_context_text:
+            prompt_kwargs["test_context"] = test_context_text
+
+        prompt = build_phase_prompt(
+            "bug-fix-attempt", key, issue_text, **prompt_kwargs,
         )
 
         # Set agent CWD to workspace if repos were cloned, else project root
@@ -1027,6 +1266,8 @@ async def run_fix_attempt_phase(args) -> list:
             "cwd": agent_cwd,
             "prompt": prompt,
             "stale_files": [output_file, output_md],
+            "component_names": component_names,
+            "cloned_repos": cloned_repos,
         })
         job_workspaces[key] = workspace_dir
 
@@ -1038,10 +1279,16 @@ async def run_fix_attempt_phase(args) -> list:
     if getattr(args, "limit", None):
         jobs = jobs[: args.limit]
 
+    skip_validation = getattr(args, "skip_validation", False)
+    validation_retries = getattr(args, "validation_retries", 2)
+
     results = await _run_phase("fix-attempt", jobs, args)
 
-    # Post-agent: capture git diffs and update JSON patch fields
-    for result in results:
+    # Post-agent: capture git diffs, run validation, and update JSON
+    log_dir = BASE_DIR / "logs" / "fix-attempt"
+    semaphore = asyncio.Semaphore(getattr(args, "max_concurrent", 5))
+
+    for i, result in enumerate(results):
         if not isinstance(result, dict) or not result.get("success"):
             continue
         key = result["name"]
@@ -1049,10 +1296,34 @@ async def run_fix_attempt_phase(args) -> list:
         if workspace_dir is None:
             continue
         captured_diff = _capture_git_diffs(workspace_dir)
+        json_path = ISSUES_DIR / f"{key}.fix-attempt.json"
         if captured_diff:
-            json_path = ISSUES_DIR / f"{key}.fix-attempt.json"
             _update_fix_json_patch(json_path, captured_diff)
             print(f"  {key}: captured git diff ({len(captured_diff)} chars)")
+
+        # Run validation loop if enabled
+        if not skip_validation and validation_retries > 0 and captured_diff:
+            job = jobs[i] if i < len(jobs) else None
+            if job:
+                output_file = ISSUES_DIR / f"{key}.fix-attempt.json"
+                output_md = ISSUES_DIR / f"{key}.fix-attempt.md"
+                validation_results = await _run_validation_loop(
+                    key=key,
+                    workspace_dir=workspace_dir,
+                    component_names=job.get("component_names", []),
+                    cloned_repos=job.get("cloned_repos", {}),
+                    original_prompt=job["prompt"],
+                    agent_cwd=job["cwd"],
+                    semaphore=semaphore,
+                    log_dir=log_dir,
+                    model=args.model,
+                    max_iterations=validation_retries,
+                    json_path=json_path,
+                    output_file=output_file,
+                    output_md=output_md,
+                )
+                if validation_results:
+                    _update_fix_json_validation(json_path, validation_results)
 
     _validate_phase_outputs("fix-attempt", results)
     return results
@@ -1289,11 +1560,20 @@ async def _maybe_run_fix_attempt(
     issue_text = _issue_to_text(issue)
     completeness_text = completeness_path.read_text()
     context_map_text = context_map_path.read_text()
-    prompt = build_phase_prompt(
-        "bug-fix-attempt", key, issue_text,
+
+    # Load test context markdown for the agent prompt
+    test_context_text = _load_test_context_for_components(component_names)
+
+    prompt_kwargs = dict(
         completeness_analysis=completeness_text,
         context_map=context_map_text,
         workspace_info=workspace_info,
+    )
+    if test_context_text:
+        prompt_kwargs["test_context"] = test_context_text
+
+    prompt = build_phase_prompt(
+        "bug-fix-attempt", key, issue_text, **prompt_kwargs,
     )
 
     agent_cwd = str(workspace_dir) if cloned_repos else str(BASE_DIR)
@@ -1306,10 +1586,33 @@ async def _maybe_run_fix_attempt(
     # Post-agent: capture git diffs and update JSON patch field
     if isinstance(result, dict) and result.get("success"):
         captured_diff = _capture_git_diffs(workspace_dir)
+        json_path = ISSUES_DIR / f"{key}.fix-attempt.json"
         if captured_diff:
-            json_path = ISSUES_DIR / f"{key}.fix-attempt.json"
             _update_fix_json_patch(json_path, captured_diff)
             print(f"  [{key}] fix-attempt: captured git diff ({len(captured_diff)} chars)")
+
+        # Run validation loop if enabled
+        skip_validation = getattr(args, "skip_validation", False)
+        validation_retries = getattr(args, "validation_retries", 2)
+
+        if not skip_validation and validation_retries > 0 and captured_diff:
+            validation_results = await _run_validation_loop(
+                key=key,
+                workspace_dir=workspace_dir,
+                component_names=component_names,
+                cloned_repos=cloned_repos,
+                original_prompt=prompt,
+                agent_cwd=agent_cwd,
+                semaphore=semaphore,
+                log_dir=log_dir,
+                model=args.model,
+                max_iterations=validation_retries,
+                json_path=json_path,
+                output_file=output_file,
+                output_md=output_md,
+            )
+            if validation_results:
+                _update_fix_json_validation(json_path, validation_results)
 
     return result
 

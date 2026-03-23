@@ -102,6 +102,17 @@ Examples:
         ],
         help="Only re-run issues whose existing fix-attempt has this recommendation (implies --force)",
     )
+    fix_attempt_parser.add_argument(
+        "--validation-retries",
+        type=int,
+        default=2,
+        help="Max validation-retry iterations after fix attempt (0 disables validation, default: 2)",
+    )
+    fix_attempt_parser.add_argument(
+        "--skip-validation",
+        action="store_true",
+        help="Skip post-fix validation entirely",
+    )
 
     # Phase 5: Test plan generation
     test_plan_parser = subparsers.add_parser(
@@ -154,6 +165,17 @@ Examples:
             "upstream-required", "insufficient-info", "ai-could-not-fix",
         ],
         help="Only re-run issues whose existing fix-attempt has this recommendation (applies to phases 4 and 5, implies --force)",
+    )
+    all_parser.add_argument(
+        "--validation-retries",
+        type=int,
+        default=2,
+        help="Max validation-retry iterations after fix attempt (0 disables validation, default: 2)",
+    )
+    all_parser.add_argument(
+        "--skip-validation",
+        action="store_true",
+        help="Skip post-fix validation entirely",
     )
 
     # Reporting dashboard
