@@ -32,7 +32,7 @@ BUG_BASH_PLAN.md
 ambient-code.workflows/
 
 # Claude Code local config
-.claude/
+#.claude/
 
 # Lock files (optional - uncomment to include)
 # uv.lock
