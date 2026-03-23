@@ -917,6 +917,32 @@ def _update_fix_json_validation(json_path: Path, validation_iterations: list[dic
         pass
 
 
+def _update_fix_json_self_corrections(json_path: Path, self_corrections: list[dict]) -> None:
+    """Inject the accumulated self_corrections array into the fix-attempt JSON."""
+    if not json_path.exists() or not self_corrections:
+        return
+    try:
+        with open(json_path) as f:
+            data = json.load(f)
+        data["self_corrections"] = self_corrections
+        with open(json_path, "w") as f:
+            json.dump(data, f, indent=2)
+    except (json.JSONDecodeError, KeyError):
+        pass
+
+
+def _extract_self_corrections(json_path: Path) -> list[dict]:
+    """Read self_corrections from a fix-attempt JSON, returning an empty list if absent."""
+    if not json_path.exists():
+        return []
+    try:
+        with open(json_path) as f:
+            data = json.load(f)
+        return data.get("self_corrections", [])
+    except (json.JSONDecodeError, KeyError):
+        return []
+
+
 def _reset_workspace(workspace_dir: Path) -> None:
     """Reset all git repos in a workspace to clean state."""
     import subprocess as _sp
@@ -965,7 +991,7 @@ def _resolve_test_context_md_path(repo_name: str) -> str | None:
     return None
 
 
-def _format_agent_validation_feedback(result: dict) -> str:
+def _format_agent_validation_feedback(result: dict, iteration: int) -> str:
     """Format a validation agent's result dict into markdown for a retry prompt."""
     sections: list[str] = []
 
@@ -993,9 +1019,11 @@ def _format_agent_validation_feedback(result: dict) -> str:
         return ""
 
     header = (
-        "## Validation Feedback\n\n"
+        f"## Validation Feedback (Iteration {iteration})\n\n"
         "The following lint/test commands failed after applying your patch. "
         "Please fix the errors and re-apply your changes.\n\n"
+        "**Important:** Include a `self_corrections` entry in your JSON output "
+        "describing what you got wrong and what you changed to fix it.\n\n"
     )
     return header + "\n\n".join(sections)
 
@@ -1024,6 +1052,7 @@ async def _run_validation_loop(
     in the fix-attempt JSON.
     """
     validation_iterations: list[dict] = []
+    accumulated_corrections: list[dict] = []
 
     # Start containers once for reuse across iterations
     # Map: repo_name -> container_name
@@ -1153,7 +1182,7 @@ async def _run_validation_loop(
             feedback_parts: list[str] = []
             for r in iter_results:
                 if not r.get("overall_passed") and not r.get("skipped"):
-                    fb = _format_agent_validation_feedback(r)
+                    fb = _format_agent_validation_feedback(r, iteration)
                     if fb:
                         repo = r.get("repo_name", "unknown")
                         feedback_parts.append(f"### {repo}\n\n{fb}")
@@ -1185,10 +1214,19 @@ async def _run_validation_loop(
             if captured_diff:
                 _update_fix_json_patch(json_path, captured_diff)
 
+            # Extract self-corrections recorded by the retry agent
+            new_corrections = _extract_self_corrections(json_path)
+            if new_corrections:
+                accumulated_corrections.extend(new_corrections)
+
     finally:
         # Clean up all containers
         for cn in active_containers.values():
             stop_validation_container(cn)
+
+    # Write accumulated self-corrections to the final JSON
+    if accumulated_corrections:
+        _update_fix_json_self_corrections(json_path, accumulated_corrections)
 
     return validation_iterations
 

@@ -51,6 +51,11 @@ LAYOUT = """\
     .val-cmd { margin-bottom: 0.8em; padding: 0.5em; border-radius: 4px; font-size: 0.9em; }
     .val-cmd-pass { background: #eafaf1; border-left: 3px solid #27ae60; }
     .val-cmd-fail { background: #fdedec; border-left: 3px solid #c0392b; }
+    .badge-correction { background: #e67e22; color: #fff; }
+    .badge-approach-change { background: #c0392b; color: #fff; }
+    .badge-minor-fix { background: #27ae60; color: #fff; }
+    .correction-block { padding: 0.5em; margin-bottom: 0.8em; border-left: 3px solid #e67e22; background: #fef5e7; border-radius: 4px; font-size: 0.9em; }
+    .correction-block p { margin-bottom: 0.3em; }
     .val-cmd code { font-size: 0.85em; }
     .val-cmd pre { font-size: 0.8em; max-height: 12em; overflow-y: auto; margin: 0.3em 0 0 0; }
     table { font-size: 0.9em; }
@@ -676,6 +681,37 @@ DETAIL = """\
         {% endfor %}
       {% endif %}
       {% endfor %}
+    </details>
+    {% endfor %}
+    {% endif %}
+
+    {% if fa.self_corrections %}
+    <h4>Self-Corrections ({{ fa.self_corrections|length }})</h4>
+    <p>The fix agent identified and corrected the following mistakes during validation retries:</p>
+    {% for sc in fa.self_corrections %}
+    <details{% if loop.last %} open{% endif %}>
+      <summary>
+        <span class="badge badge-correction">{{ sc.mistake_category }}</span>
+        &middot; Trigger: {{ sc.failure_trigger }}
+        &middot; After iteration {{ sc.after_iteration }}
+        {% if sc.was_original_approach_wrong %}
+          <span class="badge badge-approach-change">approach changed</span>
+        {% else %}
+          <span class="badge badge-minor-fix">minor fix</span>
+        {% endif %}
+      </summary>
+      <div class="correction-block">
+        <p><strong>What went wrong:</strong> {{ sc.what_went_wrong }}</p>
+        <p><strong>What was changed:</strong> {{ sc.what_was_changed }}</p>
+        {% if sc.files_modified %}
+        <p><strong>Files modified:</strong></p>
+        <ul>
+          {% for f in sc.files_modified %}
+          <li><code>{{ f }}</code></li>
+          {% endfor %}
+        </ul>
+        {% endif %}
+      </div>
     </details>
     {% endfor %}
     {% endif %}
