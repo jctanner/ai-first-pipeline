@@ -3,6 +3,7 @@
 import html as html_mod
 import json
 import os
+import shutil
 import sys
 import asyncio
 from pathlib import Path
@@ -25,6 +26,7 @@ from lib.validation import (
     resolve_container_recipes,
     start_validation_container,
     stop_validation_container,
+    remove_validation_image,
     get_changed_files_from_workspace,
     run_validation_agent,
 )
@@ -35,6 +37,17 @@ from lib.validation import (
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 ISSUES_DIR = BASE_DIR / "issues"
+
+
+def _cleanup_workspace(workspace_dir: Path, key: str) -> None:
+    """Remove a per-issue fix workspace directory to reclaim disk space."""
+    if not workspace_dir.exists():
+        return
+    try:
+        shutil.rmtree(workspace_dir)
+        print(f"  [{key}] fix-attempt: cleaned up workspace {workspace_dir}", file=sys.stderr)
+    except Exception as exc:
+        print(f"  [{key}] fix-attempt: workspace cleanup failed: {exc}", file=sys.stderr)
 
 
 def _discover_issues(args) -> list[Path]:
@@ -1064,6 +1077,8 @@ async def _run_validation_loop(
     # Start containers once for reuse across iterations
     # Map: repo_name -> container_name
     active_containers: dict[str, str] = {}
+    # Track base images used so we can remove them after cleanup
+    used_images: set[str] = set()
 
     try:
         for iteration in range(1, max_iterations + 1):
@@ -1093,6 +1108,9 @@ async def _run_validation_loop(
                             )
                             if cn:
                                 active_containers[repo_dir_name] = cn
+                                base_img = recipe.get("base_image", "")
+                                if base_img:
+                                    used_images.add(base_img)
                             else:
                                 print(f"  [{key}] failed to start container for {repo_dir_name}")
                                 iter_results.append({
@@ -1230,6 +1248,10 @@ async def _run_validation_loop(
         # Clean up all containers
         for cn in active_containers.values():
             stop_validation_container(cn)
+        # Remove container images used for this issue
+        for img in used_images:
+            print(f"  [{key}] removing validation image {img}", file=sys.stderr)
+            remove_validation_image(img)
 
     # Write accumulated self-corrections to the final JSON
     if accumulated_corrections:
@@ -1440,6 +1462,9 @@ async def run_fix_attempt_phase(args) -> list:
                 )
                 if validation_results:
                     _update_fix_json_validation(json_path, validation_results)
+
+        # Clean up workspace after diffs have been captured
+        _cleanup_workspace(workspace_dir, key)
 
     _validate_phase_outputs("fix-attempt", results)
     return results
@@ -1729,6 +1754,9 @@ async def _maybe_run_fix_attempt(
             )
             if validation_results:
                 _update_fix_json_validation(json_path, validation_results)
+
+    # Clean up workspace after diffs have been captured
+    _cleanup_workspace(workspace_dir, key)
 
     return result
 

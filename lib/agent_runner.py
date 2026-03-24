@@ -69,6 +69,12 @@ async def run_agent(
     log_file = log_dir / f"{name.replace('/', '_')}.log"
     model_id = get_model_id(model)
 
+    # NOTE on context isolation: each query() call starts a fresh session
+    # with no memory of previous runs.  The SDK does NOT load auto-memory
+    # (~/.claude/projects/<project>/memory/) — that is a CLI-only feature.
+    # CLAUDE.md / project settings are also NOT loaded unless explicitly
+    # enabled via setting_sources=["project"].  We omit that option here
+    # so every agent session is fully isolated.
     options = ClaudeAgentOptions(
         cwd=cwd,
         allowed_tools=allowed_tools,

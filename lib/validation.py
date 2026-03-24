@@ -186,6 +186,17 @@ def stop_validation_container(container_name: str) -> None:
         pass  # Best effort
 
 
+def remove_validation_image(image: str) -> None:
+    """Remove a container image used for validation (best-effort)."""
+    try:
+        subprocess.run(
+            ["podman", "rmi", image],
+            capture_output=True, text=True, timeout=CONTAINER_STOP_TIMEOUT,
+        )
+    except (subprocess.TimeoutExpired, OSError):
+        pass  # Best effort
+
+
 def get_changed_files_from_workspace(workspace_path: Path) -> dict[str, list[str]]:
     """Get changed files per repo directory from a workspace.
 
