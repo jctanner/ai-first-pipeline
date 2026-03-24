@@ -117,6 +117,11 @@ Your primary output is a JSON file conforming to this schema:
    - Verify the fix doesn't introduce security vulnerabilities
    - Check if the fix respects the component's existing patterns and conventions
 
+5b. **Prevent regression:**
+   - Add or modify tests to ensure the bug cannot silently regress. A future developer who reverts your fix should see a test failure.
+   - Look for existing tests that exercise the affected code path — extending an existing test is preferred over creating a new one.
+   - If the repo has no test infrastructure for the affected area (e.g., YAML-only templates with no rendering tests), note this in `risks` and explain what manual verification would catch a regression.
+
 6. **Anticipate validation:**
    - If a Test Context section is provided in your prompt, review the lint and test commands that will be run after your fix
    - Ensure your changes pass the linting rules described (e.g., no unused imports, correct formatting, type annotations)
