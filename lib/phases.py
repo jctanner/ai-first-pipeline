@@ -580,18 +580,21 @@ async def _run_single_agent(
     return result
 
 
-async def _run_phase(phase_name: str, jobs: list, args, model_shorthand: str) -> list:
-    """Execute a list of agent jobs with bounded concurrency for one model."""
-    mid = get_model_id(model_shorthand)
+async def _run_phase(phase_name: str, jobs: list, args) -> list:
+    """Execute a list of agent jobs with bounded concurrency across all models."""
     log_dir = BASE_DIR / "logs" / phase_name
     log_dir.mkdir(parents=True, exist_ok=True)
 
+    # Determine unique models for the banner
+    unique_models = sorted(set(job["model_id"] for job in jobs)) if jobs else []
+    models_label = ", ".join(unique_models) if unique_models else "(none)"
+
     print(f"\n{'=' * 60}")
-    print(f"PHASE: {phase_name}  [{mid}]")
+    print(f"PHASE: {phase_name}  [{models_label}]")
     print(f"{'=' * 60}")
     print(f"Issues to process: {len(jobs)}")
     print(f"Max concurrent agents: {args.max_concurrent}")
-    print(f"Model: {mid}")
+    print(f"Models: {models_label}")
     print(f"{'=' * 60}\n")
 
     if not jobs:
@@ -601,6 +604,8 @@ async def _run_phase(phase_name: str, jobs: list, args, model_shorthand: str) ->
     semaphore = asyncio.Semaphore(args.max_concurrent)
 
     async def run_with_semaphore(job):
+        mid = job["model_id"]
+        ms = job["model_shorthand"]
         _log_activity(job["name"], phase_name, "started", model=mid)
         log_file_path = phase_log(job["name"], mid, phase_name)
         log_file_path.parent.mkdir(parents=True, exist_ok=True)
@@ -609,7 +614,7 @@ async def _run_phase(phase_name: str, jobs: list, args, model_shorthand: str) ->
                 if stale_path.exists():
                     stale_path.unlink()
             result = await run_agent(
-                job["name"], job["cwd"], job["prompt"], log_dir, model_shorthand,
+                job["name"], job["cwd"], job["prompt"], log_dir, ms,
                 log_file=log_file_path,
             )
         if isinstance(result, dict):
@@ -624,6 +629,8 @@ async def _run_phase(phase_name: str, jobs: list, args, model_shorthand: str) ->
             json_out = phase_json(job["name"], mid, phase_name)
             if result.get("success") and json_out.exists():
                 _inject_model_field(json_out, mid)
+            result["model_id"] = mid
+            result["model_shorthand"] = ms
         return result
 
     results = await asyncio.gather(
@@ -631,7 +638,12 @@ async def _run_phase(phase_name: str, jobs: list, args, model_shorthand: str) ->
         return_exceptions=True,
     )
 
-    _print_phase_summary(phase_name, jobs, results, model_id=mid)
+    # Print per-model summaries
+    for mid in unique_models:
+        model_jobs = [j for j in jobs if j["model_id"] == mid]
+        model_results = [r for r, j in zip(results, jobs) if j["model_id"] == mid]
+        _print_phase_summary(phase_name, model_jobs, model_results, model_id=mid)
+
     return list(results)
 
 
@@ -770,11 +782,11 @@ async def run_completeness_phase(args) -> list:
     """Score each bug on the completeness rubric."""
     issue_paths = _discover_issues(args)
     component_filter = getattr(args, "component", None)
-    all_results: list = []
+    all_jobs: list = []
 
     for model_shorthand in args.model:
         mid = get_model_id(model_shorthand)
-        jobs = []
+        model_jobs: list = []
 
         for path in issue_paths:
             key = _issue_key_from_path(path)
@@ -797,21 +809,26 @@ async def run_completeness_phase(args) -> list:
             issue_text = _issue_to_text(issue)
             prompt = build_phase_prompt("bug-completeness", key, issue_text, output_dir=ws)
 
-            jobs.append({
+            model_jobs.append({
                 "name": key,
                 "cwd": str(BASE_DIR),
                 "prompt": prompt,
                 "stale_files": [output_file, output_md_file],
+                "model_shorthand": model_shorthand,
+                "model_id": mid,
             })
 
         if getattr(args, "limit", None):
-            jobs = jobs[: args.limit]
+            model_jobs = model_jobs[: args.limit]
+        all_jobs.extend(model_jobs)
 
-        results = await _run_phase("completeness", jobs, args, model_shorthand)
-        _validate_phase_outputs("completeness", results, mid=mid)
-        all_results.extend(results)
+    results = await _run_phase("completeness", all_jobs, args)
+    for model_shorthand in args.model:
+        mid = get_model_id(model_shorthand)
+        model_results = [r for r in results if isinstance(r, dict) and r.get("model_id") == mid]
+        _validate_phase_outputs("completeness", model_results, mid=mid)
 
-    return all_results
+    return results
 
 
 # ---------------------------------------------------------------------------
@@ -822,11 +839,11 @@ async def run_context_map_phase(args) -> list:
     """Map each bug to available architecture context."""
     issue_paths = _discover_issues(args)
     component_filter = getattr(args, "component", None)
-    all_results: list = []
+    all_jobs: list = []
 
     for model_shorthand in args.model:
         mid = get_model_id(model_shorthand)
-        jobs = []
+        model_jobs: list = []
 
         for path in issue_paths:
             key = _issue_key_from_path(path)
@@ -849,21 +866,26 @@ async def run_context_map_phase(args) -> list:
             issue_text = _issue_to_text(issue)
             prompt = build_phase_prompt("bug-context-map", key, issue_text, output_dir=ws)
 
-            jobs.append({
+            model_jobs.append({
                 "name": key,
                 "cwd": str(BASE_DIR),
                 "prompt": prompt,
                 "stale_files": [output_file, output_md_file],
+                "model_shorthand": model_shorthand,
+                "model_id": mid,
             })
 
         if getattr(args, "limit", None):
-            jobs = jobs[: args.limit]
+            model_jobs = model_jobs[: args.limit]
+        all_jobs.extend(model_jobs)
 
-        results = await _run_phase("context-map", jobs, args, model_shorthand)
-        _validate_phase_outputs("context-map", results, mid=mid)
-        all_results.extend(results)
+    results = await _run_phase("context-map", all_jobs, args)
+    for model_shorthand in args.model:
+        mid = get_model_id(model_shorthand)
+        model_results = [r for r in results if isinstance(r, dict) and r.get("model_id") == mid]
+        _validate_phase_outputs("context-map", model_results, mid=mid)
 
-    return all_results
+    return results
 
 
 # ---------------------------------------------------------------------------
@@ -1338,12 +1360,12 @@ async def run_fix_attempt_phase(args) -> list:
     triage_filter = getattr(args, "triage", None)
     component_filter = getattr(args, "component", None)
     recommendation_filter = getattr(args, "recommendation", None)
-    all_results: list = []
+    all_jobs: list = []
+    job_workspaces: dict[tuple[str, str], Path] = {}
 
     for model_shorthand in args.model:
         mid = get_model_id(model_shorthand)
-        jobs = []
-        job_workspaces: dict[str, Path] = {}
+        model_jobs: list = []
 
         skipped_reasons: dict[str, list[str]] = {
             "output_exists": [],
@@ -1437,15 +1459,17 @@ async def run_fix_attempt_phase(args) -> list:
 
             agent_cwd = str(workspace_dir) if cloned_repos else str(BASE_DIR)
 
-            jobs.append({
+            model_jobs.append({
                 "name": key,
                 "cwd": agent_cwd,
                 "prompt": prompt,
                 "stale_files": [output_file, output_md_file],
                 "component_names": component_names,
                 "cloned_repos": cloned_repos,
+                "model_shorthand": model_shorthand,
+                "model_id": mid,
             })
-            job_workspaces[key] = workspace_dir
+            job_workspaces[(key, mid)] = workspace_dir
 
         # Print skip summary
         for reason, keys_list in skipped_reasons.items():
@@ -1453,63 +1477,68 @@ async def run_fix_attempt_phase(args) -> list:
                 print(f"  Skipped ({reason}): {len(keys_list)} issues [{mid}]")
 
         if getattr(args, "limit", None):
-            jobs = jobs[: args.limit]
+            model_jobs = model_jobs[: args.limit]
+        all_jobs.extend(model_jobs)
 
-        skip_validation = getattr(args, "skip_validation", False)
-        validation_retries = getattr(args, "validation_retries", 2)
+    skip_validation = getattr(args, "skip_validation", False)
+    validation_retries = getattr(args, "validation_retries", 2)
 
-        results = await _run_phase("fix-attempt", jobs, args, model_shorthand)
+    results = await _run_phase("fix-attempt", all_jobs, args)
 
-        # Post-agent: capture git diffs, run validation, and update JSON
-        log_dir = BASE_DIR / "logs" / "fix-attempt"
-        semaphore = asyncio.Semaphore(getattr(args, "max_concurrent", 5))
+    # Post-agent: capture git diffs, run validation, and update JSON
+    log_dir = BASE_DIR / "logs" / "fix-attempt"
+    semaphore = asyncio.Semaphore(getattr(args, "max_concurrent", 5))
 
-        for i, result in enumerate(results):
-            if not isinstance(result, dict) or not result.get("success"):
-                continue
-            key = result["name"]
-            workspace_dir = job_workspaces.get(key)
-            if workspace_dir is None:
-                continue
-            captured_diff = _capture_git_diffs(workspace_dir)
-            json_path = phase_json(key, mid, "fix-attempt")
-            if captured_diff:
-                _update_fix_json_patch(json_path, captured_diff)
-                _write_patch_diff(key, mid, captured_diff)
-                print(f"  {key}: captured git diff ({len(captured_diff)} chars)")
+    for i, result in enumerate(results):
+        if not isinstance(result, dict) or not result.get("success"):
+            continue
+        key = result["name"]
+        mid = result.get("model_id", "")
+        model_shorthand = result.get("model_shorthand", "")
+        workspace_dir = job_workspaces.get((key, mid))
+        if workspace_dir is None:
+            continue
+        captured_diff = _capture_git_diffs(workspace_dir)
+        json_path = phase_json(key, mid, "fix-attempt")
+        if captured_diff:
+            _update_fix_json_patch(json_path, captured_diff)
+            _write_patch_diff(key, mid, captured_diff)
+            print(f"  {key}/{mid}: captured git diff ({len(captured_diff)} chars)")
 
-            # Run validation loop if enabled
-            if not skip_validation and validation_retries > 0 and captured_diff:
-                job = jobs[i] if i < len(jobs) else None
-                if job:
-                    output_file = phase_json(key, mid, "fix-attempt")
-                    output_md_file = phase_md(key, mid, "fix-attempt")
-                    validation_results = await _run_validation_loop(
-                        key=key,
-                        workspace_dir=workspace_dir,
-                        component_names=job.get("component_names", []),
-                        cloned_repos=job.get("cloned_repos", {}),
-                        original_prompt=job["prompt"],
-                        agent_cwd=job["cwd"],
-                        semaphore=semaphore,
-                        log_dir=log_dir,
-                        model=model_shorthand,
-                        mid=mid,
-                        max_iterations=validation_retries,
-                        json_path=json_path,
-                        output_file=output_file,
-                        output_md=output_md_file,
-                    )
-                    if validation_results:
-                        _update_fix_json_validation(json_path, validation_results)
+        # Run validation loop if enabled
+        if not skip_validation and validation_retries > 0 and captured_diff:
+            job = all_jobs[i] if i < len(all_jobs) else None
+            if job:
+                output_file = phase_json(key, mid, "fix-attempt")
+                output_md_file = phase_md(key, mid, "fix-attempt")
+                validation_results = await _run_validation_loop(
+                    key=key,
+                    workspace_dir=workspace_dir,
+                    component_names=job.get("component_names", []),
+                    cloned_repos=job.get("cloned_repos", {}),
+                    original_prompt=job["prompt"],
+                    agent_cwd=job["cwd"],
+                    semaphore=semaphore,
+                    log_dir=log_dir,
+                    model=model_shorthand,
+                    mid=mid,
+                    max_iterations=validation_retries,
+                    json_path=json_path,
+                    output_file=output_file,
+                    output_md=output_md_file,
+                )
+                if validation_results:
+                    _update_fix_json_validation(json_path, validation_results)
 
-            # Clean up src/ only (preserve results, diffs, logs)
-            _cleanup_src(key, mid)
+        # Clean up src/ only (preserve results, diffs, logs)
+        _cleanup_src(key, mid)
 
-        _validate_phase_outputs("fix-attempt", results, mid=mid)
-        all_results.extend(results)
+    for model_shorthand in args.model:
+        mid = get_model_id(model_shorthand)
+        model_results = [r for r in results if isinstance(r, dict) and r.get("model_id") == mid]
+        _validate_phase_outputs("fix-attempt", model_results, mid=mid)
 
-    return all_results
+    return results
 
 
 # ---------------------------------------------------------------------------
@@ -1522,11 +1551,11 @@ async def run_test_plan_phase(args) -> list:
     triage_filter = getattr(args, "triage", None)
     component_filter = getattr(args, "component", None)
     recommendation_filter = getattr(args, "recommendation", None)
-    all_results: list = []
+    all_jobs: list = []
 
     for model_shorthand in args.model:
         mid = get_model_id(model_shorthand)
-        jobs = []
+        model_jobs: list = []
         skipped_triage = []
         skipped_component = []
         skipped_recommendation = []
@@ -1582,11 +1611,13 @@ async def run_test_plan_phase(args) -> list:
 
             prompt = build_phase_prompt("bug-test-plan", key, issue_text, output_dir=ws, **extra)
 
-            jobs.append({
+            model_jobs.append({
                 "name": key,
                 "cwd": str(BASE_DIR),
                 "prompt": prompt,
                 "stale_files": [output_file, output_md_file],
+                "model_shorthand": model_shorthand,
+                "model_id": mid,
             })
 
         if skipped_triage:
@@ -1597,13 +1628,16 @@ async def run_test_plan_phase(args) -> list:
             print(f"  Skipped (recommendation_mismatch): {len(skipped_recommendation)} issues [{mid}]")
 
         if getattr(args, "limit", None):
-            jobs = jobs[: args.limit]
+            model_jobs = model_jobs[: args.limit]
+        all_jobs.extend(model_jobs)
 
-        results = await _run_phase("test-plan", jobs, args, model_shorthand)
-        _validate_phase_outputs("test-plan", results, mid=mid)
-        all_results.extend(results)
+    results = await _run_phase("test-plan", all_jobs, args)
+    for model_shorthand in args.model:
+        mid = get_model_id(model_shorthand)
+        model_results = [r for r in results if isinstance(r, dict) and r.get("model_id") == mid]
+        _validate_phase_outputs("test-plan", model_results, mid=mid)
 
-    return all_results
+    return results
 
 
 # ---------------------------------------------------------------------------
@@ -1919,8 +1953,8 @@ async def _run_issue_pipeline(
 async def run_all_phases(args) -> None:
     """Run phases 2-5 using a per-issue pipeline model.
 
-    Models run sequentially (to avoid 2x concurrent agent load), issues
-    within a model run concurrently via gather+semaphore.
+    All models run concurrently — the shared semaphore controls total
+    concurrent agent count regardless of how many models are in the mix.
     """
     # Phase 1 (optional)
     if getattr(args, "include_fetch", False):
@@ -1946,25 +1980,28 @@ async def run_all_phases(args) -> None:
     triage_filter = getattr(args, "triage", None)
     component_filter = getattr(args, "component", None)
 
-    for model_shorthand in args.model:
-        mid = get_model_id(model_shorthand)
+    # Build model list for banner
+    model_entries = [(ms, get_model_id(ms)) for ms in args.model]
+    models_label = ", ".join(mid for _, mid in model_entries)
 
-        # Startup banner
-        print(f"\n{'=' * 80}")
-        print(f"PIPELINE MODE — per-issue execution [{mid}]")
-        print(f"{'=' * 80}")
-        print(f"Issues: {len(issue_paths)}")
-        print(f"Max concurrent agents: {args.max_concurrent}")
-        print(f"Model: {mid}")
-        print(f"Force: {args.force}")
-        if recommendation_filter:
-            print(f"Recommendation filter: {recommendation_filter}")
-        if triage_filter:
-            print(f"Triage filter: {triage_filter}")
-        if component_filter:
-            print(f"Component filter: {component_filter}")
-        print(f"{'=' * 80}\n")
+    # Startup banner (once, listing all models)
+    print(f"\n{'=' * 80}")
+    print(f"PIPELINE MODE — per-issue execution [{models_label}]")
+    print(f"{'=' * 80}")
+    print(f"Issues: {len(issue_paths)}")
+    print(f"Models: {len(model_entries)} ({models_label})")
+    print(f"Total model×issue jobs: {len(issue_paths) * len(model_entries)}")
+    print(f"Max concurrent agents: {args.max_concurrent}")
+    print(f"Force: {args.force}")
+    if recommendation_filter:
+        print(f"Recommendation filter: {recommendation_filter}")
+    if triage_filter:
+        print(f"Triage filter: {triage_filter}")
+    if component_filter:
+        print(f"Component filter: {component_filter}")
+    print(f"{'=' * 80}\n")
 
+    for _, mid in model_entries:
         _log_activity(
             "_pipeline", "pipeline", "pipeline_started",
             model=mid,
@@ -1976,27 +2013,38 @@ async def run_all_phases(args) -> None:
             component_filter=component_filter,
         )
 
-        try:
-            # Launch per-issue pipelines
-            all_results = await asyncio.gather(
-                *(
-                    _run_issue_pipeline(
-                        _issue_key_from_path(path), path, args, semaphore, log_dirs,
-                        model_shorthand, mid,
-                    )
-                    for path in issue_paths
-                ),
-                return_exceptions=True,
-            )
+    try:
+        # Launch per-issue pipelines across all models concurrently
+        all_results = await asyncio.gather(
+            *(
+                _run_issue_pipeline(
+                    _issue_key_from_path(path), path, args, semaphore, log_dirs,
+                    ms, mid,
+                )
+                for ms, mid in model_entries
+                for path in issue_paths
+            ),
+            return_exceptions=True,
+        )
 
-            # Aggregate summary
+        # Aggregate summary per model
+        # Results are ordered: model_entries[0]×issues, model_entries[1]×issues, ...
+        per_model_results: dict[str, list] = {}
+        idx = 0
+        for ms, mid in model_entries:
+            per_model_results[mid] = all_results[idx:idx + len(issue_paths)]
+            idx += len(issue_paths)
+
+        for _, mid in model_entries:
+            model_results = per_model_results[mid]
+
             phase_stats: dict[str, dict[str, int]] = {
                 pn: {"ran": 0, "success": 0, "failed": 0, "skipped": 0}
                 for pn in phase_names
             }
             exceptions: list[Exception] = []
 
-            for entry in all_results:
+            for entry in model_results:
                 if isinstance(entry, Exception):
                     exceptions.append(entry)
                     continue
@@ -2039,13 +2087,14 @@ async def run_all_phases(args) -> None:
                 exceptions=len(exceptions),
             )
 
-        except BaseException as exc:
+    except BaseException as exc:
+        for _, mid in model_entries:
             _log_activity(
                 "_pipeline", "pipeline", "pipeline_failed",
                 model=mid,
                 error=str(exc),
             )
-            raise
+        raise
 
 
 # ---------------------------------------------------------------------------
