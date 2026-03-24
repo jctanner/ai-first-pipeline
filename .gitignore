@@ -18,6 +18,7 @@ odh-tests-context
 # Generated data and workspaces
 fix-workspaces/
 issues/
+workspace/
 logs/
 
 # Log files in project root

@@ -99,10 +99,10 @@ Many issues filed as bugs are actually something else. Evaluate the issue conten
 
 ### Output Format
 
-Write **two files** in the `issues/` directory:
+Write **two files** in the output directory specified in the prompt header:
 
-1. **`issues/{KEY}.completeness.json`** — the JSON object described above
-2. **`issues/{KEY}.completeness.md`** — a human-readable rendering:
+1. **`completeness.json`** — the JSON object described above
+2. **`completeness.md`** — a human-readable rendering:
 
 ```markdown
 # Completeness Analysis: {KEY}

@@ -168,10 +168,10 @@ When producing the context map:
 
 ### Output Format
 
-Write **two files**:
+Write **two files** in the output directory specified in the prompt header:
 
-1. **`issues/{KEY}.context-map.json`** — the JSON object described above
-2. **`issues/{KEY}.context-map.md`** — a human-readable rendering:
+1. **`context-map.json`** — the JSON object described above
+2. **`context-map.md`** — a human-readable rendering:
 
 ```markdown
 # Context Map: {KEY}

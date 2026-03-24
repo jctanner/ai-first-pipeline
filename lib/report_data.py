@@ -1,7 +1,7 @@
 """Data loading layer for the reporting dashboard.
 
-Scans the issues/ directory, loads raw issue JSON and phase output JSONs,
-and returns structured dicts for the webapp to render.
+Scans the issues/ directory for raw issue data and the workspace/ directory
+for per-model phase output JSONs.  Returns structured dicts for the webapp.
 """
 
 import json
@@ -11,47 +11,124 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Generator
 
-from lib.phases import _parse_issue, ISSUES_DIR
+from lib.phases import _parse_issue
+from lib.paths import ISSUES_DIR, WORKSPACE_DIR, phase_json, discover_models
 
 PHASE_SUFFIXES = ["completeness", "context-map", "fix-attempt", "test-plan"]
 
 
-def _load_phase_json(key: str, phase: str) -> dict | None:
-    """Load a phase output JSON for an issue, or return None if missing."""
-    path = ISSUES_DIR / f"{key}.{phase}.json"
-    if not path.exists():
-        return None
-    try:
-        with open(path) as f:
-            return json.load(f)
-    except (json.JSONDecodeError, OSError):
-        return None
+def _load_phase_json(key: str, phase: str, model: str | None = None) -> dict | None:
+    """Load a phase output JSON for an issue.
+
+    When *model* is given, load from ``workspace/{key}/{model}/{phase}.json``.
+    When *model* is ``None``, discover available models and use the first one
+    that has the requested phase file.  Falls back to the legacy
+    ``issues/{key}.{phase}.json`` path for backward compatibility.
+    """
+    if model is not None:
+        path = phase_json(key, model, phase)
+        if not path.exists():
+            return None
+        try:
+            with open(path) as f:
+                return json.load(f)
+        except (json.JSONDecodeError, OSError):
+            return None
+
+    # Auto-discover: try each model subdir
+    for mid in discover_models(key):
+        path = phase_json(key, mid, phase)
+        if path.exists():
+            try:
+                with open(path) as f:
+                    return json.load(f)
+            except (json.JSONDecodeError, OSError):
+                continue
+
+    # Legacy fallback: issues/{KEY}.{phase}.json
+    legacy = ISSUES_DIR / f"{key}.{phase}.json"
+    if legacy.exists():
+        try:
+            with open(legacy) as f:
+                return json.load(f)
+        except (json.JSONDecodeError, OSError):
+            return None
+
+    return None
 
 
 def _latest_phase_mtime(key: str) -> str:
-    """Return the most recent mtime across all phase output files, as an ISO string."""
+    """Return the most recent mtime across all phase output files, as an ISO string.
+
+    Scans ``workspace/{key}/*/`` model directories, then falls back to legacy
+    ``issues/`` paths.
+    """
     latest = 0.0
-    for suffix in PHASE_SUFFIXES:
-        p = ISSUES_DIR / f"{key}.{suffix}.json"
-        if p.exists():
-            mt = p.stat().st_mtime
-            if mt > latest:
-                latest = mt
+
+    # Workspace model directories
+    issue_ws = WORKSPACE_DIR / key
+    if issue_ws.is_dir():
+        for model_dir in issue_ws.iterdir():
+            if not model_dir.is_dir():
+                continue
+            for suffix in PHASE_SUFFIXES:
+                p = model_dir / f"{suffix}.json"
+                if p.exists():
+                    mt = p.stat().st_mtime
+                    if mt > latest:
+                        latest = mt
+
+    # Legacy fallback
+    if latest == 0.0:
+        for suffix in PHASE_SUFFIXES:
+            p = ISSUES_DIR / f"{key}.{suffix}.json"
+            if p.exists():
+                mt = p.stat().st_mtime
+                if mt > latest:
+                    latest = mt
+
     if latest == 0.0:
         return ""
     return datetime.fromtimestamp(latest, tz=timezone.utc).strftime("%Y-%m-%d %H:%M")
 
 
 def _enrich_issue(path: Path) -> dict | None:
-    """Load a raw issue and attach all phase outputs."""
+    """Load a raw issue and attach all phase outputs.
+
+    Phase outputs are stored per-model in a ``models`` dict.  For backward
+    compatibility the top-level ``completeness``, ``context_map``,
+    ``fix_attempt``, and ``test_plan`` keys are set from the first available
+    model's data.
+    """
     issue = _parse_issue(path)
     if issue is None:
         return None
     key = issue["key"]
-    issue["completeness"] = _load_phase_json(key, "completeness")
-    issue["context_map"] = _load_phase_json(key, "context-map")
-    issue["fix_attempt"] = _load_phase_json(key, "fix-attempt")
-    issue["test_plan"] = _load_phase_json(key, "test-plan")
+
+    # Build per-model dict
+    models: dict[str, dict] = {}
+    for mid in discover_models(key):
+        mdata: dict = {}
+        for phase, attr in [
+            ("completeness", "completeness"),
+            ("context-map", "context_map"),
+            ("fix-attempt", "fix_attempt"),
+            ("test-plan", "test_plan"),
+        ]:
+            d = _load_phase_json(key, phase, model=mid)
+            if d is not None:
+                mdata[attr] = d
+        if mdata:
+            models[mid] = mdata
+
+    issue["models"] = models
+
+    # Top-level keys from first model (backward compat with templates)
+    first_model = models[next(iter(models))] if models else {}
+    issue["completeness"] = first_model.get("completeness") or _load_phase_json(key, "completeness")
+    issue["context_map"] = first_model.get("context_map") or _load_phase_json(key, "context-map")
+    issue["fix_attempt"] = first_model.get("fix_attempt") or _load_phase_json(key, "fix-attempt")
+    issue["test_plan"] = first_model.get("test_plan") or _load_phase_json(key, "test-plan")
     issue["last_processed"] = _latest_phase_mtime(key)
     return issue
 
@@ -313,8 +390,11 @@ def load_pipeline_status() -> dict:
 # Summary statistics for narrative pages
 # ---------------------------------------------------------------------------
 
-def compute_summary_stats() -> dict:
+def compute_summary_stats(model: str | None = None) -> dict:
     """Compute aggregate statistics for narrative summary pages.
+
+    When *model* is given, scope stats to that model's outputs.  When
+    ``None``, use the first available model per issue (backward compat).
 
     Scans phase output JSONs directly (no numpy/scipy dependency) and
     returns a dict of counts, distributions, and breakdowns suitable
@@ -345,10 +425,10 @@ def compute_summary_stats() -> dict:
     component_fix_counts: dict[str, Counter] = {}  # component -> rec counter
 
     for key in keys:
-        comp = _load_phase_json(key, "completeness")
-        ctx = _load_phase_json(key, "context-map")
-        fix = _load_phase_json(key, "fix-attempt")
-        tp = _load_phase_json(key, "test-plan")
+        comp = _load_phase_json(key, "completeness", model=model)
+        ctx = _load_phase_json(key, "context-map", model=model)
+        fix = _load_phase_json(key, "fix-attempt", model=model)
+        tp = _load_phase_json(key, "test-plan", model=model)
 
         # --- raw issue for component breakdown ---
         raw_path = ISSUES_DIR / f"{key}.json"
@@ -542,8 +622,11 @@ AGENT_READY_SCORES: dict[str, int] = {
 }
 
 
-def compute_component_readiness() -> list[dict]:
+def compute_component_readiness(model: str | None = None) -> list[dict]:
     """Compute per-component readiness data combining pipeline results and Agent Ready scores.
+
+    When *model* is given, scope to that model's outputs.  When ``None``,
+    use the first available model per issue (backward compat).
 
     For each Jira component, aggregates pipeline phase results and maps
     identified repos to their Agent Ready scores for side-by-side comparison.
@@ -568,10 +651,10 @@ def compute_component_readiness() -> list[dict]:
             except (json.JSONDecodeError, OSError):
                 pass
 
-        comp = _load_phase_json(key, "completeness")
-        ctx = _load_phase_json(key, "context-map")
-        fix = _load_phase_json(key, "fix-attempt")
-        tp = _load_phase_json(key, "test-plan")
+        comp = _load_phase_json(key, "completeness", model=model)
+        ctx = _load_phase_json(key, "context-map", model=model)
+        fix = _load_phase_json(key, "fix-attempt", model=model)
+        tp = _load_phase_json(key, "test-plan", model=model)
 
         if not raw:
             continue

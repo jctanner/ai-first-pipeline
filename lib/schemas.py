@@ -17,6 +17,7 @@ COMPLETENESS_SCHEMA = {
     ],
     "properties": {
         "issue_key": {"type": "string"},
+        "model": {"type": "string"},
         "overall_score": {"type": "number", "minimum": 0, "maximum": 100},
         "dimensions": {
             "type": "array",
@@ -94,6 +95,7 @@ CONTEXT_MAP_SCHEMA = {
     ],
     "properties": {
         "issue_key": {"type": "string"},
+        "model": {"type": "string"},
         "identified_components": {
             "type": "array",
             "items": {
@@ -254,6 +256,7 @@ FIX_ATTEMPT_SCHEMA = {
     ],
     "properties": {
         "issue_key": {"type": "string"},
+        "model": {"type": "string"},
         "root_cause_hypothesis": {"type": "string"},
         "affected_files": {
             "type": "array",
@@ -455,6 +458,7 @@ TEST_PLAN_SCHEMA = {
     ],
     "properties": {
         "issue_key": {"type": "string"},
+        "model": {"type": "string"},
         "decision_rationale": {"type": "string"},
         "target_test_repos": {
             "type": "array",

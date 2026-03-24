@@ -13,9 +13,11 @@ def _add_common_analysis_args(parser: argparse.ArgumentParser) -> None:
     )
     parser.add_argument(
         "--model",
+        action="append",
         choices=["sonnet", "opus", "haiku"],
-        default="opus",
-        help="Claude model to use (default: opus)",
+        default=None,
+        dest="model",
+        help="Claude model to use (can be specified multiple times, default: opus)",
     )
     parser.add_argument(
         "--limit",
@@ -192,4 +194,12 @@ Examples:
         help="Host to bind to (default: 127.0.0.1)",
     )
 
-    return parser.parse_args()
+    args = parser.parse_args()
+
+    # Default --model to ["opus"] when not specified.
+    # ``action="append"`` with ``default=None`` leaves the attribute as
+    # None when never used, so we replace it with the default list here.
+    if getattr(args, "model", None) is None:
+        args.model = ["opus"]
+
+    return args

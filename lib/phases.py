@@ -6,15 +6,21 @@ import os
 import shutil
 import sys
 import asyncio
+from datetime import datetime, timezone
 from pathlib import Path
 
 import requests
 from dotenv import load_dotenv
 from jsonschema import validate, ValidationError
 
-from lib.agent_runner import run_agent, format_duration
+from lib.agent_runner import run_agent, format_duration, get_model_id
 from lib.prompts import build_phase_prompt
 from lib.schemas import PHASE_SCHEMAS
+from lib.paths import (
+    BASE_DIR, ISSUES_DIR, WORKSPACE_DIR,
+    model_workspace, phase_json, phase_md, phase_log,
+    src_dir, patch_diff, memory_md, issue_copy,
+)
 from lib.repo_mapping import (
     get_midstream, get_upstream, clone_midstream_repo,
     normalize_component_name, DOWNSTREAM_ONLY,
@@ -35,19 +41,55 @@ from lib.validation import (
 # Shared helpers
 # ---------------------------------------------------------------------------
 
-BASE_DIR = Path(__file__).resolve().parent.parent
-ISSUES_DIR = BASE_DIR / "issues"
 
+def _cleanup_src(key: str, mid: str) -> None:
+    """Remove only the ``src/`` directory under a model workspace to reclaim disk space.
 
-def _cleanup_workspace(workspace_dir: Path, key: str) -> None:
-    """Remove a per-issue fix workspace directory to reclaim disk space."""
-    if not workspace_dir.exists():
+    Results, diffs, and logs are preserved.
+    """
+    sd = src_dir(key, mid)
+    if not sd.exists():
         return
     try:
-        shutil.rmtree(workspace_dir)
-        print(f"  [{key}] fix-attempt: cleaned up workspace {workspace_dir}", file=sys.stderr)
+        shutil.rmtree(sd)
+        print(f"  [{key}] fix-attempt: cleaned up src/ in {mid}", file=sys.stderr)
     except Exception as exc:
-        print(f"  [{key}] fix-attempt: workspace cleanup failed: {exc}", file=sys.stderr)
+        print(f"  [{key}] fix-attempt: src/ cleanup failed: {exc}", file=sys.stderr)
+
+
+def _ensure_issue_copy(key: str, raw_path: Path) -> None:
+    """Copy the raw issue JSON to ``workspace/{KEY}/issue.json`` if not already there."""
+    dest = issue_copy(key)
+    if dest.exists():
+        return
+    dest.parent.mkdir(parents=True, exist_ok=True)
+    shutil.copy2(raw_path, dest)
+
+
+def _write_patch_diff(key: str, mid: str, diff_text: str) -> None:
+    """Write a standalone ``patch.diff`` into the model workspace."""
+    if not diff_text:
+        return
+    out = patch_diff(key, mid)
+    out.parent.mkdir(parents=True, exist_ok=True)
+    out.write_text(diff_text)
+
+
+def _write_memory_md(key: str, mid: str, phase: str, duration: float, prompt_summary: str = "") -> None:
+    """Append session metadata to ``MEMORY.md`` in the model workspace."""
+    out = memory_md(key, mid)
+    out.parent.mkdir(parents=True, exist_ok=True)
+    ts = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M UTC")
+    entry = (
+        f"## {phase} — {ts}\n\n"
+        f"- Model: {mid}\n"
+        f"- Duration: {format_duration(duration)}\n"
+    )
+    if prompt_summary:
+        entry += f"- Prompt summary: {prompt_summary}\n"
+    entry += "\n"
+    with open(out, "a") as f:
+        f.write(entry)
 
 
 def _discover_issues(args) -> list[Path]:
@@ -387,14 +429,17 @@ def _issue_to_text(issue: dict) -> str:
     return "\n".join(lines)
 
 
-def _print_phase_summary(phase_name: str, jobs: list, results: list) -> None:
+def _print_phase_summary(phase_name: str, jobs: list, results: list, model_id: str = "") -> None:
     """Print a standard summary block after a phase completes."""
     successful = [r for r in results if isinstance(r, dict) and r.get("success")]
     failed = [r for r in results if isinstance(r, dict) and not r.get("success")]
     exceptions = [r for r in results if isinstance(r, Exception)]
 
     print(f"\n{'=' * 60}")
-    print(f"{phase_name.upper()} COMPLETE")
+    header = f"{phase_name.upper()} COMPLETE"
+    if model_id:
+        header += f" [{model_id}]"
+    print(header)
     print(f"{'=' * 60}")
     print(f"Total issues: {len(jobs)}")
     print(f"Successful: {len(successful)}")
@@ -420,8 +465,6 @@ ACTIVITY_LOG = BASE_DIR / "logs" / "activity.jsonl"
 
 def _log_activity(issue_key: str, phase: str, event: str, model: str = "", **extra) -> None:
     """Append a single activity entry to logs/activity.jsonl."""
-    from datetime import datetime, timezone
-
     ACTIVITY_LOG.parent.mkdir(parents=True, exist_ok=True)
     entry = {
         "timestamp": datetime.now(timezone.utc).isoformat(),
@@ -435,6 +478,21 @@ def _log_activity(issue_key: str, phase: str, event: str, model: str = "", **ext
         f.write(json.dumps(entry) + "\n")
 
 
+def _inject_model_field(json_path: Path, mid: str) -> None:
+    """Inject the ``model`` field into a phase output JSON if not already present."""
+    if not json_path.exists():
+        return
+    try:
+        with open(json_path) as f:
+            data = json.load(f)
+        if "model" not in data:
+            data["model"] = mid
+            with open(json_path, "w") as f:
+                json.dump(data, f, indent=2)
+    except (json.JSONDecodeError, OSError):
+        pass
+
+
 async def _run_single_agent(
     key: str,
     phase: str,
@@ -444,14 +502,27 @@ async def _run_single_agent(
     semaphore: asyncio.Semaphore,
     log_dir: Path,
     model: str,
+    mid: str = "",
     allowed_tools: list[str] | None = None,
 ) -> dict:
     """Acquire semaphore, delete stale files, run one agent, validate output.
 
+    Parameters
+    ----------
+    model:  shorthand (``"opus"``) passed to the agent runner.
+    mid:    full model ID (``"claude-opus-4-6"``), used for workspace paths.
+
     Returns a result dict with 'name', 'success', 'phase', and optional 'error'.
     """
+    if not mid:
+        mid = get_model_id(model)
+
     log_dir.mkdir(parents=True, exist_ok=True)
-    _log_activity(key, phase, "started", model=model)
+    _log_activity(key, phase, "started", model=mid)
+
+    # Use per-model log file when workspace paths are in use
+    log_file_path = phase_log(key, mid, phase)
+    log_file_path.parent.mkdir(parents=True, exist_ok=True)
 
     async with semaphore:
         # Delete stale outputs just before the agent runs (inside the
@@ -461,13 +532,17 @@ async def _run_single_agent(
             if stale_path.exists():
                 stale_path.unlink()
 
-        result = await run_agent(key, cwd, prompt, log_dir, model, allowed_tools=allowed_tools)
+        result = await run_agent(
+            key, cwd, prompt, log_dir, model,
+            allowed_tools=allowed_tools,
+            log_file=log_file_path,
+        )
 
     if isinstance(result, dict):
         _log_activity(
             key, phase,
             "completed" if result.get("success") else "failed",
-            model=model,
+            model=mid,
             duration_seconds=result.get("duration_seconds"),
             error=result.get("error"),
         )
@@ -475,40 +550,48 @@ async def _run_single_agent(
 
         # Inline schema validation
         schema = PHASE_SCHEMAS.get(phase)
+        json_out = phase_json(key, mid, phase)
         if schema and result.get("success"):
-            json_path = ISSUES_DIR / f"{key}.{phase}.json"
-            if not json_path.exists():
-                print(f"  WARNING: {key} — {phase} JSON output missing: {json_path.name}")
+            if not json_out.exists():
+                print(f"  WARNING: {key} — {phase} JSON output missing: {json_out}")
             else:
                 try:
-                    with open(json_path) as f:
+                    with open(json_out) as f:
                         data = json.load(f)
                     validate(instance=data, schema=schema)
                 except (json.JSONDecodeError, ValidationError) as exc:
-                    invalid_path = json_path.with_suffix(".json.invalid")
-                    json_path.rename(invalid_path)
+                    invalid_path = json_out.with_suffix(".json.invalid")
+                    json_out.rename(invalid_path)
                     print(f"  INVALID: {key} — {phase} — {exc!s:.120}")
                     print(f"           Renamed to {invalid_path.name}")
 
+        # Inject model field into JSON output
+        if result.get("success") and json_out.exists():
+            _inject_model_field(json_out, mid)
+
+        # Write MEMORY.md entry
+        dur = result.get("duration_seconds", 0)
+        _write_memory_md(key, mid, phase, dur)
+
     dur = result.get("duration_seconds", 0) if isinstance(result, dict) else 0
     status = "completed" if isinstance(result, dict) and result.get("success") else "failed"
-    print(f"  [{key}] {phase} → {status} ({format_duration(dur)})")
+    print(f"  [{key}] {phase}/{mid} → {status} ({format_duration(dur)})")
 
     return result
 
 
-async def _run_phase(phase_name: str, jobs: list, args) -> list:
-    """Execute a list of agent jobs with bounded concurrency."""
+async def _run_phase(phase_name: str, jobs: list, args, model_shorthand: str) -> list:
+    """Execute a list of agent jobs with bounded concurrency for one model."""
+    mid = get_model_id(model_shorthand)
     log_dir = BASE_DIR / "logs" / phase_name
     log_dir.mkdir(parents=True, exist_ok=True)
 
     print(f"\n{'=' * 60}")
-    print(f"PHASE: {phase_name}")
+    print(f"PHASE: {phase_name}  [{mid}]")
     print(f"{'=' * 60}")
     print(f"Issues to process: {len(jobs)}")
     print(f"Max concurrent agents: {args.max_concurrent}")
-    print(f"Model: {args.model}")
-    print(f"Logs: {log_dir}")
+    print(f"Model: {mid}")
     print(f"{'=' * 60}\n")
 
     if not jobs:
@@ -518,25 +601,29 @@ async def _run_phase(phase_name: str, jobs: list, args) -> list:
     semaphore = asyncio.Semaphore(args.max_concurrent)
 
     async def run_with_semaphore(job):
-        _log_activity(job["name"], phase_name, "started", model=args.model)
+        _log_activity(job["name"], phase_name, "started", model=mid)
+        log_file_path = phase_log(job["name"], mid, phase_name)
+        log_file_path.parent.mkdir(parents=True, exist_ok=True)
         async with semaphore:
-            # Delete stale outputs just before the agent runs (not during
-            # job-building) so that a killed orchestrator doesn't leave
-            # hundreds of issues with deleted-but-never-regenerated files.
             for stale_path in job.get("stale_files", []):
                 if stale_path.exists():
                     stale_path.unlink()
             result = await run_agent(
-                job["name"], job["cwd"], job["prompt"], log_dir, args.model
+                job["name"], job["cwd"], job["prompt"], log_dir, model_shorthand,
+                log_file=log_file_path,
             )
         if isinstance(result, dict):
             _log_activity(
                 job["name"], phase_name,
                 "completed" if result.get("success") else "failed",
-                model=args.model,
+                model=mid,
                 duration_seconds=result.get("duration_seconds"),
                 error=result.get("error"),
             )
+            # Inject model field
+            json_out = phase_json(job["name"], mid, phase_name)
+            if result.get("success") and json_out.exists():
+                _inject_model_field(json_out, mid)
         return result
 
     results = await asyncio.gather(
@@ -544,17 +631,12 @@ async def _run_phase(phase_name: str, jobs: list, args) -> list:
         return_exceptions=True,
     )
 
-    _print_phase_summary(phase_name, jobs, results)
+    _print_phase_summary(phase_name, jobs, results, model_id=mid)
     return list(results)
 
 
-def _validate_phase_outputs(phase_name: str, results: list) -> None:
-    """Validate JSON outputs from a phase against the schema.
-
-    For each successful result, load the corresponding JSON file and
-    validate it.  Invalid files are renamed to ``*.json.invalid`` so
-    they don't block re-runs.
-    """
+def _validate_phase_outputs(phase_name: str, results: list, mid: str = "") -> None:
+    """Validate JSON outputs from a phase against the schema."""
     schema = PHASE_SCHEMAS.get(phase_name)
     if schema is None:
         return
@@ -568,9 +650,12 @@ def _validate_phase_outputs(phase_name: str, results: list) -> None:
 
     for result in successful:
         key = result["name"]
-        json_path = ISSUES_DIR / f"{key}.{phase_name}.json"
+        if mid:
+            json_path = phase_json(key, mid, phase_name)
+        else:
+            json_path = ISSUES_DIR / f"{key}.{phase_name}.json"
         if not json_path.exists():
-            print(f"  WARNING: {key} — JSON output missing: {json_path.name}")
+            print(f"  WARNING: {key} — JSON output missing: {json_path}")
             invalid_count += 1
             continue
 
@@ -684,40 +769,49 @@ async def run_fetch_phase(args) -> None:
 async def run_completeness_phase(args) -> list:
     """Score each bug on the completeness rubric."""
     issue_paths = _discover_issues(args)
-    jobs = []
     component_filter = getattr(args, "component", None)
+    all_results: list = []
 
-    for path in issue_paths:
-        key = _issue_key_from_path(path)
-        output_file = ISSUES_DIR / f"{key}.completeness.json"
-        output_md = ISSUES_DIR / f"{key}.completeness.md"
+    for model_shorthand in args.model:
+        mid = get_model_id(model_shorthand)
+        jobs = []
 
-        if output_file.exists() and not args.force:
-            print(f"  skip {key} (output exists)")
-            continue
+        for path in issue_paths:
+            key = _issue_key_from_path(path)
+            output_file = phase_json(key, mid, "completeness")
+            output_md_file = phase_md(key, mid, "completeness")
 
-        issue = _parse_issue(path)
-
-        if component_filter:
-            if not _issue_matches_component_filter(issue, component_filter):
+            if output_file.exists() and not args.force:
+                print(f"  skip {key}/{mid} (output exists)")
                 continue
 
-        issue_text = _issue_to_text(issue)
-        prompt = build_phase_prompt("bug-completeness", key, issue_text)
+            issue = _parse_issue(path)
+            if component_filter:
+                if not _issue_matches_component_filter(issue, component_filter):
+                    continue
 
-        jobs.append({
-            "name": key,
-            "cwd": str(BASE_DIR),
-            "prompt": prompt,
-            "stale_files": [output_file, output_md],
-        })
+            _ensure_issue_copy(key, path)
+            ws = model_workspace(key, mid)
+            ws.mkdir(parents=True, exist_ok=True)
 
-    if getattr(args, "limit", None):
-        jobs = jobs[: args.limit]
+            issue_text = _issue_to_text(issue)
+            prompt = build_phase_prompt("bug-completeness", key, issue_text, output_dir=ws)
 
-    results = await _run_phase("completeness", jobs, args)
-    _validate_phase_outputs("completeness", results)
-    return results
+            jobs.append({
+                "name": key,
+                "cwd": str(BASE_DIR),
+                "prompt": prompt,
+                "stale_files": [output_file, output_md_file],
+            })
+
+        if getattr(args, "limit", None):
+            jobs = jobs[: args.limit]
+
+        results = await _run_phase("completeness", jobs, args, model_shorthand)
+        _validate_phase_outputs("completeness", results, mid=mid)
+        all_results.extend(results)
+
+    return all_results
 
 
 # ---------------------------------------------------------------------------
@@ -727,40 +821,49 @@ async def run_completeness_phase(args) -> list:
 async def run_context_map_phase(args) -> list:
     """Map each bug to available architecture context."""
     issue_paths = _discover_issues(args)
-    jobs = []
     component_filter = getattr(args, "component", None)
+    all_results: list = []
 
-    for path in issue_paths:
-        key = _issue_key_from_path(path)
-        output_file = ISSUES_DIR / f"{key}.context-map.json"
-        output_md = ISSUES_DIR / f"{key}.context-map.md"
+    for model_shorthand in args.model:
+        mid = get_model_id(model_shorthand)
+        jobs = []
 
-        if output_file.exists() and not args.force:
-            print(f"  skip {key} (output exists)")
-            continue
+        for path in issue_paths:
+            key = _issue_key_from_path(path)
+            output_file = phase_json(key, mid, "context-map")
+            output_md_file = phase_md(key, mid, "context-map")
 
-        issue = _parse_issue(path)
-
-        if component_filter:
-            if not _issue_matches_component_filter(issue, component_filter):
+            if output_file.exists() and not args.force:
+                print(f"  skip {key}/{mid} (output exists)")
                 continue
 
-        issue_text = _issue_to_text(issue)
-        prompt = build_phase_prompt("bug-context-map", key, issue_text)
+            issue = _parse_issue(path)
+            if component_filter:
+                if not _issue_matches_component_filter(issue, component_filter):
+                    continue
 
-        jobs.append({
-            "name": key,
-            "cwd": str(BASE_DIR),
-            "prompt": prompt,
-            "stale_files": [output_file, output_md],
-        })
+            _ensure_issue_copy(key, path)
+            ws = model_workspace(key, mid)
+            ws.mkdir(parents=True, exist_ok=True)
 
-    if getattr(args, "limit", None):
-        jobs = jobs[: args.limit]
+            issue_text = _issue_to_text(issue)
+            prompt = build_phase_prompt("bug-context-map", key, issue_text, output_dir=ws)
 
-    results = await _run_phase("context-map", jobs, args)
-    _validate_phase_outputs("context-map", results)
-    return results
+            jobs.append({
+                "name": key,
+                "cwd": str(BASE_DIR),
+                "prompt": prompt,
+                "stale_files": [output_file, output_md_file],
+            })
+
+        if getattr(args, "limit", None):
+            jobs = jobs[: args.limit]
+
+        results = await _run_phase("context-map", jobs, args, model_shorthand)
+        _validate_phase_outputs("context-map", results, mid=mid)
+        all_results.extend(results)
+
+    return all_results
 
 
 # ---------------------------------------------------------------------------
@@ -825,11 +928,7 @@ def _issue_matches_component_filter(issue: dict, component_filter: str) -> bool:
 
 
 def _extract_components_from_context_map(json_path: Path) -> list[str]:
-    """Extract unique, normalized component names from context_entries in a context-map JSON.
-
-    Raw component names from the context-map agent (e.g. ``kubeflow (odh-notebook-controller)``)
-    are normalized to canonical repo names via ``normalize_component_name``.
-    """
+    """Extract unique, normalized component names from context_entries in a context-map JSON."""
     if not json_path.exists():
         return []
     try:
@@ -1058,33 +1157,23 @@ async def _run_validation_loop(
     semaphore: asyncio.Semaphore,
     log_dir: Path,
     model: str,
+    mid: str,
     max_iterations: int,
     json_path: Path,
     output_file: Path,
     output_md: Path,
 ) -> list[dict]:
-    """Run validation loop: launch validation agent, retry with feedback on failure.
-
-    The validation agent has Bash access and reads the test context markdown
-    to figure out how to run setup, lint, and tests via ``podman exec``.
-
-    Returns a list of iteration dicts suitable for the ``validation`` field
-    in the fix-attempt JSON.
-    """
+    """Run validation loop: launch validation agent, retry with feedback on failure."""
     validation_iterations: list[dict] = []
     accumulated_corrections: list[dict] = []
 
-    # Start containers once for reuse across iterations
-    # Map: repo_name -> container_name
     active_containers: dict[str, str] = {}
-    # Track base images used so we can remove them after cleanup
     used_images: set[str] = set()
 
     try:
         for iteration in range(1, max_iterations + 1):
             print(f"  [{key}] validation iteration {iteration}/{max_iterations}")
 
-            # Get changed files per repo
             changed_files_map = get_changed_files_from_workspace(workspace_dir)
             if not changed_files_map:
                 print(f"  [{key}] no changed files found, skipping validation")
@@ -1095,13 +1184,11 @@ async def _run_validation_loop(
             for repo_dir_name, changed_files in changed_files_map.items():
                 repo_path = workspace_dir / repo_dir_name
 
-                # Start container on first iteration
                 if iteration == 1:
                     test_ctx = load_test_context(repo_dir_name)
                     if test_ctx and is_validation_eligible(test_ctx):
                         recipes = resolve_container_recipes(test_ctx, changed_files)
                         if recipes:
-                            # Use first recipe for the container
                             lang_key, recipe = recipes[0]
                             cn = start_validation_container(
                                 f"{repo_dir_name}-{lang_key}", recipe, repo_path,
@@ -1141,7 +1228,6 @@ async def _run_validation_loop(
 
                 container_name = active_containers.get(repo_dir_name)
                 if not container_name:
-                    # No container from first iteration -- skip
                     iter_results.append({
                         "repo_name": repo_dir_name,
                         "overall_passed": False,
@@ -1150,13 +1236,9 @@ async def _run_validation_loop(
                     })
                     continue
 
-                # Resolve test context .md path for the agent
                 test_context_md_path = _resolve_test_context_md_path(repo_dir_name)
-
-                # Write validation result to a temp path
                 result_path = log_dir / f"{key}-{repo_dir_name}-val-{iteration}.json"
 
-                # Launch validation agent
                 print(f"  [{key}]   launching validation agent for {repo_dir_name}")
                 val_result = await run_validation_agent(
                     key=key,
@@ -1188,7 +1270,6 @@ async def _run_validation_loop(
                 for r in iter_results
             )
 
-            # Record iteration
             validation_iterations.append({
                 "iteration": iteration,
                 "all_passed": all_passed,
@@ -1203,7 +1284,6 @@ async def _run_validation_loop(
                 print(f"  [{key}] validation failed after {max_iterations} iterations")
                 break
 
-            # Build retry prompt with validation feedback from failed results
             feedback_parts: list[str] = []
             for r in iter_results:
                 if not r.get("overall_passed") and not r.get("skipped"):
@@ -1217,43 +1297,35 @@ async def _run_validation_loop(
                 break
 
             retry_prompt = original_prompt + "\n\n" + "\n\n".join(feedback_parts)
-
-            # Reset workspace for the retry
             _reset_workspace(workspace_dir)
 
-            # Launch a new fix agent session with the retry prompt
             print(f"  [{key}] launching retry agent (iteration {iteration + 1})")
             _log_activity(key, "fix-attempt", "validation_retry", iteration=iteration + 1)
 
             retry_result = await _run_single_agent(
                 key, "fix-attempt", agent_cwd, retry_prompt,
-                [output_file, output_md], semaphore, log_dir, model,
+                [output_file, output_md], semaphore, log_dir, model, mid=mid,
             )
 
             if not isinstance(retry_result, dict) or not retry_result.get("success"):
                 print(f"  [{key}] retry agent failed, stopping validation loop")
                 break
 
-            # Re-capture git diff after retry
             captured_diff = _capture_git_diffs(workspace_dir)
             if captured_diff:
                 _update_fix_json_patch(json_path, captured_diff)
 
-            # Extract self-corrections recorded by the retry agent
             new_corrections = _extract_self_corrections(json_path)
             if new_corrections:
                 accumulated_corrections.extend(new_corrections)
 
     finally:
-        # Clean up all containers
         for cn in active_containers.values():
             stop_validation_container(cn)
-        # Remove container images used for this issue
         for img in used_images:
             print(f"  [{key}] removing validation image {img}", file=sys.stderr)
             remove_validation_image(img)
 
-    # Write accumulated self-corrections to the final JSON
     if accumulated_corrections:
         _update_fix_json_self_corrections(json_path, accumulated_corrections)
 
@@ -1263,211 +1335,181 @@ async def _run_validation_loop(
 async def run_fix_attempt_phase(args) -> list:
     """Attempt fixes for eligible bugs using midstream repo clones."""
     issue_paths = _discover_issues(args)
-    jobs = []
-    # Track workspace dirs per job for post-agent diff capture
-    job_workspaces: dict[str, Path] = {}
-
     triage_filter = getattr(args, "triage", None)
     component_filter = getattr(args, "component", None)
     recommendation_filter = getattr(args, "recommendation", None)
+    all_results: list = []
 
-    skipped_reasons: dict[str, list[str]] = {
-        "output_exists": [],
-        "low_completeness": [],
-        "no_context": [],
-        "no_completeness": [],
-        "no_context_map": [],
-        "no_components": [],
-        "active_work": [],
-        "triage_mismatch": [],
-        "component_mismatch": [],
-        "recommendation_mismatch": [],
-    }
+    for model_shorthand in args.model:
+        mid = get_model_id(model_shorthand)
+        jobs = []
+        job_workspaces: dict[str, Path] = {}
 
-    fix_workspaces_root = BASE_DIR / "fix-workspaces"
+        skipped_reasons: dict[str, list[str]] = {
+            "output_exists": [],
+            "active_work": [],
+            "triage_mismatch": [],
+            "component_mismatch": [],
+            "recommendation_mismatch": [],
+        }
 
-    for path in issue_paths:
-        key = _issue_key_from_path(path)
-        output_file = ISSUES_DIR / f"{key}.fix-attempt.json"
-        output_md = ISSUES_DIR / f"{key}.fix-attempt.md"
+        for path in issue_paths:
+            key = _issue_key_from_path(path)
+            output_file = phase_json(key, mid, "fix-attempt")
+            output_md_file = phase_md(key, mid, "fix-attempt")
 
-        # When --recommendation is set, filter on existing fix-attempt output
-        # (only re-run issues whose previous result matches the given value)
-        if recommendation_filter:
-            existing_rec = _extract_fix_recommendation(output_file)
-            if existing_rec != recommendation_filter:
-                skipped_reasons["recommendation_mismatch"].append(key)
-                continue
-        elif output_file.exists() and not args.force:
-            skipped_reasons["output_exists"].append(key)
-            continue
-
-        issue = _parse_issue(path)
-
-        # Skip issues with active work
-        if issue["status"] in ("Review", "Testing"):
-            skipped_reasons["active_work"].append(key)
-            continue
-
-        # Check prerequisites
-        completeness_path = ISSUES_DIR / f"{key}.completeness.json"
-        context_map_path = ISSUES_DIR / f"{key}.context-map.json"
-
-        score = _extract_completeness_score(completeness_path)
-        if score is None:
-            skipped_reasons["no_completeness"].append(key)
-            continue
-        if score < 0:
-            skipped_reasons["low_completeness"].append(key)
-            continue
-
-        # Filter by triage recommendation if requested
-        if triage_filter:
-            triage = _extract_triage_recommendation(completeness_path)
-            if triage != triage_filter:
-                skipped_reasons["triage_mismatch"].append(key)
+            # When --recommendation is set, filter on existing fix-attempt output
+            if recommendation_filter:
+                existing_rec = _extract_fix_recommendation(output_file)
+                if existing_rec != recommendation_filter:
+                    skipped_reasons["recommendation_mismatch"].append(key)
+                    continue
+            elif output_file.exists() and not args.force:
+                skipped_reasons["output_exists"].append(key)
                 continue
 
-        rating = _extract_context_rating(context_map_path)
-        if rating is None:
-            skipped_reasons["no_context_map"].append(key)
-            continue
-        if rating == "no-context":
-            skipped_reasons["no_context"].append(key)
-            continue
+            issue = _parse_issue(path)
 
-        # Filter by component if requested
-        if component_filter:
-            if not _issue_matches_component_filter(issue, component_filter):
-                skipped_reasons["component_mismatch"].append(key)
+            # Skip issues with active work
+            if issue["status"] in ("Review", "Testing"):
+                skipped_reasons["active_work"].append(key)
                 continue
 
-        # Extract component names from context-map
-        component_names = _extract_components_from_context_map(context_map_path)
-        if not component_names:
-            skipped_reasons["no_components"].append(key)
-            continue
+            # Filter by triage recommendation if requested (per-model)
+            completeness_path = phase_json(key, mid, "completeness")
+            if triage_filter:
+                triage = _extract_triage_recommendation(completeness_path)
+                if triage != triage_filter:
+                    skipped_reasons["triage_mismatch"].append(key)
+                    continue
 
-        # Create workspace and clone midstream repos
-        workspace_dir = fix_workspaces_root / key
+            # Filter by component if requested
+            if component_filter:
+                if not _issue_matches_component_filter(issue, component_filter):
+                    skipped_reasons["component_mismatch"].append(key)
+                    continue
 
-        # Reset cloned repos to clean state when --force or --recommendation is used,
-        # so the agent starts from unmodified source code.
-        if (args.force or recommendation_filter) and workspace_dir.exists():
-            import subprocess as _sp
-            for child in workspace_dir.iterdir():
-                if child.is_dir() and (child / ".git").exists():
-                    _sp.run(
-                        ["git", "-C", str(child), "checkout", "."],
-                        capture_output=True, timeout=30,
+            # Try to extract components from this model's context-map;
+            # if it doesn't exist, try from the raw issue components.
+            context_map_path = phase_json(key, mid, "context-map")
+            component_names = _extract_components_from_context_map(context_map_path)
+
+            _ensure_issue_copy(key, path)
+            ws = model_workspace(key, mid)
+            ws.mkdir(parents=True, exist_ok=True)
+
+            # Clone repos into src_dir(key, mid) instead of fix_workspaces_root
+            workspace_dir = src_dir(key, mid)
+
+            # Reset cloned repos when --force or --recommendation
+            if (args.force or recommendation_filter) and workspace_dir.exists():
+                _reset_workspace(workspace_dir)
+
+            cloned_repos: dict[str, Path] = {}
+            if component_names:
+                for comp_name in component_names:
+                    clone_path = clone_midstream_repo(comp_name, workspace_dir)
+                    if clone_path is not None:
+                        cloned_repos[comp_name] = clone_path
+
+            workspace_info = _build_workspace_info(workspace_dir, cloned_repos, component_names)
+
+            issue_text = _issue_to_text(issue)
+
+            prompt_kwargs: dict[str, str] = dict(workspace_info=workspace_info)
+
+            # Include completeness analysis if available for this model
+            if completeness_path.exists():
+                prompt_kwargs["completeness_analysis"] = completeness_path.read_text()
+
+            # Include context map if available for this model
+            if context_map_path.exists():
+                prompt_kwargs["context_map"] = context_map_path.read_text()
+
+            # Load test context markdown for the agent prompt
+            test_context_text = _load_test_context_for_components(component_names)
+            if test_context_text:
+                prompt_kwargs["test_context"] = test_context_text
+
+            prompt = build_phase_prompt(
+                "bug-fix-attempt", key, issue_text, output_dir=ws, **prompt_kwargs,
+            )
+
+            agent_cwd = str(workspace_dir) if cloned_repos else str(BASE_DIR)
+
+            jobs.append({
+                "name": key,
+                "cwd": agent_cwd,
+                "prompt": prompt,
+                "stale_files": [output_file, output_md_file],
+                "component_names": component_names,
+                "cloned_repos": cloned_repos,
+            })
+            job_workspaces[key] = workspace_dir
+
+        # Print skip summary
+        for reason, keys_list in skipped_reasons.items():
+            if keys_list:
+                print(f"  Skipped ({reason}): {len(keys_list)} issues [{mid}]")
+
+        if getattr(args, "limit", None):
+            jobs = jobs[: args.limit]
+
+        skip_validation = getattr(args, "skip_validation", False)
+        validation_retries = getattr(args, "validation_retries", 2)
+
+        results = await _run_phase("fix-attempt", jobs, args, model_shorthand)
+
+        # Post-agent: capture git diffs, run validation, and update JSON
+        log_dir = BASE_DIR / "logs" / "fix-attempt"
+        semaphore = asyncio.Semaphore(getattr(args, "max_concurrent", 5))
+
+        for i, result in enumerate(results):
+            if not isinstance(result, dict) or not result.get("success"):
+                continue
+            key = result["name"]
+            workspace_dir = job_workspaces.get(key)
+            if workspace_dir is None:
+                continue
+            captured_diff = _capture_git_diffs(workspace_dir)
+            json_path = phase_json(key, mid, "fix-attempt")
+            if captured_diff:
+                _update_fix_json_patch(json_path, captured_diff)
+                _write_patch_diff(key, mid, captured_diff)
+                print(f"  {key}: captured git diff ({len(captured_diff)} chars)")
+
+            # Run validation loop if enabled
+            if not skip_validation and validation_retries > 0 and captured_diff:
+                job = jobs[i] if i < len(jobs) else None
+                if job:
+                    output_file = phase_json(key, mid, "fix-attempt")
+                    output_md_file = phase_md(key, mid, "fix-attempt")
+                    validation_results = await _run_validation_loop(
+                        key=key,
+                        workspace_dir=workspace_dir,
+                        component_names=job.get("component_names", []),
+                        cloned_repos=job.get("cloned_repos", {}),
+                        original_prompt=job["prompt"],
+                        agent_cwd=job["cwd"],
+                        semaphore=semaphore,
+                        log_dir=log_dir,
+                        model=model_shorthand,
+                        mid=mid,
+                        max_iterations=validation_retries,
+                        json_path=json_path,
+                        output_file=output_file,
+                        output_md=output_md_file,
                     )
-                    _sp.run(
-                        ["git", "-C", str(child), "clean", "-fd"],
-                        capture_output=True, timeout=30,
-                    )
+                    if validation_results:
+                        _update_fix_json_validation(json_path, validation_results)
 
-        cloned_repos: dict[str, Path] = {}
+            # Clean up src/ only (preserve results, diffs, logs)
+            _cleanup_src(key, mid)
 
-        for comp_name in component_names:
-            clone_path = clone_midstream_repo(comp_name, workspace_dir)
-            if clone_path is not None:
-                cloned_repos[comp_name] = clone_path
+        _validate_phase_outputs("fix-attempt", results, mid=mid)
+        all_results.extend(results)
 
-        # If no repos were cloned (all downstream-only or clone failures),
-        # let the agent work read-only with architecture-context
-        workspace_info = _build_workspace_info(workspace_dir, cloned_repos, component_names)
-
-        issue_text = _issue_to_text(issue)
-        completeness_text = completeness_path.read_text()
-        context_map_text = context_map_path.read_text()
-
-        # Load test context markdown for the agent prompt
-        test_context_text = _load_test_context_for_components(component_names)
-
-        prompt_kwargs = dict(
-            completeness_analysis=completeness_text,
-            context_map=context_map_text,
-            workspace_info=workspace_info,
-        )
-        if test_context_text:
-            prompt_kwargs["test_context"] = test_context_text
-
-        prompt = build_phase_prompt(
-            "bug-fix-attempt", key, issue_text, **prompt_kwargs,
-        )
-
-        # Set agent CWD to workspace if repos were cloned, else project root
-        agent_cwd = str(workspace_dir) if cloned_repos else str(BASE_DIR)
-
-        jobs.append({
-            "name": key,
-            "cwd": agent_cwd,
-            "prompt": prompt,
-            "stale_files": [output_file, output_md],
-            "component_names": component_names,
-            "cloned_repos": cloned_repos,
-        })
-        job_workspaces[key] = workspace_dir
-
-    # Print skip summary
-    for reason, keys in skipped_reasons.items():
-        if keys:
-            print(f"  Skipped ({reason}): {len(keys)} issues")
-
-    if getattr(args, "limit", None):
-        jobs = jobs[: args.limit]
-
-    skip_validation = getattr(args, "skip_validation", False)
-    validation_retries = getattr(args, "validation_retries", 2)
-
-    results = await _run_phase("fix-attempt", jobs, args)
-
-    # Post-agent: capture git diffs, run validation, and update JSON
-    log_dir = BASE_DIR / "logs" / "fix-attempt"
-    semaphore = asyncio.Semaphore(getattr(args, "max_concurrent", 5))
-
-    for i, result in enumerate(results):
-        if not isinstance(result, dict) or not result.get("success"):
-            continue
-        key = result["name"]
-        workspace_dir = job_workspaces.get(key)
-        if workspace_dir is None:
-            continue
-        captured_diff = _capture_git_diffs(workspace_dir)
-        json_path = ISSUES_DIR / f"{key}.fix-attempt.json"
-        if captured_diff:
-            _update_fix_json_patch(json_path, captured_diff)
-            print(f"  {key}: captured git diff ({len(captured_diff)} chars)")
-
-        # Run validation loop if enabled
-        if not skip_validation and validation_retries > 0 and captured_diff:
-            job = jobs[i] if i < len(jobs) else None
-            if job:
-                output_file = ISSUES_DIR / f"{key}.fix-attempt.json"
-                output_md = ISSUES_DIR / f"{key}.fix-attempt.md"
-                validation_results = await _run_validation_loop(
-                    key=key,
-                    workspace_dir=workspace_dir,
-                    component_names=job.get("component_names", []),
-                    cloned_repos=job.get("cloned_repos", {}),
-                    original_prompt=job["prompt"],
-                    agent_cwd=job["cwd"],
-                    semaphore=semaphore,
-                    log_dir=log_dir,
-                    model=args.model,
-                    max_iterations=validation_retries,
-                    json_path=json_path,
-                    output_file=output_file,
-                    output_md=output_md,
-                )
-                if validation_results:
-                    _update_fix_json_validation(json_path, validation_results)
-
-        # Clean up workspace after diffs have been captured
-        _cleanup_workspace(workspace_dir, key)
-
-    _validate_phase_outputs("fix-attempt", results)
-    return results
+    return all_results
 
 
 # ---------------------------------------------------------------------------
@@ -1477,86 +1519,91 @@ async def run_fix_attempt_phase(args) -> list:
 async def run_test_plan_phase(args) -> list:
     """Generate ecosystem-aware test plans for all bugs."""
     issue_paths = _discover_issues(args)
-    jobs = []
     triage_filter = getattr(args, "triage", None)
     component_filter = getattr(args, "component", None)
     recommendation_filter = getattr(args, "recommendation", None)
-    skipped_triage = []
-    skipped_component = []
-    skipped_recommendation = []
+    all_results: list = []
 
-    for path in issue_paths:
-        key = _issue_key_from_path(path)
-        output_file = ISSUES_DIR / f"{key}.test-plan.json"
-        output_md = ISSUES_DIR / f"{key}.test-plan.md"
+    for model_shorthand in args.model:
+        mid = get_model_id(model_shorthand)
+        jobs = []
+        skipped_triage = []
+        skipped_component = []
+        skipped_recommendation = []
 
-        # When --recommendation is set, filter on existing fix-attempt recommendation
-        fix_attempt_path = ISSUES_DIR / f"{key}.fix-attempt.json"
-        if recommendation_filter:
-            existing_rec = _extract_fix_recommendation(fix_attempt_path)
-            if existing_rec != recommendation_filter:
-                skipped_recommendation.append(key)
-                continue
-        elif output_file.exists() and not args.force:
-            print(f"  skip {key} (output exists)")
-            continue
+        for path in issue_paths:
+            key = _issue_key_from_path(path)
+            output_file = phase_json(key, mid, "test-plan")
+            output_md_file = phase_md(key, mid, "test-plan")
 
-        # Filter by triage recommendation if requested
-        completeness_path = ISSUES_DIR / f"{key}.completeness.json"
-        if triage_filter:
-            triage = _extract_triage_recommendation(completeness_path)
-            if triage != triage_filter:
-                skipped_triage.append(key)
+            # When --recommendation is set, filter on existing fix-attempt recommendation
+            fix_attempt_path = phase_json(key, mid, "fix-attempt")
+            if recommendation_filter:
+                existing_rec = _extract_fix_recommendation(fix_attempt_path)
+                if existing_rec != recommendation_filter:
+                    skipped_recommendation.append(key)
+                    continue
+            elif output_file.exists() and not args.force:
+                print(f"  skip {key}/{mid} (output exists)")
                 continue
 
-        issue = _parse_issue(path)
+            # Filter by triage recommendation if requested
+            completeness_path = phase_json(key, mid, "completeness")
+            if triage_filter:
+                triage = _extract_triage_recommendation(completeness_path)
+                if triage != triage_filter:
+                    skipped_triage.append(key)
+                    continue
 
-        # Filter by component if requested
-        if component_filter:
-            if not _issue_matches_component_filter(issue, component_filter):
-                skipped_component.append(key)
-                continue
-        issue_text = _issue_to_text(issue)
+            issue = _parse_issue(path)
 
-        extra: dict[str, str] = {}
+            # Filter by component if requested
+            if component_filter:
+                if not _issue_matches_component_filter(issue, component_filter):
+                    skipped_component.append(key)
+                    continue
 
-        # Include completeness analysis if available
-        completeness_path = ISSUES_DIR / f"{key}.completeness.json"
-        if completeness_path.exists():
-            extra["completeness_analysis"] = completeness_path.read_text()
+            _ensure_issue_copy(key, path)
+            ws = model_workspace(key, mid)
+            ws.mkdir(parents=True, exist_ok=True)
 
-        # Include context map if available
-        context_map_path = ISSUES_DIR / f"{key}.context-map.json"
-        if context_map_path.exists():
-            extra["context_map"] = context_map_path.read_text()
+            issue_text = _issue_to_text(issue)
+            extra: dict[str, str] = {}
 
-        # Include fix attempt if available
-        fix_path = ISSUES_DIR / f"{key}.fix-attempt.json"
-        if fix_path.exists():
-            extra["fix_attempt"] = fix_path.read_text()
+            if completeness_path.exists():
+                extra["completeness_analysis"] = completeness_path.read_text()
 
-        prompt = build_phase_prompt("bug-test-plan", key, issue_text, **extra)
+            context_map_path = phase_json(key, mid, "context-map")
+            if context_map_path.exists():
+                extra["context_map"] = context_map_path.read_text()
 
-        jobs.append({
-            "name": key,
-            "cwd": str(BASE_DIR),
-            "prompt": prompt,
-            "stale_files": [output_file, output_md],
-        })
+            if fix_attempt_path.exists():
+                extra["fix_attempt"] = fix_attempt_path.read_text()
 
-    if skipped_triage:
-        print(f"  Skipped (triage_mismatch): {len(skipped_triage)} issues")
-    if skipped_component:
-        print(f"  Skipped (component_mismatch): {len(skipped_component)} issues")
-    if skipped_recommendation:
-        print(f"  Skipped (recommendation_mismatch): {len(skipped_recommendation)} issues")
+            prompt = build_phase_prompt("bug-test-plan", key, issue_text, output_dir=ws, **extra)
 
-    if getattr(args, "limit", None):
-        jobs = jobs[: args.limit]
+            jobs.append({
+                "name": key,
+                "cwd": str(BASE_DIR),
+                "prompt": prompt,
+                "stale_files": [output_file, output_md_file],
+            })
 
-    results = await _run_phase("test-plan", jobs, args)
-    _validate_phase_outputs("test-plan", results)
-    return results
+        if skipped_triage:
+            print(f"  Skipped (triage_mismatch): {len(skipped_triage)} issues [{mid}]")
+        if skipped_component:
+            print(f"  Skipped (component_mismatch): {len(skipped_component)} issues [{mid}]")
+        if skipped_recommendation:
+            print(f"  Skipped (recommendation_mismatch): {len(skipped_recommendation)} issues [{mid}]")
+
+        if getattr(args, "limit", None):
+            jobs = jobs[: args.limit]
+
+        results = await _run_phase("test-plan", jobs, args, model_shorthand)
+        _validate_phase_outputs("test-plan", results, mid=mid)
+        all_results.extend(results)
+
+    return all_results
 
 
 # ---------------------------------------------------------------------------
@@ -1570,21 +1617,26 @@ async def _maybe_run_completeness(
     args,
     semaphore: asyncio.Semaphore,
     log_dir: Path,
+    model_shorthand: str,
+    mid: str,
 ) -> dict:
     """Run completeness phase for one issue if needed. Returns result dict."""
-    output_file = ISSUES_DIR / f"{key}.completeness.json"
-    output_md = ISSUES_DIR / f"{key}.completeness.md"
+    output_file = phase_json(key, mid, "completeness")
+    output_md_file = phase_md(key, mid, "completeness")
 
     if output_file.exists() and not args.force:
-        _log_activity(key, "completeness", "skipped", reason="output_exists")
+        _log_activity(key, "completeness", "skipped", model=mid, reason="output_exists")
         return {"name": key, "phase": "completeness", "skipped": True, "reason": "output_exists"}
 
+    ws = model_workspace(key, mid)
+    ws.mkdir(parents=True, exist_ok=True)
+
     issue_text = _issue_to_text(issue)
-    prompt = build_phase_prompt("bug-completeness", key, issue_text)
+    prompt = build_phase_prompt("bug-completeness", key, issue_text, output_dir=ws)
 
     result = await _run_single_agent(
         key, "completeness", str(BASE_DIR), prompt,
-        [output_file, output_md], semaphore, log_dir, args.model,
+        [output_file, output_md_file], semaphore, log_dir, model_shorthand, mid=mid,
     )
     return result
 
@@ -1595,21 +1647,26 @@ async def _maybe_run_context_map(
     args,
     semaphore: asyncio.Semaphore,
     log_dir: Path,
+    model_shorthand: str,
+    mid: str,
 ) -> dict:
     """Run context-map phase for one issue if needed. Returns result dict."""
-    output_file = ISSUES_DIR / f"{key}.context-map.json"
-    output_md = ISSUES_DIR / f"{key}.context-map.md"
+    output_file = phase_json(key, mid, "context-map")
+    output_md_file = phase_md(key, mid, "context-map")
 
     if output_file.exists() and not args.force:
-        _log_activity(key, "context-map", "skipped", reason="output_exists")
+        _log_activity(key, "context-map", "skipped", model=mid, reason="output_exists")
         return {"name": key, "phase": "context-map", "skipped": True, "reason": "output_exists"}
 
+    ws = model_workspace(key, mid)
+    ws.mkdir(parents=True, exist_ok=True)
+
     issue_text = _issue_to_text(issue)
-    prompt = build_phase_prompt("bug-context-map", key, issue_text)
+    prompt = build_phase_prompt("bug-context-map", key, issue_text, output_dir=ws)
 
     result = await _run_single_agent(
         key, "context-map", str(BASE_DIR), prompt,
-        [output_file, output_md], semaphore, log_dir, args.model,
+        [output_file, output_md_file], semaphore, log_dir, model_shorthand, mid=mid,
     )
     return result
 
@@ -1620,10 +1677,12 @@ async def _maybe_run_fix_attempt(
     args,
     semaphore: asyncio.Semaphore,
     log_dir: Path,
+    model_shorthand: str,
+    mid: str,
 ) -> dict:
-    """Run fix-attempt phase for one issue if eligible. Returns result dict."""
-    output_file = ISSUES_DIR / f"{key}.fix-attempt.json"
-    output_md = ISSUES_DIR / f"{key}.fix-attempt.md"
+    """Run fix-attempt phase for one issue. No quality gating."""
+    output_file = phase_json(key, mid, "fix-attempt")
+    output_md_file = phase_md(key, mid, "fix-attempt")
     recommendation_filter = getattr(args, "recommendation", None)
     triage_filter = getattr(args, "triage", None)
 
@@ -1631,105 +1690,79 @@ async def _maybe_run_fix_attempt(
     if recommendation_filter:
         existing_rec = _extract_fix_recommendation(output_file)
         if existing_rec != recommendation_filter:
-            _log_activity(key, "fix-attempt", "skipped", reason="recommendation_mismatch")
+            _log_activity(key, "fix-attempt", "skipped", model=mid, reason="recommendation_mismatch")
             return {"name": key, "phase": "fix-attempt", "skipped": True, "reason": "recommendation_mismatch"}
     elif output_file.exists() and not args.force:
-        _log_activity(key, "fix-attempt", "skipped", reason="output_exists")
+        _log_activity(key, "fix-attempt", "skipped", model=mid, reason="output_exists")
         return {"name": key, "phase": "fix-attempt", "skipped": True, "reason": "output_exists"}
 
     # Skip issues with active work
     if issue["status"] in ("Review", "Testing"):
-        _log_activity(key, "fix-attempt", "skipped", reason="active_work")
+        _log_activity(key, "fix-attempt", "skipped", model=mid, reason="active_work")
         return {"name": key, "phase": "fix-attempt", "skipped": True, "reason": "active_work"}
 
-    # Check prerequisites (read from disk — phases 2+3 already ran or were skipped)
-    completeness_path = ISSUES_DIR / f"{key}.completeness.json"
-    context_map_path = ISSUES_DIR / f"{key}.context-map.json"
-
-    score = _extract_completeness_score(completeness_path)
-    if score is None:
-        _log_activity(key, "fix-attempt", "skipped", reason="no_completeness")
-        return {"name": key, "phase": "fix-attempt", "skipped": True, "reason": "no_completeness"}
-    if score < 0:
-        _log_activity(key, "fix-attempt", "skipped", reason="low_completeness")
-        return {"name": key, "phase": "fix-attempt", "skipped": True, "reason": "low_completeness"}
-
+    # Per-model triage filter
+    completeness_path = phase_json(key, mid, "completeness")
     if triage_filter:
         triage = _extract_triage_recommendation(completeness_path)
         if triage != triage_filter:
-            _log_activity(key, "fix-attempt", "skipped", reason="triage_mismatch")
+            _log_activity(key, "fix-attempt", "skipped", model=mid, reason="triage_mismatch")
             return {"name": key, "phase": "fix-attempt", "skipped": True, "reason": "triage_mismatch"}
 
-    rating = _extract_context_rating(context_map_path)
-    if rating is None:
-        _log_activity(key, "fix-attempt", "skipped", reason="no_context_map")
-        return {"name": key, "phase": "fix-attempt", "skipped": True, "reason": "no_context_map"}
-    if rating == "no-context":
-        _log_activity(key, "fix-attempt", "skipped", reason="no_context")
-        return {"name": key, "phase": "fix-attempt", "skipped": True, "reason": "no_context"}
-
+    # Extract components (if context-map exists for this model)
+    context_map_path = phase_json(key, mid, "context-map")
     component_names = _extract_components_from_context_map(context_map_path)
-    if not component_names:
-        _log_activity(key, "fix-attempt", "skipped", reason="no_components")
-        return {"name": key, "phase": "fix-attempt", "skipped": True, "reason": "no_components"}
 
-    # Create workspace and clone midstream repos
-    fix_workspaces_root = BASE_DIR / "fix-workspaces"
-    workspace_dir = fix_workspaces_root / key
+    ws = model_workspace(key, mid)
+    ws.mkdir(parents=True, exist_ok=True)
+
+    # Clone repos into src_dir
+    workspace_dir = src_dir(key, mid)
 
     if (args.force or recommendation_filter) and workspace_dir.exists():
-        import subprocess as _sp
-        for child in workspace_dir.iterdir():
-            if child.is_dir() and (child / ".git").exists():
-                _sp.run(
-                    ["git", "-C", str(child), "checkout", "."],
-                    capture_output=True, timeout=30,
-                )
-                _sp.run(
-                    ["git", "-C", str(child), "clean", "-fd"],
-                    capture_output=True, timeout=30,
-                )
+        _reset_workspace(workspace_dir)
 
     cloned_repos: dict[str, Path] = {}
-    for comp_name in component_names:
-        clone_path = clone_midstream_repo(comp_name, workspace_dir)
-        if clone_path is not None:
-            cloned_repos[comp_name] = clone_path
+    if component_names:
+        for comp_name in component_names:
+            clone_path = clone_midstream_repo(comp_name, workspace_dir)
+            if clone_path is not None:
+                cloned_repos[comp_name] = clone_path
 
     workspace_info = _build_workspace_info(workspace_dir, cloned_repos, component_names)
 
     issue_text = _issue_to_text(issue)
-    completeness_text = completeness_path.read_text()
-    context_map_text = context_map_path.read_text()
 
-    # Load test context markdown for the agent prompt
+    prompt_kwargs: dict[str, str] = dict(workspace_info=workspace_info)
+
+    if completeness_path.exists():
+        prompt_kwargs["completeness_analysis"] = completeness_path.read_text()
+
+    if context_map_path.exists():
+        prompt_kwargs["context_map"] = context_map_path.read_text()
+
     test_context_text = _load_test_context_for_components(component_names)
-
-    prompt_kwargs = dict(
-        completeness_analysis=completeness_text,
-        context_map=context_map_text,
-        workspace_info=workspace_info,
-    )
     if test_context_text:
         prompt_kwargs["test_context"] = test_context_text
 
     prompt = build_phase_prompt(
-        "bug-fix-attempt", key, issue_text, **prompt_kwargs,
+        "bug-fix-attempt", key, issue_text, output_dir=ws, **prompt_kwargs,
     )
 
     agent_cwd = str(workspace_dir) if cloned_repos else str(BASE_DIR)
 
     result = await _run_single_agent(
         key, "fix-attempt", agent_cwd, prompt,
-        [output_file, output_md], semaphore, log_dir, args.model,
+        [output_file, output_md_file], semaphore, log_dir, model_shorthand, mid=mid,
     )
 
     # Post-agent: capture git diffs and update JSON patch field
     if isinstance(result, dict) and result.get("success"):
         captured_diff = _capture_git_diffs(workspace_dir)
-        json_path = ISSUES_DIR / f"{key}.fix-attempt.json"
+        json_path = phase_json(key, mid, "fix-attempt")
         if captured_diff:
             _update_fix_json_patch(json_path, captured_diff)
+            _write_patch_diff(key, mid, captured_diff)
             print(f"  [{key}] fix-attempt: captured git diff ({len(captured_diff)} chars)")
 
         # Run validation loop if enabled
@@ -1746,17 +1779,18 @@ async def _maybe_run_fix_attempt(
                 agent_cwd=agent_cwd,
                 semaphore=semaphore,
                 log_dir=log_dir,
-                model=args.model,
+                model=model_shorthand,
+                mid=mid,
                 max_iterations=validation_retries,
                 json_path=json_path,
                 output_file=output_file,
-                output_md=output_md,
+                output_md=output_md_file,
             )
             if validation_results:
                 _update_fix_json_validation(json_path, validation_results)
 
-    # Clean up workspace after diffs have been captured
-    _cleanup_workspace(workspace_dir, key)
+    # Clean up src/ only
+    _cleanup_src(key, mid)
 
     return result
 
@@ -1767,31 +1801,34 @@ async def _maybe_run_test_plan(
     args,
     semaphore: asyncio.Semaphore,
     log_dir: Path,
+    model_shorthand: str,
+    mid: str,
 ) -> dict:
     """Run test-plan phase for one issue if eligible. Returns result dict."""
-    output_file = ISSUES_DIR / f"{key}.test-plan.json"
-    output_md = ISSUES_DIR / f"{key}.test-plan.md"
+    output_file = phase_json(key, mid, "test-plan")
+    output_md_file = phase_md(key, mid, "test-plan")
     triage_filter = getattr(args, "triage", None)
     recommendation_filter = getattr(args, "recommendation", None)
 
-    # When --recommendation is set, filter on existing fix-attempt recommendation
-    fix_attempt_path = ISSUES_DIR / f"{key}.fix-attempt.json"
+    fix_attempt_path = phase_json(key, mid, "fix-attempt")
     if recommendation_filter:
         existing_rec = _extract_fix_recommendation(fix_attempt_path)
         if existing_rec != recommendation_filter:
-            _log_activity(key, "test-plan", "skipped", reason="recommendation_mismatch")
+            _log_activity(key, "test-plan", "skipped", model=mid, reason="recommendation_mismatch")
             return {"name": key, "phase": "test-plan", "skipped": True, "reason": "recommendation_mismatch"}
     elif output_file.exists() and not args.force:
-        _log_activity(key, "test-plan", "skipped", reason="output_exists")
+        _log_activity(key, "test-plan", "skipped", model=mid, reason="output_exists")
         return {"name": key, "phase": "test-plan", "skipped": True, "reason": "output_exists"}
 
-    # Filter by triage recommendation if requested
-    completeness_path = ISSUES_DIR / f"{key}.completeness.json"
+    completeness_path = phase_json(key, mid, "completeness")
     if triage_filter:
         triage = _extract_triage_recommendation(completeness_path)
         if triage != triage_filter:
-            _log_activity(key, "test-plan", "skipped", reason="triage_mismatch")
+            _log_activity(key, "test-plan", "skipped", model=mid, reason="triage_mismatch")
             return {"name": key, "phase": "test-plan", "skipped": True, "reason": "triage_mismatch"}
+
+    ws = model_workspace(key, mid)
+    ws.mkdir(parents=True, exist_ok=True)
 
     issue_text = _issue_to_text(issue)
     extra: dict[str, str] = {}
@@ -1799,18 +1836,18 @@ async def _maybe_run_test_plan(
     if completeness_path.exists():
         extra["completeness_analysis"] = completeness_path.read_text()
 
-    context_map_path = ISSUES_DIR / f"{key}.context-map.json"
+    context_map_path = phase_json(key, mid, "context-map")
     if context_map_path.exists():
         extra["context_map"] = context_map_path.read_text()
 
     if fix_attempt_path.exists():
         extra["fix_attempt"] = fix_attempt_path.read_text()
 
-    prompt = build_phase_prompt("bug-test-plan", key, issue_text, **extra)
+    prompt = build_phase_prompt("bug-test-plan", key, issue_text, output_dir=ws, **extra)
 
     result = await _run_single_agent(
         key, "test-plan", str(BASE_DIR), prompt,
-        [output_file, output_md], semaphore, log_dir, args.model,
+        [output_file, output_md_file], semaphore, log_dir, model_shorthand, mid=mid,
     )
     return result
 
@@ -1821,58 +1858,56 @@ async def _run_issue_pipeline(
     args,
     semaphore: asyncio.Semaphore,
     log_dirs: dict[str, Path],
+    model_shorthand: str,
+    mid: str,
 ) -> dict:
-    """Process one issue through all applicable phases sequentially.
-
-    Phases 2 (completeness) and 3 (context-map) run concurrently since they
-    are independent.  Phase 4 (fix-attempt) waits for both, and phase 5
-    (test-plan) waits for phase 4.
-    """
+    """Process one issue through all applicable phases sequentially for one model."""
     issue = _parse_issue(path)
     recommendation_filter = getattr(args, "recommendation", None)
     component_filter = getattr(args, "component", None)
 
-    _log_activity(key, "pipeline", "issue_started")
+    _log_activity(key, "pipeline", "issue_started", model=mid)
+    _ensure_issue_copy(key, path)
 
     results: dict[str, dict] = {}
 
     # Early component filter — skip the entire issue
     if component_filter:
         if not _issue_matches_component_filter(issue, component_filter):
-            for phase in ("completeness", "context-map", "fix-attempt", "test-plan"):
-                _log_activity(key, phase, "skipped", reason="component_mismatch")
-                results[phase] = {"name": key, "phase": phase, "skipped": True, "reason": "component_mismatch"}
-            _log_activity(key, "pipeline", "issue_completed", phases_run=0, phases_failed=0)
+            for p in ("completeness", "context-map", "fix-attempt", "test-plan"):
+                _log_activity(key, p, "skipped", model=mid, reason="component_mismatch")
+                results[p] = {"name": key, "phase": p, "skipped": True, "reason": "component_mismatch"}
+            _log_activity(key, "pipeline", "issue_completed", model=mid, phases_run=0, phases_failed=0)
             return results
 
     # --recommendation: skip phases 2+3 (results already exist)
     if recommendation_filter:
-        _log_activity(key, "completeness", "skipped", reason="recommendation_mode")
+        _log_activity(key, "completeness", "skipped", model=mid, reason="recommendation_mode")
         results["completeness"] = {"name": key, "phase": "completeness", "skipped": True, "reason": "recommendation_mode"}
-        _log_activity(key, "context-map", "skipped", reason="recommendation_mode")
+        _log_activity(key, "context-map", "skipped", model=mid, reason="recommendation_mode")
         results["context-map"] = {"name": key, "phase": "context-map", "skipped": True, "reason": "recommendation_mode"}
     else:
-        # Phases 2+3 in parallel (both independent — only need raw issue JSON)
+        # Phases 2+3 in parallel
         comp_result, ctx_result = await asyncio.gather(
-            _maybe_run_completeness(key, issue, args, semaphore, log_dirs["completeness"]),
-            _maybe_run_context_map(key, issue, args, semaphore, log_dirs["context-map"]),
+            _maybe_run_completeness(key, issue, args, semaphore, log_dirs["completeness"], model_shorthand, mid),
+            _maybe_run_context_map(key, issue, args, semaphore, log_dirs["context-map"], model_shorthand, mid),
         )
         results["completeness"] = comp_result
         results["context-map"] = ctx_result
 
-    # Phase 4 (depends on 2+3)
+    # Phase 4 (no quality gating)
     results["fix-attempt"] = await _maybe_run_fix_attempt(
-        key, issue, args, semaphore, log_dirs["fix-attempt"],
+        key, issue, args, semaphore, log_dirs["fix-attempt"], model_shorthand, mid,
     )
 
-    # Phase 5 (depends on 4)
+    # Phase 5
     results["test-plan"] = await _maybe_run_test_plan(
-        key, issue, args, semaphore, log_dirs["test-plan"],
+        key, issue, args, semaphore, log_dirs["test-plan"], model_shorthand, mid,
     )
 
     phases_run = sum(1 for r in results.values() if isinstance(r, dict) and not r.get("skipped"))
     phases_failed = sum(1 for r in results.values() if isinstance(r, dict) and not r.get("skipped") and not r.get("success"))
-    _log_activity(key, "pipeline", "issue_completed", phases_run=phases_run, phases_failed=phases_failed)
+    _log_activity(key, "pipeline", "issue_completed", model=mid, phases_run=phases_run, phases_failed=phases_failed)
 
     return results
 
@@ -1884,10 +1919,8 @@ async def _run_issue_pipeline(
 async def run_all_phases(args) -> None:
     """Run phases 2-5 using a per-issue pipeline model.
 
-    Each issue flows through all its phases independently, sharing a single
-    concurrency pool (semaphore).  This maximises throughput compared to the
-    old batch-per-phase approach where every issue had to finish one phase
-    before any issue could advance to the next.
+    Models run sequentially (to avoid 2x concurrent agent load), issues
+    within a model run concurrently via gather+semaphore.
     """
     # Phase 1 (optional)
     if getattr(args, "include_fetch", False):
@@ -1909,103 +1942,110 @@ async def run_all_phases(args) -> None:
         d.mkdir(parents=True, exist_ok=True)
         log_dirs[pn] = d
 
-    # Startup banner
-    print(f"\n{'=' * 80}")
-    print("PIPELINE MODE — per-issue execution")
-    print(f"{'=' * 80}")
-    print(f"Issues: {len(issue_paths)}")
-    print(f"Max concurrent agents: {args.max_concurrent}")
-    print(f"Model: {args.model}")
-    print(f"Force: {args.force}")
     recommendation_filter = getattr(args, "recommendation", None)
     triage_filter = getattr(args, "triage", None)
     component_filter = getattr(args, "component", None)
-    if recommendation_filter:
-        print(f"Recommendation filter: {recommendation_filter}")
-    if triage_filter:
-        print(f"Triage filter: {triage_filter}")
-    if component_filter:
-        print(f"Component filter: {component_filter}")
-    print(f"{'=' * 80}\n")
 
-    _log_activity(
-        "_pipeline", "pipeline", "pipeline_started",
-        model=args.model,
-        total_issues=len(issue_paths),
-        max_concurrent=args.max_concurrent,
-        force=args.force,
-        recommendation_filter=recommendation_filter,
-        triage_filter=triage_filter,
-        component_filter=component_filter,
-    )
+    for model_shorthand in args.model:
+        mid = get_model_id(model_shorthand)
 
-    try:
-        # Launch per-issue pipelines
-        all_results = await asyncio.gather(
-            *(
-                _run_issue_pipeline(
-                    _issue_key_from_path(path), path, args, semaphore, log_dirs,
-                )
-                for path in issue_paths
-            ),
-            return_exceptions=True,
-        )
-
-        # Aggregate summary
-        phase_stats: dict[str, dict[str, int]] = {
-            pn: {"ran": 0, "success": 0, "failed": 0, "skipped": 0}
-            for pn in phase_names
-        }
-        exceptions: list[Exception] = []
-
-        for entry in all_results:
-            if isinstance(entry, Exception):
-                exceptions.append(entry)
-                continue
-            if not isinstance(entry, dict):
-                continue
-            for pn in phase_names:
-                r = entry.get(pn)
-                if r is None:
-                    continue
-                if r.get("skipped"):
-                    phase_stats[pn]["skipped"] += 1
-                elif r.get("success"):
-                    phase_stats[pn]["ran"] += 1
-                    phase_stats[pn]["success"] += 1
-                else:
-                    phase_stats[pn]["ran"] += 1
-                    phase_stats[pn]["failed"] += 1
-
+        # Startup banner
         print(f"\n{'=' * 80}")
-        print("PIPELINE COMPLETE")
+        print(f"PIPELINE MODE — per-issue execution [{mid}]")
         print(f"{'=' * 80}")
-        print(f"Total issues: {len(issue_paths)}")
-        for pn in phase_names:
-            s = phase_stats[pn]
-            print(
-                f"  {pn:16s}  ran={s['ran']}  success={s['success']}  "
-                f"failed={s['failed']}  skipped={s['skipped']}"
-            )
-        if exceptions:
-            print(f"\nExceptions: {len(exceptions)}")
-            for i, exc in enumerate(exceptions, 1):
-                print(f"  {i}. {exc}")
+        print(f"Issues: {len(issue_paths)}")
+        print(f"Max concurrent agents: {args.max_concurrent}")
+        print(f"Model: {mid}")
+        print(f"Force: {args.force}")
+        if recommendation_filter:
+            print(f"Recommendation filter: {recommendation_filter}")
+        if triage_filter:
+            print(f"Triage filter: {triage_filter}")
+        if component_filter:
+            print(f"Component filter: {component_filter}")
         print(f"{'=' * 80}\n")
 
         _log_activity(
-            "_pipeline", "pipeline", "pipeline_completed",
+            "_pipeline", "pipeline", "pipeline_started",
+            model=mid,
             total_issues=len(issue_paths),
-            phase_stats=phase_stats,
-            exceptions=len(exceptions),
+            max_concurrent=args.max_concurrent,
+            force=args.force,
+            recommendation_filter=recommendation_filter,
+            triage_filter=triage_filter,
+            component_filter=component_filter,
         )
 
-    except BaseException as exc:
-        _log_activity(
-            "_pipeline", "pipeline", "pipeline_failed",
-            error=str(exc),
-        )
-        raise
+        try:
+            # Launch per-issue pipelines
+            all_results = await asyncio.gather(
+                *(
+                    _run_issue_pipeline(
+                        _issue_key_from_path(path), path, args, semaphore, log_dirs,
+                        model_shorthand, mid,
+                    )
+                    for path in issue_paths
+                ),
+                return_exceptions=True,
+            )
+
+            # Aggregate summary
+            phase_stats: dict[str, dict[str, int]] = {
+                pn: {"ran": 0, "success": 0, "failed": 0, "skipped": 0}
+                for pn in phase_names
+            }
+            exceptions: list[Exception] = []
+
+            for entry in all_results:
+                if isinstance(entry, Exception):
+                    exceptions.append(entry)
+                    continue
+                if not isinstance(entry, dict):
+                    continue
+                for pn in phase_names:
+                    r = entry.get(pn)
+                    if r is None:
+                        continue
+                    if r.get("skipped"):
+                        phase_stats[pn]["skipped"] += 1
+                    elif r.get("success"):
+                        phase_stats[pn]["ran"] += 1
+                        phase_stats[pn]["success"] += 1
+                    else:
+                        phase_stats[pn]["ran"] += 1
+                        phase_stats[pn]["failed"] += 1
+
+            print(f"\n{'=' * 80}")
+            print(f"PIPELINE COMPLETE [{mid}]")
+            print(f"{'=' * 80}")
+            print(f"Total issues: {len(issue_paths)}")
+            for pn in phase_names:
+                s = phase_stats[pn]
+                print(
+                    f"  {pn:16s}  ran={s['ran']}  success={s['success']}  "
+                    f"failed={s['failed']}  skipped={s['skipped']}"
+                )
+            if exceptions:
+                print(f"\nExceptions: {len(exceptions)}")
+                for i, exc in enumerate(exceptions, 1):
+                    print(f"  {i}. {exc}")
+            print(f"{'=' * 80}\n")
+
+            _log_activity(
+                "_pipeline", "pipeline", "pipeline_completed",
+                model=mid,
+                total_issues=len(issue_paths),
+                phase_stats=phase_stats,
+                exceptions=len(exceptions),
+            )
+
+        except BaseException as exc:
+            _log_activity(
+                "_pipeline", "pipeline", "pipeline_failed",
+                model=mid,
+                error=str(exc),
+            )
+            raise
 
 
 # ---------------------------------------------------------------------------

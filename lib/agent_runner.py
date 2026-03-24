@@ -48,6 +48,7 @@ async def run_agent(
     log_dir: Path,
     model: str = "sonnet",
     allowed_tools: list[str] | None = None,
+    log_file: Path | None = None,
 ) -> dict:
     """
     Launch one independent Claude agent session.
@@ -59,6 +60,8 @@ async def run_agent(
         log_dir: Directory to write log files
         model: Claude model to use (sonnet, opus, or haiku)
         allowed_tools: Tools the agent can use (default: Read, Write, Glob, Grep)
+        log_file: Explicit log file path. When provided, used instead of
+                  ``log_dir / f"{name}.log"``.
 
     Returns:
         dict with 'name', 'success', 'log_file', and optional 'error' keys
@@ -66,7 +69,8 @@ async def run_agent(
     if allowed_tools is None:
         allowed_tools = ["Read", "Write", "Glob", "Grep"]
 
-    log_file = log_dir / f"{name.replace('/', '_')}.log"
+    if log_file is None:
+        log_file = log_dir / f"{name.replace('/', '_')}.log"
     model_id = get_model_id(model)
 
     # NOTE on context isolation: each query() call starts a fresh session
@@ -81,6 +85,8 @@ async def run_agent(
         permission_mode="bypassPermissions",
         model=model_id,
     )
+
+    log_file.parent.mkdir(parents=True, exist_ok=True)
 
     print(f"\n{'=' * 60}")
     print(f"Starting agent: {name}")

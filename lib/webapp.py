@@ -1,6 +1,6 @@
 """Flask web application for the bug bash reporting dashboard."""
 
-from flask import Flask, render_template_string, jsonify, abort, Response
+from flask import Flask, render_template_string, jsonify, abort, Response, request
 from jinja2 import DictLoader, ChoiceLoader
 
 from lib.report_data import (
@@ -8,6 +8,7 @@ from lib.report_data import (
     load_pipeline_status, tail_activity_log,
     compute_summary_stats, compute_component_readiness,
 )
+from lib.paths import discover_models
 from lib.stats import compute_all_stats
 
 # ---------------------------------------------------------------------------
@@ -120,9 +121,16 @@ DASHBOARD = """\
 {% extends "layout.html" %}
 {% block title %}Bug Bash Dashboard{% endblock %}
 {% block content %}
-<h2>Issues ({{ issues|length }})</h2>
+<h2>Issues (<span id="row-count">{{ rows|length }}</span>)</h2>
 
 <div class="filter-bar">
+  <label>
+    Model
+    <select id="filter-model" onchange="applyFilters()">
+      <option value="">All</option>
+      {% for v in model_names %}<option value="{{ v }}">{{ v }}</option>{% endfor %}
+    </select>
+  </label>
   <label>
     Status
     <select id="filter-status" onchange="applyFilters()">
@@ -152,10 +160,24 @@ DASHBOARD = """\
     </select>
   </label>
   <label>
-    Context
+    Arch Context
     <select id="filter-context" onchange="applyFilters()">
       <option value="">All</option>
       {% for v in context_ratings %}<option value="{{ v }}">{{ v }}</option>{% endfor %}
+    </select>
+  </label>
+  <label>
+    Arch Docs
+    <select id="filter-archdocs" onchange="applyFilters()">
+      <option value="">All</option>
+      {% for v in arch_docs_values %}<option value="{{ v }}">{{ v }}</option>{% endfor %}
+    </select>
+  </label>
+  <label>
+    Src Code
+    <select id="filter-srccode" onchange="applyFilters()">
+      <option value="">All</option>
+      {% for v in src_code_values %}<option value="{{ v }}">{{ v }}</option>{% endfor %}
     </select>
   </label>
   <label>
@@ -166,12 +188,23 @@ DASHBOARD = """\
     </select>
   </label>
   <label>
+    Test Context
+    <select id="filter-testctx" onchange="applyFilters()">
+      <option value="">All</option>
+      {% for v in test_context_ratings %}<option value="{{ v }}">{{ v }}</option>{% endfor %}
+    </select>
+  </label>
+  <label>
     AI Eligible
     <select id="filter-eligible" onchange="applyFilters()">
       <option value="">All</option>
       <option value="yes">Eligible for fix</option>
       <option value="no">Excluded from fix</option>
     </select>
+  </label>
+  <label>
+    Search
+    <input type="text" id="filter-text" oninput="applyFilters()" placeholder="text search&hellip;" style="margin-bottom:0; padding:0.4em 0.6em;">
   </label>
 </div>
 
@@ -180,67 +213,91 @@ DASHBOARD = """\
   <thead>
     <tr>
       <th class="sortable" data-col="0">Key</th>
-      <th class="sortable" data-col="1">Summary</th>
-      <th class="sortable" data-col="2">Status</th>
-      <th class="sortable" data-col="3">Priority</th>
-      <th class="sortable" data-col="4">Components</th>
-      <th class="sortable" data-col="5">Issue<br>Type</th>
-      <th class="sortable" data-col="6" data-type="number">Bug<br>Quality</th>
-      <th class="sortable" data-col="7">AI<br>Type</th>
-      <th class="sortable" data-col="8">Triage</th>
-      <th class="sortable" data-col="9">Context</th>
-      <th class="sortable" data-col="10" data-type="number">Context<br>Quality</th>
-      <th class="sortable" data-col="11">Fix</th>
-      <th class="sortable" data-col="12">Confidence</th>
-      <th class="sortable" data-col="13">Test<br>Effort</th>
-      <th class="sortable" data-col="14">Processed</th>
+      <th class="sortable" data-col="1">Model</th>
+      <th class="sortable" data-col="2">Summary</th>
+      <th class="sortable" data-col="3">Status</th>
+      <th class="sortable" data-col="4">Priority</th>
+      <th class="sortable" data-col="5">Components</th>
+      <th class="sortable" data-col="6">Issue<br>Type</th>
+      <th class="sortable" data-col="7" data-type="number">Bug<br>Quality</th>
+      <th class="sortable" data-col="8">AI<br>Type</th>
+      <th class="sortable" data-col="9">Triage</th>
+      <th class="sortable" data-col="10">Arch<br>Context</th>
+      <th class="sortable" data-col="11" data-type="number">Arch<br>Quality</th>
+      <th class="sortable" data-col="12">Arch<br>Docs</th>
+      <th class="sortable" data-col="13">Src<br>Code</th>
+      <th class="sortable" data-col="14">Test<br>Context</th>
+      <th class="sortable" data-col="15">Fix</th>
+      <th class="sortable" data-col="16">Confidence</th>
+      <th class="sortable" data-col="17">Test<br>Effort</th>
+      <th class="sortable" data-col="18">Processed</th>
     </tr>
   </thead>
   <tbody>
-    {% for issue in issues %}
+    {% for row in rows %}
     <tr
-      data-status="{{ issue.status }}"
-      data-triage="{{ issue.completeness.triage_recommendation if issue.completeness else '' }}"
-      data-issuetype="{{ issue.completeness.issue_type_assessment.classified_type if issue.completeness and issue.completeness.issue_type_assessment else '' }}"
-      data-components="{{ issue.components|join('||') }}"
-      data-context="{{ issue.context_map.overall_rating if issue.context_map and issue.context_map.overall_rating is defined else '' }}"
-      data-fix="{{ issue.fix_attempt.recommendation if issue.fix_attempt and issue.fix_attempt.recommendation is defined else '' }}"
-      data-eligible="{% if issue.status in ['In Progress', 'Review', 'Testing', 'Closed', 'Done'] %}no{% elif issue.completeness and issue.completeness.overall_score is defined and issue.completeness.overall_score < 5 %}no{% elif issue.context_map and issue.context_map.overall_rating == 'no-context' %}no{% else %}yes{% endif %}"
+      data-model="{{ row.model }}"
+      data-status="{{ row.status }}"
+      data-triage="{{ row.completeness.triage_recommendation if row.completeness else '' }}"
+      data-issuetype="{{ row.completeness.issue_type_assessment.classified_type if row.completeness and row.completeness.issue_type_assessment else '' }}"
+      data-components="{{ row.components|join('||') }}"
+      data-context="{{ row.context_map.overall_rating if row.context_map and row.context_map.overall_rating is defined else '' }}"
+      data-fix="{{ row.fix_attempt.recommendation if row.fix_attempt and row.fix_attempt.recommendation is defined else '' }}"
+      data-testctx="{{ row.test_context_rating }}"
+      data-archdocs="{{ row.arch_docs }}"
+      data-srccode="{{ row.src_code }}"
+      data-eligible="{% if row.status in ['In Progress', 'Review', 'Testing', 'Closed', 'Done'] %}no{% elif row.completeness and row.completeness.overall_score is defined and row.completeness.overall_score < 5 %}no{% elif row.context_map and row.context_map.overall_rating == 'no-context' %}no{% else %}yes{% endif %}"
     >
-      <td><a href="/issue/{{ issue.key }}">{{ issue.key }}</a></td>
-      <td class="truncate" title="{{ issue.summary }}">{{ issue.summary[:80] }}{% if issue.summary|length > 80 %}&hellip;{% endif %}</td>
-      <td>{{ issue.status }}</td>
-      <td>{{ issue.priority }}</td>
-      <td>{{ issue.components|join(', ') }}</td>
-      <td>{{ issue.issue_type }}</td>
-      <td data-sort-value="{{ issue.completeness.overall_score if issue.completeness and issue.completeness.overall_score is defined else -1 }}">
-        {% if issue.completeness and issue.completeness.overall_score is defined %}
-          {% set score = issue.completeness.overall_score %}
+      <td><a href="/issue/{{ row.key }}{% if row.model %}?model={{ row.model }}{% endif %}">{{ row.key }}</a></td>
+      <td>{{ row.model or '&mdash;'|safe }}</td>
+      <td class="truncate" title="{{ row.summary }}">{{ row.summary[:80] }}{% if row.summary|length > 80 %}&hellip;{% endif %}</td>
+      <td>{{ row.status }}</td>
+      <td>{{ row.priority }}</td>
+      <td>{{ row.components|join(', ') }}</td>
+      <td>{{ row.issue_type }}</td>
+      <td data-sort-value="{{ row.completeness.overall_score if row.completeness and row.completeness.overall_score is defined else -1 }}">
+        {% if row.completeness and row.completeness.overall_score is defined %}
+          {% set score = row.completeness.overall_score %}
           <span class="{{ 'score-red' if score < 40 else ('score-yellow' if score < 80 else 'score-green') }}">{{ score }}</span>
         {% else %}&mdash;{% endif %}
       </td>
       <td>
-        {% if issue.completeness and issue.completeness.issue_type_assessment %}
-          {% set itype = issue.completeness.issue_type_assessment.classified_type %}
+        {% if row.completeness and row.completeness.issue_type_assessment %}
+          {% set itype = row.completeness.issue_type_assessment.classified_type %}
           <span class="badge badge-{{ itype if itype in ('bug','enhancement','feature-request','task') else 'default' }}">{{ itype }}</span>
         {% else %}&mdash;{% endif %}
       </td>
-      <td>{{ issue.completeness.triage_recommendation if issue.completeness and issue.completeness.triage_recommendation is defined else '&mdash;'|safe }}</td>
-      <td>{{ issue.context_map.overall_rating if issue.context_map and issue.context_map.overall_rating is defined else '&mdash;'|safe }}</td>
-      <td data-sort-value="{{ issue.context_map.context_helpfulness.overall_score if issue.context_map and issue.context_map.context_helpfulness else -1 }}">
-        {% if issue.context_map and issue.context_map.context_helpfulness %}
-          {% set hs = issue.context_map.context_helpfulness.overall_score %}
+      <td>{{ row.completeness.triage_recommendation if row.completeness and row.completeness.triage_recommendation is defined else '&mdash;'|safe }}</td>
+      <td>{{ row.context_map.overall_rating if row.context_map and row.context_map.overall_rating is defined else '&mdash;'|safe }}</td>
+      <td data-sort-value="{{ row.context_map.context_helpfulness.overall_score if row.context_map and row.context_map.context_helpfulness else -1 }}">
+        {% if row.context_map and row.context_map.context_helpfulness %}
+          {% set hs = row.context_map.context_helpfulness.overall_score %}
           <span class="{{ 'score-red' if hs < 40 else ('score-yellow' if hs < 80 else 'score-green') }}">{{ hs }}</span>
         {% else %}&mdash;{% endif %}
       </td>
       <td>
-        {% if issue.fix_attempt %}
-          <span class="badge badge-fix-{{ issue.fix_attempt.recommendation }}">{{ issue.fix_attempt.recommendation }}</span>
+        {% if row.arch_docs %}
+          <span class="badge {{ 'badge-val-pass' if row.arch_docs == 'all' else ('badge-default' if row.arch_docs == 'partial' else 'badge-val-fail') }}">{{ row.arch_docs }}</span>
         {% else %}&mdash;{% endif %}
       </td>
-      <td>{{ issue.fix_attempt.confidence if issue.fix_attempt and issue.fix_attempt.confidence is defined else '&mdash;'|safe }}</td>
-      <td>{{ issue.test_plan.effort_estimate if issue.test_plan and issue.test_plan.effort_estimate is defined else '&mdash;'|safe }}</td>
-      <td>{{ issue.last_processed or '&mdash;'|safe }}</td>
+      <td>
+        {% if row.src_code %}
+          <span class="badge {{ 'badge-val-pass' if row.src_code == 'all' else ('badge-default' if row.src_code == 'partial' else 'badge-val-fail') }}">{{ row.src_code }}</span>
+        {% else %}&mdash;{% endif %}
+      </td>
+      <td>
+        {% if row.test_context_rating %}
+          <span class="badge {{ 'badge-val-pass' if row.test_context_rating == 'high' else ('badge-default' if row.test_context_rating == 'medium' else 'badge-val-fail') }}">{{ row.test_context_rating }}</span>
+        {% else %}&mdash;{% endif %}
+      </td>
+      <td>
+        {% if row.fix_attempt %}
+          <span class="badge badge-fix-{{ row.fix_attempt.recommendation }}">{{ row.fix_attempt.recommendation }}</span>
+        {% else %}&mdash;{% endif %}
+      </td>
+      <td>{{ row.fix_attempt.confidence if row.fix_attempt and row.fix_attempt.confidence is defined else '&mdash;'|safe }}</td>
+      <td>{{ row.test_plan.effort_estimate if row.test_plan and row.test_plan.effort_estimate is defined else '&mdash;'|safe }}</td>
+      <td>{{ row.last_processed or '&mdash;'|safe }}</td>
     </tr>
     {% endfor %}
   </tbody>
@@ -281,24 +338,36 @@ document.querySelectorAll('th.sortable').forEach(th => {
 
 // Filtering
 function applyFilters() {
+  const model = document.getElementById('filter-model').value;
   const status = document.getElementById('filter-status').value;
   const triage = document.getElementById('filter-triage').value;
   const issuetype = document.getElementById('filter-issuetype').value;
   const component = document.getElementById('filter-component').value;
   const context = document.getElementById('filter-context').value;
   const fix = document.getElementById('filter-fix').value;
+  const testctx = document.getElementById('filter-testctx').value;
+  const archdocs = document.getElementById('filter-archdocs').value;
+  const srccode = document.getElementById('filter-srccode').value;
   const eligible = document.getElementById('filter-eligible').value;
+  const text = document.getElementById('filter-text').value.toLowerCase();
   document.querySelectorAll('#issues-table tbody tr').forEach(row => {
     let show = true;
+    if (text && !row.textContent.toLowerCase().includes(text)) show = false;
+    if (model && row.dataset.model !== model) show = false;
     if (status && row.dataset.status !== status) show = false;
     if (triage && row.dataset.triage !== triage) show = false;
     if (issuetype && row.dataset.issuetype !== issuetype) show = false;
     if (component && !row.dataset.components.split('||').includes(component)) show = false;
     if (context && row.dataset.context !== context) show = false;
     if (fix && row.dataset.fix !== fix) show = false;
+    if (testctx && row.dataset.testctx !== testctx) show = false;
+    if (archdocs && row.dataset.archdocs !== archdocs) show = false;
+    if (srccode && row.dataset.srccode !== srccode) show = false;
     if (eligible && row.dataset.eligible !== eligible) show = false;
     row.style.display = show ? '' : 'none';
   });
+  const visible = document.querySelectorAll('#issues-table tbody tr:not([style*="display: none"])').length;
+  document.getElementById('row-count').textContent = visible;
 }
 
 // Apply filters on page load in case the browser restored select values
@@ -315,6 +384,20 @@ DETAIL = """\
   <h2>{{ issue.key }}: {{ issue.summary }}</h2>
 </hgroup>
 <p><a href="/">&larr; Back to dashboard</a></p>
+
+{% if available_models and available_models|length > 1 %}
+<div style="margin-bottom: 1rem;">
+  <label><strong>Model:</strong>
+    <select onchange="window.location.href='/issue/{{ issue.key }}?model=' + this.value;">
+      {% for m in available_models %}
+      <option value="{{ m }}"{% if m == selected_model %} selected{% endif %}>{{ m }}</option>
+      {% endfor %}
+    </select>
+  </label>
+</div>
+{% elif selected_model %}
+<p><strong>Model:</strong> {{ selected_model }}</p>
+{% endif %}
 
 <div class="detail-columns">
 
@@ -2458,38 +2541,98 @@ def create_app() -> Flask:
     def dashboard():
         issues = load_all_issues()
 
+        # Flatten issues into one row per model
+        rows = []
+        for issue in issues:
+            models = issue.get("models", {})
+            if models:
+                for mid, mdata in models.items():
+                    row = {**issue}
+                    row["model"] = mid
+                    row["completeness"] = mdata.get("completeness")
+                    row["context_map"] = mdata.get("context_map")
+                    row["fix_attempt"] = mdata.get("fix_attempt")
+                    row["test_plan"] = mdata.get("test_plan")
+                    rows.append(row)
+            else:
+                row = {**issue, "model": ""}
+                rows.append(row)
+
+        # Extract test-context helpfulness rating from last validation iteration
+        _rank = {"none": 0, "low": 1, "medium": 2, "high": 3}
+        for row in rows:
+            fa = row.get("fix_attempt")
+            if fa and fa.get("validation"):
+                last_iter = fa["validation"][-1]
+                ratings = [
+                    vr["test_context_helpfulness"]["rating"]
+                    for vr in last_iter.get("results", [])
+                    if vr.get("test_context_helpfulness", {}).get("rating")
+                ]
+                # Use the worst (lowest) rating across repos
+                row["test_context_rating"] = (
+                    min(ratings, key=lambda r: _rank.get(r, -1)) if ratings else ""
+                )
+            else:
+                row["test_context_rating"] = ""
+
+        # Summarise per-component arch-doc and source-checkout availability
+        for row in rows:
+            cm = row.get("context_map")
+            entries = cm.get("context_entries", []) if cm else []
+            if entries:
+                has_arch = [e.get("architecture_doc", "not found") != "not found" for e in entries]
+                has_src = [e.get("source_checkout", "not found") != "not found" for e in entries]
+                row["arch_docs"] = "all" if all(has_arch) else ("partial" if any(has_arch) else "none")
+                row["src_code"] = "all" if all(has_src) else ("partial" if any(has_src) else "none")
+            else:
+                row["arch_docs"] = ""
+                row["src_code"] = ""
+
+        model_names = sorted({r["model"] for r in rows if r["model"]})
+
         # Collect unique filter values
-        statuses = sorted({i["status"] for i in issues})
+        statuses = sorted({r["status"] for r in rows})
         triages = sorted({
-            i["completeness"]["triage_recommendation"]
-            for i in issues if i.get("completeness") and "triage_recommendation" in i["completeness"]
+            r["completeness"]["triage_recommendation"]
+            for r in rows if r.get("completeness") and "triage_recommendation" in r["completeness"]
         })
         issue_types = sorted({
-            i["completeness"]["issue_type_assessment"]["classified_type"]
-            for i in issues
-            if i.get("completeness") and i["completeness"].get("issue_type_assessment")
+            r["completeness"]["issue_type_assessment"]["classified_type"]
+            for r in rows
+            if r.get("completeness") and r["completeness"].get("issue_type_assessment")
         })
         context_ratings = sorted({
-            i["context_map"]["overall_rating"]
-            for i in issues if i.get("context_map") and "overall_rating" in i["context_map"]
+            r["context_map"]["overall_rating"]
+            for r in rows if r.get("context_map") and "overall_rating" in r["context_map"]
         })
         components = sorted({
-            c for i in issues for c in i.get("components", []) if c
+            c for r in rows for c in r.get("components", []) if c
         })
         fix_recommendations = sorted({
-            i["fix_attempt"]["recommendation"]
-            for i in issues if i.get("fix_attempt") and i["fix_attempt"].get("recommendation")
+            r["fix_attempt"]["recommendation"]
+            for r in rows if r.get("fix_attempt") and r["fix_attempt"].get("recommendation")
         })
+        test_context_ratings = sorted({
+            r["test_context_rating"]
+            for r in rows if r["test_context_rating"]
+        })
+        arch_docs_values = sorted({r["arch_docs"] for r in rows if r["arch_docs"]})
+        src_code_values = sorted({r["src_code"] for r in rows if r["src_code"]})
 
         return render_template_string(
             DASHBOARD,
-            issues=issues,
+            rows=rows,
+            model_names=model_names,
             statuses=statuses,
             triages=triages,
             issue_types=issue_types,
             context_ratings=context_ratings,
             components=components,
             fix_recommendations=fix_recommendations,
+            test_context_ratings=test_context_ratings,
+            arch_docs_values=arch_docs_values,
+            src_code_values=src_code_values,
         )
 
     @app.route("/issue/<key>")
@@ -2497,7 +2640,26 @@ def create_app() -> Flask:
         issue = load_single_issue(key)
         if issue is None:
             abort(404)
-        return render_template_string(DETAIL, issue=issue)
+
+        # Model selection: use ?model= query param or first available
+        available_models = discover_models(key)
+        selected_model = request.args.get("model")
+        if selected_model and selected_model in available_models:
+            # Flatten selected model's data to top-level keys
+            mdata = issue.get("models", {}).get(selected_model, {})
+            if mdata:
+                issue["completeness"] = mdata.get("completeness", issue.get("completeness"))
+                issue["context_map"] = mdata.get("context_map", issue.get("context_map"))
+                issue["fix_attempt"] = mdata.get("fix_attempt", issue.get("fix_attempt"))
+                issue["test_plan"] = mdata.get("test_plan", issue.get("test_plan"))
+        elif available_models:
+            selected_model = available_models[0]
+
+        return render_template_string(
+            DETAIL, issue=issue,
+            available_models=available_models,
+            selected_model=selected_model or "",
+        )
 
     @app.route("/activity")
     def activity():
@@ -2511,27 +2673,32 @@ def create_app() -> Flask:
 
     @app.route("/summary")
     def summary_landing():
-        s = compute_summary_stats()
+        model = request.args.get("model") or None
+        s = compute_summary_stats(model=model)
         return render_template_string(SUMMARY_LANDING, s=s)
 
     @app.route("/summary/executive")
     def summary_executive():
-        s = compute_summary_stats()
+        model = request.args.get("model") or None
+        s = compute_summary_stats(model=model)
         return render_template_string(SUMMARY_EXECUTIVE, s=s)
 
     @app.route("/summary/developer")
     def summary_developer():
-        s = compute_summary_stats()
+        model = request.args.get("model") or None
+        s = compute_summary_stats(model=model)
         return render_template_string(SUMMARY_DEVELOPER, s=s)
 
     @app.route("/summary/statistician")
     def summary_statistician():
-        s = compute_summary_stats()
+        model = request.args.get("model") or None
+        s = compute_summary_stats(model=model)
         return render_template_string(SUMMARY_STATISTICIAN, s=s)
 
     @app.route("/readiness")
     def readiness():
-        components = compute_component_readiness()
+        model = request.args.get("model") or None
+        components = compute_component_readiness(model=model)
         return render_template_string(COMPONENT_READINESS, components=components)
 
     @app.route("/api/issues")

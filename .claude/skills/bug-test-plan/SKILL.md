@@ -338,10 +338,10 @@ If a test would pass both with and without the fix, it's not testing the right t
 
 ### Output Format
 
-Write **two files**:
+Write **two files** in the output directory specified in the prompt header:
 
-1. **`issues/{KEY}.test-plan.json`** — the JSON object described above
-2. **`issues/{KEY}.test-plan.md`** — a human-readable rendering:
+1. **`test-plan.json`** — the JSON object described above
+2. **`test-plan.md`** — a human-readable rendering:
 
 ```markdown
 # Test Plan: {KEY}

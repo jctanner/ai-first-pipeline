@@ -12,7 +12,7 @@ Attempt to produce a fix for a Jira bug by editing midstream (opendatahub-io) re
 
 ### Workspace Overview
 
-You are working in an **isolated workspace** under `fix-workspaces/{KEY}/` that contains shallow clones of the relevant **midstream** (opendatahub-io) repositories. These are the repos where RHOAI fixes are contributed.
+You are working in an **isolated workspace** under `src/` (within the output directory) that contains shallow clones of the relevant **midstream** (opendatahub-io) repositories. These are the repos where RHOAI fixes are contributed.
 
 - **Edit files directly** in the cloned repos within your current working directory.
 - **Read architecture docs** from `architecture-context/` for understanding component design — but **never edit** files in `architecture-context/`.
@@ -146,10 +146,10 @@ Your primary output is a JSON file conforming to this schema:
 
 ### Output Format
 
-Write **two files**:
+Write **two files** in the output directory specified in the prompt header:
 
-1. **`issues/{KEY}.fix-attempt.json`** — the JSON object described above
-2. **`issues/{KEY}.fix-attempt.md`** — a human-readable rendering:
+1. **`fix-attempt.json`** — the JSON object described above
+2. **`fix-attempt.md`** — a human-readable rendering:
 
 ```markdown
 # Fix Attempt: {KEY}
@@ -203,4 +203,4 @@ Write **two files**:
 - **DO edit** files in the cloned midstream repos in your working directory.
 - Read the actual source code before proposing changes. Do not guess at file contents.
 - If you cannot find the relevant source code, document what you looked for and recommend `ai-could-not-fix`.
-- The `issues/` directory path for output files is relative to the project base directory (provided in the Working Directory section), **not** your current working directory.
+- Write output files to the **Output Directory** specified in the prompt header, **not** to `issues/` or your current working directory.

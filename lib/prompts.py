@@ -39,6 +39,7 @@ def build_phase_prompt(
     skill_name: str,
     issue_key: str,
     issue_text: str,
+    output_dir: "Path | None" = None,
     **extra_context: str,
 ) -> str:
     """Build a full agent prompt from a skill file and issue data.
@@ -51,6 +52,12 @@ def build_phase_prompt(
         Jira issue key, e.g. ``RHOAIENG-37036``.
     issue_text:
         Pre-formatted plain-text rendering of the issue.
+    output_dir:
+        When provided, the agent is told to write output files into
+        this directory (e.g. ``workspace/KEY/claude-opus-4-6/``).
+        Paths in the instructions become relative to *output_dir*.
+        When ``None`` (legacy), output paths use the old
+        ``issues/{KEY}.phase.json`` convention.
     **extra_context:
         Additional context blocks to inject before the instructions.
         Keys become section headings (underscored names are title-cased),
@@ -61,10 +68,22 @@ def build_phase_prompt(
     instructions = load_skill_instructions(skill_name)
 
     # Build the issue data header
+    if output_dir is not None:
+        working_dir_section = (
+            f"## Working Directory\n\n{BASE_DIR}\n\nAll relative paths in the instructions below are relative to this directory.\n\n"
+            f"## Output Directory\n\n{output_dir}\n\n"
+            f"Write all output files (JSON and markdown) into this directory. "
+            f"For example, write `{output_dir}/completeness.json` (not `issues/{issue_key}.completeness.json`)."
+        )
+    else:
+        working_dir_section = (
+            f"## Working Directory\n\n{BASE_DIR}\n\nAll relative paths in the instructions below are relative to this directory. "
+            f"When writing output files, use this exact absolute prefix — for example, "
+            f"`{BASE_DIR}/issues/{issue_key}.context-map.json`."
+        )
+
     sections = [
-        f"## Working Directory\n\n{BASE_DIR}\n\nAll relative paths in the instructions below are relative to this directory. "
-        f"When writing output files, use this exact absolute prefix — for example, "
-        f"`{BASE_DIR}/issues/{issue_key}.context-map.json`.",
+        working_dir_section,
         f"## Issue\n\nKey: {issue_key}\n\n{issue_text}",
     ]
 
