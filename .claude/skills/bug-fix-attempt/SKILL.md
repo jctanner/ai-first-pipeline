@@ -100,24 +100,30 @@ Your primary output is a JSON file conforming to this schema:
    - Based on error output, logs, and code, hypothesize the root cause
    - Document the hypothesis in a structured format
 
-3. **Implement the fix:**
+3. **Evaluate fix strategies (before writing code):**
+   - Check whether the issue can be resolved by changing deployment arguments, configuration flags, or template parameters before writing new source code
+   - If the component is a fork (e.g., kube-auth-proxy forks oauth2-proxy), check whether the upstream project already has a flag or feature that addresses the issue
+   - Prefer the smallest change surface: fewer repos and fewer lines changed reduce risk. A deployment arg change in one repo is preferable to a Go code change across two repos, if both achieve the same outcome
+   - Document the alternatives you considered and why you chose your approach in the fix_description
+
+4. **Implement the fix:**
    - **Edit files directly** in the cloned midstream repos in your working directory
    - If the fix requires changes across multiple files or repos, edit each file
    - If the component has a known upstream (provided in your prompt), note in `upstream_consideration` whether the fix should go upstream first and why
    - Set `target_repo` to the midstream `org/repo` (e.g., `opendatahub-io/odh-dashboard`)
 
-4. **Self-review:**
+5. **Self-review:**
    - Check for common pitfalls: nil pointer dereferences, missing error handling, race conditions, breaking API changes
    - Verify the fix doesn't introduce security vulnerabilities
    - Check if the fix respects the component's existing patterns and conventions
 
-5. **Anticipate validation:**
+6. **Anticipate validation:**
    - If a Test Context section is provided in your prompt, review the lint and test commands that will be run after your fix
    - Ensure your changes pass the linting rules described (e.g., no unused imports, correct formatting, type annotations)
    - If validation feedback is provided (this is a retry after a failed validation), fix the specific errors reported in the feedback section
    - Pay attention to which commands are marked as `validated: true` — those are the ones that will actually run
 
-5b. **Report self-corrections (retry only):**
+6b. **Report self-corrections (retry only):**
    - If your prompt contains a `## Validation Feedback` section, this is a retry after a failed validation
    - Include a `self_corrections` array in your JSON output with one entry describing what you corrected
    - Set `after_iteration` to the iteration number shown in the feedback header (e.g., if the header says "Iteration 2", set `after_iteration` to 2)
@@ -128,7 +134,7 @@ Your primary output is a JSON file conforming to this schema:
    - Set `was_original_approach_wrong` to `true` only if you fundamentally changed your approach, `false` for minor fixes
    - If this is NOT a retry (no Validation Feedback section), do NOT include `self_corrections` in the JSON
 
-6. **Choose the right recommendation:**
+7. **Choose the right recommendation:**
    - `"ai-fixable"` — you produced a working code fix. Use this when you edited files and believe the patch addresses the root cause.
    - `"already-fixed"` — after reading the current codebase, the bug appears to already be fixed in the midstream code. Explain in `fix_description` what code already handles the reported issue.
    - `"not-a-bug"` — the reported behavior is by design, a feature request, enhancement, or RFE. Explain in `fix_description` why this isn't a defect.

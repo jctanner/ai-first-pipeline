@@ -252,10 +252,17 @@ def _adf_to_html(node) -> str:
     return inner
 
 
-def _parse_issue(path: Path) -> dict:
-    """Load an issue JSON and return a dict with key fields as plain text."""
+def _parse_issue(path: Path) -> dict | None:
+    """Load an issue JSON and return a dict with key fields as plain text.
+
+    Returns None if the file contains invalid JSON.
+    """
     with open(path) as f:
-        raw = json.load(f)
+        try:
+            raw = json.load(f)
+        except json.JSONDecodeError:
+            print(f"WARNING: skipping {path.name} (invalid JSON)", file=sys.stderr)
+            return None
 
     fields = raw.get("fields", {})
 

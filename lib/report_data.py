@@ -42,9 +42,11 @@ def _latest_phase_mtime(key: str) -> str:
     return datetime.fromtimestamp(latest, tz=timezone.utc).strftime("%Y-%m-%d %H:%M")
 
 
-def _enrich_issue(path: Path) -> dict:
+def _enrich_issue(path: Path) -> dict | None:
     """Load a raw issue and attach all phase outputs."""
     issue = _parse_issue(path)
+    if issue is None:
+        return None
     key = issue["key"]
     issue["completeness"] = _load_phase_json(key, "completeness")
     issue["context_map"] = _load_phase_json(key, "context-map")
@@ -70,7 +72,7 @@ def load_all_issues() -> list[dict]:
         (p for p in ISSUES_DIR.glob("RHOAIENG-*.json") if "." not in p.stem),
         key=_numeric_key,
     )
-    return [_enrich_issue(p) for p in paths]
+    return [issue for p in paths if (issue := _enrich_issue(p)) is not None]
 
 
 def load_single_issue(key: str) -> dict | None:

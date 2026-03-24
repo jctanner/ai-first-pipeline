@@ -203,8 +203,8 @@ DASHBOARD = """\
       data-triage="{{ issue.completeness.triage_recommendation if issue.completeness else '' }}"
       data-issuetype="{{ issue.completeness.issue_type_assessment.classified_type if issue.completeness and issue.completeness.issue_type_assessment else '' }}"
       data-components="{{ issue.components|join('||') }}"
-      data-context="{{ issue.context_map.overall_rating if issue.context_map else '' }}"
-      data-fix="{{ issue.fix_attempt.recommendation if issue.fix_attempt else '' }}"
+      data-context="{{ issue.context_map.overall_rating if issue.context_map and issue.context_map.overall_rating is defined else '' }}"
+      data-fix="{{ issue.fix_attempt.recommendation if issue.fix_attempt and issue.fix_attempt.recommendation is defined else '' }}"
       data-eligible="{% if issue.status in ['In Progress', 'Review', 'Testing', 'Closed', 'Done'] %}no{% elif issue.completeness and issue.completeness.overall_score is defined and issue.completeness.overall_score < 5 %}no{% elif issue.context_map and issue.context_map.overall_rating == 'no-context' %}no{% else %}yes{% endif %}"
     >
       <td><a href="/issue/{{ issue.key }}">{{ issue.key }}</a></td>
@@ -213,8 +213,8 @@ DASHBOARD = """\
       <td>{{ issue.priority }}</td>
       <td>{{ issue.components|join(', ') }}</td>
       <td>{{ issue.issue_type }}</td>
-      <td data-sort-value="{{ issue.completeness.overall_score if issue.completeness else -1 }}">
-        {% if issue.completeness %}
+      <td data-sort-value="{{ issue.completeness.overall_score if issue.completeness and issue.completeness.overall_score is defined else -1 }}">
+        {% if issue.completeness and issue.completeness.overall_score is defined %}
           {% set score = issue.completeness.overall_score %}
           <span class="{{ 'score-red' if score < 40 else ('score-yellow' if score < 80 else 'score-green') }}">{{ score }}</span>
         {% else %}&mdash;{% endif %}
@@ -225,8 +225,8 @@ DASHBOARD = """\
           <span class="badge badge-{{ itype if itype in ('bug','enhancement','feature-request','task') else 'default' }}">{{ itype }}</span>
         {% else %}&mdash;{% endif %}
       </td>
-      <td>{{ issue.completeness.triage_recommendation if issue.completeness else '&mdash;'|safe }}</td>
-      <td>{{ issue.context_map.overall_rating if issue.context_map else '&mdash;'|safe }}</td>
+      <td>{{ issue.completeness.triage_recommendation if issue.completeness and issue.completeness.triage_recommendation is defined else '&mdash;'|safe }}</td>
+      <td>{{ issue.context_map.overall_rating if issue.context_map and issue.context_map.overall_rating is defined else '&mdash;'|safe }}</td>
       <td data-sort-value="{{ issue.context_map.context_helpfulness.overall_score if issue.context_map and issue.context_map.context_helpfulness else -1 }}">
         {% if issue.context_map and issue.context_map.context_helpfulness %}
           {% set hs = issue.context_map.context_helpfulness.overall_score %}
@@ -238,8 +238,8 @@ DASHBOARD = """\
           <span class="badge badge-fix-{{ issue.fix_attempt.recommendation }}">{{ issue.fix_attempt.recommendation }}</span>
         {% else %}&mdash;{% endif %}
       </td>
-      <td>{{ issue.fix_attempt.confidence if issue.fix_attempt else '&mdash;'|safe }}</td>
-      <td>{{ issue.test_plan.effort_estimate if issue.test_plan else '&mdash;'|safe }}</td>
+      <td>{{ issue.fix_attempt.confidence if issue.fix_attempt and issue.fix_attempt.confidence is defined else '&mdash;'|safe }}</td>
+      <td>{{ issue.test_plan.effort_estimate if issue.test_plan and issue.test_plan.effort_estimate is defined else '&mdash;'|safe }}</td>
       <td>{{ issue.last_processed or '&mdash;'|safe }}</td>
     </tr>
     {% endfor %}
@@ -378,6 +378,7 @@ DETAIL = """\
   <summary>Completeness Analysis</summary>
   {% if issue.completeness %}
     {% set c = issue.completeness %}
+    {% if c.overall_score is defined %}
     <p>
       <strong>Overall Score:</strong>
       <span class="{{ 'score-red' if c.overall_score < 40 else ('score-yellow' if c.overall_score < 80 else 'score-green') }}">
@@ -389,6 +390,9 @@ DETAIL = """\
         {{ c.overall_score }}
       </div>
     </div>
+    {% else %}
+    <p><em>Completeness data is incomplete (missing overall_score).</em></p>
+    {% endif %}
 
     <h4>Dimensions</h4>
     <table>
@@ -2458,7 +2462,7 @@ def create_app() -> Flask:
         statuses = sorted({i["status"] for i in issues})
         triages = sorted({
             i["completeness"]["triage_recommendation"]
-            for i in issues if i.get("completeness")
+            for i in issues if i.get("completeness") and "triage_recommendation" in i["completeness"]
         })
         issue_types = sorted({
             i["completeness"]["issue_type_assessment"]["classified_type"]
@@ -2467,7 +2471,7 @@ def create_app() -> Flask:
         })
         context_ratings = sorted({
             i["context_map"]["overall_rating"]
-            for i in issues if i.get("context_map")
+            for i in issues if i.get("context_map") and "overall_rating" in i["context_map"]
         })
         components = sorted({
             c for i in issues for c in i.get("components", []) if c
