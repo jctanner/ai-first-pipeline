@@ -140,10 +140,29 @@ Examples:
         help="Only re-run issues whose existing fix-attempt has this recommendation",
     )
 
-    # Run all analysis phases (2-5)
+    # Phase 6: Write QE tests
+    write_test_parser = subparsers.add_parser(
+        "write-test",
+        help="Phase 6: Write QE tests for opendatahub-tests",
+    )
+    _add_common_analysis_args(write_test_parser)
+    write_test_parser.add_argument(
+        "--recommendation",
+        choices=[
+            "ai-fixable", "already-fixed", "not-a-bug", "docs-only",
+            "upstream-required", "insufficient-info", "ai-could-not-fix",
+        ],
+        help="Only process issues with this fix-attempt recommendation",
+    )
+    write_test_parser.add_argument(
+        "--component",
+        help="Filter by component",
+    )
+
+    # Run all analysis phases (2-6)
     all_parser = subparsers.add_parser(
         "all",
-        help="Run phases 2-5 in dependency order",
+        help="Run phases 2-6 in dependency order",
     )
     _add_common_analysis_args(all_parser)
     all_parser.add_argument(

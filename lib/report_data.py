@@ -12,9 +12,9 @@ from pathlib import Path
 from typing import Generator
 
 from lib.phases import _parse_issue
-from lib.paths import ISSUES_DIR, WORKSPACE_DIR, phase_json, discover_models
+from lib.paths import ISSUES_DIR, WORKSPACE_DIR, phase_json, test_patch_diff, discover_models
 
-PHASE_SUFFIXES = ["completeness", "context-map", "fix-attempt", "test-plan"]
+PHASE_SUFFIXES = ["completeness", "context-map", "fix-attempt", "test-plan", "write-test"]
 
 
 def _load_phase_json(key: str, phase: str, model: str | None = None) -> dict | None:
@@ -114,10 +114,17 @@ def _enrich_issue(path: Path) -> dict | None:
             ("context-map", "context_map"),
             ("fix-attempt", "fix_attempt"),
             ("test-plan", "test_plan"),
+            ("write-test", "write_test"),
         ]:
             d = _load_phase_json(key, phase, model=mid)
             if d is not None:
                 mdata[attr] = d
+        # Backfill write_test.patch from test-patch.diff if not already set
+        wt = mdata.get("write_test")
+        if wt and not wt.get("patch"):
+            diff_path = test_patch_diff(key, mid)
+            if diff_path.exists():
+                wt["patch"] = diff_path.read_text()
         if mdata:
             models[mid] = mdata
 
@@ -129,6 +136,7 @@ def _enrich_issue(path: Path) -> dict | None:
     issue["context_map"] = first_model.get("context_map") or _load_phase_json(key, "context-map")
     issue["fix_attempt"] = first_model.get("fix_attempt") or _load_phase_json(key, "fix-attempt")
     issue["test_plan"] = first_model.get("test_plan") or _load_phase_json(key, "test-plan")
+    issue["write_test"] = first_model.get("write_test") or _load_phase_json(key, "write-test")
     issue["last_processed"] = _latest_phase_mtime(key)
     return issue
 

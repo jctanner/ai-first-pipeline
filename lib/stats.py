@@ -9,7 +9,7 @@ from scipy import stats as sp_stats
 
 from lib.phases import ISSUES_DIR
 
-PHASE_SUFFIXES = ["completeness", "context-map", "fix-attempt", "test-plan"]
+PHASE_SUFFIXES = ["completeness", "context-map", "fix-attempt", "test-plan", "write-test"]
 
 # Map string confidence values to ordinal numbers
 _CONFIDENCE_MAP = {"low": 1, "medium": 2, "high": 3}

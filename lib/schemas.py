@@ -572,10 +572,39 @@ TEST_PLAN_SCHEMA = {
     "additionalProperties": False,
 }
 
+WRITE_TEST_SCHEMA = {
+    "type": "object",
+    "required": ["issue_key", "decision", "justification"],
+    "properties": {
+        "issue_key": {"type": "string"},
+        "model": {"type": "string"},
+        "decision": {"type": "string", "enum": ["write-test", "skip"]},
+        "justification": {"type": "string"},
+        "test_file": {"type": ["string", "null"]},
+        "test_markers": {
+            "type": "array",
+            "items": {"type": "string"},
+        },
+        "test_description": {"type": ["string", "null"]},
+        "patch": {"type": ["string", "null"]},
+        "confidence": {
+            "type": "string",
+            "enum": ["low", "medium", "high"],
+        },
+        "risks": {
+            "type": "array",
+            "items": {"type": "string"},
+        },
+        "cluster_requirements": {"type": ["string", "null"]},
+    },
+    "additionalProperties": False,
+}
+
 # Map phase names to their schemas for easy lookup
 PHASE_SCHEMAS = {
     "completeness": COMPLETENESS_SCHEMA,
     "context-map": CONTEXT_MAP_SCHEMA,
     "fix-attempt": FIX_ATTEMPT_SCHEMA,
     "test-plan": TEST_PLAN_SCHEMA,
+    "write-test": WRITE_TEST_SCHEMA,
 }

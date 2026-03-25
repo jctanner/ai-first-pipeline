@@ -195,6 +195,13 @@ DASHBOARD = """\
     </select>
   </label>
   <label>
+    Write Test
+    <select id="filter-writetest" onchange="applyFilters()">
+      <option value="">All</option>
+      {% for v in write_test_decisions %}<option value="{{ v }}">{{ v }}</option>{% endfor %}
+    </select>
+  </label>
+  <label>
     AI Eligible
     <select id="filter-eligible" onchange="applyFilters()">
       <option value="">All</option>
@@ -230,7 +237,8 @@ DASHBOARD = """\
       <th class="sortable" data-col="15">Fix</th>
       <th class="sortable" data-col="16">Confidence</th>
       <th class="sortable" data-col="17">Test<br>Effort</th>
-      <th class="sortable" data-col="18">Processed</th>
+      <th class="sortable" data-col="18">Write<br>Test</th>
+      <th class="sortable" data-col="19">Processed</th>
     </tr>
   </thead>
   <tbody>
@@ -246,6 +254,7 @@ DASHBOARD = """\
       data-testctx="{{ row.test_context_rating }}"
       data-archdocs="{{ row.arch_docs }}"
       data-srccode="{{ row.src_code }}"
+      data-writetest="{{ row.write_test.decision if row.write_test and row.write_test.decision is defined else '' }}"
       data-eligible="{% if row.status in ['In Progress', 'Review', 'Testing', 'Closed', 'Done'] %}no{% elif row.completeness and row.completeness.overall_score is defined and row.completeness.overall_score < 5 %}no{% elif row.context_map and row.context_map.overall_rating == 'no-context' %}no{% else %}yes{% endif %}"
     >
       <td><a href="/issue/{{ row.key }}{% if row.model %}?model={{ row.model }}{% endif %}">{{ row.key }}</a></td>
@@ -297,6 +306,11 @@ DASHBOARD = """\
       </td>
       <td>{{ row.fix_attempt.confidence if row.fix_attempt and row.fix_attempt.confidence is defined else '&mdash;'|safe }}</td>
       <td>{{ row.test_plan.effort_estimate if row.test_plan and row.test_plan.effort_estimate is defined else '&mdash;'|safe }}</td>
+      <td>
+        {% if row.write_test %}
+          <span class="badge {{ 'badge-val-pass' if row.write_test.decision == 'write-test' else 'badge-default' }}">{{ row.write_test.decision }}</span>
+        {% else %}&mdash;{% endif %}
+      </td>
       <td>{{ row.last_processed or '&mdash;'|safe }}</td>
     </tr>
     {% endfor %}
@@ -348,6 +362,7 @@ function applyFilters() {
   const testctx = document.getElementById('filter-testctx').value;
   const archdocs = document.getElementById('filter-archdocs').value;
   const srccode = document.getElementById('filter-srccode').value;
+  const writetest = document.getElementById('filter-writetest').value;
   const eligible = document.getElementById('filter-eligible').value;
   const text = document.getElementById('filter-text').value.toLowerCase();
   document.querySelectorAll('#issues-table tbody tr').forEach(row => {
@@ -363,6 +378,7 @@ function applyFilters() {
     if (testctx && row.dataset.testctx !== testctx) show = false;
     if (archdocs && row.dataset.archdocs !== archdocs) show = false;
     if (srccode && row.dataset.srccode !== srccode) show = false;
+    if (writetest && row.dataset.writetest !== writetest) show = false;
     if (eligible && row.dataset.eligible !== eligible) show = false;
     row.style.display = show ? '' : 'none';
   });
@@ -934,6 +950,62 @@ DETAIL = """\
     {% endif %}
   {% else %}
     <p><em>No test plan available.</em></p>
+  {% endif %}
+</details>
+
+{# ---- Write Test ---- #}
+<details open>
+  <summary>Write Test</summary>
+  {% if issue.write_test %}
+    {% set wt = issue.write_test %}
+    <p>
+      <strong>Decision:</strong>
+      <span class="badge {{ 'badge-val-pass' if wt.decision == 'write-test' else 'badge-default' }}">{{ wt.decision }}</span>
+      {% if wt.confidence %}
+      &middot; <strong>Confidence:</strong> {{ wt.confidence }}
+      {% endif %}
+    </p>
+
+    <h4>Justification</h4>
+    <p>{{ wt.justification }}</p>
+
+    {% if wt.decision == 'write-test' %}
+      {% if wt.test_file %}
+      <p><strong>Test File:</strong> <code>{{ wt.test_file }}</code></p>
+      {% endif %}
+
+      {% if wt.test_markers %}
+      <p><strong>Markers:</strong>
+        {% for m in wt.test_markers %}
+          <span class="badge badge-default">{{ m }}</span>
+        {% endfor %}
+      </p>
+      {% endif %}
+
+      {% if wt.test_description %}
+      <h4>Test Description</h4>
+      <p>{{ wt.test_description }}</p>
+      {% endif %}
+
+      {% if wt.patch %}
+      <h4>Test Patch</h4>
+      <pre class="patch">{{ wt.patch }}</pre>
+      {% else %}
+      <p><em>Patch not captured. Re-run the write-test phase to generate the diff.</em></p>
+      {% endif %}
+    {% endif %}
+
+    {% if wt.risks %}
+    <h4>Risks</h4>
+    <ul>{% for r in wt.risks %}<li>{{ r }}</li>{% endfor %}</ul>
+    {% endif %}
+
+    {% if wt.cluster_requirements %}
+    <h4>Cluster Requirements</h4>
+    <p>{{ wt.cluster_requirements }}</p>
+    {% endif %}
+  {% else %}
+    <p><em>No write-test analysis available.</em></p>
   {% endif %}
 </details>
 
@@ -2553,6 +2625,7 @@ def create_app() -> Flask:
                     row["context_map"] = mdata.get("context_map")
                     row["fix_attempt"] = mdata.get("fix_attempt")
                     row["test_plan"] = mdata.get("test_plan")
+                    row["write_test"] = mdata.get("write_test")
                     rows.append(row)
             else:
                 row = {**issue, "model": ""}
@@ -2619,6 +2692,10 @@ def create_app() -> Flask:
         })
         arch_docs_values = sorted({r["arch_docs"] for r in rows if r["arch_docs"]})
         src_code_values = sorted({r["src_code"] for r in rows if r["src_code"]})
+        write_test_decisions = sorted({
+            r["write_test"]["decision"]
+            for r in rows if r.get("write_test") and r["write_test"].get("decision")
+        })
 
         return render_template_string(
             DASHBOARD,
@@ -2633,6 +2710,7 @@ def create_app() -> Flask:
             test_context_ratings=test_context_ratings,
             arch_docs_values=arch_docs_values,
             src_code_values=src_code_values,
+            write_test_decisions=write_test_decisions,
         )
 
     @app.route("/issue/<key>")
@@ -2652,6 +2730,7 @@ def create_app() -> Flask:
                 issue["context_map"] = mdata.get("context_map", issue.get("context_map"))
                 issue["fix_attempt"] = mdata.get("fix_attempt", issue.get("fix_attempt"))
                 issue["test_plan"] = mdata.get("test_plan", issue.get("test_plan"))
+                issue["write_test"] = mdata.get("write_test", issue.get("write_test"))
         elif available_models:
             selected_model = available_models[0]
 

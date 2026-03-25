@@ -43,6 +43,11 @@ def patch_diff(key: str, model_id: str) -> Path:
     return model_workspace(key, model_id) / "patch.diff"
 
 
+def test_patch_diff(key: str, model_id: str) -> Path:
+    """Return ``workspace/{KEY}/{model_id}/test-patch.diff``."""
+    return model_workspace(key, model_id) / "test-patch.diff"
+
+
 def memory_md(key: str, model_id: str) -> Path:
     """Return ``workspace/{KEY}/{model_id}/MEMORY.md``."""
     return model_workspace(key, model_id) / "MEMORY.md"

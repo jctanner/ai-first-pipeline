@@ -19,7 +19,7 @@ from lib.schemas import PHASE_SCHEMAS
 from lib.paths import (
     BASE_DIR, ISSUES_DIR, WORKSPACE_DIR,
     model_workspace, phase_json, phase_md, phase_log,
-    src_dir, patch_diff, memory_md, issue_copy,
+    src_dir, patch_diff, test_patch_diff, memory_md, issue_copy,
 )
 from lib.repo_mapping import (
     get_midstream, get_upstream, clone_midstream_repo,
@@ -1641,6 +1641,218 @@ async def run_test_plan_phase(args) -> list:
 
 
 # ---------------------------------------------------------------------------
+# Phase 6: Write test
+# ---------------------------------------------------------------------------
+
+
+def _clone_opendatahub_tests(workspace_dir: Path) -> Path | None:
+    """Clone opendatahub-tests into workspace_dir/opendatahub-tests."""
+    clone_dir = workspace_dir / "opendatahub-tests"
+    if clone_dir.exists():
+        return clone_dir
+    clone_url = "https://github.com/opendatahub-io/opendatahub-tests.git"
+    workspace_dir.mkdir(parents=True, exist_ok=True)
+    try:
+        import subprocess
+        subprocess.run(
+            ["git", "clone", "--depth", "1", clone_url, str(clone_dir)],
+            check=True, capture_output=True, text=True, timeout=120,
+        )
+        return clone_dir
+    except (subprocess.CalledProcessError, subprocess.TimeoutExpired):
+        return None
+
+
+def _capture_test_repo_diff(clone_dir: Path) -> str:
+    """Capture all changes (tracked and untracked) in the opendatahub-tests clone.
+
+    ``git diff`` only shows modifications to tracked files.  The write-test
+    agent typically creates *new* files which are untracked, so we stage
+    everything first with ``git add -A`` and then use ``git diff --cached``
+    to produce a complete diff that includes new files.
+    """
+    import subprocess
+
+    if not clone_dir.exists() or not (clone_dir / ".git").exists():
+        return ""
+    try:
+        # Stage everything (new + modified + deleted) so the diff includes
+        # untracked files the agent created.
+        subprocess.run(
+            ["git", "-C", str(clone_dir), "add", "-A"],
+            capture_output=True, text=True, timeout=30,
+        )
+        result = subprocess.run(
+            ["git", "-C", str(clone_dir), "diff", "--cached"],
+            capture_output=True, text=True, timeout=30,
+        )
+        return result.stdout.strip()
+    except (subprocess.CalledProcessError, subprocess.TimeoutExpired):
+        return ""
+
+
+def _update_write_test_json_patch(json_path: Path, captured_diff: str) -> None:
+    """Replace the ``patch`` field in a write-test JSON with the captured git diff."""
+    if not json_path.exists() or not captured_diff:
+        return
+    try:
+        with open(json_path) as f:
+            data = json.load(f)
+        data["patch"] = captured_diff
+        with open(json_path, "w") as f:
+            json.dump(data, f, indent=2)
+    except (json.JSONDecodeError, KeyError):
+        pass
+
+
+def _write_test_patch_diff(key: str, mid: str, diff_text: str) -> None:
+    """Write a standalone ``test-patch.diff`` into the model workspace."""
+    if not diff_text:
+        return
+    out = test_patch_diff(key, mid)
+    out.parent.mkdir(parents=True, exist_ok=True)
+    out.write_text(diff_text)
+
+
+async def run_write_test_phase(args) -> list:
+    """Write QE tests for opendatahub-tests based on fix attempts and test plans."""
+    issue_paths = _discover_issues(args)
+    component_filter = getattr(args, "component", None)
+    recommendation_filter = getattr(args, "recommendation", None)
+    all_jobs: list = []
+    job_workspaces: dict[tuple[str, str], Path] = {}
+
+    for model_shorthand in args.model:
+        mid = get_model_id(model_shorthand)
+        model_jobs: list = []
+        skipped_reasons: dict[str, list[str]] = {
+            "output_exists": [],
+            "no_fix_attempt": [],
+            "not_fixable": [],
+            "recommendation_mismatch": [],
+            "component_mismatch": [],
+        }
+
+        for path in issue_paths:
+            key = _issue_key_from_path(path)
+            output_file = phase_json(key, mid, "write-test")
+            output_md_file = phase_md(key, mid, "write-test")
+
+            # When --recommendation is set, filter on existing fix-attempt recommendation
+            fix_attempt_path = phase_json(key, mid, "fix-attempt")
+            if recommendation_filter:
+                existing_rec = _extract_fix_recommendation(fix_attempt_path)
+                if existing_rec != recommendation_filter:
+                    skipped_reasons["recommendation_mismatch"].append(key)
+                    continue
+            elif output_file.exists() and not args.force:
+                skipped_reasons["output_exists"].append(key)
+                continue
+
+            # Require fix-attempt to exist
+            if not fix_attempt_path.exists():
+                skipped_reasons["no_fix_attempt"].append(key)
+                continue
+
+            # Skip if fix-attempt recommendation is not ai-fixable
+            existing_rec = _extract_fix_recommendation(fix_attempt_path)
+            if existing_rec != "ai-fixable":
+                skipped_reasons["not_fixable"].append(key)
+                continue
+
+            issue = _parse_issue(path)
+
+            # Filter by component if requested
+            if component_filter:
+                if not _issue_matches_component_filter(issue, component_filter):
+                    skipped_reasons["component_mismatch"].append(key)
+                    continue
+
+            _ensure_issue_copy(key, path)
+            ws = model_workspace(key, mid)
+            ws.mkdir(parents=True, exist_ok=True)
+
+            # Clone opendatahub-tests into src_dir
+            workspace_dir = src_dir(key, mid)
+            clone_dir = _clone_opendatahub_tests(workspace_dir)
+            if clone_dir is None:
+                print(f"  [{key}] write-test: failed to clone opendatahub-tests, skipping")
+                continue
+
+            issue_text = _issue_to_text(issue)
+            extra: dict[str, str] = {}
+
+            # Load fix-attempt as input context
+            extra["fix_attempt"] = fix_attempt_path.read_text()
+
+            # Load test-plan if available
+            test_plan_path = phase_json(key, mid, "test-plan")
+            if test_plan_path.exists():
+                extra["test_plan"] = test_plan_path.read_text()
+
+            # Provide workspace info pointing to the cloned repo
+            extra["workspace_info"] = (
+                f"Workspace directory: {workspace_dir}\n\n"
+                f"Cloned opendatahub-tests repository:\n"
+                f"  - {clone_dir}/ (clone of opendatahub-io/opendatahub-tests)\n\n"
+                f"Write test files directly into this clone. The orchestrator will\n"
+                f"capture your changes as a git diff after the phase completes."
+            )
+
+            prompt = build_phase_prompt(
+                "bug-write-test", key, issue_text, output_dir=ws, **extra,
+            )
+
+            model_jobs.append({
+                "name": key,
+                "cwd": str(workspace_dir),
+                "prompt": prompt,
+                "stale_files": [output_file, output_md_file],
+                "model_shorthand": model_shorthand,
+                "model_id": mid,
+            })
+            job_workspaces[(key, mid)] = workspace_dir
+
+        # Print skip summary
+        for reason, keys_list in skipped_reasons.items():
+            if keys_list:
+                print(f"  Skipped ({reason}): {len(keys_list)} issues [{mid}]")
+
+        if getattr(args, "limit", None):
+            model_jobs = model_jobs[: args.limit]
+        all_jobs.extend(model_jobs)
+
+    results = await _run_phase("write-test", all_jobs, args)
+
+    # Post-agent: capture git diffs from opendatahub-tests clone
+    for i, result in enumerate(results):
+        if not isinstance(result, dict) or not result.get("success"):
+            continue
+        key = result["name"]
+        mid = result.get("model_id", "")
+        workspace_dir = job_workspaces.get((key, mid))
+        if workspace_dir is None:
+            continue
+        clone_dir = workspace_dir / "opendatahub-tests"
+        captured_diff = _capture_test_repo_diff(clone_dir)
+        json_path = phase_json(key, mid, "write-test")
+        if captured_diff:
+            _update_write_test_json_patch(json_path, captured_diff)
+            _write_test_patch_diff(key, mid, captured_diff)
+            print(f"  {key}/{mid}: captured test repo diff ({len(captured_diff)} chars)")
+
+        # Clean up cloned repo to save disk space
+        _cleanup_src(key, mid)
+
+    for model_shorthand in args.model:
+        mid = get_model_id(model_shorthand)
+        model_results = [r for r in results if isinstance(r, dict) and r.get("model_id") == mid]
+        _validate_phase_outputs("write-test", model_results, mid=mid)
+
+    return results
+
+
+# ---------------------------------------------------------------------------
 # Per-issue pipeline helpers (used by run_all_phases pipeline mode)
 # ---------------------------------------------------------------------------
 
@@ -1886,6 +2098,92 @@ async def _maybe_run_test_plan(
     return result
 
 
+async def _maybe_run_write_test(
+    key: str,
+    issue: dict,
+    args,
+    semaphore: asyncio.Semaphore,
+    log_dir: Path,
+    model_shorthand: str,
+    mid: str,
+) -> dict:
+    """Run write-test phase for one issue if eligible. Returns result dict."""
+    output_file = phase_json(key, mid, "write-test")
+    output_md_file = phase_md(key, mid, "write-test")
+    recommendation_filter = getattr(args, "recommendation", None)
+
+    fix_attempt_path = phase_json(key, mid, "fix-attempt")
+    if recommendation_filter:
+        existing_rec = _extract_fix_recommendation(fix_attempt_path)
+        if existing_rec != recommendation_filter:
+            _log_activity(key, "write-test", "skipped", model=mid, reason="recommendation_mismatch")
+            return {"name": key, "phase": "write-test", "skipped": True, "reason": "recommendation_mismatch"}
+    elif output_file.exists() and not args.force:
+        _log_activity(key, "write-test", "skipped", model=mid, reason="output_exists")
+        return {"name": key, "phase": "write-test", "skipped": True, "reason": "output_exists"}
+
+    # Require fix-attempt with ai-fixable recommendation
+    if not fix_attempt_path.exists():
+        _log_activity(key, "write-test", "skipped", model=mid, reason="no_fix_attempt")
+        return {"name": key, "phase": "write-test", "skipped": True, "reason": "no_fix_attempt"}
+
+    existing_rec = _extract_fix_recommendation(fix_attempt_path)
+    if existing_rec != "ai-fixable":
+        _log_activity(key, "write-test", "skipped", model=mid, reason="not_fixable")
+        return {"name": key, "phase": "write-test", "skipped": True, "reason": "not_fixable"}
+
+    ws = model_workspace(key, mid)
+    ws.mkdir(parents=True, exist_ok=True)
+
+    # Clone opendatahub-tests
+    workspace_dir = src_dir(key, mid)
+    clone_dir = _clone_opendatahub_tests(workspace_dir)
+    if clone_dir is None:
+        print(f"  [{key}] write-test: failed to clone opendatahub-tests, skipping")
+        _log_activity(key, "write-test", "skipped", model=mid, reason="clone_failed")
+        return {"name": key, "phase": "write-test", "skipped": True, "reason": "clone_failed"}
+
+    issue_text = _issue_to_text(issue)
+    extra: dict[str, str] = {}
+
+    extra["fix_attempt"] = fix_attempt_path.read_text()
+
+    test_plan_path = phase_json(key, mid, "test-plan")
+    if test_plan_path.exists():
+        extra["test_plan"] = test_plan_path.read_text()
+
+    extra["workspace_info"] = (
+        f"Workspace directory: {workspace_dir}\n\n"
+        f"Cloned opendatahub-tests repository:\n"
+        f"  - {clone_dir}/ (clone of opendatahub-io/opendatahub-tests)\n\n"
+        f"Write test files directly into this clone. The orchestrator will\n"
+        f"capture your changes as a git diff after the phase completes."
+    )
+
+    prompt = build_phase_prompt(
+        "bug-write-test", key, issue_text, output_dir=ws, **extra,
+    )
+
+    result = await _run_single_agent(
+        key, "write-test", str(workspace_dir), prompt,
+        [output_file, output_md_file], semaphore, log_dir, model_shorthand, mid=mid,
+    )
+
+    # Post-agent: capture git diff from opendatahub-tests clone
+    if isinstance(result, dict) and result.get("success"):
+        captured_diff = _capture_test_repo_diff(clone_dir)
+        json_path = phase_json(key, mid, "write-test")
+        if captured_diff:
+            _update_write_test_json_patch(json_path, captured_diff)
+            _write_test_patch_diff(key, mid, captured_diff)
+            print(f"  [{key}] write-test: captured test repo diff ({len(captured_diff)} chars)")
+
+    # Clean up cloned repo
+    _cleanup_src(key, mid)
+
+    return result
+
+
 async def _run_issue_pipeline(
     key: str,
     path: Path,
@@ -1908,7 +2206,7 @@ async def _run_issue_pipeline(
     # Early component filter — skip the entire issue
     if component_filter:
         if not _issue_matches_component_filter(issue, component_filter):
-            for p in ("completeness", "context-map", "fix-attempt", "test-plan"):
+            for p in ("completeness", "context-map", "fix-attempt", "test-plan", "write-test"):
                 _log_activity(key, p, "skipped", model=mid, reason="component_mismatch")
                 results[p] = {"name": key, "phase": p, "skipped": True, "reason": "component_mismatch"}
             _log_activity(key, "pipeline", "issue_completed", model=mid, phases_run=0, phases_failed=0)
@@ -1939,6 +2237,11 @@ async def _run_issue_pipeline(
         key, issue, args, semaphore, log_dirs["test-plan"], model_shorthand, mid,
     )
 
+    # Phase 6
+    results["write-test"] = await _maybe_run_write_test(
+        key, issue, args, semaphore, log_dirs["write-test"], model_shorthand, mid,
+    )
+
     phases_run = sum(1 for r in results.values() if isinstance(r, dict) and not r.get("skipped"))
     phases_failed = sum(1 for r in results.values() if isinstance(r, dict) and not r.get("skipped") and not r.get("success"))
     _log_activity(key, "pipeline", "issue_completed", model=mid, phases_run=phases_run, phases_failed=phases_failed)
@@ -1951,7 +2254,7 @@ async def _run_issue_pipeline(
 # ---------------------------------------------------------------------------
 
 async def run_all_phases(args) -> None:
-    """Run phases 2-5 using a per-issue pipeline model.
+    """Run phases 2-6 using a per-issue pipeline model.
 
     All models run concurrently — the shared semaphore controls total
     concurrent agent count regardless of how many models are in the mix.
@@ -1969,7 +2272,7 @@ async def run_all_phases(args) -> None:
     semaphore = asyncio.Semaphore(args.max_concurrent)
 
     # Log directories per phase
-    phase_names = ["completeness", "context-map", "fix-attempt", "test-plan"]
+    phase_names = ["completeness", "context-map", "fix-attempt", "test-plan", "write-test"]
     log_dirs = {}
     for pn in phase_names:
         d = BASE_DIR / "logs" / pn
@@ -2121,6 +2424,8 @@ async def main(args) -> None:
         await run_fix_attempt_phase(args)
     elif args.command == "test-plan":
         await run_test_plan_phase(args)
+    elif args.command == "write-test":
+        await run_write_test_phase(args)
     elif args.command == "all":
         await run_all_phases(args)
     elif args.command == "report":
