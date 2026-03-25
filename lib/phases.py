@@ -462,9 +462,49 @@ def _print_phase_summary(phase_name: str, jobs: list, results: list, model_id: s
 
 ACTIVITY_LOG = BASE_DIR / "logs" / "activity.jsonl"
 
+# Module-level dashboard URL — set by run_all_phases from --dashboard-url arg.
+_dashboard_url: str | None = None
+
+# Lazy-initialised httpx.AsyncClient (one per process).
+_httpx_client: "httpx.AsyncClient | None" = None
+
+
+def _get_httpx_client() -> "httpx.AsyncClient":
+    global _httpx_client
+    if _httpx_client is None:
+        import httpx
+        _httpx_client = httpx.AsyncClient(timeout=5.0)
+    return _httpx_client
+
+
+async def _push_event(entry: dict) -> None:
+    """POST an event to the dashboard webapp.  Best-effort — log warning on failure."""
+    if not _dashboard_url:
+        return
+    try:
+        client = _get_httpx_client()
+        payload = {"type": "event", **entry}
+        resp = await client.post(f"{_dashboard_url}/api/events/push", json=payload)
+        resp.raise_for_status()
+    except Exception as exc:
+        # Pipeline must not break if dashboard is down
+        print(f"  [dashboard push] warning: {exc}")
+
+
+async def _push_manifest(manifest: dict) -> None:
+    """POST the full job manifest to the dashboard webapp."""
+    if not _dashboard_url:
+        return
+    try:
+        client = _get_httpx_client()
+        resp = await client.post(f"{_dashboard_url}/api/events/push", json=manifest)
+        resp.raise_for_status()
+    except Exception as exc:
+        print(f"  [dashboard push] warning: could not send manifest: {exc}")
+
 
 def _log_activity(issue_key: str, phase: str, event: str, model: str = "", **extra) -> None:
-    """Append a single activity entry to logs/activity.jsonl."""
+    """Append a single activity entry to logs/activity.jsonl and push to dashboard."""
     ACTIVITY_LOG.parent.mkdir(parents=True, exist_ok=True)
     entry = {
         "timestamp": datetime.now(timezone.utc).isoformat(),
@@ -476,6 +516,14 @@ def _log_activity(issue_key: str, phase: str, event: str, model: str = "", **ext
     }
     with open(ACTIVITY_LOG, "a") as f:
         f.write(json.dumps(entry) + "\n")
+
+    # Best-effort async push to dashboard
+    if _dashboard_url:
+        try:
+            loop = asyncio.get_running_loop()
+            loop.create_task(_push_event(entry))
+        except RuntimeError:
+            pass  # No running loop (sync context) — skip push
 
 
 def _inject_model_field(json_path: Path, mid: str) -> None:
@@ -2259,6 +2307,10 @@ async def run_all_phases(args) -> None:
     All models run concurrently — the shared semaphore controls total
     concurrent agent count regardless of how many models are in the mix.
     """
+    # Configure dashboard push URL
+    global _dashboard_url
+    _dashboard_url = getattr(args, "dashboard_url", None)
+
     # Phase 1 (optional)
     if getattr(args, "include_fetch", False):
         await run_fetch_phase(args)
@@ -2303,6 +2355,22 @@ async def run_all_phases(args) -> None:
     if component_filter:
         print(f"Component filter: {component_filter}")
     print(f"{'=' * 80}\n")
+
+    # Build job manifest and push to dashboard
+    issue_keys = [_issue_key_from_path(p) for p in issue_paths]
+    manifest = {
+        "type": "manifest",
+        "total_issues": len(issue_keys),
+        "models": [mid for _, mid in model_entries],
+        "jobs": [
+            {"key": key, "model": mid, "status": "pending"}
+            for _, mid in model_entries
+            for key in issue_keys
+        ],
+        "max_concurrent": args.max_concurrent,
+        "force": args.force,
+    }
+    await _push_manifest(manifest)
 
     for _, mid in model_entries:
         _log_activity(

@@ -198,6 +198,11 @@ Examples:
         action="store_true",
         help="Skip post-fix validation entirely",
     )
+    all_parser.add_argument(
+        "--dashboard-url",
+        default="http://127.0.0.1:5000",
+        help="URL of the reporting dashboard for live event push (default: http://127.0.0.1:5000)",
+    )
 
     # Reporting dashboard
     report_parser = subparsers.add_parser(

@@ -1,8 +1,11 @@
 """Flask web application for the bug bash reporting dashboard."""
 
+import json
 import os
+import queue
 import shutil
 import stat
+import threading
 
 from flask import Flask, render_template_string, jsonify, abort, Response, request
 from jinja2 import DictLoader, ChoiceLoader
@@ -14,6 +17,137 @@ from lib.report_data import (
 )
 from lib.paths import discover_models, model_workspace
 from lib.stats import compute_all_stats
+
+# ---------------------------------------------------------------------------
+# In-memory pipeline state (single-process Flask dev server)
+# ---------------------------------------------------------------------------
+
+_pipeline_state = {
+    "running": False,
+    "manifest": None,       # full manifest from controller
+    "jobs": {},             # (issue_key, model) -> {status, phase, started_at, ...}
+    "events": [],           # recent events for SSE replay (capped)
+    "sse_subscribers": [],  # list of queue.Queue for SSE push
+}
+_state_lock = threading.Lock()
+_MAX_EVENTS = 5000
+
+
+def _broadcast_sse(data: dict) -> None:
+    """Push a JSON event to all SSE subscriber queues."""
+    msg = json.dumps(data)
+    with _state_lock:
+        dead = []
+        for i, q in enumerate(_pipeline_state["sse_subscribers"]):
+            try:
+                q.put_nowait(msg)
+            except queue.Full:
+                dead.append(i)
+        # Remove dead/full queues in reverse order
+        for i in reversed(dead):
+            _pipeline_state["sse_subscribers"].pop(i)
+
+
+def _handle_manifest(payload: dict) -> None:
+    """Process a manifest message — resets all prior state."""
+    with _state_lock:
+        _pipeline_state["running"] = True
+        _pipeline_state["manifest"] = payload
+        _pipeline_state["events"] = []
+        _pipeline_state["jobs"] = {}
+        for job in payload.get("jobs", []):
+            jk = (job["key"], job["model"])
+            _pipeline_state["jobs"][jk] = {
+                "key": job["key"],
+                "model": job["model"],
+                "status": "pending",
+                "phase": None,
+                "started_at": None,
+                "completed_at": None,
+                "error": None,
+            }
+    _broadcast_sse(payload)
+
+
+def _handle_event(payload: dict) -> None:
+    """Process an individual event — updates job state in place."""
+    issue_key = payload.get("issue_key", "")
+    model = payload.get("model", "")
+    event = payload.get("event", "")
+    phase = payload.get("phase", "")
+    timestamp = payload.get("timestamp", "")
+
+    with _state_lock:
+        # Append to recent events (capped)
+        _pipeline_state["events"].append(payload)
+        if len(_pipeline_state["events"]) > _MAX_EVENTS:
+            _pipeline_state["events"] = _pipeline_state["events"][-_MAX_EVENTS:]
+
+        jk = (issue_key, model)
+        job = _pipeline_state["jobs"].get(jk)
+
+        if event == "pipeline_completed" or event == "pipeline_failed":
+            _pipeline_state["running"] = False
+        elif event == "issue_started":
+            if job:
+                job["status"] = "running"
+                job["started_at"] = timestamp
+        elif event == "started":
+            if job:
+                job["status"] = "running"
+                job["phase"] = phase
+        elif event == "completed":
+            if job:
+                job["phase"] = phase
+                # Only mark completed if this is the issue_completed event
+                # Individual phase completions just update the phase
+        elif event == "failed":
+            if job:
+                job["phase"] = phase
+                job["error"] = payload.get("error")
+        elif event == "issue_completed":
+            if job:
+                job["status"] = "completed"
+                job["completed_at"] = timestamp
+        elif event == "skipped":
+            if job:
+                job["phase"] = phase
+
+    _broadcast_sse(payload)
+
+
+def _get_queue_snapshot() -> dict:
+    """Return a snapshot of the full queue state from memory."""
+    with _state_lock:
+        manifest = _pipeline_state["manifest"]
+        jobs_list = sorted(
+            _pipeline_state["jobs"].values(),
+            key=lambda j: (j["key"], j["model"]),
+        )
+        counts = {"pending": 0, "running": 0, "completed": 0, "failed": 0}
+        for j in jobs_list:
+            s = j["status"]
+            if s in counts:
+                counts[s] += 1
+
+        # Per-model breakdown
+        model_counts: dict[str, dict[str, int]] = {}
+        for j in jobs_list:
+            m = j["model"]
+            if m not in model_counts:
+                model_counts[m] = {"pending": 0, "running": 0, "completed": 0, "failed": 0}
+            s = j["status"]
+            if s in model_counts[m]:
+                model_counts[m][s] += 1
+
+        return {
+            "running": _pipeline_state["running"],
+            "manifest": manifest,
+            "total_jobs": len(jobs_list),
+            "counts": counts,
+            "model_counts": model_counts,
+            "jobs": jobs_list,
+        }
 
 # ---------------------------------------------------------------------------
 # Jinja2 templates (inline — no templates directory needed)
@@ -1129,6 +1263,21 @@ ACTIVITY = """\
   @keyframes pulse { 0%,100% { opacity:1; } 50% { opacity:0.4; } }
   #pipeline-status .config-details { font-size: 0.9em; color: #555; margin-top: 0.5em; }
   .badge-skipped { background: #95a5a6; color: #fff; }
+  #progress-summary {
+    padding: 1em; margin-bottom: 1.5rem; border-radius: 6px;
+    border: 1px solid #ddd; background: #f8f9fa; display: none;
+  }
+  #progress-summary .progress-bar-outer {
+    background: #e0e0e0; border-radius: 4px; height: 22px;
+    margin: 0.7em 0; overflow: hidden;
+  }
+  #progress-summary .progress-bar-inner {
+    background: #27ae60; height: 100%; border-radius: 4px;
+    transition: width 0.4s ease;
+  }
+  #progress-summary .counts { display: flex; gap: 1.5em; flex-wrap: wrap; margin-top: 0.5em; }
+  #progress-summary .counts span { font-size: 0.95em; }
+  #progress-summary .model-breakdown { margin-top: 0.7em; font-size: 0.9em; color: #555; }
 </style>
 
 <h2>Activity</h2>
@@ -1136,6 +1285,19 @@ ACTIVITY = """\
 <div id="pipeline-status">
   <strong><span class="status-indicator"></span> Pipeline: <span id="pipeline-label">Idle</span></strong>
   <div class="config-details" id="pipeline-config" style="display:none;"></div>
+</div>
+
+<div id="progress-summary">
+  <strong>Progress</strong>
+  <div class="progress-bar-outer"><div class="progress-bar-inner" id="progress-bar" style="width:0%"></div></div>
+  <div class="counts">
+    <span>Total: <strong id="cnt-total">0</strong></span>
+    <span style="color:#3498db">Pending: <strong id="cnt-pending">0</strong></span>
+    <span style="color:#f39c12">Running: <strong id="cnt-running">0</strong></span>
+    <span style="color:#27ae60">Completed: <strong id="cnt-completed">0</strong></span>
+    <span style="color:#c0392b">Failed: <strong id="cnt-failed">0</strong></span>
+  </div>
+  <div class="model-breakdown" id="model-breakdown"></div>
 </div>
 
 <div id="currently-processing">
@@ -1148,9 +1310,9 @@ ACTIVITY = """\
     </thead>
     <tbody id="ip-tbody">
       {% for e in in_progress %}
-      <tr id="ip-{{ e.issue_key }}">
+      <tr id="ip-{{ e.issue_key }}-{{ e.model }}">
         <td><a href="/issue/{{ e.issue_key }}">{{ e.issue_key }}</a></td>
-        <td><span class="badge badge-default" id="ip-phase-{{ e.issue_key }}">{{ e.phase }}</span></td>
+        <td><span class="badge badge-default" id="ip-phase-{{ e.issue_key }}-{{ e.model }}">{{ e.phase }}</span></td>
         <td>{{ e.model }}</td>
         <td>{{ e.timestamp[:19] | replace('T', ' ') }} UTC</td>
       </tr>
@@ -1209,15 +1371,19 @@ ACTIVITY = """\
 {% block scripts %}
 <script>
 (function() {
-  // --- Initial state from API ---
-  fetch('/api/pipeline/status')
-    .then(r => r.json())
-    .then(status => {
-      if (status.pipeline_running) {
-        setPipelineRunning(status.pipeline_info);
-      }
-    })
-    .catch(() => {});
+  // --- Initial state from queue API ---
+  function loadQueueState() {
+    fetch('/api/pipeline/queue')
+      .then(r => r.json())
+      .then(state => {
+        if (state.running) {
+          setPipelineRunning(state.manifest || {});
+        }
+        updateProgressSummary(state);
+      })
+      .catch(() => {});
+  }
+  loadQueueState();
 
   // --- SSE live updates ---
   const evtSource = new EventSource('/api/events');
@@ -1229,9 +1395,19 @@ ACTIVITY = """\
   };
 
   function handleEvent(data) {
+    const msgType = data.type;
     const evt = data.event;
     const issueKey = data.issue_key;
     const phase = data.phase;
+    const model = data.model || '';
+
+    // Manifest resets everything
+    if (msgType === 'manifest') {
+      setPipelineRunning(data);
+      // Refresh queue state from server
+      loadQueueState();
+      return;
+    }
 
     switch(evt) {
       case 'pipeline_started':
@@ -1240,26 +1416,56 @@ ACTIVITY = """\
       case 'pipeline_completed':
       case 'pipeline_failed':
         setPipelineIdle(evt);
+        loadQueueState();
         break;
       case 'issue_started':
-        addInProgressRow(issueKey, 'starting', data.model || '', data.timestamp || '');
+        addInProgressRow(issueKey, 'starting', model, data.timestamp || '');
+        loadQueueState();
         break;
       case 'issue_completed':
-        removeInProgressRow(issueKey);
+        removeInProgressRow(issueKey, model);
+        loadQueueState();
         break;
       case 'started':
-        updatePhase(issueKey, phase);
-        // Also ensure the row exists in the in-progress table
-        if (!document.getElementById('ip-' + issueKey)) {
-          addInProgressRow(issueKey, phase, data.model || '', data.timestamp || '');
+        updatePhase(issueKey, model, phase);
+        if (!document.getElementById('ip-' + issueKey + '-' + model)) {
+          addInProgressRow(issueKey, phase, model, data.timestamp || '');
         }
+        loadQueueState();
         break;
       case 'completed':
       case 'failed':
       case 'skipped':
         addHistoryRow(data);
+        loadQueueState();
         break;
     }
+  }
+
+  function updateProgressSummary(state) {
+    const el = document.getElementById('progress-summary');
+    if (!state.total_jobs) { el.style.display = 'none'; return; }
+    el.style.display = 'block';
+    const c = state.counts || {};
+    document.getElementById('cnt-total').textContent = state.total_jobs;
+    document.getElementById('cnt-pending').textContent = c.pending || 0;
+    document.getElementById('cnt-running').textContent = c.running || 0;
+    document.getElementById('cnt-completed').textContent = c.completed || 0;
+    document.getElementById('cnt-failed').textContent = c.failed || 0;
+    const done = (c.completed || 0) + (c.failed || 0);
+    const pct = state.total_jobs ? Math.round(100 * done / state.total_jobs) : 0;
+    document.getElementById('progress-bar').style.width = pct + '%';
+
+    // Per-model breakdown
+    const mc = state.model_counts || {};
+    const parts = [];
+    for (const [m, counts] of Object.entries(mc)) {
+      const short = m.replace('claude-', '');
+      const mDone = (counts.completed || 0) + (counts.failed || 0);
+      const mTotal = (counts.pending || 0) + (counts.running || 0) + mDone;
+      parts.push(short + ': ' + mDone + '/' + mTotal);
+    }
+    document.getElementById('model-breakdown').textContent = parts.length ? 'Per model: ' + parts.join(' | ') : '';
   }
 
   function setPipelineRunning(info) {
@@ -1269,7 +1475,8 @@ ACTIVITY = """\
     const config = document.getElementById('pipeline-config');
     config.style.display = 'block';
     const parts = [];
-    if (info.model) parts.push('Model: ' + info.model);
+    if (info.models) parts.push('Models: ' + info.models.join(', '));
+    else if (info.model) parts.push('Model: ' + info.model);
     if (info.total_issues) parts.push('Issues: ' + info.total_issues);
     if (info.max_concurrent) parts.push('Concurrent: ' + info.max_concurrent);
     const ts = info.started_at || info.timestamp || '';
@@ -1302,30 +1509,30 @@ ACTIVITY = """\
 
   function addInProgressRow(issueKey, phase, model, timestamp) {
     const tbody = ensureInProgressTable();
-    // Don't add duplicates
-    if (document.getElementById('ip-' + issueKey)) {
-      updatePhase(issueKey, phase);
+    const rowId = 'ip-' + issueKey + '-' + model;
+    if (document.getElementById(rowId)) {
+      updatePhase(issueKey, model, phase);
       return;
     }
     const tr = document.createElement('tr');
-    tr.id = 'ip-' + issueKey;
+    tr.id = rowId;
     const ts = timestamp ? timestamp.substring(0, 19).replace('T', ' ') + ' UTC' : '';
     tr.innerHTML = '<td><a href="/issue/' + issueKey + '">' + issueKey + '</a></td>' +
-      '<td><span class="badge badge-default" id="ip-phase-' + issueKey + '">' + phase + '</span></td>' +
+      '<td><span class="badge badge-default" id="ip-phase-' + issueKey + '-' + model + '">' + phase + '</span></td>' +
       '<td>' + (model || '') + '</td>' +
       '<td>' + ts + '</td>';
     tbody.appendChild(tr);
     updateIpCount();
   }
 
-  function removeInProgressRow(issueKey) {
-    const row = document.getElementById('ip-' + issueKey);
+  function removeInProgressRow(issueKey, model) {
+    const row = document.getElementById('ip-' + issueKey + '-' + model);
     if (row) row.remove();
     updateIpCount();
   }
 
-  function updatePhase(issueKey, phase) {
-    const badge = document.getElementById('ip-phase-' + issueKey);
+  function updatePhase(issueKey, model, phase) {
+    const badge = document.getElementById('ip-phase-' + issueKey + '-' + model);
     if (badge) badge.textContent = phase;
   }
 
@@ -1338,7 +1545,6 @@ ACTIVITY = """\
   }
 
   function addHistoryRow(data) {
-    // Show the table if hidden
     const table = document.getElementById('history-table');
     if (table) table.style.display = '';
     const emptyMsg = document.getElementById('history-empty');
@@ -1371,7 +1577,6 @@ ACTIVITY = """\
       '<td class="truncate">' + (data.error || data.reason || '') + '</td>';
     tbody.insertBefore(tr, tbody.firstChild);
 
-    // Update count
     const countEl = document.getElementById('history-count');
     if (countEl) countEl.textContent = tbody.querySelectorAll('tr').length;
   }
@@ -2888,11 +3093,45 @@ def create_app() -> Flask:
     def api_pipeline_status():
         return jsonify(load_pipeline_status())
 
+    @app.route("/api/pipeline/queue")
+    def api_pipeline_queue():
+        return jsonify(_get_queue_snapshot())
+
+    @app.route("/api/events/push", methods=["POST"])
+    def api_events_push():
+        payload = request.get_json(force=True)
+        if not payload:
+            return jsonify({"error": "empty payload"}), 400
+        msg_type = payload.get("type", "event")
+        if msg_type == "manifest":
+            _handle_manifest(payload)
+        else:
+            _handle_event(payload)
+        return jsonify({"ok": True})
+
     @app.route("/api/events")
     def api_events():
         def generate():
-            for line in tail_activity_log():
-                yield f"data: {line}\n\n"
+            q = queue.Queue(maxsize=1000)
+            with _state_lock:
+                _pipeline_state["sse_subscribers"].append(q)
+                # Replay recent events so the client catches up
+                for evt in _pipeline_state["events"]:
+                    q.put_nowait(json.dumps(evt))
+            try:
+                while True:
+                    try:
+                        msg = q.get(timeout=30)
+                        yield f"data: {msg}\n\n"
+                    except queue.Empty:
+                        # Send keepalive comment to prevent proxy/browser timeout
+                        yield ": keepalive\n\n"
+            except GeneratorExit:
+                with _state_lock:
+                    try:
+                        _pipeline_state["sse_subscribers"].remove(q)
+                    except ValueError:
+                        pass
 
         return Response(
             generate(),
