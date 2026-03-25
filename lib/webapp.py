@@ -277,6 +277,10 @@ DASHBOARD = """\
 {% extends "layout.html" %}
 {% block title %}Bug Bash Dashboard{% endblock %}
 {% block content %}
+<style>
+  tr.pipeline-active { background: rgba(39, 174, 96, 0.10); }
+  tr.pipeline-active td:first-child { box-shadow: inset 3px 0 0 #27ae60; }
+</style>
 <h2>Issues (<span id="row-count">{{ rows|length }}</span>)</h2>
 
 <div class="filter-bar">
@@ -420,6 +424,7 @@ DASHBOARD = """\
   <tbody>
     {% for row in rows %}
     <tr
+      data-key="{{ row.key }}"
       data-model="{{ row.model }}"
       data-status="{{ row.status }}"
       data-triage="{{ row.completeness.triage_recommendation if row.completeness else '' }}"
@@ -617,6 +622,39 @@ function executeReset() {
 
 // Apply filters on page load in case the browser restored select values
 applyFilters();
+
+// --- Pipeline active-row highlighting ---
+function highlightActiveRows(queueState) {
+  const active = new Set();
+  (queueState.jobs || []).forEach(j => {
+    if (j.status === 'running') active.add(j.key + '|' + j.model);
+  });
+  document.querySelectorAll('#issues-table tbody tr').forEach(row => {
+    const id = row.dataset.key + '|' + row.dataset.model;
+    row.classList.toggle('pipeline-active', active.has(id));
+  });
+}
+
+(function() {
+  function pollQueue() {
+    fetch('/api/pipeline/queue')
+      .then(r => r.json())
+      .then(highlightActiveRows)
+      .catch(() => {});
+  }
+  pollQueue();
+
+  const evtSource = new EventSource('/api/events');
+  evtSource.onmessage = function(event) {
+    try {
+      const data = JSON.parse(event.data);
+      const evt = data.event || data.type;
+      if (['manifest','issue_started','issue_completed','started','pipeline_completed','pipeline_failed'].includes(evt)) {
+        pollQueue();
+      }
+    } catch(e) {}
+  };
+})();
 </script>
 {% endblock %}
 """
@@ -1371,19 +1409,33 @@ ACTIVITY = """\
 {% block scripts %}
 <script>
 (function() {
-  // --- Initial state from queue API ---
+  // --- Initial state from queue API (debounced to 1 req/sec max) ---
+  var _queueTimer = null;
   function loadQueueState() {
-    fetch('/api/pipeline/queue')
-      .then(r => r.json())
-      .then(state => {
-        if (state.running) {
-          setPipelineRunning(state.manifest || {});
-        }
-        updateProgressSummary(state);
-      })
-      .catch(() => {});
+    if (_queueTimer) return;  // already scheduled
+    _queueTimer = setTimeout(function() {
+      _queueTimer = null;
+      fetch('/api/pipeline/queue')
+        .then(r => r.json())
+        .then(state => {
+          if (state.running) {
+            setPipelineRunning(state.manifest || {});
+          }
+          updateProgressSummary(state);
+        })
+        .catch(() => {});
+    }, 1000);
   }
-  loadQueueState();
+  // Immediate first load (bypass debounce)
+  fetch('/api/pipeline/queue')
+    .then(r => r.json())
+    .then(state => {
+      if (state.running) {
+        setPipelineRunning(state.manifest || {});
+      }
+      updateProgressSummary(state);
+    })
+    .catch(() => {});
 
   // --- SSE live updates ---
   const evtSource = new EventSource('/api/events');

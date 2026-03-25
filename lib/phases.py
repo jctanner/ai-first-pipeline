@@ -4,10 +4,12 @@ import html as html_mod
 import json
 import os
 import shutil
+import socket
 import sys
 import asyncio
 from datetime import datetime, timezone
 from pathlib import Path
+from urllib.parse import urlparse
 
 import requests
 from dotenv import load_dotenv
@@ -465,42 +467,57 @@ ACTIVITY_LOG = BASE_DIR / "logs" / "activity.jsonl"
 # Module-level dashboard URL — set by run_all_phases from --dashboard-url arg.
 _dashboard_url: str | None = None
 
-# Lazy-initialised httpx.AsyncClient (one per process).
-_httpx_client: "httpx.AsyncClient | None" = None
 
-
-def _get_httpx_client() -> "httpx.AsyncClient":
-    global _httpx_client
-    if _httpx_client is None:
-        import httpx
-        _httpx_client = httpx.AsyncClient(timeout=5.0)
-    return _httpx_client
-
-
-async def _push_event(entry: dict) -> None:
-    """POST an event to the dashboard webapp.  Best-effort — log warning on failure."""
-    if not _dashboard_url:
-        return
+def _dashboard_reachable(url: str, timeout: float = 0.5) -> bool:
+    """Quick TCP connect check — is anything listening at *url*?"""
     try:
-        client = _get_httpx_client()
-        payload = {"type": "event", **entry}
-        resp = await client.post(f"{_dashboard_url}/api/events/push", json=payload)
-        resp.raise_for_status()
-    except Exception as exc:
-        # Pipeline must not break if dashboard is down
-        print(f"  [dashboard push] warning: {exc}")
+        parsed = urlparse(url)
+        with socket.create_connection((parsed.hostname, parsed.port), timeout=timeout):
+            return True
+    except (OSError, TypeError):
+        return False
+
+# ---------------------------------------------------------------------------
+# Dashboard push — dedicated background thread (keeps asyncio event loop clean)
+# ---------------------------------------------------------------------------
+import queue as _queue_mod
+import threading as _threading
+
+_push_queue: "_queue_mod.Queue[dict | None] | None" = None
+_push_thread: "_threading.Thread | None" = None
 
 
-async def _push_manifest(manifest: dict) -> None:
-    """POST the full job manifest to the dashboard webapp."""
-    if not _dashboard_url:
+def _start_push_thread() -> None:
+    """Spin up the background thread that drains _push_queue via synchronous HTTP."""
+    global _push_queue, _push_thread
+    if _push_thread is not None:
         return
-    try:
-        client = _get_httpx_client()
-        resp = await client.post(f"{_dashboard_url}/api/events/push", json=manifest)
-        resp.raise_for_status()
-    except Exception as exc:
-        print(f"  [dashboard push] warning: could not send manifest: {exc}")
+    _push_queue = _queue_mod.Queue(maxsize=500)
+    _push_thread = _threading.Thread(target=_push_worker, daemon=True)
+    _push_thread.start()
+
+
+def _push_worker() -> None:
+    """Background worker — synchronous POSTs, never touches the event loop."""
+    import httpx
+    client = httpx.Client(timeout=1.0)
+    while True:
+        try:
+            payload = _push_queue.get()  # type: ignore[union-attr]
+            if payload is None:
+                break  # shutdown sentinel
+            client.post(f"{_dashboard_url}/api/events/push", json=payload)
+        except Exception:
+            pass  # best-effort — silently drop on failure
+
+
+def _enqueue_push(payload: dict) -> None:
+    """Enqueue a payload for the background push thread. Drops if queue is full."""
+    if _push_queue is not None:
+        try:
+            _push_queue.put_nowait(payload)
+        except _queue_mod.Full:
+            pass  # drop event rather than block the pipeline
 
 
 def _log_activity(issue_key: str, phase: str, event: str, model: str = "", **extra) -> None:
@@ -517,13 +534,9 @@ def _log_activity(issue_key: str, phase: str, event: str, model: str = "", **ext
     with open(ACTIVITY_LOG, "a") as f:
         f.write(json.dumps(entry) + "\n")
 
-    # Best-effort async push to dashboard
+    # Best-effort push via background thread (never touches the event loop)
     if _dashboard_url:
-        try:
-            loop = asyncio.get_running_loop()
-            loop.create_task(_push_event(entry))
-        except RuntimeError:
-            pass  # No running loop (sync context) — skip push
+        _enqueue_push({"type": "event", **entry})
 
 
 def _inject_model_field(json_path: Path, mid: str) -> None:
@@ -2307,9 +2320,14 @@ async def run_all_phases(args) -> None:
     All models run concurrently — the shared semaphore controls total
     concurrent agent count regardless of how many models are in the mix.
     """
-    # Configure dashboard push URL
+    # Configure dashboard push URL (auto-disable if nothing is listening)
     global _dashboard_url
     _dashboard_url = getattr(args, "dashboard_url", None)
+    if _dashboard_url and not _dashboard_reachable(_dashboard_url):
+        print(f"  [dashboard] {_dashboard_url} not reachable — disabling push")
+        _dashboard_url = None
+    if _dashboard_url:
+        _start_push_thread()
 
     # Phase 1 (optional)
     if getattr(args, "include_fetch", False):
@@ -2370,7 +2388,7 @@ async def run_all_phases(args) -> None:
         "max_concurrent": args.max_concurrent,
         "force": args.force,
     }
-    await _push_manifest(manifest)
+    _enqueue_push(manifest)
 
     for _, mid in model_entries:
         _log_activity(
@@ -2477,7 +2495,7 @@ async def run_report_phase(args) -> None:
     from lib.webapp import create_app
 
     app = create_app()
-    app.run(host=args.host, port=args.port, debug=True)
+    app.run(host=args.host, port=args.port, debug=True, threaded=True)
 
 
 async def main(args) -> None:
