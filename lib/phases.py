@@ -2353,6 +2353,13 @@ async def run_all_phases(args) -> None:
     triage_filter = getattr(args, "triage", None)
     component_filter = getattr(args, "component", None)
 
+    # Pre-filter issue_paths so the manifest only contains matching issues
+    if component_filter:
+        issue_paths = [
+            p for p in issue_paths
+            if _issue_matches_component_filter(_parse_issue(p), component_filter)
+        ]
+
     # Build model list for banner
     model_entries = [(ms, get_model_id(ms)) for ms in args.model]
     models_label = ", ".join(mid for _, mid in model_entries)
