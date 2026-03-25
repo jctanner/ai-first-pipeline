@@ -1,9 +1,9 @@
 # AI Core Platform — Pipeline Assessment
 
-**Date:** 2026-03-25
-**Scope:** 40 Jira issues tagged "AI Core Platform" component
-**Model:** claude-opus-4-6
-**Phases:** completeness, context-map, fix-attempt, test-plan, write-test
+- **Date:** 2026-03-25
+- **Scope:** 40 Jira issues tagged "AI Core Platform" component
+- **Model:** claude-opus-4-6
+- **Phases:** completeness, context-map, fix-attempt, test-plan, write-test
 
 ---
 
