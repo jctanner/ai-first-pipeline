@@ -9,7 +9,7 @@
 
 ## Pipeline Phases
 
-Each issue is processed through five sequential phases:
+Each issue is processed through five sequential phases. All phases run independently on both `claude-opus-4-6` and `claude-sonnet-4-5`, producing separate results per model for comparison (see [Appendix: Opus vs Sonnet Model Comparison](#appendix-opus-vs-sonnet-model-comparison)).
 
 1. **Completeness** — Scores the bug report's quality (0-100) across nine dimensions (summary clarity, reproduction steps, environment info, etc.). Triages the issue as `ai-fixable`, `needs-enrichment`, or other categories. Also reclassifies the issue type (bug, enhancement, configuration, etc.).
 2. **Context-map** — Maps the bug to available architecture documentation and source code checkouts. For each component mentioned in the issue, the agent searches the `architecture-context/` directory for matching docs and source trees, then rates context availability as `full-context`, `partial-context`, `cross-component`, or `no-context`. Also scores context helpfulness on three dimensions: coverage (does the context cover the bug's area?), depth (is it detailed enough?), and freshness (does it match the affected version?). Identifies repos and files that are available vs. missing.
