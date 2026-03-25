@@ -7,6 +7,18 @@
 
 ---
 
+## Pipeline Phases
+
+Each issue is processed through five sequential phases:
+
+1. **Completeness** — Scores the bug report's quality (0-100) across nine dimensions (summary clarity, reproduction steps, environment info, etc.). Triages the issue as `ai-fixable`, `needs-enrichment`, or other categories. Also reclassifies the issue type (bug, enhancement, configuration, etc.).
+2. **Context-map** — Maps the bug to available architecture documentation and source code checkouts. For each component mentioned in the issue, the agent searches the `architecture-context/` directory for matching docs and source trees, then rates context availability as `full-context`, `partial-context`, `cross-component`, or `no-context`. Also scores context helpfulness on three dimensions: coverage (does the context cover the bug's area?), depth (is it detailed enough?), and freshness (does it match the affected version?). Identifies repos and files that are available vs. missing.
+3. **Fix-attempt** — Using the completeness analysis and context-map as inputs, the agent clones the target repository, diagnoses the root cause, and generates a patch. The patch is validated (lint, build, tests) with up to two self-correction iterations if validation fails. Outputs a confidence rating and recommendation (`ai-fixable`, `already-fixed`, `upstream-required`, `insufficient-info`).
+4. **Test-plan** — Generates a structured test plan covering the bug's scenario: positive and negative cases, edge cases, and regression checks.
+5. **Write-test** — Produces executable QE test code (Go/Python depending on the target repo's test framework) based on the test plan.
+
+---
+
 ## Bug Report Quality
 
 - **Mean completeness score:** 64.5/100 (median 63.5)
