@@ -278,8 +278,11 @@ DASHBOARD = """\
 {% block title %}Bug Bash Dashboard{% endblock %}
 {% block content %}
 <style>
-  tr.pipeline-active { background: rgba(39, 174, 96, 0.10); }
-  tr.pipeline-active td:first-child { box-shadow: inset 3px 0 0 #27ae60; }
+  #issues-table tr.pipeline-pending td { background: rgba(0, 0, 0, 0.05); }
+  #issues-table tr.pipeline-pending td:first-child { box-shadow: inset 3px 0 0 #bbb; }
+  #issues-table tr.pipeline-active td { background: rgba(39, 174, 96, 0.12); animation: pulse-green 2s ease-in-out infinite; }
+  #issues-table tr.pipeline-active td:first-child { box-shadow: inset 3px 0 0 #27ae60; }
+  @keyframes pulse-green { 0%,100% { background: rgba(39,174,96,0.06); } 50% { background: rgba(39,174,96,0.18); } }
 </style>
 <h2>Issues (<span id="row-count">{{ rows|length }}</span>)</h2>
 
@@ -625,12 +628,16 @@ applyFilters();
 
 // --- Pipeline active-row highlighting ---
 function highlightActiveRows(queueState) {
+  const pending = new Set();
   const active = new Set();
   (queueState.jobs || []).forEach(j => {
-    if (j.status === 'running') active.add(j.key + '|' + j.model);
+    const id = j.key + '|' + j.model;
+    if (j.status === 'pending') pending.add(id);
+    else if (j.status === 'running') active.add(id);
   });
   document.querySelectorAll('#issues-table tbody tr').forEach(row => {
     const id = row.dataset.key + '|' + row.dataset.model;
+    row.classList.toggle('pipeline-pending', pending.has(id));
     row.classList.toggle('pipeline-active', active.has(id));
   });
 }
