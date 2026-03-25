@@ -2,7 +2,7 @@
 
 - **Date:** 2026-03-25
 - **Scope:** 40 Jira issues tagged "AI Core Platform" component
-- **Model:** claude-opus-4-6
+- **Models:** claude-opus-4-6, claude-sonnet-4-5
 - **Phases:** completeness, context-map, fix-attempt, test-plan, write-test
 
 ---
@@ -19,7 +19,9 @@ Each issue is processed through five sequential phases. All phases run independe
 
 ---
 
-## Bug Report Quality
+## Bug Report Quality (Opus)
+
+> Sections below show `claude-opus-4-6` results. See [Appendix](#appendix-opus-vs-sonnet-model-comparison) for side-by-side Sonnet comparison.
 
 - **Mean completeness score:** 64.5/100 (median 63.5)
 - **60% triaged as "needs-enrichment"** before effective action can be taken
@@ -50,7 +52,7 @@ Each issue is processed through five sequential phases. All phases run independe
 
 ---
 
-## Issue Type Classification
+## Issue Type Classification (Opus)
 
 | Classified Type     | Count | Percentage |
 |---------------------|-------|------------|
@@ -64,7 +66,7 @@ Each issue is processed through five sequential phases. All phases run independe
 
 ---
 
-## Fix Attempt Results
+## Fix Attempt Results (Opus)
 
 26 of 40 issues received fix-attempts. 14 were skipped (active work status, insufficient info, or non-bug classification).
 
@@ -105,7 +107,7 @@ Each issue is processed through five sequential phases. All phases run independe
 
 ---
 
-## Context-Map Coverage
+## Context-Map Coverage (Opus)
 
 | Rating | Count | Percentage |
 |--------|-------|------------|
@@ -129,7 +131,7 @@ Each issue is processed through five sequential phases. All phases run independe
 
 ---
 
-## Bug Clusters
+## Bug Clusters (Opus)
 
 ### Cluster A: Kueue/StatefulSet Integration (3 issues)
 
