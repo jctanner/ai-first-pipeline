@@ -1,5 +1,9 @@
 """Flask web application for the bug bash reporting dashboard."""
 
+import os
+import shutil
+import stat
+
 from flask import Flask, render_template_string, jsonify, abort, Response, request
 from jinja2 import DictLoader, ChoiceLoader
 
@@ -8,7 +12,7 @@ from lib.report_data import (
     load_pipeline_status, tail_activity_log,
     compute_summary_stats, compute_component_readiness,
 )
-from lib.paths import discover_models
+from lib.paths import discover_models, model_workspace
 from lib.stats import compute_all_stats
 
 # ---------------------------------------------------------------------------
@@ -82,6 +86,24 @@ LAYOUT = """\
     .issue-text h1, .issue-text h2, .issue-text h3, .issue-text h4, .issue-text h5, .issue-text h6 { margin-top: 0.8em; margin-bottom: 0.3em; }
     .issue-text ul, .issue-text ol { margin: 0.3em 0; padding-left: 1.5em; }
     .issue-text img { max-width: 100%; }
+    .action-bar {
+      padding: 0.5em 1em;
+      margin-bottom: 0.5em;
+      background: #fff3cd;
+      border: 1px solid #ffc107;
+      border-radius: 4px;
+      display: flex;
+      align-items: center;
+      gap: 1em;
+    }
+    .btn-reset {
+      background: #c0392b;
+      color: white;
+      border: none;
+      padding: 0.3em 1em;
+      border-radius: 4px;
+      cursor: pointer;
+    }
     .comment-block { font-size: 0.9em; padding: 0.5em; margin-bottom: 0.5em; background: #f0f4f8; border-radius: 4px; border-left: 3px solid #3498db; }
     .comment-block p { margin-bottom: 0.3em; }
     .comment-meta { font-size: 0.85em; color: #555; margin-bottom: 0.3em; }
@@ -215,30 +237,50 @@ DASHBOARD = """\
   </label>
 </div>
 
+<div class="action-bar" id="action-bar" style="display:none;">
+  <span id="selected-count">0</span> selected &mdash;
+  <button class="btn-reset" onclick="confirmReset()">Reset Selected</button>
+</div>
+
+<dialog id="reset-modal">
+  <article>
+    <h3>Reset Workspace</h3>
+    <p>This will delete all analysis results (completeness, context-map,
+    fix-attempt, test-plan, write-test) for <strong id="reset-count">0</strong>
+    issue&times;model pairs. They will be re-processed on the next pipeline run.</p>
+    <p id="reset-list" style="max-height:200px; overflow-y:auto; font-size:0.85em;"></p>
+    <footer>
+      <button class="secondary" onclick="document.getElementById('reset-modal').close()">Cancel</button>
+      <button onclick="executeReset()">Confirm Reset</button>
+    </footer>
+  </article>
+</dialog>
+
 <div style="overflow-x:auto;">
 <table role="grid" id="issues-table">
   <thead>
     <tr>
-      <th class="sortable" data-col="0">Key</th>
-      <th class="sortable" data-col="1">Model</th>
-      <th class="sortable" data-col="2">Summary</th>
-      <th class="sortable" data-col="3">Status</th>
-      <th class="sortable" data-col="4">Priority</th>
-      <th class="sortable" data-col="5">Components</th>
-      <th class="sortable" data-col="6">Issue<br>Type</th>
-      <th class="sortable" data-col="7" data-type="number">Bug<br>Quality</th>
-      <th class="sortable" data-col="8">AI<br>Type</th>
-      <th class="sortable" data-col="9">Triage</th>
-      <th class="sortable" data-col="10">Arch<br>Context</th>
-      <th class="sortable" data-col="11" data-type="number">Arch<br>Quality</th>
-      <th class="sortable" data-col="12">Arch<br>Docs</th>
-      <th class="sortable" data-col="13">Src<br>Code</th>
-      <th class="sortable" data-col="14">Test<br>Context</th>
-      <th class="sortable" data-col="15">Fix</th>
-      <th class="sortable" data-col="16">Confidence</th>
-      <th class="sortable" data-col="17">Test<br>Effort</th>
-      <th class="sortable" data-col="18">Write<br>Test</th>
-      <th class="sortable" data-col="19">Processed</th>
+      <th><input type="checkbox" id="select-all" onchange="toggleSelectAll(this)"></th>
+      <th class="sortable" data-col="1">Key</th>
+      <th class="sortable" data-col="2">Model</th>
+      <th class="sortable" data-col="3">Summary</th>
+      <th class="sortable" data-col="4">Status</th>
+      <th class="sortable" data-col="5">Priority</th>
+      <th class="sortable" data-col="6">Components</th>
+      <th class="sortable" data-col="7">Issue<br>Type</th>
+      <th class="sortable" data-col="8" data-type="number">Bug<br>Quality</th>
+      <th class="sortable" data-col="9">AI<br>Type</th>
+      <th class="sortable" data-col="10">Triage</th>
+      <th class="sortable" data-col="11">Arch<br>Context</th>
+      <th class="sortable" data-col="12" data-type="number">Arch<br>Quality</th>
+      <th class="sortable" data-col="13">Arch<br>Docs</th>
+      <th class="sortable" data-col="14">Src<br>Code</th>
+      <th class="sortable" data-col="15">Test<br>Context</th>
+      <th class="sortable" data-col="16">Fix</th>
+      <th class="sortable" data-col="17">Confidence</th>
+      <th class="sortable" data-col="18">Test<br>Effort</th>
+      <th class="sortable" data-col="19">Write<br>Test</th>
+      <th class="sortable" data-col="20">Processed</th>
     </tr>
   </thead>
   <tbody>
@@ -257,6 +299,7 @@ DASHBOARD = """\
       data-writetest="{{ row.write_test.decision if row.write_test and row.write_test.decision is defined else '' }}"
       data-eligible="{% if row.status in ['In Progress', 'Review', 'Testing', 'Closed', 'Done'] %}no{% elif row.completeness and row.completeness.overall_score is defined and row.completeness.overall_score < 5 %}no{% elif row.context_map and row.context_map.overall_rating == 'no-context' %}no{% else %}yes{% endif %}"
     >
+      <td><input type="checkbox" class="row-select" data-key="{{ row.key }}" data-model="{{ row.model }}"></td>
       <td><a href="/issue/{{ row.key }}{% if row.model %}?model={{ row.model }}{% endif %}">{{ row.key }}</a></td>
       <td>{{ row.model or '&mdash;'|safe }}</td>
       <td class="truncate" title="{{ row.summary }}">{{ row.summary[:80] }}{% if row.summary|length > 80 %}&hellip;{% endif %}</td>
@@ -384,6 +427,58 @@ function applyFilters() {
   });
   const visible = document.querySelectorAll('#issues-table tbody tr:not([style*="display: none"])').length;
   document.getElementById('row-count').textContent = visible;
+  // Deselect checkboxes on hidden rows and update action bar
+  document.querySelectorAll('#issues-table tbody tr[style*="display: none"] .row-select')
+    .forEach(cb => { cb.checked = false; });
+  updateActionBar();
+}
+
+// Checkbox selection
+function toggleSelectAll(el) {
+  document.querySelectorAll('#issues-table tbody tr:not([style*="display: none"]) .row-select')
+    .forEach(cb => { cb.checked = el.checked; });
+  updateActionBar();
+}
+
+function updateActionBar() {
+  const checked = document.querySelectorAll('.row-select:checked');
+  const bar = document.getElementById('action-bar');
+  document.getElementById('selected-count').textContent = checked.length;
+  bar.style.display = checked.length > 0 ? '' : 'none';
+}
+
+document.addEventListener('change', e => {
+  if (e.target.classList.contains('row-select')) updateActionBar();
+});
+
+function confirmReset() {
+  const checked = document.querySelectorAll('.row-select:checked');
+  document.getElementById('reset-count').textContent = checked.length;
+  const list = Array.from(checked).map(cb =>
+    `${cb.dataset.key} (${cb.dataset.model})`
+  ).join('<br>');
+  document.getElementById('reset-list').innerHTML = list;
+  document.getElementById('reset-modal').showModal();
+}
+
+function executeReset() {
+  const checked = document.querySelectorAll('.row-select:checked');
+  const pairs = Array.from(checked).map(cb => ({
+    key: cb.dataset.key, model: cb.dataset.model
+  }));
+  fetch('/api/workspace/reset', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({pairs})
+  })
+  .then(r => r.json())
+  .then(data => {
+    document.getElementById('reset-modal').close();
+    const deleted = data.results.filter(r => r.status === 'deleted').length;
+    alert(`Reset complete: ${deleted} workspace(s) deleted.`);
+    location.reload();
+  })
+  .catch(err => alert('Reset failed: ' + err));
 }
 
 // Apply filters on page load in case the browser restored select values
@@ -2807,5 +2902,33 @@ def create_app() -> Flask:
                 "X-Accel-Buffering": "no",
             },
         )
+
+    @app.route("/api/workspace/reset", methods=["POST"])
+    def api_reset_workspace():
+        """Delete model workspace directories for selected issue*model pairs."""
+        data = request.get_json()
+        pairs = data.get("pairs", [])
+        results = []
+        for pair in pairs:
+            key, mid = pair["key"], pair["model"]
+            ws = model_workspace(key, mid)
+            if ws.exists():
+                # Ensure all dirs are writable so rmtree can descend and delete.
+                # Skip broken symlinks and other non-existent entries.
+                for dirpath, dirnames, filenames in os.walk(ws):
+                    try:
+                        os.chmod(dirpath, stat.S_IRWXU)
+                    except (FileNotFoundError, OSError):
+                        pass
+                    for fn in filenames:
+                        try:
+                            os.chmod(os.path.join(dirpath, fn), stat.S_IWUSR | stat.S_IRUSR)
+                        except (FileNotFoundError, OSError):
+                            pass
+                shutil.rmtree(ws)
+                results.append({"key": key, "model": mid, "status": "deleted"})
+            else:
+                results.append({"key": key, "model": mid, "status": "not_found"})
+        return jsonify({"results": results})
 
     return app
