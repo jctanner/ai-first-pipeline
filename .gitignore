@@ -14,6 +14,7 @@ build/
 # Symlinked external context directories
 architecture-context
 odh-tests-context
+odh-test-context
 
 # Generated data and workspaces
 fix-workspaces/
