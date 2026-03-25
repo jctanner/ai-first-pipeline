@@ -121,43 +121,43 @@
 
 ### Cluster A: Kueue/StatefulSet Integration (3 issues)
 
-- RHOAIENG-52249 (score 88) — CopyStatefulSetFields ignores Kueue label immutability
-- RHOAIENG-52235 (score 88) — non-existent queue causes permanent stuck pod
-- RHOAIENG-52223 (score 82) — SIGTERM during rolling update creates finalizer deadlock
+- [RHOAIENG-52249](https://redhat.atlassian.net/browse/RHOAIENG-52249) (score 88) — CopyStatefulSetFields ignores Kueue label immutability
+- [RHOAIENG-52235](https://redhat.atlassian.net/browse/RHOAIENG-52235) (score 88) — non-existent queue causes permanent stuck pod
+- [RHOAIENG-52223](https://redhat.atlassian.net/browse/RHOAIENG-52223) (score 82) — SIGTERM during rolling update creates finalizer deadlock
 
 All high-severity. Systemic gap in Kueue's StatefulSet lifecycle management. All received high-confidence fixes targeting different repos (kubeflow, rhods-operator, kueue).
 
 ### Cluster B: BYOIDC/Entra ID Authentication (3 issues)
 
-- RHOAIENG-54751 (score 55) — access_token vs id_token mismatch
-- RHOAIENG-54330 (score 57) — same root cause, different approach
-- RHOAIENG-50248 (score 65) — kube-auth-proxy crashloop from unknown flag
+- [RHOAIENG-54751](https://redhat.atlassian.net/browse/RHOAIENG-54751) (score 55) — access_token vs id_token mismatch
+- [RHOAIENG-54330](https://redhat.atlassian.net/browse/RHOAIENG-54330) (score 57) — same root cause, different approach
+- [RHOAIENG-50248](https://redhat.atlassian.net/browse/RHOAIENG-50248) (score 65) — kube-auth-proxy crashloop from unknown flag
 
 Two are essentially duplicates with different fix strategies for the same token-forwarding problem in kube-auth-proxy.
 
 ### Cluster C: Operator Resource Cleanup (5 issues)
 
-- RHOAIENG-52933 (score 90) — cert-manager webhook not cleaned up
-- RHOAIENG-49164 (score 57) — SMMR not removed on ServiceMesh disable
-- RHOAIENG-49161 (score 68) — ModelMeshServing CR left after upgrade
-- RHOAIENG-37563 (score 60) — dual ownership infinite reconciliation loop
-- RHOAIENG-48054 (score 50) — race condition in DSCI/cleanup runnables
+- [RHOAIENG-52933](https://redhat.atlassian.net/browse/RHOAIENG-52933) (score 90) — cert-manager webhook not cleaned up
+- [RHOAIENG-49164](https://redhat.atlassian.net/browse/RHOAIENG-49164) (score 57) — SMMR not removed on ServiceMesh disable
+- [RHOAIENG-49161](https://redhat.atlassian.net/browse/RHOAIENG-49161) (score 68) — ModelMeshServing CR left after upgrade
+- [RHOAIENG-37563](https://redhat.atlassian.net/browse/RHOAIENG-37563) (score 60) — dual ownership infinite reconciliation loop
+- [RHOAIENG-48054](https://redhat.atlassian.net/browse/RHOAIENG-48054) (score 50) — race condition in DSCI/cleanup runnables
 
 Pattern: the operator's resource lifecycle management has systemic gaps.
 
 ### Cluster D: Non-OpenShift Platform Support (3 issues)
 
-- RHOAIENG-53488 (score 63) — cert-manager Certificate missing on non-OCP
-- RHOAIENG-52863 (score 70) — LWS ServiceMonitor fails without Prometheus
-- RHOAIENG-41474 (score 60) — DestinationRule fails without Istio CRDs
+- [RHOAIENG-53488](https://redhat.atlassian.net/browse/RHOAIENG-53488) (score 63) — cert-manager Certificate missing on non-OCP
+- [RHOAIENG-52863](https://redhat.atlassian.net/browse/RHOAIENG-52863) (score 70) — LWS ServiceMonitor fails without Prometheus
+- [RHOAIENG-41474](https://redhat.atlassian.net/browse/RHOAIENG-41474) (score 60) — DestinationRule fails without Istio CRDs
 
 Operator assumes OCP-specific CRDs (ServiceMonitor, DestinationRule) exist on AKS/CoreWeave.
 
 ### Cluster E: False Ready Status (3 issues)
 
-- RHOAIENG-34784 (score 85) — false Ready status during component deletion
-- RHOAIENG-13921 (score 82) — Ready reported with failed ImageStreams
-- RHOAIENG-44476 (score 85) — DSC v1/v2 migration silently drops components
+- [RHOAIENG-34784](https://redhat.atlassian.net/browse/RHOAIENG-34784) (score 85) — false Ready status during component deletion
+- [RHOAIENG-13921](https://redhat.atlassian.net/browse/RHOAIENG-13921) (score 82) — Ready reported with failed ImageStreams
+- [RHOAIENG-44476](https://redhat.atlassian.net/browse/RHOAIENG-44476) (score 85) — DSC v1/v2 migration silently drops components
 
 Operator incorrectly reports healthy/ready when components are degraded or deleted.
 
@@ -191,20 +191,20 @@ Operator incorrectly reports healthy/ready when components are degraded or delet
 | Min score | 27 | 30 | +3 |
 | Max score | 90 | 95 | +5 |
 
-Sonnet scored higher on **33 of 39** issues, tied on 2, and Opus scored higher on only 4 (RHOAIENG-32503, RHOAIENG-34784, RHOAIENG-37563, RHOAIENG-52190 — all by 2-3 points).
+Sonnet scored higher on **33 of 39** issues, tied on 2, and Opus scored higher on only 4 ([RHOAIENG-32503](https://redhat.atlassian.net/browse/RHOAIENG-32503), [RHOAIENG-34784](https://redhat.atlassian.net/browse/RHOAIENG-34784), [RHOAIENG-37563](https://redhat.atlassian.net/browse/RHOAIENG-37563), [RHOAIENG-52190](https://redhat.atlassian.net/browse/RHOAIENG-52190) — all by 2-3 points).
 
 **Largest gaps favoring Sonnet:**
 
 | Issue | Opus | Sonnet | Gap |
 |-------|------|--------|-----|
-| RHOAIENG-50248 | 65 | 88 | +23 |
-| RHOAIENG-50513 | 65 | 88 | +23 |
-| RHOAIENG-41474 | 60 | 82.5 | +22.5 |
-| RHOAIENG-49167 | 60 | 80 | +20 |
-| RHOAIENG-54330 | 57 | 73 | +16 |
-| RHOAIENG-54751 | 55 | 70 | +15 |
-| RHOAIENG-54376 | 65 | 80 | +15 |
-| RHOAIENG-54558 | 80 | 93 | +13 |
+| [RHOAIENG-50248](https://redhat.atlassian.net/browse/RHOAIENG-50248) | 65 | 88 | +23 |
+| [RHOAIENG-50513](https://redhat.atlassian.net/browse/RHOAIENG-50513) | 65 | 88 | +23 |
+| [RHOAIENG-41474](https://redhat.atlassian.net/browse/RHOAIENG-41474) | 60 | 82.5 | +22.5 |
+| [RHOAIENG-49167](https://redhat.atlassian.net/browse/RHOAIENG-49167) | 60 | 80 | +20 |
+| [RHOAIENG-54330](https://redhat.atlassian.net/browse/RHOAIENG-54330) | 57 | 73 | +16 |
+| [RHOAIENG-54751](https://redhat.atlassian.net/browse/RHOAIENG-54751) | 55 | 70 | +15 |
+| [RHOAIENG-54376](https://redhat.atlassian.net/browse/RHOAIENG-54376) | 65 | 80 | +15 |
+| [RHOAIENG-54558](https://redhat.atlassian.net/browse/RHOAIENG-54558) | 80 | 93 | +13 |
 
 **Interpretation:** Sonnet is a more generous grader. It tends to give more credit for narrative descriptions and implicit information. Opus demands more explicit detail. The practical effect: Sonnet triages more issues as "ai-fixable" (see below), which may be either more aggressive or more realistic depending on whether its fixes actually hold up.
 
@@ -217,7 +217,7 @@ Sonnet scored higher on **33 of 39** issues, tied on 2, and Opus scored higher o
 | other | 3 (7.7%) | 3 (7.7%) |
 
 Models agreed on 31 of 39 issues. In all 8 disagreements, **Opus said "needs-enrichment" while Sonnet said "ai-fixable"**:
-RHOAIENG-41474, RHOAIENG-49166, RHOAIENG-49167, RHOAIENG-50248, RHOAIENG-50513, RHOAIENG-52543, RHOAIENG-52863, RHOAIENG-54376.
+[RHOAIENG-41474](https://redhat.atlassian.net/browse/RHOAIENG-41474), [RHOAIENG-49166](https://redhat.atlassian.net/browse/RHOAIENG-49166), [RHOAIENG-49167](https://redhat.atlassian.net/browse/RHOAIENG-49167), [RHOAIENG-50248](https://redhat.atlassian.net/browse/RHOAIENG-50248), [RHOAIENG-50513](https://redhat.atlassian.net/browse/RHOAIENG-50513), [RHOAIENG-52543](https://redhat.atlassian.net/browse/RHOAIENG-52543), [RHOAIENG-52863](https://redhat.atlassian.net/browse/RHOAIENG-52863), [RHOAIENG-54376](https://redhat.atlassian.net/browse/RHOAIENG-54376).
 
 This directly follows from Sonnet's higher completeness scores pushing issues above the ai-fixable threshold.
 
@@ -227,15 +227,15 @@ Models agreed on classification for 30 of 39 issues. The 9 disagreements all inv
 
 | Issue | Opus | Sonnet |
 |-------|------|--------|
-| RHOAIENG-13921 | enhancement | bug |
-| RHOAIENG-28830 | test-gap | bug |
-| RHOAIENG-41474 | configuration | bug |
-| RHOAIENG-44437 | configuration | bug |
-| RHOAIENG-49164 | enhancement | bug |
-| RHOAIENG-49167 | enhancement | bug |
-| RHOAIENG-53488 | feature-request | bug |
-| RHOAIENG-54301 | test-gap | (agreed) |
-| RHOAIENG-45892 | feature-request | feature-request |
+| [RHOAIENG-13921](https://redhat.atlassian.net/browse/RHOAIENG-13921) | enhancement | bug |
+| [RHOAIENG-28830](https://redhat.atlassian.net/browse/RHOAIENG-28830) | test-gap | bug |
+| [RHOAIENG-41474](https://redhat.atlassian.net/browse/RHOAIENG-41474) | configuration | bug |
+| [RHOAIENG-44437](https://redhat.atlassian.net/browse/RHOAIENG-44437) | configuration | bug |
+| [RHOAIENG-49164](https://redhat.atlassian.net/browse/RHOAIENG-49164) | enhancement | bug |
+| [RHOAIENG-49167](https://redhat.atlassian.net/browse/RHOAIENG-49167) | enhancement | bug |
+| [RHOAIENG-53488](https://redhat.atlassian.net/browse/RHOAIENG-53488) | feature-request | bug |
+| [RHOAIENG-54301](https://redhat.atlassian.net/browse/RHOAIENG-54301) | test-gap | (agreed) |
+| [RHOAIENG-45892](https://redhat.atlassian.net/browse/RHOAIENG-45892) | feature-request | feature-request |
 
 Opus applies a wider taxonomy (enhancement, configuration, test-gap, feature-request). Sonnet tends to classify ambiguous issues as "bug" — a more conservative approach that keeps everything in the fix-attempt pipeline rather than filtering it out.
 
@@ -257,18 +257,18 @@ Sonnet is substantially more confident in its fixes. Whether this reflects genui
 
 | Issue | Opus | Sonnet |
 |-------|------|--------|
-| RHOAIENG-28830 | already-fixed | ai-fixable |
-| RHOAIENG-44437 | insufficient-info | ai-fixable |
-| RHOAIENG-49167 | upstream-required | ai-fixable |
-| RHOAIENG-27943 | ai-fixable (rhods-operator) | ai-fixable (kserve) |
+| [RHOAIENG-28830](https://redhat.atlassian.net/browse/RHOAIENG-28830) | already-fixed | ai-fixable |
+| [RHOAIENG-44437](https://redhat.atlassian.net/browse/RHOAIENG-44437) | insufficient-info | ai-fixable |
+| [RHOAIENG-49167](https://redhat.atlassian.net/browse/RHOAIENG-49167) | upstream-required | ai-fixable |
+| [RHOAIENG-27943](https://redhat.atlassian.net/browse/RHOAIENG-27943) | ai-fixable (rhods-operator) | ai-fixable (kserve) |
 
-Opus is more conservative — flagging issues as already-fixed, insufficient-info, or upstream-required where Sonnet attempts a fix. RHOAIENG-27943 is notable: both say ai-fixable but disagree on which repository to target (the only repo disagreement across all 39 issues).
+Opus is more conservative — flagging issues as already-fixed, insufficient-info, or upstream-required where Sonnet attempts a fix. [RHOAIENG-27943](https://redhat.atlassian.net/browse/RHOAIENG-27943) is notable: both say ai-fixable but disagree on which repository to target (the only repo disagreement across all 39 issues).
 
 ### Patch Size and Self-Corrections
 
-**Patches generated:** Opus produced patches for 22 issues, Sonnet for 24. Sonnet generated patches for 4 issues where Opus did not (RHOAIENG-28830, RHOAIENG-44437, RHOAIENG-49166, RHOAIENG-49167).
+**Patches generated:** Opus produced patches for 22 issues, Sonnet for 24. Sonnet generated patches for 4 issues where Opus did not ([RHOAIENG-28830](https://redhat.atlassian.net/browse/RHOAIENG-28830), [RHOAIENG-44437](https://redhat.atlassian.net/browse/RHOAIENG-44437), [RHOAIENG-49166](https://redhat.atlassian.net/browse/RHOAIENG-49166), [RHOAIENG-49167](https://redhat.atlassian.net/browse/RHOAIENG-49167)).
 
-**Self-corrections:** Opus self-corrected on 7 issues (max 2 iterations on RHOAIENG-52249). Sonnet self-corrected on 5 issues. Low self-correction counts on both models — most fixes passed on the first attempt.
+**Self-corrections:** Opus self-corrected on 7 issues (max 2 iterations on [RHOAIENG-52249](https://redhat.atlassian.net/browse/RHOAIENG-52249)). Sonnet self-corrected on 5 issues. Low self-correction counts on both models — most fixes passed on the first attempt.
 
 **Mean patch size (where both produced patches):**
 - Opus: 115 lines
