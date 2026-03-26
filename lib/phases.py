@@ -34,7 +34,6 @@ from lib.validation import (
     resolve_container_recipes,
     start_validation_container,
     stop_validation_container,
-    remove_validation_image,
     get_changed_files_from_workspace,
     run_validation_agent,
 )
@@ -1251,7 +1250,6 @@ async def _run_validation_loop(
     accumulated_corrections: list[dict] = []
 
     active_containers: dict[str, str] = {}
-    used_images: set[str] = set()
 
     try:
         for iteration in range(1, max_iterations + 1):
@@ -1278,9 +1276,6 @@ async def _run_validation_loop(
                             )
                             if cn:
                                 active_containers[repo_dir_name] = cn
-                                base_img = recipe.get("base_image", "")
-                                if base_img:
-                                    used_images.add(base_img)
                             else:
                                 print(f"  [{key}] failed to start container for {repo_dir_name}")
                                 iter_results.append({
@@ -1405,9 +1400,6 @@ async def _run_validation_loop(
     finally:
         for cn in active_containers.values():
             stop_validation_container(cn)
-        for img in used_images:
-            print(f"  [{key}] removing validation image {img}", file=sys.stderr)
-            remove_validation_image(img)
 
     if accumulated_corrections:
         _update_fix_json_self_corrections(json_path, accumulated_corrections)
