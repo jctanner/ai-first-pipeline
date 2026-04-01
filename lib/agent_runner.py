@@ -49,6 +49,7 @@ async def run_agent(
     model: str = "sonnet",
     allowed_tools: list[str] | None = None,
     log_file: Path | None = None,
+    enable_skills: bool = False,
 ) -> dict:
     """
     Launch one independent Claude agent session.
@@ -62,12 +63,18 @@ async def run_agent(
         allowed_tools: Tools the agent can use (default: Read, Write, Glob, Grep)
         log_file: Explicit log file path. When provided, used instead of
                   ``log_dir / f"{name}.log"``.
+        enable_skills: When True, load project skills from ``.claude/skills/``
+                       and add the ``Skill`` tool so the agent can invoke them
+                       natively.
 
     Returns:
         dict with 'name', 'success', 'log_file', and optional 'error' keys
     """
     if allowed_tools is None:
         allowed_tools = ["Read", "Write", "Glob", "Grep"]
+
+    if enable_skills and "Skill" not in allowed_tools:
+        allowed_tools = [*allowed_tools, "Skill"]
 
     if log_file is None:
         log_file = log_dir / f"{name.replace('/', '_')}.log"
@@ -78,12 +85,15 @@ async def run_agent(
     # (~/.claude/projects/<project>/memory/) — that is a CLI-only feature.
     # CLAUDE.md / project settings are also NOT loaded unless explicitly
     # enabled via setting_sources=["project"].  We omit that option here
-    # so every agent session is fully isolated.
+    # so every agent session is fully isolated — unless enable_skills is
+    # set, in which case we load project settings so .claude/skills/ are
+    # discovered.
     options = ClaudeAgentOptions(
         cwd=cwd,
         allowed_tools=allowed_tools,
         permission_mode="bypassPermissions",
         model=model_id,
+        **({"setting_sources": ["project"]} if enable_skills else {}),
     )
 
     log_file.parent.mkdir(parents=True, exist_ok=True)

@@ -237,8 +237,10 @@ async def run_validation_agent(
 ) -> dict | None:
     """Launch a validation agent with Bash access.
 
-    The agent reads the test context markdown, runs commands via
-    ``podman exec``, and writes a structured result JSON.
+    Uses the native ``patch-validation`` skill from ``.claude/skills/``
+    for the validation methodology.  The prompt provides only the
+    runtime context (container name, changed files, output path) and
+    directs the agent to invoke the skill.
 
     Args:
         key: Issue key for identification
@@ -255,73 +257,37 @@ async def run_validation_agent(
     """
     from lib.agent_runner import run_agent
 
-    # Build the prompt for the validation agent
-    prompt_parts = [
-        "# Patch Validation Task",
-        "",
-        f"Validate the patch for issue **{key}** by running lint and test commands "
-        f"inside the container **{container_name}**.",
-        "",
-        "## Container",
-        "",
-        f"- Container name: `{container_name}`",
-        "- Workspace is mounted at `/app` inside the container",
-        f"- Run commands with: `podman exec {container_name} sh -c \"...\"`",
-        "",
-        "## Changed Files",
-        "",
-    ]
-
-    for f in changed_files:
-        prompt_parts.append(f"- `{f}`")
-
-    prompt_parts.append("")
+    # Build a short prompt with runtime context only.  The full
+    # validation methodology lives in .claude/skills/patch-validation/
+    # and is loaded natively by the SDK via enable_skills=True.
+    files_list = "\n".join(f"- `{f}`" for f in changed_files)
 
     if test_context_md_path:
-        prompt_parts.extend([
-            "## Test Context",
-            "",
-            f"Read the test context documentation at: `{test_context_md_path}`",
-            "",
+        test_ctx_section = (
+            f"Read the test context documentation at: `{test_context_md_path}`\n"
             "This file describes the project's lint/test infrastructure, available "
-            "commands, setup requirements, and which commands are validated as working.",
-            "",
-        ])
+            "commands, setup requirements, and which commands are validated as working."
+        )
     else:
-        prompt_parts.extend([
-            "## Test Context",
-            "",
+        test_ctx_section = (
             "No test context file is available. Look in the repo itself for "
             "Makefile, go.mod, pytest.ini, tox.ini, or similar to discover how "
-            "to run tests.",
-            "",
-        ])
+            "to run tests."
+        )
 
-    prompt_parts.extend([
-        "## Output",
-        "",
-        f"Write the validation result JSON to: `{result_output_path}`",
-        "",
-        "The JSON MUST use these exact field names (not alternatives):",
-        "",
-        "```json",
-        "{",
-        '  "overall_passed": true,',
-        '  "lint_passed": true,',
-        '  "selective_tests_passed": true,',
-        '  "full_tests_passed": null,',
-        '  "setup_success": true,',
-        '  "test_context_helpfulness": {"rating": "high|medium|low|none", "explanation": "..."},',
-        '  "commands_run": [{"command": "...", "category": "setup|lint|selective-test|full-test", "exit_code": 0, "passed": true, "output_summary": "..."}],',
-        '  "summary": "Human readable summary"',
-        "}",
-        "```",
-        "",
-        "IMPORTANT: Use `overall_passed` (boolean), NOT `overall_result`. "
-        "Use `commands_run` (array), NOT `validation_steps`.",
-    ])
-
-    prompt = "\n".join(prompt_parts)
+    prompt = (
+        f"Validate the patch for issue **{key}** using the patch-validation skill.\n"
+        f"\n"
+        f"Container name: `{container_name}`\n"
+        f"Workspace is mounted at `/app` inside the container.\n"
+        f"Run commands with: `podman exec {container_name} sh -c \"...\"`\n"
+        f"\n"
+        f"Changed files:\n{files_list}\n"
+        f"\n"
+        f"Test context:\n{test_ctx_section}\n"
+        f"\n"
+        f"Write the validation result JSON to: `{result_output_path}`\n"
+    )
 
     agent_result = await run_agent(
         name=f"{key}-validation",
@@ -330,6 +296,7 @@ async def run_validation_agent(
         log_dir=log_dir,
         model=model,
         allowed_tools=["Read", "Write", "Glob", "Grep", "Bash"],
+        enable_skills=True,
     )
 
     if not isinstance(agent_result, dict) or not agent_result.get("success"):
