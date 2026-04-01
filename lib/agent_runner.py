@@ -1,10 +1,21 @@
 """Claude SDK agent launcher and model utilities."""
 
+import os
 import time
 import asyncio
 from pathlib import Path
 
 from claude_agent_sdk import ClaudeSDKClient, ClaudeAgentOptions
+
+
+# Environment variables forwarded to every agent session so that
+# skills and scripts that need Jira access (or other shared config)
+# can find them.  Values are read from ``os.environ`` at launch time.
+_FORWARDED_ENV_VARS = [
+    "JIRA_SERVER",
+    "JIRA_USER",
+    "JIRA_TOKEN",
+]
 
 
 def get_model_display_name(model_shorthand: str) -> str:
@@ -50,6 +61,7 @@ async def run_agent(
     allowed_tools: list[str] | None = None,
     log_file: Path | None = None,
     enable_skills: bool = False,
+    env: dict[str, str] | None = None,
 ) -> dict:
     """
     Launch one independent Claude agent session.
@@ -66,6 +78,9 @@ async def run_agent(
         enable_skills: When True, load project skills from ``.claude/skills/``
                        and add the ``Skill`` tool so the agent can invoke them
                        natively.
+        env: Extra environment variables to pass to the agent session.
+             Variables from ``_FORWARDED_ENV_VARS`` that are present in
+             ``os.environ`` are always included automatically.
 
     Returns:
         dict with 'name', 'success', 'log_file', and optional 'error' keys
@@ -80,6 +95,16 @@ async def run_agent(
         log_file = log_dir / f"{name.replace('/', '_')}.log"
     model_id = get_model_id(model)
 
+    # Build the environment dict: start with auto-forwarded vars,
+    # then layer on any caller-provided overrides.
+    agent_env: dict[str, str] = {}
+    for var in _FORWARDED_ENV_VARS:
+        val = os.environ.get(var)
+        if val:
+            agent_env[var] = val
+    if env:
+        agent_env.update(env)
+
     # NOTE on context isolation: each query() call starts a fresh session
     # with no memory of previous runs.  The SDK does NOT load auto-memory
     # (~/.claude/projects/<project>/memory/) — that is a CLI-only feature.
@@ -93,6 +118,7 @@ async def run_agent(
         allowed_tools=allowed_tools,
         permission_mode="bypassPermissions",
         model=model_id,
+        env=agent_env,
         **({"setting_sources": ["project"]} if enable_skills else {}),
     )
 

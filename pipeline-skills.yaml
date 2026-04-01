@@ -7,9 +7,11 @@
 #   directory contains skills the pipeline can use.
 #
 # phases:
-#   skill   - name of the skill directory (under .claude/skills/)
-#   source  - (optional) key in skill_repos; omit for local skills
-#   invoke  - "templated" (default) or "native"
+#   skill         - name of the skill directory (under .claude/skills/)
+#   source        - (optional) key in skill_repos; omit for local skills
+#   invoke        - "templated" (default) or "native"
+#   allowed_tools - (optional) tools the agent needs; defaults to
+#                   [Read, Write, Glob, Grep]
 #
 # Invocation methods:
 #   templated  - extract SKILL.md instructions and inject them into the
@@ -46,14 +48,48 @@ phases:
   patch-validation:
     skill: patch-validation
     invoke: native
+    allowed_tools: [Read, Write, Glob, Grep, Bash]
 
   # === RFE phases (external skills, native) ===
+  rfe-create:
+    skill: rfe.create
+    source: rfe-creator
+    invoke: native
+    allowed_tools: [Read, Write, Edit, Glob, Grep, Bash]
+
   rfe-review:
     skill: rfe.review
     source: rfe-creator
     invoke: native
+    allowed_tools: [Read, Write, Edit, Glob, Grep, Bash]
+
+  rfe-split:
+    skill: rfe.split
+    source: rfe-creator
+    invoke: native
+    allowed_tools: [Read, Write, Edit, Glob, Grep, Bash]
+
+  rfe-submit:
+    skill: rfe.submit
+    source: rfe-creator
+    invoke: native
+    allowed_tools: [Read, Write, Edit, Glob, Grep, Bash]
+
+  # === Strategy phases (external skills, native) ===
+  strat-create:
+    skill: strat.create
+    source: rfe-creator
+    invoke: native
+    allowed_tools: [Read, Write, Edit, Glob, Grep, Bash]
+
+  strat-refine:
+    skill: strat.refine
+    source: rfe-creator
+    invoke: native
+    allowed_tools: [Read, Write, Edit, Glob, Grep]
 
   strat-review:
     skill: strat.review
     source: rfe-creator
     invoke: native
+    allowed_tools: [Read, Write, Edit, Glob, Grep, Bash]

@@ -18,6 +18,12 @@ from jsonschema import validate, ValidationError
 from lib.agent_runner import run_agent, format_duration, get_model_id
 from lib.prompts import build_phase_prompt
 from lib.schemas import PHASE_SCHEMAS
+from lib.skill_config import (
+    get_skill_name,
+    get_allowed_tools,
+    resolve_cwd,
+    should_enable_skills,
+)
 from lib.paths import (
     BASE_DIR, ISSUES_DIR, WORKSPACE_DIR,
     model_workspace, phase_json, phase_md, phase_log,
@@ -760,25 +766,25 @@ async def run_fetch_phase(args) -> None:
     project_root = BASE_DIR.parent
     load_dotenv(project_root / ".env")
 
-    jira_url = os.environ.get("JIRA_URL", "").rstrip("/")
-    jira_email = os.environ.get("JIRA_EMAIL", "")
-    jira_api_token = os.environ.get("JIRA_API_TOKEN", "")
+    jira_server = os.environ.get("JIRA_SERVER", "").rstrip("/")
+    jira_user = os.environ.get("JIRA_USER", "")
+    jira_token = os.environ.get("JIRA_TOKEN", "")
 
-    if not jira_url or not jira_api_token:
-        print("Error: JIRA_URL and JIRA_API_TOKEN must be set in .env")
+    if not jira_server or not jira_token:
+        print("Error: JIRA_SERVER and JIRA_TOKEN must be set in .env")
         sys.exit(1)
 
     ISSUES_DIR.mkdir(exist_ok=True)
 
-    is_cloud = ".atlassian.net" in jira_url.lower()
+    is_cloud = ".atlassian.net" in jira_server.lower()
     session = requests.Session()
     session.headers["Accept"] = "application/json"
     if is_cloud:
-        session.auth = (jira_email, jira_api_token)
+        session.auth = (jira_user, jira_token)
     else:
-        session.headers["Authorization"] = f"Bearer {jira_api_token}"
+        session.headers["Authorization"] = f"Bearer {jira_token}"
 
-    api_base = f"{jira_url}/rest/api/3" if is_cloud else f"{jira_url}/rest/api/2"
+    api_base = f"{jira_server}/rest/api/3" if is_cloud else f"{jira_server}/rest/api/2"
     jql = "project = RHOAIENG AND issuetype = Bug AND resolution = Unresolved ORDER BY key ASC"
     page_size = 100
 
@@ -2486,6 +2492,60 @@ async def run_all_phases(args) -> None:
 
 
 # ---------------------------------------------------------------------------
+# Native-skill phase runner (rfe-creator skills)
+# ---------------------------------------------------------------------------
+
+_NATIVE_SKILL_PHASES = {
+    "rfe-create", "rfe-review", "rfe-split", "rfe-submit",
+    "strat-create", "strat-refine", "strat-review",
+}
+
+
+async def run_native_skill_phase(args) -> None:
+    """Run a phase backed by a native SDK skill.
+
+    Resolves the skill name, working directory, and allowed tools from
+    ``pipeline-skills.yaml``, then launches a single agent that invokes
+    the skill via the SDK's Skill tool.
+
+    The ``--issue`` flag is passed as the skill argument (e.g. a Jira
+    key like ``RHAIRFE-1234``).
+    """
+    phase = args.command
+    skill_name = get_skill_name(phase)
+    cwd = str(resolve_cwd(phase))
+    allowed_tools = get_allowed_tools(phase)
+    enable_skills = should_enable_skills(phase)
+    model = args.model if isinstance(args.model, str) else args.model[0]
+
+    print(f"\n{'=' * 60}")
+    print(f"PHASE: {phase}  (skill: {skill_name})")
+    print(f"{'=' * 60}\n")
+
+    issue_arg = getattr(args, "issue", None) or ""
+    prompt = f"Use the {skill_name} skill. {issue_arg}".strip()
+
+    log_dir = BASE_DIR / "logs"
+    log_dir.mkdir(exist_ok=True)
+
+    result = await run_agent(
+        name=f"{phase}-{issue_arg or 'batch'}",
+        cwd=cwd,
+        prompt=prompt,
+        log_dir=log_dir,
+        model=model,
+        allowed_tools=allowed_tools,
+        enable_skills=enable_skills,
+    )
+
+    if result["success"]:
+        print(f"\n{phase} completed successfully.")
+    else:
+        print(f"\n{phase} failed: {result.get('error', 'unknown error')}")
+        sys.exit(1)
+
+
+# ---------------------------------------------------------------------------
 # Dispatch
 # ---------------------------------------------------------------------------
 
@@ -2499,22 +2559,24 @@ async def run_report_phase(args) -> None:
 
 async def main(args) -> None:
     """Main entry point — dispatch to appropriate phase."""
-    if args.command == "fetch":
+    if args.command == "bug-fetch":
         await run_fetch_phase(args)
-    elif args.command == "completeness":
+    elif args.command == "bug-completeness":
         await run_completeness_phase(args)
-    elif args.command == "context-map":
+    elif args.command == "bug-context-map":
         await run_context_map_phase(args)
-    elif args.command == "fix-attempt":
+    elif args.command == "bug-fix-attempt":
         await run_fix_attempt_phase(args)
-    elif args.command == "test-plan":
+    elif args.command == "bug-test-plan":
         await run_test_plan_phase(args)
-    elif args.command == "write-test":
+    elif args.command == "bug-write-test":
         await run_write_test_phase(args)
-    elif args.command == "all":
+    elif args.command == "bug-all":
         await run_all_phases(args)
     elif args.command == "report":
         await run_report_phase(args)
+    elif args.command in _NATIVE_SKILL_PHASES:
+        await run_native_skill_phase(args)
     else:
         print("Error: No command specified. Use --help for usage information.")
         sys.exit(1)

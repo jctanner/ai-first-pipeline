@@ -13,12 +13,12 @@ from dotenv import load_dotenv
 PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent
 load_dotenv(PROJECT_ROOT / ".env")
 
-JIRA_URL = os.environ.get("JIRA_URL", "").rstrip("/")
-JIRA_EMAIL = os.environ.get("JIRA_EMAIL", "")
-JIRA_API_TOKEN = os.environ.get("JIRA_API_TOKEN", "")
+JIRA_SERVER = os.environ.get("JIRA_SERVER", "").rstrip("/")
+JIRA_USER = os.environ.get("JIRA_USER", "")
+JIRA_TOKEN = os.environ.get("JIRA_TOKEN", "")
 
-if not JIRA_URL or not JIRA_API_TOKEN:
-    sys.exit("Error: JIRA_URL and JIRA_API_TOKEN must be set in .env")
+if not JIRA_SERVER or not JIRA_TOKEN:
+    sys.exit("Error: JIRA_SERVER and JIRA_TOKEN must be set in .env")
 
 ISSUES_DIR = Path(__file__).resolve().parent.parent / "issues"
 ISSUES_DIR.mkdir(exist_ok=True)
@@ -35,16 +35,16 @@ def _session() -> requests.Session:
     """Build an authenticated requests session matching the MCP server's auth logic."""
     s = requests.Session()
     s.headers["Accept"] = "application/json"
-    if _is_cloud(JIRA_URL):
-        s.auth = (JIRA_EMAIL, JIRA_API_TOKEN)
+    if _is_cloud(JIRA_SERVER):
+        s.auth = (JIRA_USER, JIRA_TOKEN)
     else:
-        s.headers["Authorization"] = f"Bearer {JIRA_API_TOKEN}"
+        s.headers["Authorization"] = f"Bearer {JIRA_TOKEN}"
     return s
 
 
 def _api_base() -> str:
     """Return the appropriate API base path for Cloud vs Server."""
-    return f"{JIRA_URL}/rest/api/3" if _is_cloud(JIRA_URL) else f"{JIRA_URL}/rest/api/2"
+    return f"{JIRA_SERVER}/rest/api/3" if _is_cloud(JIRA_SERVER) else f"{JIRA_SERVER}/rest/api/2"
 
 
 def fetch_issue_keys(session: requests.Session) -> list[str]:
@@ -52,7 +52,7 @@ def fetch_issue_keys(session: requests.Session) -> list[str]:
     keys: list[str] = []
     api = _api_base()
 
-    if _is_cloud(JIRA_URL):
+    if _is_cloud(JIRA_SERVER):
         # Cloud: use POST /rest/api/3/search/jql with nextPageToken pagination
         next_page_token = None
         while True:

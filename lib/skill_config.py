@@ -106,6 +106,16 @@ def resolve_cwd(phase: str) -> Path:
     return BASE_DIR
 
 
+def get_allowed_tools(phase: str) -> list[str]:
+    """Return the ``allowed_tools`` list for *phase*.
+
+    Falls back to ``["Read", "Write", "Glob", "Grep"]`` when not
+    specified in the config.
+    """
+    pc = get_phase_config(phase)
+    return list(pc.get("allowed_tools", ["Read", "Write", "Glob", "Grep"]))
+
+
 def should_enable_skills(phase: str) -> bool:
     """Return ``True`` if the agent for *phase* needs SDK skill discovery."""
     return get_invoke_method(phase) == "native"

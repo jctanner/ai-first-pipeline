@@ -36,9 +36,10 @@ CLAUDE_CODE_USE_VERTEX=1
 CLOUD_ML_REGION=us-east5
 ANTHROPIC_VERTEX_PROJECT_ID=<your-project-id>
 
-# For Jira fetch (Phase 1)
-JIRA_URL=https://issues.redhat.com
-JIRA_API_TOKEN=<your-jira-pat>
+# For Jira access (fetch phase + rfe-creator skills)
+JIRA_SERVER=https://issues.redhat.com
+JIRA_USER=<your-email>
+JIRA_TOKEN=<your-jira-pat>
 EOF
 ```
 
@@ -50,15 +51,27 @@ python main.py <command> [options]
 
 ### Commands
 
-| Command | Phase | Description |
-|---------|-------|-------------|
-| `fetch` | 1 | Fetch open RHOAIENG bugs from Jira into `issues/` |
-| `completeness` | 2 | Score each bug's report quality (0-100) and classify issue type |
-| `context-map` | 3 | Map each bug to available architecture context and repos |
-| `fix-attempt` | 4 | Clone midstream repos and attempt AI-generated fixes |
-| `test-plan` | 5 | Generate test plans based on fix attempts |
-| `all` | 2-5 | Run all analysis phases per-issue with dependency ordering |
-| `report` | — | Launch the Flask web dashboard |
+| Command | Description |
+|---------|-------------|
+| **Bug analysis** | |
+| `bug-fetch` | Fetch open RHOAIENG bugs from Jira into `issues/` |
+| `bug-completeness` | Score each bug's report quality (0-100) and classify issue type |
+| `bug-context-map` | Map each bug to available architecture context and repos |
+| `bug-fix-attempt` | Clone midstream repos and attempt AI-generated fixes |
+| `bug-test-plan` | Generate test plans based on fix attempts |
+| `bug-write-test` | Write QE tests for opendatahub-tests |
+| `bug-all` | Run all bug analysis phases per-issue with dependency ordering |
+| **RFE management** | |
+| `rfe-create` | Write a new RFE from a problem statement or idea |
+| `rfe-review` | Review and improve an RFE (rubric scoring, feasibility, auto-revision) |
+| `rfe-split` | Split an oversized RFE into smaller, right-sized RFEs |
+| `rfe-submit` | Submit or update RFEs in Jira |
+| **Strategy management** | |
+| `strat-create` | Create strategies from approved RFEs |
+| `strat-refine` | Refine strategies with HOW, dependencies, and NFRs |
+| `strat-review` | Adversarial review of refined strategies |
+| **Reporting** | |
+| `report` | Launch the Flask web dashboard |
 
 ### Common options
 
@@ -75,19 +88,25 @@ python main.py <command> [options]
 
 ```bash
 # Score completeness for a single bug
-python main.py completeness --issue RHOAIENG-13921
+python main.py bug-completeness --issue RHOAIENG-13921
 
 # Run fix attempts for all ai-fixable bugs, max 3 at a time
-python main.py fix-attempt --triage ai-fixable --max-concurrent 3
+python main.py bug-fix-attempt --triage ai-fixable --max-concurrent 3
 
 # Re-run issues that previously couldn't be fixed
-python main.py fix-attempt --recommendation ai-could-not-fix
+python main.py bug-fix-attempt --recommendation ai-could-not-fix
 
 # Run fix attempt with no post-fix validation
-python main.py fix-attempt --issue RHOAIENG-13921 --skip-validation
+python main.py bug-fix-attempt --issue RHOAIENG-13921 --skip-validation
 
-# Full pipeline for 10 issues using haiku
-python main.py all --limit 10 --model haiku
+# Full bug pipeline for 10 issues using haiku
+python main.py bug-all --limit 10 --model haiku
+
+# Review an RFE
+python main.py rfe-review --issue RHAIRFE-1234
+
+# Review a strategy
+python main.py strat-review --issue RHAISTRAT-400
 
 # Launch the dashboard
 python main.py report --port 8080

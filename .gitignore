@@ -16,6 +16,9 @@ architecture-context
 odh-tests-context
 odh-test-context
 
+# External repo clones for skill isolation
+references/
+
 # Generated data and workspaces
 fix-workspaces/
 issues/
