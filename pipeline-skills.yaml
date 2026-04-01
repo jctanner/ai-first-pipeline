@@ -1,0 +1,59 @@
+# Pipeline skill configuration
+#
+# Maps pipeline phases to skill sources and invocation methods.
+#
+# skill_repos:
+#   Each entry names a cloned external repository whose .claude/skills/
+#   directory contains skills the pipeline can use.
+#
+# phases:
+#   skill   - name of the skill directory (under .claude/skills/)
+#   source  - (optional) key in skill_repos; omit for local skills
+#   invoke  - "templated" (default) or "native"
+#
+# Invocation methods:
+#   templated  - extract SKILL.md instructions and inject them into the
+#                agent prompt alongside issue data (deterministic, batch-
+#                friendly).
+#   native     - enable SDK skill discovery (setting_sources=["project"])
+#                so the agent can invoke skills via the Skill tool.  When
+#                source is set, cwd is pointed at the external repo so the
+#                agent also gets CLAUDE.md, scripts, sub-skills, and
+#                companion files from that repo.
+
+skill_repos:
+  rfe-creator:
+    path: references/rfe-creator
+
+phases:
+  # === Bug analysis (local skills, templated) ===
+  completeness:
+    skill: bug-completeness
+
+  context-map:
+    skill: bug-context-map
+
+  fix-attempt:
+    skill: bug-fix-attempt
+
+  test-plan:
+    skill: bug-test-plan
+
+  write-test:
+    skill: bug-write-test
+
+  # === Bug validation (local skill, native) ===
+  patch-validation:
+    skill: patch-validation
+    invoke: native
+
+  # === RFE phases (external skills, native) ===
+  rfe-review:
+    skill: rfe.review
+    source: rfe-creator
+    invoke: native
+
+  strat-review:
+    skill: strat.review
+    source: rfe-creator
+    invoke: native
