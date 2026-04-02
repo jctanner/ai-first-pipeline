@@ -266,6 +266,12 @@ Examples:
     )
     _add_native_skill_args(strat_review_parser)
 
+    strat_submit_parser = subparsers.add_parser(
+        "strat-submit",
+        help="Push refined strategy content to RHAISTRAT Jira tickets",
+    )
+    _add_native_skill_args(strat_submit_parser)
+
     strat_security_review_parser = subparsers.add_parser(
         "strat-security-review",
         help="Security review of refined strategies",

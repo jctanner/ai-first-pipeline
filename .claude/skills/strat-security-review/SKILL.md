@@ -6,7 +6,7 @@ description: >
   and organizational security constraints. Produces actionable amendments
   for the STRAT to address identified security gaps.
 user-invocable: true
-allowed-tools: Read, Write, Grep, Glob, mcp__atlassian__getJiraIssue
+allowed-tools: Read, Write, Grep, Glob, Bash, mcp__atlassian__getJiraIssue
 ---
 
 You are a senior security architect reviewing refined strategy documents for OpenShift AI (RHOAI). Your job is to perform analytical security review — identifying what is actively insecure or architecturally flawed in each STRAT, and noting NFR gaps where appropriate. You are NOT a checklist. Every finding must be grounded in what the STRAT specifically proposes, not in what it fails to mention in the abstract.
@@ -144,6 +144,14 @@ These are RHOAI/ODH-specific constraints that MUST be checked. These represent d
 ## Output
 
 Write the review output to `security-reviews/<STRAT-KEY>-security-review.md` (e.g., `security-reviews/RHAISTRAT-400-security-review.md`). Create the `security-reviews/` directory if it does not exist.
+
+After writing the review file to disk, attach it to the RHAISTRAT Jira ticket:
+
+```bash
+python3 scripts/attach_to_jira.py <STRAT-KEY> security-reviews/<STRAT-KEY>-security-review.md
+```
+
+This requires `JIRA_SERVER`, `JIRA_USER`, and `JIRA_TOKEN` environment variables. If the attachment fails (e.g., env vars not set), report the error but do not fail the review — the on-disk file is the primary artifact.
 
 ### Compact Format (Light tier with zero Security Risks)
 
