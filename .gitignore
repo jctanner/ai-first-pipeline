@@ -32,6 +32,7 @@ logs/
 notes/
 docs/
 BUG_BASH_PLAN.md
+security-reviews/
 
 # Workflow definitions (not ready for public)
 ambient-code.workflows/
