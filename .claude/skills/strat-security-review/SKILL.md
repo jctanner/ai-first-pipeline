@@ -103,6 +103,18 @@ Only assess dimensions that are relevant to the STRAT's review tier and security
 - Does this affect any certification boundaries?
 - Does this impact the product's security posture documentation?
 
+### ML/AI-Specific Threats
+- Does the STRAT modify data pipelines or model training flows? Check for data poisoning vectors — unauthorized writes to training data stores, unvalidated data sources.
+- Does the STRAT change model serving endpoints or add new inference APIs? Check for inference endpoint authentication and prompt injection surfaces for LLM serving.
+- Does the STRAT affect model registries or model artifact storage? Check for model artifact access controls — who can push, pull, or overwrite model versions.
+- Does the STRAT introduce model download from external sources? Check for provenance verification of model artifacts.
+
+### Multi-Tenant Isolation
+- Does the STRAT affect namespace boundaries or cross-tenant data access?
+- Are shared resources (storage, compute, network) properly isolated across tenants?
+- Are resource quotas enforced to prevent noisy-neighbor effects?
+- Does workload co-location create side-channel risks?
+
 ## The Relevance Gate
 
 **CRITICAL: Apply this gate to every potential finding before including it in the review.**
@@ -222,7 +234,7 @@ Security Risks are things the STRAT proposes that are actively insecure or archi
 
 ### RISK-001: [Risk Title]
 - **Severity:** Critical | High | Medium
-- **Category:** <auth, data-protection, crypto, network, supply-chain, infrastructure, operational, compliance>
+- **Category:** <auth, data-protection, crypto, network, supply-chain, infrastructure, operational, compliance, ml-ai, multi-tenant>
 - **STRAT Reference:** <Quote or cite the specific STRAT text that creates this concern>
 - **Relevance:** <Explain why this specific change creates this risk, and confirm the risk is not already mitigated by existing component infrastructure>
 - **Impact:** <What happens if not addressed>
@@ -235,7 +247,9 @@ If no Security Risks are identified, write: "No security risks identified in the
 
 ## NFR Gaps
 
-NFR Gaps are standard security requirements that the STRAT should mention for completeness, given what it proposes. These are NOT active security risks — they are missing specifications. NFR Gaps are Low severity and do NOT drive a CONCERNS verdict on their own.
+NFR Gaps are standard security requirements that the STRAT should mention for completeness, given what it proposes. These are NOT active security risks — they are missing specifications. NFR Gaps are Low severity and do NOT normally drive a CONCERNS verdict on their own.
+
+**Exception:** If 5 or more NFR Gaps are identified and the review tier is Standard or Deep, this pattern of omissions indicates the strategy author did not consider security systematically. In this case, upgrade the verdict to CONCERNS with a rationale explaining the systemic gap.
 
 - <NFR gap 1: what's missing and why this STRAT specifically needs it>
 - <NFR gap 2: ...>
@@ -287,11 +301,11 @@ This section does NOT affect the verdict. It is informational feedback for impro
 
 | Verdict | Criteria |
 |---------|----------|
-| **PASS** | No Security Risks identified. NFR Gaps alone do NOT warrant CONCERNS. |
-| **CONCERNS** | One or more Security Risks at Medium or High severity with straightforward mitigations |
+| **PASS** | No Security Risks identified. NFR Gaps alone do NOT warrant CONCERNS (unless 5+ NFR Gaps at Standard/Deep tier). |
+| **CONCERNS** | One or more Security Risks at Medium or High severity with straightforward mitigations; OR 5+ NFR Gaps at Standard/Deep tier indicating systemic security omission |
 | **FAIL** | One or more Critical Security Risks; fundamental security issues requiring redesign |
 
-**Important:** A STRAT with only NFR Gaps and no Security Risks is a PASS, regardless of how many NFR Gaps exist. NFR Gaps are advisory.
+**Important:** A STRAT with only NFR Gaps and no Security Risks is normally a PASS. Exception: 5+ NFR Gaps at Standard or Deep tier indicates systemic security omission and warrants CONCERNS.
 
 ## Severity Definitions (Security Risks only)
 
