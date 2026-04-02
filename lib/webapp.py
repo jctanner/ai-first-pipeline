@@ -1072,18 +1072,17 @@ TAB_STRATEGIES = """\
       <th class="sortable" data-col="2">Source RFE</th>
       <th class="sortable" data-col="3">Priority</th>
       <th class="sortable" data-col="4">Status</th>
-      <th class="sortable" data-col="5">Jira Key</th>
-      <th class="sortable" data-col="6">Recommendation</th>
-      <th class="sortable" data-col="7">Feasibility</th>
-      <th class="sortable" data-col="8">Testability</th>
-      <th class="sortable" data-col="9">Scope</th>
-      <th class="sortable" data-col="10">Architecture</th>
-      <th class="sortable" data-col="11">Sec Verdict</th>
-      <th class="sortable" data-col="12">Sec Tier</th>
-      <th class="sortable" data-col="13" data-type="number">Sec Risks</th>
-      <th class="sortable" data-col="14" data-type="number">Critical</th>
-      <th class="sortable" data-col="15" data-type="number">High</th>
-      <th class="sortable" data-col="16" data-type="number">Medium</th>
+      <th class="sortable" data-col="5">Recommendation</th>
+      <th class="sortable" data-col="6">Feasibility</th>
+      <th class="sortable" data-col="7">Testability</th>
+      <th class="sortable" data-col="8">Scope</th>
+      <th class="sortable" data-col="9">Architecture</th>
+      <th class="sortable" data-col="10">Sec Verdict</th>
+      <th class="sortable" data-col="11">Sec Tier</th>
+      <th class="sortable" data-col="12" data-type="number">Sec Risks</th>
+      <th class="sortable" data-col="13" data-type="number">Critical</th>
+      <th class="sortable" data-col="14" data-type="number">High</th>
+      <th class="sortable" data-col="15" data-type="number">Medium</th>
     </tr>
   </thead>
   <tbody>
@@ -1104,7 +1103,6 @@ TAB_STRATEGIES = """\
       <td>{{ st.source_rfe|default('&mdash;'|safe) }}</td>
       <td>{{ st.priority|default('&mdash;'|safe) }}</td>
       <td>{{ st.status|default('&mdash;'|safe) }}</td>
-      <td>{{ st.jira_key|default('&mdash;'|safe) }}</td>
       <td>
         {% if rev and rev.recommendation %}
           <span class="badge badge-rec-{{ rev.recommendation }}">{{ rev.recommendation }}</span>
