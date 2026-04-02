@@ -16,6 +16,7 @@ from lib.report_data import (
     compute_summary_stats, compute_component_readiness,
 )
 from lib.paths import discover_models, model_workspace
+from lib.rfe_data import load_rfe_issues, load_strat_issues
 from lib.stats import compute_all_stats
 
 # ---------------------------------------------------------------------------
@@ -159,7 +160,7 @@ LAYOUT = """\
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>{% block title %}Bug Bash Dashboard{% endblock %}</title>
+  <title>{% block title %}Pipeline Dashboard{% endblock %}</title>
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@picocss/pico@2/css/pico.min.css">
   <style>
     :root { --pico-font-size: 87.5%; }
@@ -258,12 +259,64 @@ LAYOUT = """\
       font-size: 0.8em; font-weight: bold; color: #fff;
       min-width: 2em;
     }
+    /* --- Type badges --- */
+    .badge-type-bug { background: #e74c3c; color: #fff; }
+    .badge-type-rfe { background: #3498db; color: #fff; }
+    .badge-type-strategy { background: #9b59b6; color: #fff; }
+    /* --- Size badges --- */
+    .badge-size-s { background: #27ae60; color: #fff; }
+    .badge-size-m { background: #f1c40f; color: #333; }
+    .badge-size-l { background: #e67e22; color: #fff; }
+    .badge-size-xl { background: #e74c3c; color: #fff; }
+    /* --- Recommendation badges --- */
+    .badge-rec-submit, .badge-rec-approve { background: #27ae60; color: #fff; }
+    .badge-rec-revise { background: #f1c40f; color: #333; }
+    .badge-rec-split { background: #3498db; color: #fff; }
+    .badge-rec-reject { background: #e74c3c; color: #fff; }
+    /* --- Feasibility badges --- */
+    .badge-feas-feasible { background: #27ae60; color: #fff; }
+    .badge-feas-infeasible { background: #e74c3c; color: #fff; }
+    .badge-feas-indeterminate { background: #95a5a6; color: #fff; }
+    /* --- Security badges --- */
+    .badge-sec-pass { background: #27ae60; color: #fff; }
+    .badge-sec-concerns { background: #f1c40f; color: #333; }
+    .badge-sec-fail { background: #e74c3c; color: #fff; }
+    /* --- Tier badges --- */
+    .badge-tier-light { background: #95a5a6; color: #fff; }
+    .badge-tier-standard { background: #3498db; color: #fff; }
+    .badge-tier-deep { background: #8e44ad; color: #fff; }
+    /* --- Rubric dots --- */
+    .rubric-dot {
+      display: inline-block; width: 12px; height: 12px;
+      border-radius: 50%; vertical-align: middle;
+    }
+    .rubric-0 { background: #e74c3c; }
+    .rubric-1 { background: #f1c40f; }
+    .rubric-2 { background: #27ae60; }
+    /* --- Tab navigation --- */
+    .tab-nav {
+      display: flex; border-bottom: 2px solid #ddd;
+      margin-bottom: 1rem; gap: 0;
+    }
+    .tab-nav button {
+      background: none; border: none; border-bottom: 3px solid transparent;
+      padding: 0.6em 1.2em; cursor: pointer;
+      font-size: 0.95em; font-weight: 600; color: #555;
+    }
+    .tab-nav button:hover { color: #111; background: rgba(0,0,0,0.03); }
+    .tab-nav button.active {
+      color: #111; border-bottom-color: #3498db;
+    }
+    .tab-panel { display: none; }
+    .tab-panel.active { display: block; }
+    /* --- Attention flag --- */
+    .attention-flag { color: #e74c3c; font-weight: bold; }
   </style>
 </head>
 <body>
   <nav class="container-fluid">
-    <ul><li><strong><a href="/">Bug Bash Dashboard</a></strong></li></ul>
-    <ul><li><a href="/">Issues</a></li><li><a href="/activity">Activity</a></li><li><a href="/readiness">Readiness</a></li><li><a href="/stats">Stats</a></li><li><a href="/summary">Summary</a></li></ul>
+    <ul><li><strong><a href="/">Pipeline Dashboard</a></strong></li></ul>
+    <ul><li><a href="/">Dashboard</a></li><li><a href="/activity">Activity</a></li><li><a href="/readiness">Readiness</a></li><li><a href="/stats">Stats</a></li><li><a href="/summary">Summary</a></li></ul>
   </nav>
   <main class="container-fluid">
     {% block content %}{% endblock %}
@@ -275,7 +328,7 @@ LAYOUT = """\
 
 DASHBOARD = """\
 {% extends "layout.html" %}
-{% block title %}Bug Bash Dashboard{% endblock %}
+{% block title %}Pipeline Dashboard{% endblock %}
 {% block content %}
 <style>
   #issues-table tr.pipeline-pending td { background: rgba(0, 0, 0, 0.05); }
@@ -284,89 +337,402 @@ DASHBOARD = """\
   #issues-table tr.pipeline-active td:first-child { box-shadow: inset 3px 0 0 #27ae60; }
   @keyframes pulse-green { 0%,100% { background: rgba(39,174,96,0.06); } 50% { background: rgba(39,174,96,0.18); } }
 </style>
-<h2>Issues (<span id="row-count">{{ rows|length }}</span>)</h2>
+
+<div class="tab-nav">
+  <button class="active" onclick="switchTab('all')">All Issues ({{ all_issues|length }})</button>
+  <button onclick="switchTab('rfes')">RFEs ({{ rfe_issues|length }})</button>
+  <button onclick="switchTab('strategies')">Strategies ({{ strat_issues|length }})</button>
+  <button onclick="switchTab('bugs')">Bugs ({{ rows|length }})</button>
+</div>
+
+<div id="tab-all" class="tab-panel active">
+  {% include "tab_all.html" %}
+</div>
+<div id="tab-rfes" class="tab-panel">
+  {% include "tab_rfes.html" %}
+</div>
+<div id="tab-strategies" class="tab-panel">
+  {% include "tab_strategies.html" %}
+</div>
+<div id="tab-bugs" class="tab-panel">
+  {% include "tab_bugs.html" %}
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+// --- Tab switching ---
+function switchTab(name) {
+  document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.tab-nav button').forEach(b => b.classList.remove('active'));
+  document.getElementById('tab-' + name).classList.add('active');
+  // Find the clicked button by matching tab name in onclick
+  document.querySelectorAll('.tab-nav button').forEach(b => {
+    if (b.getAttribute('onclick') === "switchTab('" + name + "')") b.classList.add('active');
+  });
+  window.location.hash = name;
+}
+// Restore tab from URL hash
+(function() {
+  const hash = window.location.hash.replace('#', '');
+  if (hash && document.getElementById('tab-' + hash)) switchTab(hash);
+})();
+
+// --- Generic sorting for any table ---
+function setupSorting(tableId) {
+  const table = document.getElementById(tableId);
+  if (!table) return;
+  table.querySelectorAll('th.sortable').forEach(th => {
+    th.addEventListener('click', () => {
+      const tbody = table.querySelector('tbody');
+      const col = parseInt(th.dataset.col);
+      const isNum = th.dataset.type === 'number';
+      const rows = Array.from(tbody.querySelectorAll('tr'));
+      const asc = th.dataset.dir !== 'asc';
+      th.dataset.dir = asc ? 'asc' : 'desc';
+      table.querySelectorAll('th.sortable').forEach(h => { if (h !== th) delete h.dataset.dir; });
+      rows.sort((a, b) => {
+        let va, vb;
+        if (isNum) {
+          va = parseFloat(a.cells[col]?.dataset.sortValue ?? a.cells[col]?.textContent) || -1;
+          vb = parseFloat(b.cells[col]?.dataset.sortValue ?? b.cells[col]?.textContent) || -1;
+        } else {
+          va = (a.cells[col]?.textContent || '').trim().toLowerCase();
+          vb = (b.cells[col]?.textContent || '').trim().toLowerCase();
+        }
+        if (va < vb) return asc ? -1 : 1;
+        if (va > vb) return asc ? 1 : -1;
+        return 0;
+      });
+      rows.forEach(r => tbody.appendChild(r));
+    });
+  });
+}
+
+// --- Generic tab filtering ---
+function applyTabFilters(tableId, filterBarId, countSpanId) {
+  const bar = document.getElementById(filterBarId);
+  if (!bar) return;
+  const selects = bar.querySelectorAll('select');
+  const textInput = bar.querySelector('input[type="text"]');
+  const text = textInput ? textInput.value.toLowerCase() : '';
+  document.querySelectorAll('#' + tableId + ' tbody tr').forEach(row => {
+    let show = true;
+    if (text && !row.textContent.toLowerCase().includes(text)) show = false;
+    selects.forEach(sel => {
+      const attr = sel.dataset.attr;
+      const val = sel.value;
+      if (val && attr) {
+        if (row.dataset[attr] !== val) show = false;
+      }
+    });
+    row.style.display = show ? '' : 'none';
+  });
+  const visible = document.querySelectorAll('#' + tableId + ' tbody tr:not([style*="display: none"])').length;
+  const countEl = document.getElementById(countSpanId);
+  if (countEl) countEl.textContent = visible;
+}
+
+// --- Bug tab: existing filter + checkbox logic ---
+function applyBugFilters() {
+  const model = document.getElementById('filter-model').value;
+  const status = document.getElementById('filter-status').value;
+  const triage = document.getElementById('filter-triage').value;
+  const issuetype = document.getElementById('filter-issuetype').value;
+  const component = document.getElementById('filter-component').value;
+  const context = document.getElementById('filter-context').value;
+  const fix = document.getElementById('filter-fix').value;
+  const testctx = document.getElementById('filter-testctx').value;
+  const archdocs = document.getElementById('filter-archdocs').value;
+  const srccode = document.getElementById('filter-srccode').value;
+  const writetest = document.getElementById('filter-writetest').value;
+  const eligible = document.getElementById('filter-eligible').value;
+  const text = document.getElementById('filter-text').value.toLowerCase();
+  document.querySelectorAll('#issues-table tbody tr').forEach(row => {
+    let show = true;
+    if (text && !row.textContent.toLowerCase().includes(text)) show = false;
+    if (model && row.dataset.model !== model) show = false;
+    if (status && row.dataset.status !== status) show = false;
+    if (triage && row.dataset.triage !== triage) show = false;
+    if (issuetype && row.dataset.issuetype !== issuetype) show = false;
+    if (component && !row.dataset.components.split('||').includes(component)) show = false;
+    if (context && row.dataset.context !== context) show = false;
+    if (fix && row.dataset.fix !== fix) show = false;
+    if (testctx && row.dataset.testctx !== testctx) show = false;
+    if (archdocs && row.dataset.archdocs !== archdocs) show = false;
+    if (srccode && row.dataset.srccode !== srccode) show = false;
+    if (writetest && row.dataset.writetest !== writetest) show = false;
+    if (eligible && row.dataset.eligible !== eligible) show = false;
+    row.style.display = show ? '' : 'none';
+  });
+  const visible = document.querySelectorAll('#issues-table tbody tr:not([style*="display: none"])').length;
+  document.getElementById('bug-row-count').textContent = visible;
+  document.querySelectorAll('#issues-table tbody tr[style*="display: none"] .row-select')
+    .forEach(cb => { cb.checked = false; });
+  updateActionBar();
+}
+
+function toggleSelectAll(el) {
+  document.querySelectorAll('#issues-table tbody tr:not([style*="display: none"]) .row-select')
+    .forEach(cb => { cb.checked = el.checked; });
+  updateActionBar();
+}
+
+function updateActionBar() {
+  const checked = document.querySelectorAll('.row-select:checked');
+  const bar = document.getElementById('action-bar');
+  document.getElementById('selected-count').textContent = checked.length;
+  bar.style.display = checked.length > 0 ? '' : 'none';
+}
+
+document.addEventListener('change', e => {
+  if (e.target.classList.contains('row-select')) updateActionBar();
+});
+
+function confirmReset() {
+  const checked = document.querySelectorAll('.row-select:checked');
+  document.getElementById('reset-count').textContent = checked.length;
+  const list = Array.from(checked).map(cb =>
+    `${cb.dataset.key} (${cb.dataset.model})`
+  ).join('<br>');
+  document.getElementById('reset-list').innerHTML = list;
+  document.getElementById('reset-modal').showModal();
+}
+
+function executeReset() {
+  const checked = document.querySelectorAll('.row-select:checked');
+  const pairs = Array.from(checked).map(cb => ({
+    key: cb.dataset.key, model: cb.dataset.model
+  }));
+  fetch('/api/workspace/reset', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({pairs})
+  })
+  .then(r => r.json())
+  .then(data => {
+    document.getElementById('reset-modal').close();
+    const deleted = data.results.filter(r => r.status === 'deleted').length;
+    alert(`Reset complete: ${deleted} workspace(s) deleted.`);
+    location.reload();
+  })
+  .catch(err => alert('Reset failed: ' + err));
+}
+
+// Init bug tab
+applyBugFilters();
+
+// --- Pipeline active-row highlighting ---
+function highlightActiveRows(queueState) {
+  const pending = new Set();
+  const active = new Set();
+  (queueState.jobs || []).forEach(j => {
+    const id = j.key + '|' + j.model;
+    if (j.status === 'pending') pending.add(id);
+    else if (j.status === 'running') active.add(id);
+  });
+  document.querySelectorAll('#issues-table tbody tr').forEach(row => {
+    const id = row.dataset.key + '|' + row.dataset.model;
+    row.classList.toggle('pipeline-pending', pending.has(id));
+    row.classList.toggle('pipeline-active', active.has(id));
+  });
+}
+
+(function() {
+  function pollQueue() {
+    fetch('/api/pipeline/queue')
+      .then(r => r.json())
+      .then(highlightActiveRows)
+      .catch(() => {});
+  }
+  pollQueue();
+
+  const evtSource = new EventSource('/api/events');
+  evtSource.onmessage = function(event) {
+    try {
+      const data = JSON.parse(event.data);
+      const evt = data.event || data.type;
+      if (['manifest','issue_started','issue_completed','started','pipeline_completed','pipeline_failed'].includes(evt)) {
+        pollQueue();
+      }
+    } catch(e) {}
+  };
+})();
+
+// Init sorting on all tables
+setupSorting('all-table');
+setupSorting('issues-table');
+setupSorting('rfe-table');
+setupSorting('strat-table');
+</script>
+{% endblock %}
+"""
+
+# ---------------------------------------------------------------------------
+# Tab templates — included by DASHBOARD via {% include %}
+# ---------------------------------------------------------------------------
+
+TAB_ALL_ISSUES = """\
+<h2>All Issues (<span id="all-row-count">{{ all_issues|length }}</span>)</h2>
+<div class="filter-bar" id="all-filter-bar">
+  <label>
+    Type
+    <select data-attr="type" onchange="applyTabFilters('all-table','all-filter-bar','all-row-count')">
+      <option value="">All</option>
+      <option value="bug">Bug</option>
+      <option value="rfe">RFE</option>
+      <option value="strategy">Strategy</option>
+    </select>
+  </label>
+  <label>
+    Status
+    <select data-attr="status" onchange="applyTabFilters('all-table','all-filter-bar','all-row-count')">
+      <option value="">All</option>
+      {% for v in all_statuses %}<option value="{{ v }}">{{ v }}</option>{% endfor %}
+    </select>
+  </label>
+  <label>
+    Priority
+    <select data-attr="priority" onchange="applyTabFilters('all-table','all-filter-bar','all-row-count')">
+      <option value="">All</option>
+      {% for v in all_priorities %}<option value="{{ v }}">{{ v }}</option>{% endfor %}
+    </select>
+  </label>
+  <label>
+    Search
+    <input type="text" oninput="applyTabFilters('all-table','all-filter-bar','all-row-count')" placeholder="text search&hellip;" style="margin-bottom:0; padding:0.4em 0.6em;">
+  </label>
+</div>
+<div style="overflow-x:auto;">
+<table role="grid" id="all-table">
+  <thead>
+    <tr>
+      <th class="sortable" data-col="0">Type</th>
+      <th class="sortable" data-col="1">Key</th>
+      <th class="sortable" data-col="2">Summary</th>
+      <th class="sortable" data-col="3">Status</th>
+      <th class="sortable" data-col="4">Priority</th>
+      <th class="sortable" data-col="5" data-type="number">Quality</th>
+      <th class="sortable" data-col="6">Recommendation</th>
+      <th class="sortable" data-col="7">Security</th>
+      <th class="sortable" data-col="8">Attention</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for item in all_issues %}
+    <tr data-type="{{ item.type }}" data-status="{{ item.status }}" data-priority="{{ item.priority }}">
+      <td><span class="badge badge-type-{{ item.type }}">{{ item.type }}</span></td>
+      <td><a href="{{ item.detail_url }}">{{ item.key }}</a></td>
+      <td class="truncate" title="{{ item.title }}">{{ item.title[:80] }}{% if item.title|length > 80 %}&hellip;{% endif %}</td>
+      <td>{{ item.status }}</td>
+      <td>{{ item.priority }}</td>
+      <td data-sort-value="{{ item.quality_score }}">
+        <span class="{{ item.quality_class }}">{{ item.quality_display }}</span>
+      </td>
+      <td>
+        {% if item.recommendation %}
+          <span class="badge badge-rec-{{ item.recommendation }}">{{ item.recommendation }}</span>
+        {% else %}&mdash;{% endif %}
+      </td>
+      <td>
+        {% if item.security_verdict %}
+          <span class="badge badge-sec-{{ item.security_verdict|lower }}">{{ item.security_verdict }}</span>
+        {% else %}&mdash;{% endif %}
+      </td>
+      <td>
+        {% if item.attention %}<span class="attention-flag">&#9888;</span>{% else %}&mdash;{% endif %}
+      </td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+</div>
+"""
+
+TAB_BUGS = """\
+<h2>Bugs (<span id="bug-row-count">{{ rows|length }}</span>)</h2>
 
 <div class="filter-bar">
   <label>
     Model
-    <select id="filter-model" onchange="applyFilters()">
+    <select id="filter-model" onchange="applyBugFilters()">
       <option value="">All</option>
       {% for v in model_names %}<option value="{{ v }}">{{ v }}</option>{% endfor %}
     </select>
   </label>
   <label>
     Status
-    <select id="filter-status" onchange="applyFilters()">
+    <select id="filter-status" onchange="applyBugFilters()">
       <option value="">All</option>
       {% for v in statuses %}<option value="{{ v }}">{{ v }}</option>{% endfor %}
     </select>
   </label>
   <label>
     Triage
-    <select id="filter-triage" onchange="applyFilters()">
+    <select id="filter-triage" onchange="applyBugFilters()">
       <option value="">All</option>
       {% for v in triages %}<option value="{{ v }}">{{ v }}</option>{% endfor %}
     </select>
   </label>
   <label>
     Issue Type
-    <select id="filter-issuetype" onchange="applyFilters()">
+    <select id="filter-issuetype" onchange="applyBugFilters()">
       <option value="">All</option>
       {% for v in issue_types %}<option value="{{ v }}">{{ v }}</option>{% endfor %}
     </select>
   </label>
   <label>
     Component
-    <select id="filter-component" onchange="applyFilters()">
+    <select id="filter-component" onchange="applyBugFilters()">
       <option value="">All</option>
       {% for v in components %}<option value="{{ v }}">{{ v }}</option>{% endfor %}
     </select>
   </label>
   <label>
     Arch Context
-    <select id="filter-context" onchange="applyFilters()">
+    <select id="filter-context" onchange="applyBugFilters()">
       <option value="">All</option>
       {% for v in context_ratings %}<option value="{{ v }}">{{ v }}</option>{% endfor %}
     </select>
   </label>
   <label>
     Arch Docs
-    <select id="filter-archdocs" onchange="applyFilters()">
+    <select id="filter-archdocs" onchange="applyBugFilters()">
       <option value="">All</option>
       {% for v in arch_docs_values %}<option value="{{ v }}">{{ v }}</option>{% endfor %}
     </select>
   </label>
   <label>
     Src Code
-    <select id="filter-srccode" onchange="applyFilters()">
+    <select id="filter-srccode" onchange="applyBugFilters()">
       <option value="">All</option>
       {% for v in src_code_values %}<option value="{{ v }}">{{ v }}</option>{% endfor %}
     </select>
   </label>
   <label>
     Fix
-    <select id="filter-fix" onchange="applyFilters()">
+    <select id="filter-fix" onchange="applyBugFilters()">
       <option value="">All</option>
       {% for v in fix_recommendations %}<option value="{{ v }}">{{ v }}</option>{% endfor %}
     </select>
   </label>
   <label>
     Test Context
-    <select id="filter-testctx" onchange="applyFilters()">
+    <select id="filter-testctx" onchange="applyBugFilters()">
       <option value="">All</option>
       {% for v in test_context_ratings %}<option value="{{ v }}">{{ v }}</option>{% endfor %}
     </select>
   </label>
   <label>
     Write Test
-    <select id="filter-writetest" onchange="applyFilters()">
+    <select id="filter-writetest" onchange="applyBugFilters()">
       <option value="">All</option>
       {% for v in write_test_decisions %}<option value="{{ v }}">{{ v }}</option>{% endfor %}
     </select>
   </label>
   <label>
     AI Eligible
-    <select id="filter-eligible" onchange="applyFilters()">
+    <select id="filter-eligible" onchange="applyBugFilters()">
       <option value="">All</option>
       <option value="yes">Eligible for fix</option>
       <option value="no">Excluded from fix</option>
@@ -374,7 +740,7 @@ DASHBOARD = """\
   </label>
   <label>
     Search
-    <input type="text" id="filter-text" oninput="applyFilters()" placeholder="text search&hellip;" style="margin-bottom:0; padding:0.4em 0.6em;">
+    <input type="text" id="filter-text" oninput="applyBugFilters()" placeholder="text search&hellip;" style="margin-bottom:0; padding:0.4em 0.6em;">
   </label>
 </div>
 
@@ -502,168 +868,283 @@ DASHBOARD = """\
   </tbody>
 </table>
 </div>
-{% endblock %}
+"""
 
-{% block scripts %}
-<script>
-// Column sorting
-document.querySelectorAll('th.sortable').forEach(th => {
-  th.addEventListener('click', () => {
-    const table = document.getElementById('issues-table');
-    const tbody = table.querySelector('tbody');
-    const col = parseInt(th.dataset.col);
-    const isNum = th.dataset.type === 'number';
-    const rows = Array.from(tbody.querySelectorAll('tr'));
-    const asc = th.dataset.dir !== 'asc';
-    th.dataset.dir = asc ? 'asc' : 'desc';
-    // Reset other headers
-    document.querySelectorAll('th.sortable').forEach(h => { if (h !== th) delete h.dataset.dir; });
-    rows.sort((a, b) => {
-      let va, vb;
-      if (isNum) {
-        va = parseFloat(a.cells[col].dataset.sortValue ?? a.cells[col].textContent) || -1;
-        vb = parseFloat(b.cells[col].dataset.sortValue ?? b.cells[col].textContent) || -1;
-      } else {
-        va = a.cells[col].textContent.trim().toLowerCase();
-        vb = b.cells[col].textContent.trim().toLowerCase();
-      }
-      if (va < vb) return asc ? -1 : 1;
-      if (va > vb) return asc ? 1 : -1;
-      return 0;
-    });
-    rows.forEach(r => tbody.appendChild(r));
-  });
-});
+TAB_RFES = """\
+<h2>RFEs (<span id="rfe-row-count">{{ rfe_issues|length }}</span>)</h2>
+<div class="filter-bar" id="rfe-filter-bar">
+  <label>
+    Status
+    <select data-attr="status" onchange="applyTabFilters('rfe-table','rfe-filter-bar','rfe-row-count')">
+      <option value="">All</option>
+      {% for v in rfe_statuses %}<option value="{{ v }}">{{ v }}</option>{% endfor %}
+    </select>
+  </label>
+  <label>
+    Priority
+    <select data-attr="priority" onchange="applyTabFilters('rfe-table','rfe-filter-bar','rfe-row-count')">
+      <option value="">All</option>
+      {% for v in rfe_priorities %}<option value="{{ v }}">{{ v }}</option>{% endfor %}
+    </select>
+  </label>
+  <label>
+    Size
+    <select data-attr="size" onchange="applyTabFilters('rfe-table','rfe-filter-bar','rfe-row-count')">
+      <option value="">All</option>
+      <option value="S">S</option><option value="M">M</option>
+      <option value="L">L</option><option value="XL">XL</option>
+    </select>
+  </label>
+  <label>
+    Recommendation
+    <select data-attr="recommendation" onchange="applyTabFilters('rfe-table','rfe-filter-bar','rfe-row-count')">
+      <option value="">All</option>
+      {% for v in rfe_recommendations %}<option value="{{ v }}">{{ v }}</option>{% endfor %}
+    </select>
+  </label>
+  <label>
+    Feasibility
+    <select data-attr="feasibility" onchange="applyTabFilters('rfe-table','rfe-filter-bar','rfe-row-count')">
+      <option value="">All</option>
+      <option value="feasible">feasible</option>
+      <option value="infeasible">infeasible</option>
+      <option value="indeterminate">indeterminate</option>
+    </select>
+  </label>
+  <label>
+    Pass/Fail
+    <select data-attr="pass" onchange="applyTabFilters('rfe-table','rfe-filter-bar','rfe-row-count')">
+      <option value="">All</option>
+      <option value="true">Pass</option>
+      <option value="false">Fail</option>
+    </select>
+  </label>
+  <label>
+    Attention
+    <select data-attr="attention" onchange="applyTabFilters('rfe-table','rfe-filter-bar','rfe-row-count')">
+      <option value="">All</option>
+      <option value="true">Needs Attention</option>
+    </select>
+  </label>
+  <label>
+    Search
+    <input type="text" oninput="applyTabFilters('rfe-table','rfe-filter-bar','rfe-row-count')" placeholder="text search&hellip;" style="margin-bottom:0; padding:0.4em 0.6em;">
+  </label>
+</div>
+<div style="overflow-x:auto;">
+<table role="grid" id="rfe-table">
+  <thead>
+    <tr>
+      <th class="sortable" data-col="0">Key</th>
+      <th class="sortable" data-col="1">Title</th>
+      <th class="sortable" data-col="2">Priority</th>
+      <th class="sortable" data-col="3">Size</th>
+      <th class="sortable" data-col="4">Status</th>
+      <th class="sortable" data-col="5" data-type="number">Score</th>
+      <th class="sortable" data-col="6">Pass</th>
+      <th class="sortable" data-col="7">Recommendation</th>
+      <th class="sortable" data-col="8">Feasibility</th>
+      <th class="sortable" data-col="9">WHAT</th>
+      <th class="sortable" data-col="10">WHY</th>
+      <th class="sortable" data-col="11">HOW</th>
+      <th class="sortable" data-col="12">Not Task</th>
+      <th class="sortable" data-col="13">Right-Sized</th>
+      <th class="sortable" data-col="14">Auto-Revised</th>
+      <th class="sortable" data-col="15">Attention</th>
+      <th class="sortable" data-col="16" data-type="number">Delta</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for rfe in rfe_issues %}
+    {% set rev = rfe.review %}
+    <tr
+      data-status="{{ rfe.status|default('') }}"
+      data-priority="{{ rfe.priority|default('') }}"
+      data-size="{{ rfe.size|default('') }}"
+      data-recommendation="{{ rev.recommendation if rev else '' }}"
+      data-feasibility="{{ rev.feasibility if rev else '' }}"
+      data-pass="{{ rev.pass|string|lower if rev and rev.pass is defined else '' }}"
+      data-attention="{{ rev.needs_attention|string|lower if rev and rev.needs_attention is defined else 'false' }}"
+    >
+      <td>{{ rfe.key }}</td>
+      <td class="truncate" title="{{ rfe.title|default('') }}">{{ rfe.title|default('')|truncate(80) }}</td>
+      <td>{{ rfe.priority|default('&mdash;'|safe) }}</td>
+      <td>
+        {% if rfe.size %}
+          <span class="badge badge-size-{{ rfe.size|lower }}">{{ rfe.size }}</span>
+        {% else %}&mdash;{% endif %}
+      </td>
+      <td>{{ rfe.status|default('&mdash;'|safe) }}</td>
+      <td data-sort-value="{{ rev.score if rev and rev.score is defined else -1 }}">
+        {% if rev and rev.score is defined %}
+          {% set sc = rev.score %}
+          <span class="{{ 'score-red' if sc < 5 else ('score-yellow' if sc < 8 else 'score-green') }}">{{ sc }}/10</span>
+        {% else %}&mdash;{% endif %}
+      </td>
+      <td>
+        {% if rev and rev.pass is defined %}
+          {% if rev.pass %}&#10003;{% else %}&#10007;{% endif %}
+        {% else %}&mdash;{% endif %}
+      </td>
+      <td>
+        {% if rev and rev.recommendation %}
+          <span class="badge badge-rec-{{ rev.recommendation }}">{{ rev.recommendation }}</span>
+        {% else %}&mdash;{% endif %}
+      </td>
+      <td>
+        {% if rev and rev.feasibility %}
+          <span class="badge badge-feas-{{ rev.feasibility }}">{{ rev.feasibility }}</span>
+        {% else %}&mdash;{% endif %}
+      </td>
+      {# Rubric dots: WHAT, WHY, HOW, Not Task, Right-Sized #}
+      {% for dim in ['what','why','open_to_how','not_a_task','right_sized'] %}
+      <td>
+        {% if rev and rev.scores and rev.scores[dim] is defined %}
+          <span class="rubric-dot rubric-{{ rev.scores[dim] }}" title="{{ dim }}: {{ rev.scores[dim] }}/2"></span>
+        {% else %}&mdash;{% endif %}
+      </td>
+      {% endfor %}
+      <td>
+        {% if rev and rev.auto_revised %}
+          <span class="badge badge-rec-split">yes</span>
+        {% elif rev %}no{% else %}&mdash;{% endif %}
+      </td>
+      <td>
+        {% if rev and rev.needs_attention %}<span class="attention-flag">&#9888;</span>{% else %}&mdash;{% endif %}
+      </td>
+      <td data-sort-value="{{ (rev.score - rev.before_score) if rev and rev.score is defined and rev.before_score is defined else 0 }}">
+        {% if rev and rev.score is defined and rev.before_score is defined %}
+          {% set delta = rev.score - rev.before_score %}
+          {% if delta > 0 %}+{{ delta }}{% else %}{{ delta }}{% endif %}
+        {% else %}&mdash;{% endif %}
+      </td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+</div>
+"""
 
-// Filtering
-function applyFilters() {
-  const model = document.getElementById('filter-model').value;
-  const status = document.getElementById('filter-status').value;
-  const triage = document.getElementById('filter-triage').value;
-  const issuetype = document.getElementById('filter-issuetype').value;
-  const component = document.getElementById('filter-component').value;
-  const context = document.getElementById('filter-context').value;
-  const fix = document.getElementById('filter-fix').value;
-  const testctx = document.getElementById('filter-testctx').value;
-  const archdocs = document.getElementById('filter-archdocs').value;
-  const srccode = document.getElementById('filter-srccode').value;
-  const writetest = document.getElementById('filter-writetest').value;
-  const eligible = document.getElementById('filter-eligible').value;
-  const text = document.getElementById('filter-text').value.toLowerCase();
-  document.querySelectorAll('#issues-table tbody tr').forEach(row => {
-    let show = true;
-    if (text && !row.textContent.toLowerCase().includes(text)) show = false;
-    if (model && row.dataset.model !== model) show = false;
-    if (status && row.dataset.status !== status) show = false;
-    if (triage && row.dataset.triage !== triage) show = false;
-    if (issuetype && row.dataset.issuetype !== issuetype) show = false;
-    if (component && !row.dataset.components.split('||').includes(component)) show = false;
-    if (context && row.dataset.context !== context) show = false;
-    if (fix && row.dataset.fix !== fix) show = false;
-    if (testctx && row.dataset.testctx !== testctx) show = false;
-    if (archdocs && row.dataset.archdocs !== archdocs) show = false;
-    if (srccode && row.dataset.srccode !== srccode) show = false;
-    if (writetest && row.dataset.writetest !== writetest) show = false;
-    if (eligible && row.dataset.eligible !== eligible) show = false;
-    row.style.display = show ? '' : 'none';
-  });
-  const visible = document.querySelectorAll('#issues-table tbody tr:not([style*="display: none"])').length;
-  document.getElementById('row-count').textContent = visible;
-  // Deselect checkboxes on hidden rows and update action bar
-  document.querySelectorAll('#issues-table tbody tr[style*="display: none"] .row-select')
-    .forEach(cb => { cb.checked = false; });
-  updateActionBar();
-}
-
-// Checkbox selection
-function toggleSelectAll(el) {
-  document.querySelectorAll('#issues-table tbody tr:not([style*="display: none"]) .row-select')
-    .forEach(cb => { cb.checked = el.checked; });
-  updateActionBar();
-}
-
-function updateActionBar() {
-  const checked = document.querySelectorAll('.row-select:checked');
-  const bar = document.getElementById('action-bar');
-  document.getElementById('selected-count').textContent = checked.length;
-  bar.style.display = checked.length > 0 ? '' : 'none';
-}
-
-document.addEventListener('change', e => {
-  if (e.target.classList.contains('row-select')) updateActionBar();
-});
-
-function confirmReset() {
-  const checked = document.querySelectorAll('.row-select:checked');
-  document.getElementById('reset-count').textContent = checked.length;
-  const list = Array.from(checked).map(cb =>
-    `${cb.dataset.key} (${cb.dataset.model})`
-  ).join('<br>');
-  document.getElementById('reset-list').innerHTML = list;
-  document.getElementById('reset-modal').showModal();
-}
-
-function executeReset() {
-  const checked = document.querySelectorAll('.row-select:checked');
-  const pairs = Array.from(checked).map(cb => ({
-    key: cb.dataset.key, model: cb.dataset.model
-  }));
-  fetch('/api/workspace/reset', {
-    method: 'POST',
-    headers: {'Content-Type': 'application/json'},
-    body: JSON.stringify({pairs})
-  })
-  .then(r => r.json())
-  .then(data => {
-    document.getElementById('reset-modal').close();
-    const deleted = data.results.filter(r => r.status === 'deleted').length;
-    alert(`Reset complete: ${deleted} workspace(s) deleted.`);
-    location.reload();
-  })
-  .catch(err => alert('Reset failed: ' + err));
-}
-
-// Apply filters on page load in case the browser restored select values
-applyFilters();
-
-// --- Pipeline active-row highlighting ---
-function highlightActiveRows(queueState) {
-  const pending = new Set();
-  const active = new Set();
-  (queueState.jobs || []).forEach(j => {
-    const id = j.key + '|' + j.model;
-    if (j.status === 'pending') pending.add(id);
-    else if (j.status === 'running') active.add(id);
-  });
-  document.querySelectorAll('#issues-table tbody tr').forEach(row => {
-    const id = row.dataset.key + '|' + row.dataset.model;
-    row.classList.toggle('pipeline-pending', pending.has(id));
-    row.classList.toggle('pipeline-active', active.has(id));
-  });
-}
-
-(function() {
-  function pollQueue() {
-    fetch('/api/pipeline/queue')
-      .then(r => r.json())
-      .then(highlightActiveRows)
-      .catch(() => {});
-  }
-  pollQueue();
-
-  const evtSource = new EventSource('/api/events');
-  evtSource.onmessage = function(event) {
-    try {
-      const data = JSON.parse(event.data);
-      const evt = data.event || data.type;
-      if (['manifest','issue_started','issue_completed','started','pipeline_completed','pipeline_failed'].includes(evt)) {
-        pollQueue();
-      }
-    } catch(e) {}
-  };
-})();
-</script>
-{% endblock %}
+TAB_STRATEGIES = """\
+<h2>Strategies (<span id="strat-row-count">{{ strat_issues|length }}</span>)</h2>
+<div class="filter-bar" id="strat-filter-bar">
+  <label>
+    Status
+    <select data-attr="status" onchange="applyTabFilters('strat-table','strat-filter-bar','strat-row-count')">
+      <option value="">All</option>
+      {% for v in strat_statuses %}<option value="{{ v }}">{{ v }}</option>{% endfor %}
+    </select>
+  </label>
+  <label>
+    Priority
+    <select data-attr="priority" onchange="applyTabFilters('strat-table','strat-filter-bar','strat-row-count')">
+      <option value="">All</option>
+      {% for v in strat_priorities %}<option value="{{ v }}">{{ v }}</option>{% endfor %}
+    </select>
+  </label>
+  <label>
+    Recommendation
+    <select data-attr="recommendation" onchange="applyTabFilters('strat-table','strat-filter-bar','strat-row-count')">
+      <option value="">All</option>
+      {% for v in strat_recommendations %}<option value="{{ v }}">{{ v }}</option>{% endfor %}
+    </select>
+  </label>
+  <label>
+    Security
+    <select data-attr="secverdict" onchange="applyTabFilters('strat-table','strat-filter-bar','strat-row-count')">
+      <option value="">All</option>
+      <option value="PASS">PASS</option>
+      <option value="CONCERNS">CONCERNS</option>
+      <option value="FAIL">FAIL</option>
+    </select>
+  </label>
+  <label>
+    Search
+    <input type="text" oninput="applyTabFilters('strat-table','strat-filter-bar','strat-row-count')" placeholder="text search&hellip;" style="margin-bottom:0; padding:0.4em 0.6em;">
+  </label>
+</div>
+<div style="overflow-x:auto;">
+<table role="grid" id="strat-table">
+  <thead>
+    <tr>
+      <th class="sortable" data-col="0">Key</th>
+      <th class="sortable" data-col="1">Title</th>
+      <th class="sortable" data-col="2">Source RFE</th>
+      <th class="sortable" data-col="3">Priority</th>
+      <th class="sortable" data-col="4">Status</th>
+      <th class="sortable" data-col="5">Jira Key</th>
+      <th class="sortable" data-col="6">Recommendation</th>
+      <th class="sortable" data-col="7">Feasibility</th>
+      <th class="sortable" data-col="8">Testability</th>
+      <th class="sortable" data-col="9">Scope</th>
+      <th class="sortable" data-col="10">Architecture</th>
+      <th class="sortable" data-col="11">Sec Verdict</th>
+      <th class="sortable" data-col="12">Sec Tier</th>
+      <th class="sortable" data-col="13" data-type="number">Sec Risks</th>
+      <th class="sortable" data-col="14" data-type="number">Critical</th>
+      <th class="sortable" data-col="15" data-type="number">High</th>
+      <th class="sortable" data-col="16" data-type="number">Medium</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for st in strat_issues %}
+    {% set rev = st.review %}
+    {% set sec = st.security %}
+    {% set reviewers = rev.reviewers if rev and rev.reviewers else {} %}
+    {% set rc = sec.risk_count if sec and sec.risk_count else {} %}
+    {% set total_risks = (rc.critical|default(0)) + (rc.high|default(0)) + (rc.medium|default(0)) %}
+    <tr
+      data-status="{{ st.status|default('') }}"
+      data-priority="{{ st.priority|default('') }}"
+      data-recommendation="{{ rev.recommendation if rev and rev.recommendation else '' }}"
+      data-secverdict="{{ sec.verdict|default('')|upper if sec else '' }}"
+    >
+      <td>{{ st.key }}</td>
+      <td class="truncate" title="{{ st.title|default('') }}">{{ st.title|default('')|truncate(80) }}</td>
+      <td>{{ st.source_rfe|default('&mdash;'|safe) }}</td>
+      <td>{{ st.priority|default('&mdash;'|safe) }}</td>
+      <td>{{ st.status|default('&mdash;'|safe) }}</td>
+      <td>{{ st.jira_key|default('&mdash;'|safe) }}</td>
+      <td>
+        {% if rev and rev.recommendation %}
+          <span class="badge badge-rec-{{ rev.recommendation }}">{{ rev.recommendation }}</span>
+        {% else %}&mdash;{% endif %}
+      </td>
+      {# Reviewer verdicts: feasibility, testability, scope, architecture #}
+      {% for rname in ['feasibility','testability','scope','architecture'] %}
+      <td>
+        {% if reviewers[rname] %}
+          <span class="badge badge-rec-{{ reviewers[rname] }}">{{ reviewers[rname] }}</span>
+        {% else %}&mdash;{% endif %}
+      </td>
+      {% endfor %}
+      <td>
+        {% if sec and sec.verdict %}
+          <span class="badge badge-sec-{{ sec.verdict|lower }}">{{ sec.verdict }}</span>
+        {% else %}&mdash;{% endif %}
+      </td>
+      <td>
+        {% if sec and sec.review_tier %}
+          <span class="badge badge-tier-{{ sec.review_tier }}">{{ sec.review_tier }}</span>
+        {% else %}&mdash;{% endif %}
+      </td>
+      <td data-sort-value="{{ total_risks }}">
+        <span class="{{ 'score-green' if total_risks == 0 else ('score-yellow' if total_risks <= 2 else 'score-red') }}">{{ total_risks }}</span>
+      </td>
+      <td data-sort-value="{{ rc.critical|default(0) }}">
+        <span class="{{ 'score-red' if rc.critical|default(0) > 0 else '' }}">{{ rc.critical|default(0) }}</span>
+      </td>
+      <td data-sort-value="{{ rc.high|default(0) }}">
+        <span class="{{ 'score-red' if rc.high|default(0) > 0 else '' }}">{{ rc.high|default(0) }}</span>
+      </td>
+      <td data-sort-value="{{ rc.medium|default(0) }}">
+        <span class="{{ 'score-yellow' if rc.medium|default(0) > 0 else '' }}">{{ rc.medium|default(0) }}</span>
+      </td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+</div>
 """
 
 DETAIL = """\
@@ -2964,7 +3445,13 @@ def create_app() -> Flask:
     """Create and configure the Flask application."""
     app = Flask(__name__)
     app.jinja_loader = ChoiceLoader([
-        DictLoader({"layout.html": LAYOUT}),
+        DictLoader({
+            "layout.html": LAYOUT,
+            "tab_all.html": TAB_ALL_ISSUES,
+            "tab_bugs.html": TAB_BUGS,
+            "tab_rfes.html": TAB_RFES,
+            "tab_strategies.html": TAB_STRATEGIES,
+        }),
         app.jinja_loader,
     ])
 
@@ -3056,8 +3543,110 @@ def create_app() -> Flask:
             for r in rows if r.get("write_test") and r["write_test"].get("decision")
         })
 
+        # --- RFE data ---
+        rfe_issues = load_rfe_issues()
+        rfe_statuses = sorted({r.get("status", "") for r in rfe_issues if r.get("status")})
+        rfe_priorities = sorted({r.get("priority", "") for r in rfe_issues if r.get("priority")})
+        rfe_recommendations = sorted({
+            r["review"]["recommendation"]
+            for r in rfe_issues if r.get("review") and r["review"].get("recommendation")
+        })
+
+        # --- Strategy data ---
+        strat_issues = load_strat_issues()
+        strat_statuses = sorted({s.get("status", "") for s in strat_issues if s.get("status")})
+        strat_priorities = sorted({s.get("priority", "") for s in strat_issues if s.get("priority")})
+        strat_recommendations = sorted({
+            s["review"]["recommendation"]
+            for s in strat_issues if s.get("review") and s["review"].get("recommendation")
+        })
+
+        # --- Build unified all-issues list ---
+        all_issues = []
+
+        # Bugs: deduplicate by issue key (one row per issue, not per model)
+        seen_bug_keys = set()
+        for row in rows:
+            k = row["key"]
+            if k in seen_bug_keys:
+                continue
+            seen_bug_keys.add(k)
+            comp = row.get("completeness")
+            score = comp.get("overall_score", -1) if comp else -1
+            rec = ""
+            fa = row.get("fix_attempt")
+            if fa:
+                rec = fa.get("recommendation", "")
+            all_issues.append({
+                "type": "bug",
+                "key": k,
+                "title": row.get("summary", ""),
+                "status": row.get("status", ""),
+                "priority": row.get("priority", ""),
+                "quality_score": score,
+                "quality_display": str(score) if score >= 0 else "\u2014",
+                "quality_class": (
+                    "score-red" if score < 40 else ("score-yellow" if score < 80 else "score-green")
+                ) if score >= 0 else "",
+                "recommendation": rec,
+                "security_verdict": "",
+                "attention": bool(comp and comp.get("triage_recommendation")),
+                "detail_url": f"/issue/{k}",
+            })
+
+        # RFEs
+        for rfe in rfe_issues:
+            rev = rfe.get("review")
+            score = rev.get("score", -1) if rev else -1
+            all_issues.append({
+                "type": "rfe",
+                "key": rfe["key"],
+                "title": rfe.get("title", ""),
+                "status": rfe.get("status", ""),
+                "priority": rfe.get("priority", ""),
+                "quality_score": score,
+                "quality_display": f"{score}/10" if score >= 0 else "\u2014",
+                "quality_class": (
+                    "score-red" if score < 5 else ("score-yellow" if score < 8 else "score-green")
+                ) if score >= 0 else "",
+                "recommendation": rev.get("recommendation", "") if rev else "",
+                "security_verdict": "",
+                "attention": bool(rev and rev.get("needs_attention")),
+                "detail_url": f"/#rfes",
+            })
+
+        # Strategies
+        for st in strat_issues:
+            rev = st.get("review")
+            sec = st.get("security")
+            verdict = sec.get("verdict", "") if sec else ""
+            # Attention if any reviewer says reject OR security verdict is CONCERNS or FAIL
+            attention = False
+            if rev and rev.get("reviewers"):
+                attention = any(v == "reject" for v in rev["reviewers"].values())
+            if verdict.upper() in ("CONCERNS", "FAIL", "CONCERNS_CRITICAL"):
+                attention = True
+            all_issues.append({
+                "type": "strategy",
+                "key": st["key"],
+                "title": st.get("title", ""),
+                "status": st.get("status", ""),
+                "priority": st.get("priority", ""),
+                "quality_score": -1,
+                "quality_display": rev.get("recommendation", "\u2014") if rev else "\u2014",
+                "quality_class": "",
+                "recommendation": rev.get("recommendation", "") if rev else "",
+                "security_verdict": verdict.upper() if verdict else "",
+                "attention": attention,
+                "detail_url": f"/#strategies",
+            })
+
+        all_statuses = sorted({i["status"] for i in all_issues if i["status"]})
+        all_priorities = sorted({i["priority"] for i in all_issues if i["priority"]})
+
         return render_template_string(
             DASHBOARD,
+            # Bug tab data
             rows=rows,
             model_names=model_names,
             statuses=statuses,
@@ -3070,6 +3659,20 @@ def create_app() -> Flask:
             arch_docs_values=arch_docs_values,
             src_code_values=src_code_values,
             write_test_decisions=write_test_decisions,
+            # RFE tab data
+            rfe_issues=rfe_issues,
+            rfe_statuses=rfe_statuses,
+            rfe_priorities=rfe_priorities,
+            rfe_recommendations=rfe_recommendations,
+            # Strategy tab data
+            strat_issues=strat_issues,
+            strat_statuses=strat_statuses,
+            strat_priorities=strat_priorities,
+            strat_recommendations=strat_recommendations,
+            # All-issues tab data
+            all_issues=all_issues,
+            all_statuses=all_statuses,
+            all_priorities=all_priorities,
         )
 
     @app.route("/issue/<key>")
@@ -3143,6 +3746,14 @@ def create_app() -> Flask:
     def api_issues():
         issues = load_all_issues()
         return jsonify(issues)
+
+    @app.route("/api/rfes")
+    def api_rfes():
+        return jsonify(load_rfe_issues())
+
+    @app.route("/api/strategies")
+    def api_strategies():
+        return jsonify(load_strat_issues())
 
     @app.route("/api/stats")
     def api_stats():
