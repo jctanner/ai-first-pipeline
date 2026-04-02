@@ -2576,7 +2576,7 @@ async def run_native_skill_phase(args) -> None:
 # Dispatch
 # ---------------------------------------------------------------------------
 
-async def run_report_phase(args) -> None:
+async def run_dashboard_phase(args) -> None:
     """Launch the reporting dashboard web app."""
     from lib.webapp import create_app
 
@@ -2600,8 +2600,8 @@ async def main(args) -> None:
         await run_write_test_phase(args)
     elif args.command == "bug-all":
         await run_all_phases(args)
-    elif args.command == "report":
-        await run_report_phase(args)
+    elif args.command == "dashboard":
+        await run_dashboard_phase(args)
     elif args.command in _NATIVE_SKILL_PHASES:
         await run_native_skill_phase(args)
     else:

@@ -60,7 +60,7 @@ The new flow requires the webapp to be responsive to HTTP requests from the cont
 
 ### 1. Add `threaded=True` to Flask (critical)
 
-In `lib/phases.py`, `run_report_phase`:
+In `lib/phases.py`, `run_dashboard_phase`:
 ```python
 app.run(host=args.host, port=args.port, debug=True, threaded=True)
 ```

@@ -266,16 +266,16 @@ Examples:
     )
     _add_native_skill_args(strat_review_parser)
 
-    # === Reporting ===
-    report_parser = subparsers.add_parser(
-        "report",
+    # === Dashboard ===
+    dashboard_parser = subparsers.add_parser(
+        "dashboard",
         help="Launch the reporting dashboard web app",
     )
-    report_parser.add_argument(
+    dashboard_parser.add_argument(
         "--port", type=int, default=5000,
         help="Port to serve on (default: 5000)",
     )
-    report_parser.add_argument(
+    dashboard_parser.add_argument(
         "--host", default="127.0.0.1",
         help="Host to bind to (default: 127.0.0.1)",
     )
