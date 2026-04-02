@@ -26,7 +26,7 @@ Call `mcp__atlassian__getJiraIssue` with:
 The Jira description contains the refined strategy content including Technical Approach, Affected Components, Dependencies, NFRs, and Risks.
 
 From the fetched content, look for these indicators to determine review tier:
-- Security surface hints in labels or description (auth, crypto, network, data, supply-chain, multi-tenant, none-apparent)
+- Security surface hints in labels or description (auth, crypto, network, data, supply-chain, multi-tenant, agentic, mcp, none-apparent)
 - Effort estimate (S/M/L/XL) in the description
 - Content quality — whether the description is detailed or sparse
 
@@ -51,7 +51,7 @@ Before reviewing each STRAT, determine its review tier. This is a structural dec
 |------|----------|------------|
 | **Light** | `none-apparent` hints, OR (S effort AND only UI/docs/config changes with no new endpoints, services, or data flows) | Quick sanity check. Only flag things that are actively wrong (e.g., proposing plaintext credentials, bypassing existing auth). Do not assess every security dimension. Use compact output format. |
 | **Standard** | 1-2 security surface hints, M effort, OR any single-component change with moderate security surface | Assess only the dimensions matching the security hints. Apply the relevance gate to every finding. Read the architecture summary for affected components. |
-| **Deep** | 3+ security surface hints, OR includes both `auth` and `crypto`, OR L/XL effort with `multi-tenant`, OR introduces a new service/component that doesn't exist yet | Full threat model. Read all relevant architecture context docs. Assess all security dimensions. Cross-reference component security posture. |
+| **Deep** | 3+ security surface hints, OR includes both `auth` and `crypto`, OR L/XL effort with `multi-tenant`, OR introduces a new service/component that doesn't exist yet, OR involves `agentic` or `mcp` surfaces | Full threat model. Read all relevant architecture context docs. Assess all security dimensions. Cross-reference component security posture. Consider cross-component attack chains. |
 
 ## What to Assess
 
@@ -62,6 +62,8 @@ Only assess dimensions that are relevant to the STRAT's review tier and security
 - Are RBAC requirements defined for new access patterns?
 - Is token handling (OAuth, OIDC, service accounts) addressed for new auth flows?
 - Are there multi-tenancy isolation concerns for newly shared resources?
+- If the STRAT involves agent workloads: how do agents authenticate to tools, models, and other agents? Is there a workload identity mechanism (SPIFFE/SPIRE, OAuth2 token exchange)? Are agent credentials scoped per-session or persistent, and how are they revoked?
+- If agents act on behalf of users: is the user's identity propagated through the agent's actions for audit and authorization, or does the agent use its own identity (breaking the audit chain)?
 
 ### Data Protection
 - Does the STRAT create or modify storage of sensitive data (PII, secrets, credentials)?
@@ -74,6 +76,8 @@ Only assess dimensions that are relevant to the STRAT's review tier and security
 - If so, are FIPS 140-3 requirements acknowledged?
 - Are there post-quantum considerations that may conflict with FIPS?
 - Is certificate management addressed for new TLS endpoints?
+- Does the STRAT introduce new TLS endpoints? Components MUST honor cluster-wide TLS settings (no hardcoded TLS versions, cipher suites, or curve preferences). OCP 4.22 requires ML-KEM negotiation for TLS 1.3; OCP 5.0 makes this a release blocker.
+- **Language-specific FIPS awareness:** If the STRAT introduces components in a specific language, check for FIPS compatibility: Go requires CGO_ENABLED=1 + GOEXPERIMENT=strictfipsruntime with the RHEL/UBI Go compiler. Python has banned packages (pycrypto, pycryptodome, blake3, rsa) and check-payload does NOT scan Python code — Python FIPS compliance requires manual audit. Java is automatic with RH JDK unless overridden. Rust has no formal FIPS guidance yet.
 
 ### Network & API Security
 - Are NEW network exposures created beyond what the component already has?
@@ -86,6 +90,9 @@ Only assess dimensions that are relevant to the STRAT's review tier and security
 - Are dependency pinning/verification requirements specified for new deps?
 - Are container image provenance requirements addressed for new images?
 - Is there a new build pipeline that needs security controls?
+- Does the STRAT involve loading ML model artifacts? Check for model provenance — who built/signed the model, what is its training lineage, and are formats with known deserialization risks (Pickle, H5) handled safely? Konflux secures the code supply chain but does NOT cover ML model artifacts.
+- Does the STRAT involve training data pipelines? Check for training data provenance and integrity — where does training data come from, and is it validated against poisoning?
+- Does the STRAT register or consume agent skills, MCP tools, or tool descriptions? Check for integrity verification — can tool descriptions be tampered with between registration and invocation?
 
 ### Infrastructure & Deployment
 - Are new Kubernetes resources properly scoped (least privilege)?
@@ -114,6 +121,21 @@ Only assess dimensions that are relevant to the STRAT's review tier and security
 - Are shared resources (storage, compute, network) properly isolated across tenants?
 - Are resource quotas enforced to prevent noisy-neighbor effects?
 - Does workload co-location create side-channel risks?
+
+### Agentic AI Security
+- Does the STRAT deploy agent workloads or agent runtimes (OpenClaw, kagenti, Llama Stack agents)? Check for agent sandboxing — what prevents a compromised agent from accessing cluster resources, other tenants' data, or escalating privileges? The Kubernetes `agent-sandbox` project (Kata Containers) exists but is not yet integrated into RHOAI.
+- Does the STRAT give agents access to tools? Are tool permissions scoped per-agent and per-invocation, or are they blanket grants? Industry data: 36% of agent skills have at least one vulnerability (Snyk/Tessl research).
+- Does the STRAT enable agent-to-agent (A2A) communication? What prevents a compromised agent from manipulating another agent via its A2A interface?
+- Are agent actions (tool calls, model invocations, data access) logged with sufficient detail for forensic analysis? 40% of deployed agents have zero safety monitoring (Gravitee 2026).
+- Does the STRAT address agent misalignment — what happens when an agent's behavior diverges from intended actions (goal hijacking, constraint bypass, deceptive tool usage)?
+
+### MCP Security
+- Does the STRAT integrate MCP servers or MCP tools? Check for the **lethal trifecta**: an MCP server with access to (1) private data, (2) untrusted content, and (3) external communication capability enables data exfiltration via prompt injection. If all three are present, flag as Critical.
+- How do MCP servers authenticate to the platform and to agents? 53% of MCP servers use insecure static credentials (Gravitee 2026). Require dynamic credential management.
+- Can MCP tool descriptions be poisoned? A malicious MCP server can inject tool descriptions that cause agents to execute unintended actions. Are tool descriptions validated and integrity-checked?
+- How are MCP server credentials stored, rotated, and scoped? Does the STRAT avoid hardcoded or static credentials?
+- Are MCP server capabilities restricted to what the consuming agent actually needs? Is there a capability model, allowlist, or scope restriction?
+- Are MCP servers isolated from each other and from the platform? Can a compromised MCP server access other MCP servers' data or credentials?
 
 ## The Relevance Gate
 
@@ -146,12 +168,14 @@ These are RHOAI/ODH-specific constraints that MUST be checked. These represent d
 |------------|------------|-----------|
 | FIPS 140-3 | All crypto MUST use FIPS-validated modules on RHEL 9 | FedRAMP / government customers |
 | Post-quantum | Acknowledge tension with FIPS; do not mandate PQ-only | FIPS modules don't support PQ yet |
+| TLS profile compliance | Components MUST honor cluster-wide TLS settings. No hardcoded TLS versions, cipher suites, or curve preferences. OCP 4.22 requires ML-KEM negotiation support (tech preview); OCP 5.0 makes TLS profile obedience a release blocker. | OCP TLS consistency initiative (OCPSTRAT-2611) |
 | Gateway API | Use OpenShift's Route/Gateway API, not upstream Kubernetes Gateway API | OpenShift compatibility |
 | Service Mesh | Do not require Istio/service mesh unless absolutely necessary | Reducing operational complexity |
 | Image provenance | Container images must come from trusted registries (registry.redhat.io, quay.io) | Supply chain security |
 | Upstream-first | Changes should land in opendatahub-io repos, not red-hat-data-services directly | Open source development model |
 | AuthN/AuthZ | Use an established platform auth pattern; don't roll custom auth. Approved patterns: (1) kube-auth-proxy at the Gateway API layer via ext_authz for platform ingress, (2) kube-rbac-proxy sidecar for per-service Kubernetes RBAC via SubjectAccessReview, (3) Kuadrant (Authorino + Limitador) AuthPolicy/TokenRateLimitPolicy for API-level auth and rate limiting (e.g. MaaS) | RHOAI 3.x supports multiple auth patterns depending on the component's needs |
 | Secrets | Use OpenShift Secrets or external secret stores; no env var credentials | Secret management policy |
+| ServiceAccount RBAC | New ServiceAccounts and RBAC MUST be namespace-scoped. Cluster-wide permissions (cluster-wide secrets access, pods/exec, RBAC manipulation) are a known systemic vulnerability — 9 out of 10 RHOAI components have excessive ServiceAccount permissions. Only notebook-controller follows least-privilege correctly. Flag any new cluster-wide RBAC request as High severity. | Systemic RBAC vulnerability (embargoed) |
 
 ## Output
 
@@ -234,7 +258,7 @@ Security Risks are things the STRAT proposes that are actively insecure or archi
 
 ### RISK-001: [Risk Title]
 - **Severity:** Critical | High | Medium
-- **Category:** <auth, data-protection, crypto, network, supply-chain, infrastructure, operational, compliance, ml-ai, multi-tenant>
+- **Category:** <auth, data-protection, crypto, network, supply-chain, infrastructure, operational, compliance, ml-ai, multi-tenant, agentic, mcp>
 - **STRAT Reference:** <Quote or cite the specific STRAT text that creates this concern>
 - **Relevance:** <Explain why this specific change creates this risk, and confirm the risk is not already mitigated by existing component infrastructure>
 - **Impact:** <What happens if not addressed>
@@ -327,5 +351,7 @@ Note: There is no Low severity for Security Risks. If a concern is Low severity,
 - **Be specific in Threat Surface Analysis.** Name the specific endpoints, boundaries, and data flows from the STRAT content. If you cannot identify specifics, say "None identified." Do not write generic filler like "New API/UI endpoints exposed to users."
 - **Note sparse STRATs.** If `rfe_content_quality` is `sparse` and the Technical Approach is mostly inferred, note: "STRAT based on sparse RFE — security assessment is limited by available detail."
 - **Scale to effort and surface.** An S-sized single-component UI change assessed at Light tier should produce a 5-line compact review. An XL multi-component platform initiative assessed at Deep tier should produce a thorough analytical review with architecture context cross-references.
+- **Check upstream component risk posture.** When a STRAT uses or extends a known-risky upstream component, cross-reference these known systemic risks: Ray is architecturally "insecure by design" (CVE-2023-48022 / ShadowRay 2.0, no auth on Dashboard by default). MLflow has 6+ recurring path traversal CVEs across two years (systemic codebase pattern). Kubeflow Profile Controller runs as cluster-admin. HuggingFace transformers has CVEs with no upstream fix path. vLLM loads models from untrusted sources with Pickle deserialization risks. If the STRAT's design does not account for these known risks, flag them.
+- **Consider cross-component attack chains (Deep tier).** For Deep-tier reviews, consider how the proposed change interacts with adjacent RHOAI components. Can a vulnerability in this STRAT's scope chain into exploits in other layers? For example: prompt injection in model serving chaining through a pipeline into a Ray cluster, or RBAC escalation in one namespace affecting another. A per-STRAT review cannot exhaustively analyze all chains, but should note obvious adjacency risks.
 
 $ARGUMENTS
