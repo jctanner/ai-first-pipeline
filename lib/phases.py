@@ -21,6 +21,7 @@ from lib.schemas import PHASE_SCHEMAS
 from lib.skill_config import (
     get_skill_name,
     get_allowed_tools,
+    get_mcp_servers,
     resolve_cwd,
     should_enable_skills,
 )
@@ -2516,14 +2517,39 @@ async def run_native_skill_phase(args) -> None:
     cwd = str(resolve_cwd(phase))
     allowed_tools = get_allowed_tools(phase)
     enable_skills = should_enable_skills(phase)
+    mcp_servers = get_mcp_servers(phase)
     model = args.model if isinstance(args.model, str) else args.model[0]
 
     print(f"\n{'=' * 60}")
     print(f"PHASE: {phase}  (skill: {skill_name})")
+    if mcp_servers:
+        print(f"MCP servers: {', '.join(mcp_servers)}")
     print(f"{'=' * 60}\n")
 
     issue_arg = getattr(args, "issue", None) or ""
-    prompt = f"Use the {skill_name} skill. {issue_arg}".strip()
+
+    # Build a directive prompt for fully automated (headless) execution.
+    # Skills may contain interactive checkpoints (AskUserQuestion, "ask the
+    # user …") that block in SDK mode.  Override those by instructing the
+    # agent to proceed autonomously with sensible defaults.
+    prompt_parts = [f"Use the {skill_name} skill."]
+    if issue_arg:
+        prompt_parts.append(issue_arg)
+    prompt_parts.append(
+        "\n\nIMPORTANT — Autonomous execution rules:\n"
+        "• This is a fully automated, headless pipeline run. There is no "
+        "interactive user. Do NOT use AskUserQuestion and do NOT stop to "
+        "ask questions or wait for confirmation.\n"
+        "• When a skill step says to ask the user for a choice, apply these "
+        "defaults instead:\n"
+        "  – Source selection: prefer Jira (canonical) when MCP is available; "
+        "fall back to local artifacts.\n"
+        "  – Item selection: process ALL available items.\n"
+        "• Proceed through every step of the skill to completion.\n"
+        "• If a step cannot be completed (e.g. missing data), skip it with a "
+        "note in the output and continue to the next step."
+    )
+    prompt = "\n".join(prompt_parts)
 
     log_dir = BASE_DIR / "logs"
     log_dir.mkdir(exist_ok=True)
@@ -2536,6 +2562,7 @@ async def run_native_skill_phase(args) -> None:
         model=model,
         allowed_tools=allowed_tools,
         enable_skills=enable_skills,
+        mcp_servers=mcp_servers or None,
     )
 
     if result["success"]:

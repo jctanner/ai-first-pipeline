@@ -7,6 +7,8 @@ and invocation method for any registered phase.
 
 from __future__ import annotations
 
+import os
+import re
 from pathlib import Path
 from typing import Literal
 
@@ -119,3 +121,43 @@ def get_allowed_tools(phase: str) -> list[str]:
 def should_enable_skills(phase: str) -> bool:
     """Return ``True`` if the agent for *phase* needs SDK skill discovery."""
     return get_invoke_method(phase) == "native"
+
+
+def _expand_env(value: str) -> str:
+    """Expand ``${VAR:-default}`` and ``${VAR}`` patterns in a string."""
+    def _replace(m: re.Match) -> str:
+        var = m.group("var")
+        default = m.group("default")
+        return os.environ.get(var, default if default is not None else "")
+    return re.sub(r"\$\{(?P<var>[^}:]+)(?::-(?P<default>[^}]*))?\}", _replace, value)
+
+
+def get_mcp_servers(phase: str) -> dict:
+    """Return MCP server configs for *phase* as a dict suitable for
+    ``ClaudeAgentOptions.mcp_servers``.
+
+    Each phase may list MCP server names in its ``mcp_servers`` field.
+    Those names are resolved against the top-level ``mcp_servers`` config
+    block.  Returns an empty dict if the phase needs no MCP servers.
+    """
+    pc = get_phase_config(phase)
+    server_names = pc.get("mcp_servers", [])
+    if not server_names:
+        return {}
+
+    cfg = _load()
+    all_servers = cfg.get("mcp_servers", {})
+    result = {}
+    for name in server_names:
+        if name not in all_servers:
+            raise KeyError(
+                f"MCP server {name!r} referenced by phase {phase!r} "
+                f"is not defined in {_CONFIG_PATH.name}"
+            )
+        server_cfg = dict(all_servers[name])
+        # Expand env var references in string values (e.g. URLs).
+        for k, v in server_cfg.items():
+            if isinstance(v, str):
+                server_cfg[k] = _expand_env(v)
+        result[name] = server_cfg
+    return result

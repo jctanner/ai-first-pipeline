@@ -62,6 +62,7 @@ async def run_agent(
     log_file: Path | None = None,
     enable_skills: bool = False,
     env: dict[str, str] | None = None,
+    mcp_servers: dict | None = None,
 ) -> dict:
     """
     Launch one independent Claude agent session.
@@ -81,6 +82,9 @@ async def run_agent(
         env: Extra environment variables to pass to the agent session.
              Variables from ``_FORWARDED_ENV_VARS`` that are present in
              ``os.environ`` are always included automatically.
+        mcp_servers: MCP server configurations to connect to the agent
+                     session (e.g. ``{"atlassian": {"type": "sse",
+                     "url": "http://localhost:8081/sse"}}``).
 
     Returns:
         dict with 'name', 'success', 'log_file', and optional 'error' keys
@@ -113,13 +117,19 @@ async def run_agent(
     # so every agent session is fully isolated — unless enable_skills is
     # set, in which case we load project settings so .claude/skills/ are
     # discovered.
+    extra_opts: dict = {}
+    if enable_skills:
+        extra_opts["setting_sources"] = ["project"]
+    if mcp_servers:
+        extra_opts["mcp_servers"] = mcp_servers
+
     options = ClaudeAgentOptions(
         cwd=cwd,
         allowed_tools=allowed_tools,
         permission_mode="bypassPermissions",
         model=model_id,
         env=agent_env,
-        **({"setting_sources": ["project"]} if enable_skills else {}),
+        **extra_opts,
     )
 
     log_file.parent.mkdir(parents=True, exist_ok=True)

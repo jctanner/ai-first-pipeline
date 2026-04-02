@@ -23,6 +23,11 @@
 #                agent also gets CLAUDE.md, scripts, sub-skills, and
 #                companion files from that repo.
 
+mcp_servers:
+  atlassian:
+    type: sse
+    url: ${ATLASSIAN_MCP_URL:-http://127.0.0.1:8081/sse}
+
 skill_repos:
   rfe-creator:
     path: references/rfe-creator
@@ -62,12 +67,14 @@ phases:
     source: rfe-creator
     invoke: native
     allowed_tools: [Read, Write, Edit, Glob, Grep, Bash]
+    mcp_servers: [atlassian]
 
   rfe-split:
     skill: rfe.split
     source: rfe-creator
     invoke: native
     allowed_tools: [Read, Write, Edit, Glob, Grep, Bash]
+    mcp_servers: [atlassian]
 
   rfe-submit:
     skill: rfe.submit
@@ -81,6 +88,7 @@ phases:
     source: rfe-creator
     invoke: native
     allowed_tools: [Read, Write, Edit, Glob, Grep, Bash]
+    mcp_servers: [atlassian]
 
   strat-refine:
     skill: strat.refine
