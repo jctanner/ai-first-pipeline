@@ -2498,7 +2498,7 @@ async def run_all_phases(args) -> None:
 
 _NATIVE_SKILL_PHASES = {
     "rfe-create", "rfe-review", "rfe-split", "rfe-submit",
-    "strat-create", "strat-refine", "strat-review",
+    "strat-create", "strat-refine", "strat-review", "strat-security-review",
 }
 
 

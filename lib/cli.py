@@ -266,6 +266,12 @@ Examples:
     )
     _add_native_skill_args(strat_review_parser)
 
+    strat_security_review_parser = subparsers.add_parser(
+        "strat-security-review",
+        help="Security review of refined strategies",
+    )
+    _add_native_skill_args(strat_security_review_parser)
+
     # === Dashboard ===
     dashboard_parser = subparsers.add_parser(
         "dashboard",

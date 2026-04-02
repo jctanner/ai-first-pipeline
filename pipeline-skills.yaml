@@ -101,3 +101,9 @@ phases:
     source: rfe-creator
     invoke: native
     allowed_tools: [Read, Write, Edit, Glob, Grep, Bash]
+
+  strat-security-review:
+    skill: strat-security-review
+    invoke: native
+    allowed_tools: [Read, Write, Glob, Grep]
+    mcp_servers: [atlassian]
