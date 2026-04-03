@@ -108,12 +108,15 @@ def _discover_issues(args) -> list[Path]:
         sys.exit(1)
 
     if args.issue:
-        # Single issue mode
-        target = ISSUES_DIR / f"{args.issue}.json"
-        if not target.exists():
-            print(f"Error: issue file not found: {target}")
-            sys.exit(1)
-        return [target]
+        # Explicit issue(s) mode
+        targets = []
+        for key in args.issue:
+            target = ISSUES_DIR / f"{key}.json"
+            if not target.exists():
+                print(f"Error: issue file not found: {target}")
+                sys.exit(1)
+            targets.append(target)
+        return targets
 
     # Match only raw issue files (RHOAIENG-NNNNN.json), not phase outputs
     # like RHOAIENG-NNNNN.completeness.json (which have dots in the stem)
@@ -2533,7 +2536,8 @@ async def run_native_skill_phase(args) -> None:
         print(f"MCP servers: {', '.join(mcp_servers)}")
     print(f"{'=' * 60}\n")
 
-    issue_arg = getattr(args, "issue", None) or ""
+    issue_list = getattr(args, "issue", None) or []
+    issue_arg = issue_list[0] if issue_list else ""
 
     # Build the prompt as a slash-command invocation.  The agent will
     # parse this and call the Skill tool with the correct args.
@@ -2631,7 +2635,7 @@ def _discover_strats(args) -> list[dict]:
     limit = getattr(args, "limit", None)
 
     if issue_filter:
-        keys = [issue_filter]
+        keys = list(issue_filter)
     elif _ensure_jira_env():
         # Prefer Jira as canonical source
         print("  [discover] Querying Jira for RHAISTRAT keys ...")
@@ -2813,6 +2817,17 @@ async def _run_strat_pipeline(
 # ---------------------------------------------------------------------------
 
 
+def _rfe_is_complete(key: str) -> bool:
+    """Return True if all expected rfe-speedrun artifacts exist for *key*."""
+    base = _RFE_TASKS_DIR.parent  # .../rfe-creator/artifacts
+    return all([
+        (base / "rfe-tasks" / f"{key}.md").is_file(),
+        (base / "rfe-reviews" / f"{key}-review.md").is_file(),
+        (base / "rfe-reviews" / f"{key}-feasibility.md").is_file(),
+        (base / "rfe-originals" / f"{key}.md").is_file(),
+    ])
+
+
 def _discover_rfe_keys(args) -> list[str]:
     """Return a list of RHAIRFE keys to process.
 
@@ -2822,7 +2837,7 @@ def _discover_rfe_keys(args) -> list[str]:
     """
     issue_filter = getattr(args, "issue", None)
     if issue_filter:
-        return [issue_filter]
+        return list(issue_filter)
 
     # Prefer Jira as canonical source
     if _ensure_jira_env():
@@ -2860,6 +2875,23 @@ async def run_rfe_speedrun_phases(args) -> None:
         print("No RFEs found.")
         return
 
+    # Idempotency: skip RFEs whose artifacts are already complete
+    force = getattr(args, "force", False)
+    if force:
+        to_process = keys
+        skipped = []
+    else:
+        to_process = [k for k in keys if not _rfe_is_complete(k)]
+        skipped = [k for k in keys if _rfe_is_complete(k)]
+        if skipped:
+            print(f"Skipping {len(skipped)} already-complete RFEs (use --force to re-run)")
+            for k in skipped:
+                print(f"  skip {k}")
+
+    if not to_process:
+        print("All RFEs already processed. Use --force to re-run.")
+        return
+
     model = args.model if isinstance(args.model, str) else args.model[0]
     mid = get_model_id(model)
     max_concurrent = getattr(args, "max_concurrent", 5)
@@ -2872,17 +2904,18 @@ async def run_rfe_speedrun_phases(args) -> None:
     print(f"\n{'=' * 80}")
     print(f"RFE-SPEEDRUN PIPELINE [{mid}]")
     print(f"{'=' * 80}")
-    print(f"RFEs to process: {len(keys)}")
+    print(f"RFEs to process: {len(to_process)}  (skipped: {len(skipped)})")
     print(f"Model: {mid}")
     print(f"Max concurrent agents: {max_concurrent}")
-    for key in keys:
+    for key in to_process:
         print(f"  {key}")
     print(f"{'=' * 80}\n")
 
     _log_activity(
         "_pipeline", "rfe-speedrun", "pipeline_started",
         model=mid,
-        total_rfes=len(keys),
+        total_rfes=len(to_process),
+        skipped_rfes=len(skipped),
         max_concurrent=max_concurrent,
     )
 
@@ -2891,7 +2924,7 @@ async def run_rfe_speedrun_phases(args) -> None:
             _run_native_skill_for_issue(
                 "rfe-speedrun", key, semaphore, model, log_dir,
             )
-            for key in keys
+            for key in to_process
         ),
         return_exceptions=True,
     )
@@ -2910,7 +2943,7 @@ async def run_rfe_speedrun_phases(args) -> None:
     print(f"\n{'=' * 80}")
     print(f"RFE-SPEEDRUN PIPELINE COMPLETE [{mid}]")
     print(f"{'=' * 80}")
-    print(f"Total: {len(keys)}  success={success}  failed={failed}  exceptions={len(exceptions)}")
+    print(f"Total: {len(to_process)}  success={success}  failed={failed}  exceptions={len(exceptions)}  skipped={len(skipped)}")
     if exceptions:
         for i, exc in enumerate(exceptions, 1):
             print(f"  {i}. {exc}")
@@ -2919,7 +2952,8 @@ async def run_rfe_speedrun_phases(args) -> None:
     _log_activity(
         "_pipeline", "rfe-speedrun", "pipeline_completed",
         model=mid,
-        total_rfes=len(keys),
+        total_rfes=len(to_process),
+        skipped_rfes=len(skipped),
         success=success,
         failed=failed,
         exceptions=len(exceptions),
