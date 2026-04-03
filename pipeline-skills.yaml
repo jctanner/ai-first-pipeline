@@ -82,6 +82,13 @@ phases:
     invoke: native
     allowed_tools: [Read, Write, Edit, Glob, Grep, Bash]
 
+  rfe-speedrun:
+    skill: rfe.speedrun
+    source: rfe-creator
+    invoke: native
+    allowed_tools: [Read, Write, Edit, Glob, Grep, Bash, Skill]
+    mcp_servers: [atlassian]
+
   # === Strategy phases (external skills, native) ===
   strat-create:
     skill: strat.create

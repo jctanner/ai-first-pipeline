@@ -247,6 +247,20 @@ Examples:
     )
     _add_native_skill_args(rfe_submit_parser)
 
+    rfe_speedrun_parser = subparsers.add_parser(
+        "rfe-speedrun",
+        help="End-to-end RFE pipeline: create/fetch, review, auto-fix, and submit (alias: rfe-all)",
+    )
+    _add_native_skill_args(rfe_speedrun_parser)
+    rfe_speedrun_parser.add_argument(
+        "--limit", type=int,
+        help="Process only the first N RFEs (for testing)",
+    )
+    rfe_speedrun_parser.add_argument(
+        "--max-concurrent", type=int, default=5,
+        help="Maximum number of agents to run concurrently (default: 5)",
+    )
+
     # === Strategy phases (rfe-creator skills, native invocation) ===
     strat_create_parser = subparsers.add_parser(
         "strat-create",
@@ -281,12 +295,16 @@ Examples:
     # === Batch pipelines ===
     rfe_all_parser = subparsers.add_parser(
         "rfe-all",
-        help="Run RFE pipeline: review, submit, and create strategies for all RFEs",
+        help="Alias for rfe-speedrun: end-to-end RFE pipeline",
     )
-    _add_common_analysis_args(rfe_all_parser)
+    _add_native_skill_args(rfe_all_parser)
     rfe_all_parser.add_argument(
-        "--dashboard-url", default="http://127.0.0.1:5000",
-        help="URL of the reporting dashboard for live event push",
+        "--limit", type=int,
+        help="Process only the first N RFEs (for testing)",
+    )
+    rfe_all_parser.add_argument(
+        "--max-concurrent", type=int, default=5,
+        help="Maximum number of agents to run concurrently (default: 5)",
     )
 
     strat_all_parser = subparsers.add_parser(
