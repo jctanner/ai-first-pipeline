@@ -212,7 +212,7 @@ LAYOUT = """\
     .detail-columns { display: grid; grid-template-columns: 1fr 1fr; gap: 2rem; align-items: start; }
     @media (max-width: 1200px) { .detail-columns { grid-template-columns: 1fr; } }
     .detail-left, .detail-right { min-width: 0; }
-    .issue-text { font-size: 0.9em; max-height: 60vh; overflow-y: auto; padding: 0.5em; background: #f8f9fa; border-radius: 4px; }
+    .issue-text { font-size: 0.9em; padding: 0.5em; background: #f8f9fa; border-radius: 4px; }
     .issue-text p { margin-bottom: 0.5em; }
     .issue-text pre { background: #1e1e1e; color: #f0f0f0; padding: 0.8em; border-radius: 4px; overflow-x: auto; font-size: 0.9em; }
     .issue-text code { background: #e8e8e8; padding: 0.1em 0.3em; border-radius: 3px; font-size: 0.9em; }
