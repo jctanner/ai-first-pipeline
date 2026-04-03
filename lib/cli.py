@@ -278,6 +278,27 @@ Examples:
     )
     _add_native_skill_args(strat_security_review_parser)
 
+    # === Batch pipelines ===
+    rfe_all_parser = subparsers.add_parser(
+        "rfe-all",
+        help="Run RFE pipeline: review, submit, and create strategies for all RFEs",
+    )
+    _add_common_analysis_args(rfe_all_parser)
+    rfe_all_parser.add_argument(
+        "--dashboard-url", default="http://127.0.0.1:5000",
+        help="URL of the reporting dashboard for live event push",
+    )
+
+    strat_all_parser = subparsers.add_parser(
+        "strat-all",
+        help="Run strategy pipeline: refine, review, submit, and security-review for all strategies",
+    )
+    _add_common_analysis_args(strat_all_parser)
+    strat_all_parser.add_argument(
+        "--dashboard-url", default="http://127.0.0.1:5000",
+        help="URL of the reporting dashboard for live event push",
+    )
+
     # === Dashboard ===
     dashboard_parser = subparsers.add_parser(
         "dashboard",

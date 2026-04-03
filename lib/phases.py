@@ -5,6 +5,7 @@ import json
 import os
 import shutil
 import socket
+import subprocess
 import sys
 import asyncio
 from datetime import datetime, timezone
@@ -469,6 +470,11 @@ def _print_phase_summary(phase_name: str, jobs: list, results: list, model_id: s
 
 
 ACTIVITY_LOG = BASE_DIR / "logs" / "activity.jsonl"
+
+_RFE_TASKS_DIR = BASE_DIR / "references" / "rfe-creator" / "artifacts" / "rfe-tasks"
+_STRAT_TASKS_DIR = BASE_DIR / "references" / "rfe-creator" / "artifacts" / "strat-tasks"
+_FRONTMATTER_SCRIPT = BASE_DIR / "references" / "rfe-creator" / "scripts" / "frontmatter.py"
+_FRONTMATTER_CWD = str(BASE_DIR / "references" / "rfe-creator")
 
 # Module-level dashboard URL — set by run_all_phases from --dashboard-url arg.
 _dashboard_url: str | None = None
@@ -2574,6 +2580,661 @@ async def run_native_skill_phase(args) -> None:
 
 
 # ---------------------------------------------------------------------------
+# Batch pipeline helpers (rfe-all / strat-all)
+# ---------------------------------------------------------------------------
+
+
+def _read_frontmatter_batch(file_paths: list[str]) -> list[dict]:
+    """Call ``frontmatter.py batch-read`` and return parsed JSON array."""
+    if not file_paths:
+        return []
+    result = subprocess.run(
+        ["python3", str(_FRONTMATTER_SCRIPT), "batch-read", *file_paths],
+        cwd=_FRONTMATTER_CWD,
+        capture_output=True,
+        text=True,
+    )
+    if result.returncode != 0:
+        print(f"  [frontmatter] batch-read failed: {result.stderr.strip()}")
+        return []
+    return json.loads(result.stdout)
+
+
+_JQL_QUERY_SCRIPT = BASE_DIR / "references" / "rfe-creator" / "scripts" / "jql_query.py"
+
+
+def _ensure_jira_env() -> bool:
+    """Load .env and return True if Jira credentials are available."""
+    project_root = BASE_DIR.parent
+    load_dotenv(project_root / ".env")
+    return bool(os.environ.get("JIRA_SERVER") and os.environ.get("JIRA_TOKEN"))
+
+
+def _jql_query(jql: str, limit: int | None = None) -> list[str]:
+    """Run ``jql_query.py`` and return a list of issue keys.
+
+    The script adds its own compound filters (excludes Done, ignored labels).
+    Returns an empty list on failure.
+    """
+    cmd = ["python3", str(_JQL_QUERY_SCRIPT), jql]
+    if limit:
+        cmd += ["--limit", str(limit)]
+    result = subprocess.run(cmd, capture_output=True, text=True)
+    if result.returncode != 0:
+        print(f"  [jql_query] failed: {result.stderr.strip()}")
+        return []
+    keys = []
+    for line in result.stdout.splitlines():
+        line = line.strip()
+        if line.startswith("TOTAL="):
+            continue
+        if line:
+            keys.append(line)
+    return keys
+
+
+def _find_strat_for_rfe(rfe_id: str) -> dict | None:
+    """Find a strategy artifact whose ``source_rfe`` matches *rfe_id*."""
+    strat_files = sorted(_STRAT_TASKS_DIR.glob("*.md"))
+    if not strat_files:
+        return None
+    entries = _read_frontmatter_batch([str(f) for f in strat_files])
+    for entry in entries:
+        if entry.get("source_rfe") == rfe_id:
+            return entry
+    return None
+
+
+def _discover_rfes(args) -> list[dict]:
+    """Discover RFE artifacts from local files, falling back to Jira.
+
+    When ``--issue`` is given, only that single RFE is returned (from local
+    artifacts or as a bare Jira key).  Otherwise local ``rfe-tasks/*.md``
+    artifacts are scanned first; if none exist, a JQL query against the
+    ``RHAIRFE`` project fetches the list from Jira.  The ``rfe-review`` skill
+    will auto-fetch issue data from Jira on first contact, so only keys are
+    needed here.
+    """
+    issue_filter = getattr(args, "issue", None)
+    limit = getattr(args, "limit", None)
+
+    # --- local artifact scan ---
+    rfe_files = sorted(
+        f for f in _RFE_TASKS_DIR.glob("*.md")
+        if not f.name.endswith("-comments.md")
+        and not f.name.endswith("-removed-context.md")
+    )
+    if issue_filter:
+        rfe_files = [f for f in rfe_files if f.stem == issue_filter]
+
+    # Batch-read STRAT frontmatter (used for join regardless of source)
+    strat_files = sorted(_STRAT_TASKS_DIR.glob("*.md"))
+    strat_map: dict[str, dict] = {}
+    if strat_files:
+        strat_entries = _read_frontmatter_batch([str(f) for f in strat_files])
+        for se in strat_entries:
+            src = se.get("source_rfe")
+            if src:
+                strat_map[src] = se
+
+    if rfe_files:
+        # Build from local frontmatter
+        rfe_entries = _read_frontmatter_batch([str(f) for f in rfe_files])
+        results = []
+        for rfe in rfe_entries:
+            rfe_id = rfe.get("rfe_id", "")
+            if not rfe_id:
+                continue
+            if rfe.get("status", "").lower() == "archived":
+                continue
+            entry = {
+                "rfe_id": rfe_id,
+                "rfe_file": rfe.get("_file", ""),
+                "rfe_status": rfe.get("status", ""),
+                "rfe_title": rfe.get("title", ""),
+            }
+            strat = strat_map.get(rfe_id)
+            if strat:
+                entry["strat_id"] = strat.get("strat_id", "")
+                entry["strat_status"] = strat.get("status", "")
+                entry["strat_jira_key"] = strat.get("jira_key", "")
+            results.append(entry)
+    else:
+        # No local artifacts — discover from Jira
+        if issue_filter:
+            # Single key requested — use it directly
+            keys = [issue_filter]
+            print(f"  [discover] No local artifact for {issue_filter} — will fetch from Jira")
+        else:
+            if not _ensure_jira_env():
+                print("  [discover] No local RFE artifacts and Jira credentials not configured.")
+                return []
+            print("  [discover] No local RFE artifacts — querying Jira ...")
+            keys = _jql_query("project = RHAIRFE", limit=limit)
+            if not keys:
+                print("  [discover] JQL query returned no results.")
+                return []
+            print(f"  [discover] Found {len(keys)} RFEs in Jira")
+
+        results = []
+        for key in keys:
+            entry: dict = {
+                "rfe_id": key,
+                "rfe_file": "",
+                "rfe_status": "",
+                "rfe_title": "",
+            }
+            strat = strat_map.get(key)
+            if strat:
+                entry["strat_id"] = strat.get("strat_id", "")
+                entry["strat_status"] = strat.get("status", "")
+                entry["strat_jira_key"] = strat.get("jira_key", "")
+            results.append(entry)
+
+    results.sort(key=lambda x: x["rfe_id"])
+    if limit:
+        results = results[:limit]
+    return results
+
+
+def _discover_strats(args) -> list[dict]:
+    """Discover strategy artifacts from local files, falling back to Jira.
+
+    Same pattern as ``_discover_rfes``: scan local ``strat-tasks/*.md``
+    first, fall back to a JQL query against the ``RHAISTRAT`` project.
+    """
+    issue_filter = getattr(args, "issue", None)
+    limit = getattr(args, "limit", None)
+
+    strat_files = sorted(_STRAT_TASKS_DIR.glob("*.md"))
+    if issue_filter:
+        strat_files = [f for f in strat_files if f.stem == issue_filter]
+
+    if strat_files:
+        strat_entries = _read_frontmatter_batch([str(f) for f in strat_files])
+        results = []
+        for se in strat_entries:
+            strat_id = se.get("strat_id", "")
+            if not strat_id:
+                continue
+            results.append({
+                "strat_id": strat_id,
+                "strat_file": se.get("_file", ""),
+                "status": se.get("status", ""),
+                "jira_key": se.get("jira_key", ""),
+                "source_rfe": se.get("source_rfe", ""),
+            })
+    else:
+        # No local artifacts — discover from Jira
+        if issue_filter:
+            keys = [issue_filter]
+            print(f"  [discover] No local artifact for {issue_filter} — will fetch from Jira")
+        else:
+            if not _ensure_jira_env():
+                print("  [discover] No local STRAT artifacts and Jira credentials not configured.")
+                return []
+            print("  [discover] No local STRAT artifacts — querying Jira ...")
+            keys = _jql_query("project = RHAISTRAT", limit=limit)
+            if not keys:
+                print("  [discover] JQL query returned no results.")
+                return []
+            print(f"  [discover] Found {len(keys)} strategies in Jira")
+
+        results = []
+        for key in keys:
+            results.append({
+                "strat_id": key,
+                "strat_file": "",
+                "status": "",
+                "jira_key": key,
+                "source_rfe": "",
+            })
+
+    results.sort(key=lambda x: x["strat_id"])
+    if limit:
+        results = results[:limit]
+    return results
+
+
+async def _run_native_skill_for_issue(
+    phase: str,
+    issue_key: str,
+    semaphore: asyncio.Semaphore,
+    model: str,
+    log_dir: Path,
+) -> dict:
+    """Run a single native-skill phase for one issue, respecting the semaphore."""
+    import time
+
+    skill_name = get_skill_name(phase)
+    cwd = str(resolve_cwd(phase))
+    allowed_tools = get_allowed_tools(phase)
+    enable_skills = should_enable_skills(phase)
+    mcp_servers = get_mcp_servers(phase)
+
+    prompt_parts = [f"Use the {skill_name} skill."]
+    if issue_key:
+        prompt_parts.append(issue_key)
+    prompt_parts.append(
+        "\n\nIMPORTANT — Autonomous execution rules:\n"
+        "• This is a fully automated, headless pipeline run. There is no "
+        "interactive user. Do NOT use AskUserQuestion and do NOT stop to "
+        "ask questions or wait for confirmation.\n"
+        "• When a skill step says to ask the user for a choice, apply these "
+        "defaults instead:\n"
+        "  – Source selection: prefer Jira (canonical) when MCP is available; "
+        "fall back to local artifacts.\n"
+        "  – Item selection: process ALL available items.\n"
+        "• Proceed through every step of the skill to completion.\n"
+        "• If a step cannot be completed (e.g. missing data), skip it with a "
+        "note in the output and continue to the next step."
+    )
+    prompt = "\n".join(prompt_parts)
+
+    _log_activity(issue_key, phase, "started", model=model)
+    t0 = time.monotonic()
+
+    try:
+        async with semaphore:
+            result = await run_agent(
+                name=f"{phase}-{issue_key}",
+                cwd=cwd,
+                prompt=prompt,
+                log_dir=log_dir,
+                model=model,
+                allowed_tools=allowed_tools,
+                enable_skills=enable_skills,
+                mcp_servers=mcp_servers or None,
+            )
+    except Exception as exc:
+        duration = time.monotonic() - t0
+        _log_activity(issue_key, phase, "failed", model=model, error=str(exc))
+        print(f"  [{phase}] {issue_key} FAILED ({format_duration(duration)}): {exc}")
+        return {
+            "phase": phase,
+            "key": issue_key,
+            "success": False,
+            "skipped": False,
+            "duration_seconds": round(duration, 1),
+            "error": str(exc),
+        }
+
+    duration = time.monotonic() - t0
+    success = result.get("success", False)
+    status = "completed" if success else "failed"
+    _log_activity(issue_key, phase, status, model=model, duration=round(duration, 1))
+    label = "OK" if success else "FAILED"
+    print(f"  [{phase}] {issue_key} {label} ({format_duration(duration)})")
+
+    return {
+        "phase": phase,
+        "key": issue_key,
+        "success": success,
+        "skipped": False,
+        "duration_seconds": round(duration, 1),
+        "error": result.get("error"),
+    }
+
+
+async def _run_rfe_pipeline(
+    rfe_info: dict,
+    args,
+    semaphore: asyncio.Semaphore,
+    log_dir: Path,
+) -> dict:
+    """Run the RFE pipeline (rfe-review → rfe-submit → strat-create) for one RFE."""
+    rfe_id = rfe_info["rfe_id"]
+    model = args.model if isinstance(args.model, str) else args.model[0]
+    force = getattr(args, "force", False)
+
+    phases_results: dict[str, dict] = {}
+    phases_run = 0
+    phases_skipped = 0
+    phases_failed = 0
+
+    rfe_status = rfe_info.get("rfe_status", "")
+    has_strat = bool(rfe_info.get("strat_id"))
+
+    print(f"\n--- RFE pipeline: {rfe_id} (status={rfe_status}, strat={'yes' if has_strat else 'no'}) ---")
+
+    # Phase 1: rfe-review
+    if not force and rfe_status == "Submitted":
+        print(f"  [rfe-review] {rfe_id} SKIPPED (status=Submitted)")
+        phases_results["rfe-review"] = {"phase": "rfe-review", "key": rfe_id, "skipped": True, "reason": "already_submitted"}
+        phases_skipped += 1
+    else:
+        result = await _run_native_skill_for_issue("rfe-review", rfe_id, semaphore, model, log_dir)
+        phases_results["rfe-review"] = result
+        phases_run += 1
+        if not result.get("success"):
+            phases_failed += 1
+            return {"rfe_id": rfe_id, "phases": phases_results, "phases_run": phases_run, "phases_skipped": phases_skipped, "phases_failed": phases_failed}
+
+    # Phase 2: rfe-submit
+    if not force and rfe_status == "Submitted":
+        print(f"  [rfe-submit] {rfe_id} SKIPPED (status=Submitted)")
+        phases_results["rfe-submit"] = {"phase": "rfe-submit", "key": rfe_id, "skipped": True, "reason": "already_submitted"}
+        phases_skipped += 1
+    else:
+        result = await _run_native_skill_for_issue("rfe-submit", rfe_id, semaphore, model, log_dir)
+        phases_results["rfe-submit"] = result
+        phases_run += 1
+        if not result.get("success"):
+            phases_failed += 1
+            return {"rfe_id": rfe_id, "phases": phases_results, "phases_run": phases_run, "phases_skipped": phases_skipped, "phases_failed": phases_failed}
+
+    # Phase 3: strat-create (skip if STRAT already exists)
+    if not force and has_strat:
+        strat_id = rfe_info.get("strat_id", "")
+        print(f"  [strat-create] {rfe_id} SKIPPED (strat={strat_id} exists)")
+        phases_results["strat-create"] = {"phase": "strat-create", "key": rfe_id, "skipped": True, "reason": "strat_exists"}
+        phases_skipped += 1
+    else:
+        # Re-read frontmatter to pick up any Jira key updates from rfe-submit
+        updated = _find_strat_for_rfe(rfe_id)
+        if not force and updated:
+            strat_id = updated.get("strat_id", "")
+            print(f"  [strat-create] {rfe_id} SKIPPED (strat={strat_id} created)")
+            phases_results["strat-create"] = {"phase": "strat-create", "key": rfe_id, "skipped": True, "reason": "strat_exists"}
+            phases_skipped += 1
+        else:
+            result = await _run_native_skill_for_issue("strat-create", rfe_id, semaphore, model, log_dir)
+            phases_results["strat-create"] = result
+            phases_run += 1
+            if not result.get("success"):
+                phases_failed += 1
+
+    return {"rfe_id": rfe_id, "phases": phases_results, "phases_run": phases_run, "phases_skipped": phases_skipped, "phases_failed": phases_failed}
+
+
+async def _run_strat_pipeline(
+    strat_info: dict,
+    args,
+    semaphore: asyncio.Semaphore,
+    log_dir: Path,
+) -> dict:
+    """Run the strategy pipeline (strat-refine → strat-review → strat-submit → strat-security-review) for one STRAT."""
+    strat_id = strat_info["strat_id"]
+    model = args.model if isinstance(args.model, str) else args.model[0]
+    force = getattr(args, "force", False)
+
+    phases_results: dict[str, dict] = {}
+    phases_run = 0
+    phases_skipped = 0
+    phases_failed = 0
+
+    status = strat_info.get("status", "")
+
+    print(f"\n--- STRAT pipeline: {strat_id} (status={status}) ---")
+
+    # Phase 1: strat-refine (skip if already Refined or Reviewed)
+    if not force and status in ("Refined", "Reviewed"):
+        print(f"  [strat-refine] {strat_id} SKIPPED (status={status})")
+        phases_results["strat-refine"] = {"phase": "strat-refine", "key": strat_id, "skipped": True, "reason": f"status_{status.lower()}"}
+        phases_skipped += 1
+    else:
+        result = await _run_native_skill_for_issue("strat-refine", strat_id, semaphore, model, log_dir)
+        phases_results["strat-refine"] = result
+        phases_run += 1
+        if not result.get("success"):
+            phases_failed += 1
+            return {"strat_id": strat_id, "phases": phases_results, "phases_run": phases_run, "phases_skipped": phases_skipped, "phases_failed": phases_failed}
+
+    # Phase 2: strat-review
+    result = await _run_native_skill_for_issue("strat-review", strat_id, semaphore, model, log_dir)
+    phases_results["strat-review"] = result
+    phases_run += 1
+    if not result.get("success"):
+        phases_failed += 1
+        return {"strat_id": strat_id, "phases": phases_results, "phases_run": phases_run, "phases_skipped": phases_skipped, "phases_failed": phases_failed}
+
+    # Phase 3: strat-submit
+    result = await _run_native_skill_for_issue("strat-submit", strat_id, semaphore, model, log_dir)
+    phases_results["strat-submit"] = result
+    phases_run += 1
+    if not result.get("success"):
+        phases_failed += 1
+        return {"strat_id": strat_id, "phases": phases_results, "phases_run": phases_run, "phases_skipped": phases_skipped, "phases_failed": phases_failed}
+
+    # Phase 4: strat-security-review
+    result = await _run_native_skill_for_issue("strat-security-review", strat_id, semaphore, model, log_dir)
+    phases_results["strat-security-review"] = result
+    phases_run += 1
+    if not result.get("success"):
+        phases_failed += 1
+
+    return {"strat_id": strat_id, "phases": phases_results, "phases_run": phases_run, "phases_skipped": phases_skipped, "phases_failed": phases_failed}
+
+
+# ---------------------------------------------------------------------------
+# Top-level orchestrators for rfe-all / strat-all
+# ---------------------------------------------------------------------------
+
+
+async def run_rfe_all_phases(args) -> None:
+    """Run the full RFE pipeline (review → submit → strat-create) for all discovered RFEs."""
+    # Dashboard setup
+    global _dashboard_url
+    _dashboard_url = getattr(args, "dashboard_url", None)
+    if _dashboard_url and not _dashboard_reachable(_dashboard_url):
+        print(f"  [dashboard] {_dashboard_url} not reachable — disabling push")
+        _dashboard_url = None
+    if _dashboard_url:
+        _start_push_thread()
+
+    # Discover RFEs
+    rfe_jobs = _discover_rfes(args)
+    if not rfe_jobs:
+        print("No RFE artifacts found.")
+        return
+
+    model = args.model if isinstance(args.model, str) else args.model[0]
+    mid = get_model_id(model)
+    semaphore = asyncio.Semaphore(args.max_concurrent)
+
+    log_dir = BASE_DIR / "logs" / "rfe-all"
+    log_dir.mkdir(parents=True, exist_ok=True)
+
+    # Startup banner
+    print(f"\n{'=' * 80}")
+    print(f"RFE-ALL PIPELINE [{mid}]")
+    print(f"{'=' * 80}")
+    print(f"RFEs discovered: {len(rfe_jobs)}")
+    print(f"Model: {mid}")
+    print(f"Max concurrent agents: {args.max_concurrent}")
+    print(f"Force: {getattr(args, 'force', False)}")
+    for job in rfe_jobs:
+        strat_label = job.get("strat_id", "none")
+        print(f"  {job['rfe_id']:20s}  status={job['rfe_status']:<12s}  strat={strat_label}")
+    print(f"{'=' * 80}\n")
+
+    _log_activity(
+        "_pipeline", "rfe-all", "pipeline_started",
+        model=mid,
+        total_rfes=len(rfe_jobs),
+        max_concurrent=args.max_concurrent,
+        force=getattr(args, "force", False),
+    )
+
+    try:
+        all_results = await asyncio.gather(
+            *(_run_rfe_pipeline(job, args, semaphore, log_dir) for job in rfe_jobs),
+            return_exceptions=True,
+        )
+
+        # Aggregate stats
+        phase_names = ["rfe-review", "rfe-submit", "strat-create"]
+        phase_stats: dict[str, dict[str, int]] = {
+            pn: {"ran": 0, "success": 0, "failed": 0, "skipped": 0}
+            for pn in phase_names
+        }
+        exceptions: list[Exception] = []
+
+        for entry in all_results:
+            if isinstance(entry, Exception):
+                exceptions.append(entry)
+                continue
+            if not isinstance(entry, dict):
+                continue
+            phases = entry.get("phases", {})
+            for pn in phase_names:
+                r = phases.get(pn)
+                if r is None:
+                    continue
+                if r.get("skipped"):
+                    phase_stats[pn]["skipped"] += 1
+                elif r.get("success"):
+                    phase_stats[pn]["ran"] += 1
+                    phase_stats[pn]["success"] += 1
+                else:
+                    phase_stats[pn]["ran"] += 1
+                    phase_stats[pn]["failed"] += 1
+
+        print(f"\n{'=' * 80}")
+        print(f"RFE-ALL PIPELINE COMPLETE [{mid}]")
+        print(f"{'=' * 80}")
+        print(f"Total RFEs: {len(rfe_jobs)}")
+        for pn in phase_names:
+            s = phase_stats[pn]
+            print(
+                f"  {pn:22s}  ran={s['ran']}  success={s['success']}  "
+                f"failed={s['failed']}  skipped={s['skipped']}"
+            )
+        if exceptions:
+            print(f"\nExceptions: {len(exceptions)}")
+            for i, exc in enumerate(exceptions, 1):
+                print(f"  {i}. {exc}")
+        print(f"{'=' * 80}\n")
+
+        _log_activity(
+            "_pipeline", "rfe-all", "pipeline_completed",
+            model=mid,
+            total_rfes=len(rfe_jobs),
+            phase_stats=phase_stats,
+            exceptions=len(exceptions),
+        )
+
+    except BaseException as exc:
+        _log_activity(
+            "_pipeline", "rfe-all", "pipeline_failed",
+            model=mid,
+            error=str(exc),
+        )
+        raise
+
+
+async def run_strat_all_phases(args) -> None:
+    """Run the full strategy pipeline (refine → review → submit → security-review) for all discovered strategies."""
+    # Dashboard setup
+    global _dashboard_url
+    _dashboard_url = getattr(args, "dashboard_url", None)
+    if _dashboard_url and not _dashboard_reachable(_dashboard_url):
+        print(f"  [dashboard] {_dashboard_url} not reachable — disabling push")
+        _dashboard_url = None
+    if _dashboard_url:
+        _start_push_thread()
+
+    # Discover strategies
+    strat_jobs = _discover_strats(args)
+    if not strat_jobs:
+        print("No strategy artifacts found.")
+        return
+
+    model = args.model if isinstance(args.model, str) else args.model[0]
+    mid = get_model_id(model)
+    semaphore = asyncio.Semaphore(args.max_concurrent)
+
+    log_dir = BASE_DIR / "logs" / "strat-all"
+    log_dir.mkdir(parents=True, exist_ok=True)
+
+    # Startup banner
+    print(f"\n{'=' * 80}")
+    print(f"STRAT-ALL PIPELINE [{mid}]")
+    print(f"{'=' * 80}")
+    print(f"Strategies discovered: {len(strat_jobs)}")
+    print(f"Model: {mid}")
+    print(f"Max concurrent agents: {args.max_concurrent}")
+    print(f"Force: {getattr(args, 'force', False)}")
+    for job in strat_jobs:
+        print(f"  {job['strat_id']:20s}  status={job['status']:<12s}  source_rfe={job.get('source_rfe', 'n/a')}")
+    print(f"{'=' * 80}\n")
+
+    _log_activity(
+        "_pipeline", "strat-all", "pipeline_started",
+        model=mid,
+        total_strats=len(strat_jobs),
+        max_concurrent=args.max_concurrent,
+        force=getattr(args, "force", False),
+    )
+
+    try:
+        all_results = await asyncio.gather(
+            *(_run_strat_pipeline(job, args, semaphore, log_dir) for job in strat_jobs),
+            return_exceptions=True,
+        )
+
+        # Aggregate stats
+        phase_names = ["strat-refine", "strat-review", "strat-submit", "strat-security-review"]
+        phase_stats: dict[str, dict[str, int]] = {
+            pn: {"ran": 0, "success": 0, "failed": 0, "skipped": 0}
+            for pn in phase_names
+        }
+        exceptions: list[Exception] = []
+
+        for entry in all_results:
+            if isinstance(entry, Exception):
+                exceptions.append(entry)
+                continue
+            if not isinstance(entry, dict):
+                continue
+            phases = entry.get("phases", {})
+            for pn in phase_names:
+                r = phases.get(pn)
+                if r is None:
+                    continue
+                if r.get("skipped"):
+                    phase_stats[pn]["skipped"] += 1
+                elif r.get("success"):
+                    phase_stats[pn]["ran"] += 1
+                    phase_stats[pn]["success"] += 1
+                else:
+                    phase_stats[pn]["ran"] += 1
+                    phase_stats[pn]["failed"] += 1
+
+        print(f"\n{'=' * 80}")
+        print(f"STRAT-ALL PIPELINE COMPLETE [{mid}]")
+        print(f"{'=' * 80}")
+        print(f"Total strategies: {len(strat_jobs)}")
+        for pn in phase_names:
+            s = phase_stats[pn]
+            print(
+                f"  {pn:22s}  ran={s['ran']}  success={s['success']}  "
+                f"failed={s['failed']}  skipped={s['skipped']}"
+            )
+        if exceptions:
+            print(f"\nExceptions: {len(exceptions)}")
+            for i, exc in enumerate(exceptions, 1):
+                print(f"  {i}. {exc}")
+        print(f"{'=' * 80}\n")
+
+        _log_activity(
+            "_pipeline", "strat-all", "pipeline_completed",
+            model=mid,
+            total_strats=len(strat_jobs),
+            phase_stats=phase_stats,
+            exceptions=len(exceptions),
+        )
+
+    except BaseException as exc:
+        _log_activity(
+            "_pipeline", "strat-all", "pipeline_failed",
+            model=mid,
+            error=str(exc),
+        )
+        raise
+
+
+# ---------------------------------------------------------------------------
 # Dispatch
 # ---------------------------------------------------------------------------
 
@@ -2601,6 +3262,10 @@ async def main(args) -> None:
         await run_write_test_phase(args)
     elif args.command == "bug-all":
         await run_all_phases(args)
+    elif args.command == "rfe-all":
+        await run_rfe_all_phases(args)
+    elif args.command == "strat-all":
+        await run_strat_all_phases(args)
     elif args.command == "dashboard":
         await run_dashboard_phase(args)
     elif args.command in _NATIVE_SKILL_PHASES:
