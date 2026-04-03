@@ -380,7 +380,7 @@ function switchTab(name) {
 })();
 
 // --- Generic sorting for any table ---
-function setupSorting(tableId) {
+function setupSorting(tableId, defaultCol) {
   const table = document.getElementById(tableId);
   if (!table) return;
   table.querySelectorAll('th.sortable').forEach(th => {
@@ -398,8 +398,9 @@ function setupSorting(tableId) {
           va = parseFloat(a.cells[col]?.dataset.sortValue ?? a.cells[col]?.textContent) || -1;
           vb = parseFloat(b.cells[col]?.dataset.sortValue ?? b.cells[col]?.textContent) || -1;
         } else {
-          va = (a.cells[col]?.textContent || '').trim().toLowerCase();
-          vb = (b.cells[col]?.textContent || '').trim().toLowerCase();
+          va = (a.cells[col]?.textContent || '').trim();
+          vb = (b.cells[col]?.textContent || '').trim();
+          return asc ? va.localeCompare(vb, undefined, {numeric: true}) : vb.localeCompare(va, undefined, {numeric: true});
         }
         if (va < vb) return asc ? -1 : 1;
         if (va > vb) return asc ? 1 : -1;
@@ -408,6 +409,11 @@ function setupSorting(tableId) {
       rows.forEach(r => tbody.appendChild(r));
     });
   });
+  // Trigger default ascending sort on the specified column
+  if (defaultCol !== undefined) {
+    const th = table.querySelector('th.sortable[data-col="' + defaultCol + '"]');
+    if (th) th.click();
+  }
 }
 
 // --- Generic tab filtering ---
@@ -560,11 +566,11 @@ function highlightActiveRows(queueState) {
   };
 })();
 
-// Init sorting on all tables
-setupSorting('all-table');
-setupSorting('issues-table');
-setupSorting('rfe-table');
-setupSorting('strat-table');
+// Init sorting on all tables (default sort by Key column)
+setupSorting('all-table', 1);
+setupSorting('issues-table', 1);
+setupSorting('rfe-table', 0);
+setupSorting('strat-table', 0);
 </script>
 {% endblock %}
 """
@@ -3586,8 +3592,9 @@ document.querySelectorAll('#readiness-table th.sortable').forEach(th => {
         va = parseFloat(a[0].cells[col].dataset.sortValue ?? a[0].cells[col].textContent) || -1;
         vb = parseFloat(b[0].cells[col].dataset.sortValue ?? b[0].cells[col].textContent) || -1;
       } else {
-        va = a[0].cells[col].textContent.trim().toLowerCase();
-        vb = b[0].cells[col].textContent.trim().toLowerCase();
+        va = a[0].cells[col].textContent.trim();
+        vb = b[0].cells[col].textContent.trim();
+        return asc ? va.localeCompare(vb, undefined, {numeric: true}) : vb.localeCompare(va, undefined, {numeric: true});
       }
       if (va < vb) return asc ? -1 : 1;
       if (va > vb) return asc ? 1 : -1;
