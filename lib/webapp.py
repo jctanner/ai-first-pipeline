@@ -16,7 +16,7 @@ from lib.report_data import (
     compute_summary_stats, compute_component_readiness,
 )
 from lib.paths import discover_models, model_workspace
-from lib.rfe_data import load_rfe_issues, load_strat_issues
+from lib.rfe_data import load_rfe_issues, load_single_rfe, load_strat_issues
 from lib.stats import compute_all_stats
 
 # ---------------------------------------------------------------------------
@@ -162,6 +162,7 @@ LAYOUT = """\
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>{% block title %}Pipeline Dashboard{% endblock %}</title>
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@picocss/pico@2/css/pico.min.css">
+  <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
   <style>
     :root { --pico-font-size: 87.5%; }
     nav { margin-bottom: 1rem; }
@@ -966,7 +967,7 @@ TAB_RFES = """\
       data-pass="{{ rev.pass|string|lower if rev and rev.pass is defined else '' }}"
       data-attention="{{ rev.needs_attention|string|lower if rev and rev.needs_attention is defined else 'false' }}"
     >
-      <td>{{ rfe.key }}</td>
+      <td><a href="/rfe/{{ rfe.key }}">{{ rfe.key }}</a></td>
       <td class="truncate" title="{{ rfe.title|default('') }}">{{ rfe.title|default('')|truncate(80) }}</td>
       <td>{{ rfe.priority|default('&mdash;'|safe) }}</td>
       <td>
@@ -1012,8 +1013,8 @@ TAB_RFES = """\
       <td>
         {% if rev and rev.needs_attention %}<span class="attention-flag">&#9888;</span>{% else %}&mdash;{% endif %}
       </td>
-      <td data-sort-value="{{ (rev.score - rev.before_score) if rev and rev.score is defined and rev.before_score is defined else 0 }}">
-        {% if rev and rev.score is defined and rev.before_score is defined %}
+      <td data-sort-value="{{ (rev.score - rev.before_score) if rev and rev.score is not none and rev.before_score is not none else 0 }}">
+        {% if rev and rev.score is not none and rev.before_score is not none %}
           {% set delta = rev.score - rev.before_score %}
           {% if delta > 0 %}+{{ delta }}{% else %}{{ delta }}{% endif %}
         {% else %}&mdash;{% endif %}
@@ -1023,6 +1024,170 @@ TAB_RFES = """\
   </tbody>
 </table>
 </div>
+"""
+
+RFE_DETAIL = """\
+{% extends "layout.html" %}
+{% block title %}{{ rfe.key }} - RFE Detail{% endblock %}
+{% block content %}
+{% set rev = rfe.review %}
+<hgroup>
+  <h2>{{ rfe.key }}: {{ rfe.title|default('Untitled RFE') }}</h2>
+</hgroup>
+<p><a href="/">&larr; Back to dashboard</a></p>
+
+{# --- Issue metadata --- #}
+<div style="display:flex; gap:1.5rem; flex-wrap:wrap; margin-bottom:1rem; font-size:0.95em;">
+  <span><strong>Priority:</strong> {{ rfe.priority|default('—') }}</span>
+  <span><strong>Size:</strong> {% if rfe.size %}<span class="badge badge-size-{{ rfe.size|lower }}">{{ rfe.size }}</span>{% else %}—{% endif %}</span>
+  <span><strong>Status:</strong> {{ rfe.status|default('—') }}</span>
+</div>
+
+{# =============== Score Summary (always visible) =============== #}
+{% if rev %}
+<div style="background:#f8f9fa; border-radius:6px; padding:1rem; margin-bottom:1.5rem;">
+  <div style="display:flex; gap:2rem; flex-wrap:wrap; align-items:start;">
+
+    {# -- Score bar + rubric -- #}
+    <div style="flex:1; min-width:250px;">
+      {% if rev.score is not none %}
+      {% set sc = rev.score %}
+      {% set pct = (sc * 10)|int %}
+      {% set bar_color = '#c0392b' if sc < 5 else ('#d4a017' if sc < 8 else '#27ae60') %}
+      <div style="margin-bottom:0.8em;">
+        <strong>Overall: </strong>
+        <span class="{{ 'score-red' if sc < 5 else ('score-yellow' if sc < 8 else 'score-green') }}">{{ sc }}/10</span>
+        <div class="score-bar" style="margin-top:0.3em;">
+          <div class="score-bar-fill" style="width:{{ pct }}%; background:{{ bar_color }};">{{ sc }}/10</div>
+        </div>
+      </div>
+      {% endif %}
+      <div style="display:flex; gap:0.8rem; flex-wrap:wrap; font-size:0.9em;">
+        {% for dim_key, dim_label in [('what','WHAT'),('why','WHY'),('open_to_how','HOW'),('not_a_task','Not Task'),('right_sized','Right-Sized')] %}
+        <span>
+          {{ dim_label }}:
+          {% if rev.scores and rev.scores[dim_key] is defined %}
+            <span class="rubric-dot rubric-{{ rev.scores[dim_key] }}" title="{{ rev.scores[dim_key] }}/2"></span>
+            {{ rev.scores[dim_key] }}/2
+            {% if rev.auto_revised and rev.before_scores and rev.before_scores[dim_key] is defined %}
+              <span style="opacity:0.5;" title="before">(was {{ rev.before_scores[dim_key] }}/2)</span>
+            {% endif %}
+          {% else %}—{% endif %}
+        </span>
+        {% endfor %}
+      </div>
+    </div>
+
+    {# -- Verdict badges -- #}
+    <div style="display:flex; gap:0.6rem; flex-wrap:wrap; align-items:center; font-size:0.9em;">
+      {% if rev.pass is defined %}
+        {% if rev.pass %}<span class="badge badge-val-pass">PASS</span>
+        {% else %}<span class="badge badge-val-fail">FAIL</span>{% endif %}
+      {% endif %}
+      {% if rev.recommendation %}
+        <span class="badge badge-rec-{{ rev.recommendation }}">{{ rev.recommendation }}</span>
+      {% endif %}
+      {% if rev.feasibility %}
+        <span class="badge badge-feas-{{ rev.feasibility }}">{{ rev.feasibility }}</span>
+      {% endif %}
+      {% if rev.auto_revised %}
+        <span class="badge badge-rec-split">auto-revised</span>
+        {% if rev.before_score is not none %}
+          <span style="font-size:0.85em; opacity:0.7;">(was {{ rev.before_score }}/10)</span>
+        {% endif %}
+      {% endif %}
+    </div>
+
+  </div>
+</div>
+{% else %}
+<p><em>No review data available for this RFE.</em></p>
+{% endif %}
+
+{# =============== Content Tabs =============== #}
+<div class="tab-nav" id="rfe-tab-nav">
+  <button class="active" onclick="switchRfeTab('feedback')">Assessor Feedback</button>
+  <button onclick="switchRfeTab('feasibility')">Feasibility</button>
+  <button onclick="switchRfeTab('original')">Original Description</button>
+  <button onclick="switchRfeTab('revised')">New Description</button>
+  {% if rfe.comments_body %}<button onclick="switchRfeTab('comments')">Comments</button>{% endif %}
+</div>
+
+<div id="rfe-tab-feedback" class="tab-panel active">
+{% if rev and rev._body %}
+  <div class="issue-text md-content">{{ rev._body|e }}</div>
+{% else %}
+  <p><em>No assessor feedback available.</em></p>
+{% endif %}
+</div>
+
+<div id="rfe-tab-feasibility" class="tab-panel">
+{% if rfe.feasibility_body %}
+  <div class="issue-text md-content">{{ rfe.feasibility_body|e }}</div>
+{% else %}
+  <p><em>No feasibility analysis available.</em></p>
+{% endif %}
+</div>
+
+<div id="rfe-tab-original" class="tab-panel">
+{% if rfe.original_body %}
+  <div class="issue-text md-content">{{ rfe.original_body|e }}</div>
+{% else %}
+  <p><em>No original description available.</em></p>
+{% endif %}
+</div>
+
+<div id="rfe-tab-revised" class="tab-panel">
+  <div class="issue-text md-content">{{ rfe._body|default('No content available.')|e }}</div>
+</div>
+
+{% if rfe.comments_body %}
+<div id="rfe-tab-comments" class="tab-panel">
+  <div class="issue-text md-content">{{ rfe.comments_body|e }}</div>
+</div>
+{% endif %}
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+function switchRfeTab(name) {
+  document.querySelectorAll('#rfe-tab-nav ~ .tab-panel').forEach(function(p) {
+    p.classList.remove('active');
+  });
+  document.querySelectorAll('#rfe-tab-nav button').forEach(function(b) {
+    b.classList.remove('active');
+  });
+  document.getElementById('rfe-tab-' + name).classList.add('active');
+  document.querySelectorAll('#rfe-tab-nav button').forEach(function(b) {
+    if (b.getAttribute('onclick') === "switchRfeTab('" + name + "')") b.classList.add('active');
+  });
+  // Render markdown in newly-visible tab if not yet rendered
+  var panel = document.getElementById('rfe-tab-' + name);
+  if (typeof marked !== 'undefined') {
+    panel.querySelectorAll('.md-content:not([data-rendered])').forEach(function(el) {
+      el.innerHTML = marked.parse(el.textContent);
+      el.setAttribute('data-rendered', '1');
+    });
+  }
+  window.location.hash = name;
+}
+document.addEventListener('DOMContentLoaded', function() {
+  // Render markdown in the default active tab
+  if (typeof marked !== 'undefined') {
+    document.querySelectorAll('.tab-panel.active .md-content').forEach(function(el) {
+      el.innerHTML = marked.parse(el.textContent);
+      el.setAttribute('data-rendered', '1');
+    });
+  }
+  // Restore tab from URL hash
+  var hash = window.location.hash.replace('#', '');
+  if (hash && document.getElementById('rfe-tab-' + hash)) {
+    switchRfeTab(hash);
+  }
+});
+</script>
+{% endblock %}
 """
 
 TAB_STRATEGIES = """\
@@ -3448,6 +3613,7 @@ def create_app() -> Flask:
             "tab_all.html": TAB_ALL_ISSUES,
             "tab_bugs.html": TAB_BUGS,
             "tab_rfes.html": TAB_RFES,
+            "rfe_detail.html": RFE_DETAIL,
             "tab_strategies.html": TAB_STRATEGIES,
         }),
         app.jinja_loader,
@@ -3699,6 +3865,13 @@ def create_app() -> Flask:
             available_models=available_models,
             selected_model=selected_model or "",
         )
+
+    @app.route("/rfe/<key>")
+    def rfe_detail(key):
+        rfe = load_single_rfe(key)
+        if rfe is None:
+            abort(404)
+        return render_template_string(RFE_DETAIL, rfe=rfe)
 
     @app.route("/activity")
     def activity():

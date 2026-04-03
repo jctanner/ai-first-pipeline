@@ -109,6 +109,62 @@ def load_rfe_issues(artifacts_dir: Path | None = None) -> list[dict]:
     return result
 
 
+def load_single_rfe(key: str, artifacts_dir: Path | None = None) -> dict | None:
+    """Load all data for a single RFE *key*.
+
+    Reads the task, review, feasibility, original, and comments files
+    and returns a combined dict, or ``None`` if the task file is missing.
+    """
+    base = artifacts_dir or _ARTIFACTS_DIR
+    task_file = base / "rfe-tasks" / f"{key}.md"
+    if not task_file.is_file():
+        return None
+
+    # Task (frontmatter + body)
+    text = task_file.read_text(encoding="utf-8", errors="replace")
+    meta, body = parse_frontmatter(text)
+    entry: dict = {"type": "rfe", "key": key, **meta, "_body": body}
+
+    # Review (frontmatter + body)
+    review_file = base / "rfe-reviews" / f"{key}-review.md"
+    if review_file.is_file():
+        rtxt = review_file.read_text(encoding="utf-8", errors="replace")
+        rmeta, rbody = parse_frontmatter(rtxt)
+        rmeta["_body"] = rbody
+        entry["review"] = rmeta
+    else:
+        entry["review"] = None
+
+    # Feasibility (plain markdown, no frontmatter)
+    feas_file = base / "rfe-reviews" / f"{key}-feasibility.md"
+    if feas_file.is_file():
+        entry["feasibility_body"] = feas_file.read_text(
+            encoding="utf-8", errors="replace"
+        )
+    else:
+        entry["feasibility_body"] = None
+
+    # Original Jira description
+    orig_file = base / "rfe-originals" / f"{key}.md"
+    if orig_file.is_file():
+        entry["original_body"] = orig_file.read_text(
+            encoding="utf-8", errors="replace"
+        )
+    else:
+        entry["original_body"] = None
+
+    # Comments
+    comments_file = base / "rfe-tasks" / f"{key}-comments.md"
+    if comments_file.is_file():
+        entry["comments_body"] = comments_file.read_text(
+            encoding="utf-8", errors="replace"
+        )
+    else:
+        entry["comments_body"] = None
+
+    return entry
+
+
 def load_strat_issues(
     artifacts_dir: Path | None = None,
     security_dir: Path | None = None,
