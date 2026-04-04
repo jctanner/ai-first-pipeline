@@ -2740,9 +2740,6 @@ async def _run_native_skill_for_issue(
     success = result.get("success", False)
     status = "completed" if success else "failed"
     _log_activity(issue_key, phase, status, model=model, duration=round(duration, 1))
-    label = "OK" if success else "FAILED"
-    print(f"  [{phase}] {issue_key} {label} ({format_duration(duration)})")
-
     return {
         "phase": phase,
         "key": issue_key,
@@ -2810,6 +2807,39 @@ async def _run_strat_pipeline(
         phases_failed += 1
 
     return {"strat_id": strat_id, "phases": phases_results, "phases_run": phases_run, "phases_skipped": phases_skipped, "phases_failed": phases_failed}
+
+
+async def _gather_with_progress(coros, task_labels, description):
+    """Run coroutines concurrently, showing a rich progress bar as each completes."""
+    from rich.progress import Progress, BarColumn, MofNCompleteColumn, TimeElapsedColumn, TextColumn
+
+    results = [None] * len(coros)
+
+    with Progress(
+        TextColumn("[bold]{task.description}"),
+        BarColumn(),
+        MofNCompleteColumn(),
+        TimeElapsedColumn(),
+    ) as progress:
+        task = progress.add_task(description, total=len(coros))
+
+        async def _run(index, coro):
+            result = await coro
+            results[index] = result
+            # Show which key just finished
+            label = task_labels[index]
+            success = isinstance(result, dict) and result.get("success")
+            status = "OK" if success else "FAILED"
+            progress.console.print(f"  {label} {status}")
+            progress.advance(task)
+            return result
+
+        await asyncio.gather(
+            *(_run(i, c) for i, c in enumerate(coros)),
+            return_exceptions=True,
+        )
+
+    return results
 
 
 # ---------------------------------------------------------------------------
@@ -2932,14 +2962,15 @@ async def run_rfe_speedrun_phases(args) -> None:
             max_concurrent=max_concurrent,
         )
 
-        all_results = await asyncio.gather(
-            *(
-                _run_native_skill_for_issue(
-                    "rfe-speedrun", key, semaphore, model, log_dir,
-                )
-                for key in to_process
-            ),
-            return_exceptions=True,
+        coros = [
+            _run_native_skill_for_issue(
+                "rfe-speedrun", key, semaphore, model, log_dir,
+            )
+            for key in to_process
+        ]
+        task_labels = [f"[rfe-speedrun] {key}" for key in to_process]
+        all_results = await _gather_with_progress(
+            coros, task_labels, "RFE Speedrun",
         )
 
         # Summary
@@ -3038,9 +3069,13 @@ async def run_strat_all_phases(args) -> None:
     )
 
     try:
-        all_results = await asyncio.gather(
-            *(_run_strat_pipeline(job, args, semaphore, log_dir) for job in strat_jobs),
-            return_exceptions=True,
+        coros = [
+            _run_strat_pipeline(job, args, semaphore, log_dir)
+            for job in strat_jobs
+        ]
+        task_labels = [f"[strat-all] {job['strat_id']}" for job in strat_jobs]
+        all_results = await _gather_with_progress(
+            coros, task_labels, "Strategy Pipeline",
         )
 
         # Aggregate stats
