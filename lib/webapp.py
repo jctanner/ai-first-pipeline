@@ -16,7 +16,7 @@ from lib.report_data import (
     compute_summary_stats, compute_component_readiness,
 )
 from lib.paths import discover_models, model_workspace
-from lib.rfe_data import load_rfe_issues, load_single_rfe, load_strat_issues
+from lib.rfe_data import load_rfe_issues, load_single_rfe, load_strat_issues, load_single_strat
 from lib.stats import compute_all_stats
 
 # ---------------------------------------------------------------------------
@@ -1196,6 +1196,195 @@ document.addEventListener('DOMContentLoaded', function() {
 {% endblock %}
 """
 
+STRAT_DETAIL = """\
+{% extends "layout.html" %}
+{% block title %}{{ strat.key }} - Strategy Detail{% endblock %}
+{% block content %}
+{% set rev = strat.review %}
+{% set sec = strat.security %}
+{% set reviewers = rev.reviewers if rev and rev.reviewers else {} %}
+{% set rc = sec.risk_count if sec and sec.risk_count else {} %}
+{% set total_risks = (rc.critical|default(0)) + (rc.high|default(0)) + (rc.medium|default(0)) %}
+<hgroup>
+  <h2>{{ strat.key }}: {{ strat.title|default('Untitled Strategy') }}</h2>
+</hgroup>
+<p>
+  <a href="/">&larr; Back to dashboard</a>
+  {% if strat.jira_key %}
+    &nbsp;|&nbsp; <a href="https://issues.redhat.com/browse/{{ strat.jira_key }}" target="_blank">View in Jira &nearr;</a>
+  {% endif %}
+</p>
+
+{# --- Issue metadata --- #}
+<div style="display:flex; gap:1.5rem; flex-wrap:wrap; margin-bottom:1rem; font-size:0.95em;">
+  <span><strong>Priority:</strong> {{ strat.priority|default('—') }}</span>
+  <span><strong>Status:</strong> {{ strat.status|default('—') }}</span>
+  <span><strong>Source RFE:</strong>
+    {% if strat.source_rfe %}
+      <a href="/rfe/{{ strat.source_rfe }}">{{ strat.source_rfe }}</a>
+    {% else %}—{% endif %}
+  </span>
+  <span><strong>Jira Key:</strong>
+    {% if strat.jira_key %}
+      <a href="https://issues.redhat.com/browse/{{ strat.jira_key }}" target="_blank">{{ strat.jira_key }}</a>
+    {% else %}—{% endif %}
+  </span>
+</div>
+
+{# =============== Review Summary (always visible) =============== #}
+{% if rev or sec %}
+<div style="background:#f8f9fa; border-radius:6px; padding:1rem; margin-bottom:1.5rem;">
+  <div style="display:flex; gap:2rem; flex-wrap:wrap; align-items:start;">
+
+    {# -- Overall recommendation + reviewer verdicts -- #}
+    <div style="flex:1; min-width:250px;">
+      {% if rev and rev.recommendation %}
+      <div style="margin-bottom:0.8em;">
+        <strong>Overall Recommendation: </strong>
+        <span class="badge badge-rec-{{ rev.recommendation }}">{{ rev.recommendation }}</span>
+      </div>
+      {% endif %}
+      <div style="display:flex; gap:0.8rem; flex-wrap:wrap; font-size:0.9em;">
+        {% for rname, rlabel in [('feasibility','Feasibility'),('testability','Testability'),('scope','Scope'),('architecture','Architecture')] %}
+        <span>
+          {{ rlabel }}:
+          {% if reviewers[rname] %}
+            <span class="badge badge-rec-{{ reviewers[rname] }}">{{ reviewers[rname] }}</span>
+          {% else %}—{% endif %}
+        </span>
+        {% endfor %}
+      </div>
+    </div>
+
+    {# -- Security summary -- #}
+    {% if sec %}
+    <div style="display:flex; gap:0.6rem; flex-wrap:wrap; align-items:center; font-size:0.9em;">
+      <strong>Security:</strong>
+      {% if sec.verdict %}
+        <span class="badge badge-sec-{{ sec.verdict|lower }}">{{ sec.verdict }}</span>
+      {% endif %}
+      {% if sec.review_tier %}
+        <span class="badge badge-tier-{{ sec.review_tier }}">{{ sec.review_tier }}</span>
+      {% endif %}
+      {% if total_risks > 0 %}
+        <span title="Critical">C:
+          <span class="{{ 'score-red' if rc.critical|default(0) > 0 else '' }}">{{ rc.critical|default(0) }}</span>
+        </span>
+        <span title="High">H:
+          <span class="{{ 'score-red' if rc.high|default(0) > 0 else '' }}">{{ rc.high|default(0) }}</span>
+        </span>
+        <span title="Medium">M:
+          <span class="{{ 'score-yellow' if rc.medium|default(0) > 0 else '' }}">{{ rc.medium|default(0) }}</span>
+        </span>
+      {% else %}
+        <span class="score-green">0 risks</span>
+      {% endif %}
+    </div>
+    {% endif %}
+
+  </div>
+</div>
+{% else %}
+<p><em>No review data available for this strategy.</em></p>
+{% endif %}
+
+{# =============== Content Tabs =============== #}
+<div class="tab-nav" id="strat-tab-nav">
+  <button class="active" onclick="switchStratTab('strategy')">Strategy</button>
+  <button onclick="switchStratTab('business')">Business Need</button>
+  {% if rev %}<button onclick="switchStratTab('review')">Review</button>{% endif %}
+  {% if sec %}<button onclick="switchStratTab('security')">Security Review</button>{% endif %}
+</div>
+
+<div id="strat-tab-strategy" class="tab-panel active">
+{% if strat._body %}
+  {% set body_text = strat._body %}
+  {% if '## Strategy' in body_text %}
+    <div class="issue-text md-content">{{ body_text.split('## Strategy', 1)[1]|e }}</div>
+  {% elif '## Business Need' in body_text %}
+    <div class="issue-text md-content">{{ body_text.split('## Business Need')[0]|e }}</div>
+  {% else %}
+    <div class="issue-text md-content">{{ body_text|e }}</div>
+  {% endif %}
+{% else %}
+  <p><em>No strategy content available.</em></p>
+{% endif %}
+</div>
+
+<div id="strat-tab-business" class="tab-panel">
+{% if strat._body and '## Business Need' in strat._body %}
+  {% set parts = strat._body.split('## Business Need', 1) %}
+  <div class="issue-text md-content">## Business Need{{ parts[1].split('## Strategy')[0] if '## Strategy' in parts[1] else parts[1] }}</div>
+{% elif strat._body %}
+  <div class="issue-text md-content">{{ strat._body|e }}</div>
+{% else %}
+  <p><em>No business need content available.</em></p>
+{% endif %}
+</div>
+
+{% if rev %}
+<div id="strat-tab-review" class="tab-panel">
+{% if rev._body %}
+  <div class="issue-text md-content">{{ rev._body|e }}</div>
+{% else %}
+  <p><em>No review feedback available.</em></p>
+{% endif %}
+</div>
+{% endif %}
+
+{% if sec %}
+<div id="strat-tab-security" class="tab-panel">
+{% if sec._body %}
+  <div class="issue-text md-content">{{ sec._body|e }}</div>
+{% else %}
+  <p><em>No security review available.</em></p>
+{% endif %}
+</div>
+{% endif %}
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+function switchStratTab(name) {
+  document.querySelectorAll('#strat-tab-nav ~ .tab-panel').forEach(function(p) {
+    p.classList.remove('active');
+  });
+  document.querySelectorAll('#strat-tab-nav button').forEach(function(b) {
+    b.classList.remove('active');
+  });
+  document.getElementById('strat-tab-' + name).classList.add('active');
+  document.querySelectorAll('#strat-tab-nav button').forEach(function(b) {
+    if (b.getAttribute('onclick') === "switchStratTab('" + name + "')") b.classList.add('active');
+  });
+  // Render markdown in newly-visible tab if not yet rendered
+  var panel = document.getElementById('strat-tab-' + name);
+  if (typeof marked !== 'undefined') {
+    panel.querySelectorAll('.md-content:not([data-rendered])').forEach(function(el) {
+      el.innerHTML = marked.parse(el.textContent);
+      el.setAttribute('data-rendered', '1');
+    });
+  }
+  window.location.hash = name;
+}
+document.addEventListener('DOMContentLoaded', function() {
+  // Render markdown in the default active tab
+  if (typeof marked !== 'undefined') {
+    document.querySelectorAll('.tab-panel.active .md-content').forEach(function(el) {
+      el.innerHTML = marked.parse(el.textContent);
+      el.setAttribute('data-rendered', '1');
+    });
+  }
+  // Restore tab from URL hash
+  var hash = window.location.hash.replace('#', '');
+  if (hash && document.getElementById('strat-tab-' + hash)) {
+    switchStratTab(hash);
+  }
+});
+</script>
+{% endblock %}
+"""
+
 TAB_STRATEGIES = """\
 <h2>Strategies (<span id="strat-row-count">{{ strat_issues|length }}</span>)</h2>
 <div class="filter-bar" id="strat-filter-bar">
@@ -1269,7 +1458,7 @@ TAB_STRATEGIES = """\
       data-recommendation="{{ rev.recommendation if rev and rev.recommendation else '' }}"
       data-secverdict="{{ sec.verdict|default('')|upper if sec else '' }}"
     >
-      <td>{{ st.key }}</td>
+      <td><a href="/strat/{{ st.key }}">{{ st.key }}</a></td>
       <td class="truncate" title="{{ st.title|default('') }}">{{ st.title|default('')|truncate(80) }}</td>
       <td>{{ st.source_rfe|default('&mdash;'|safe) }}</td>
       <td>{{ st.priority|default('&mdash;'|safe) }}</td>
@@ -3879,6 +4068,13 @@ def create_app() -> Flask:
         if rfe is None:
             abort(404)
         return render_template_string(RFE_DETAIL, rfe=rfe)
+
+    @app.route("/strat/<key>")
+    def strat_detail(key):
+        strat = load_single_strat(key)
+        if strat is None:
+            abort(404)
+        return render_template_string(STRAT_DETAIL, strat=strat)
 
     @app.route("/activity")
     def activity():

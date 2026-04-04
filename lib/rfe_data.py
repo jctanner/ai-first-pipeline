@@ -221,3 +221,47 @@ def load_strat_issues(
         }
         result.append(entry)
     return result
+
+
+def load_single_strat(
+    key: str,
+    artifacts_dir: Path | None = None,
+    security_dir: Path | None = None,
+) -> dict | None:
+    """Load all data for a single strategy *key*.
+
+    Reads the task, review, and security-review files and returns a
+    combined dict, or ``None`` if the task file is missing.
+    """
+    base = artifacts_dir or _ARTIFACTS_DIR
+    task_file = base / "strat-tasks" / f"{key}.md"
+    if not task_file.is_file():
+        return None
+
+    # Task (frontmatter + body)
+    text = task_file.read_text(encoding="utf-8", errors="replace")
+    meta, body = parse_frontmatter(text)
+    entry: dict = {"type": "strategy", "key": key, **meta, "_body": body}
+
+    # Review (frontmatter + body)
+    review_file = base / "strat-reviews" / f"{key}-review.md"
+    if review_file.is_file():
+        rtxt = review_file.read_text(encoding="utf-8", errors="replace")
+        rmeta, rbody = parse_frontmatter(rtxt)
+        rmeta["_body"] = rbody
+        entry["review"] = rmeta
+    else:
+        entry["review"] = None
+
+    # Security review (frontmatter + body)
+    sec_dir = security_dir or _SECURITY_REVIEWS_DIR
+    sec_file = sec_dir / f"{key}-security-review.md"
+    if sec_file.is_file():
+        stxt = sec_file.read_text(encoding="utf-8", errors="replace")
+        smeta, sbody = parse_frontmatter(stxt)
+        smeta["_body"] = sbody
+        entry["security"] = smeta
+    else:
+        entry["security"] = None
+
+    return entry
