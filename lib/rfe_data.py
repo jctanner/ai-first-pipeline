@@ -209,7 +209,7 @@ def load_strat_issues(
         text = f.read_text(encoding="utf-8", errors="replace")
         meta, body = parse_frontmatter(text)
         sid = meta.get("strat_id", "")
-        if not sid:
+        if not sid or not sid.startswith("RHAISTRAT-"):
             continue
         entry = {
             "type": "strategy",
@@ -233,6 +233,8 @@ def load_single_strat(
     Reads the task, review, and security-review files and returns a
     combined dict, or ``None`` if the task file is missing.
     """
+    if not key.startswith("RHAISTRAT-"):
+        return None
     base = artifacts_dir or _ARTIFACTS_DIR
     task_file = base / "strat-tasks" / f"{key}.md"
     if not task_file.is_file():
