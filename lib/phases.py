@@ -2828,6 +2828,22 @@ def _rfe_is_complete(key: str) -> bool:
     ])
 
 
+def _has_unsubmitted_split_children() -> bool:
+    """Return True if any RFE-NNN draft children with parent_key exist."""
+    base = _RFE_TASKS_DIR.parent  # .../rfe-creator/artifacts
+    tasks_dir = base / "rfe-tasks"
+    if not tasks_dir.is_dir():
+        return False
+    for f in tasks_dir.glob("RFE-*.md"):
+        if "-comments" in f.stem or "-removed-context" in f.stem:
+            continue
+        text = f.read_text(encoding="utf-8", errors="replace")
+        # Quick check for parent_key in frontmatter without full parsing
+        if "parent_key:" in text:
+            return True
+    return False
+
+
 def _discover_rfe_keys(args) -> list[str]:
     """Return a list of RHAIRFE keys to process.
 
@@ -2888,10 +2904,6 @@ async def run_rfe_speedrun_phases(args) -> None:
             for k in skipped:
                 print(f"  skip {k}")
 
-    if not to_process:
-        print("All RFEs already processed. Use --force to re-run.")
-        return
-
     model = args.model if isinstance(args.model, str) else args.model[0]
     mid = get_model_id(model)
     max_concurrent = getattr(args, "max_concurrent", 5)
@@ -2900,64 +2912,80 @@ async def run_rfe_speedrun_phases(args) -> None:
     log_dir = BASE_DIR / "logs" / "rfe-speedrun"
     log_dir.mkdir(parents=True, exist_ok=True)
 
-    # Banner
-    print(f"\n{'=' * 80}")
-    print(f"RFE-SPEEDRUN PIPELINE [{mid}]")
-    print(f"{'=' * 80}")
-    print(f"RFEs to process: {len(to_process)}  (skipped: {len(skipped)})")
-    print(f"Model: {mid}")
-    print(f"Max concurrent agents: {max_concurrent}")
-    for key in to_process:
-        print(f"  {key}")
-    print(f"{'=' * 80}\n")
+    if to_process:
+        # Banner
+        print(f"\n{'=' * 80}")
+        print(f"RFE-SPEEDRUN PIPELINE [{mid}]")
+        print(f"{'=' * 80}")
+        print(f"RFEs to process: {len(to_process)}  (skipped: {len(skipped)})")
+        print(f"Model: {mid}")
+        print(f"Max concurrent agents: {max_concurrent}")
+        for key in to_process:
+            print(f"  {key}")
+        print(f"{'=' * 80}\n")
 
-    _log_activity(
-        "_pipeline", "rfe-speedrun", "pipeline_started",
-        model=mid,
-        total_rfes=len(to_process),
-        skipped_rfes=len(skipped),
-        max_concurrent=max_concurrent,
-    )
+        _log_activity(
+            "_pipeline", "rfe-speedrun", "pipeline_started",
+            model=mid,
+            total_rfes=len(to_process),
+            skipped_rfes=len(skipped),
+            max_concurrent=max_concurrent,
+        )
 
-    all_results = await asyncio.gather(
-        *(
-            _run_native_skill_for_issue(
-                "rfe-speedrun", key, semaphore, model, log_dir,
-            )
-            for key in to_process
-        ),
-        return_exceptions=True,
-    )
+        all_results = await asyncio.gather(
+            *(
+                _run_native_skill_for_issue(
+                    "rfe-speedrun", key, semaphore, model, log_dir,
+                )
+                for key in to_process
+            ),
+            return_exceptions=True,
+        )
 
-    # Summary
-    success = sum(
-        1 for r in all_results
-        if isinstance(r, dict) and r.get("success")
-    )
-    failed = sum(
-        1 for r in all_results
-        if isinstance(r, dict) and not r.get("success") and not r.get("skipped")
-    )
-    exceptions = [r for r in all_results if isinstance(r, Exception)]
+        # Summary
+        success = sum(
+            1 for r in all_results
+            if isinstance(r, dict) and r.get("success")
+        )
+        failed = sum(
+            1 for r in all_results
+            if isinstance(r, dict) and not r.get("success") and not r.get("skipped")
+        )
+        exceptions = [r for r in all_results if isinstance(r, Exception)]
 
-    print(f"\n{'=' * 80}")
-    print(f"RFE-SPEEDRUN PIPELINE COMPLETE [{mid}]")
-    print(f"{'=' * 80}")
-    print(f"Total: {len(to_process)}  success={success}  failed={failed}  exceptions={len(exceptions)}  skipped={len(skipped)}")
-    if exceptions:
-        for i, exc in enumerate(exceptions, 1):
-            print(f"  {i}. {exc}")
-    print(f"{'=' * 80}\n")
+        print(f"\n{'=' * 80}")
+        print(f"RFE-SPEEDRUN PIPELINE COMPLETE [{mid}]")
+        print(f"{'=' * 80}")
+        print(f"Total: {len(to_process)}  success={success}  failed={failed}  exceptions={len(exceptions)}  skipped={len(skipped)}")
+        if exceptions:
+            for i, exc in enumerate(exceptions, 1):
+                print(f"  {i}. {exc}")
+        print(f"{'=' * 80}\n")
 
-    _log_activity(
-        "_pipeline", "rfe-speedrun", "pipeline_completed",
-        model=mid,
-        total_rfes=len(to_process),
-        skipped_rfes=len(skipped),
-        success=success,
-        failed=failed,
-        exceptions=len(exceptions),
-    )
+        _log_activity(
+            "_pipeline", "rfe-speedrun", "pipeline_completed",
+            model=mid,
+            total_rfes=len(to_process),
+            skipped_rfes=len(skipped),
+            success=success,
+            failed=failed,
+            exceptions=len(exceptions),
+        )
+    else:
+        print("All RFEs already processed. Use --force to re-run.")
+
+    # Post-processing: submit any unsubmitted split children
+    if _has_unsubmitted_split_children():
+        print(f"\n{'=' * 80}")
+        print("POST-PROCESSING: Submitting unsubmitted split children")
+        print(f"{'=' * 80}\n")
+        submit_result = await _run_native_skill_for_issue(
+            "rfe-submit", "", semaphore, model, log_dir,
+        )
+        if submit_result.get("success"):
+            print("  Split children submitted successfully.")
+        else:
+            print(f"  Split child submission failed: {submit_result.get('error')}")
 
 
 # ---------------------------------------------------------------------------

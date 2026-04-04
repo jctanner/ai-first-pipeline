@@ -98,6 +98,9 @@ def load_rfe_issues(artifacts_dir: Path | None = None) -> list[dict]:
         rid = meta.get("rfe_id", "")
         if not rid:
             continue
+        # Skip draft RFEs that haven't been submitted to Jira yet
+        if not rid.startswith("RHAIRFE-"):
+            continue
         entry = {
             "type": "rfe",
             "key": rid,
