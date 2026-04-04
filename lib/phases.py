@@ -2590,9 +2590,6 @@ def _read_frontmatter_batch(file_paths: list[str]) -> list[dict]:
     return json.loads(result.stdout)
 
 
-_JQL_QUERY_SCRIPT = BASE_DIR / "references" / "rfe-creator" / "scripts" / "jql_query.py"
-
-
 def _ensure_jira_env() -> bool:
     """Load .env and return True if Jira credentials are available."""
     project_root = BASE_DIR.parent
@@ -2601,25 +2598,61 @@ def _ensure_jira_env() -> bool:
 
 
 def _jql_query(jql: str, limit: int | None = None) -> list[str]:
-    """Run ``jql_query.py`` and return a list of issue keys.
+    """Run a paginated JQL search and return a list of issue keys.
 
-    The script adds its own compound filters (excludes Done, ignored labels).
-    Returns an empty list on failure.
+    Applies compound filters (excludes Done, ignored labels) matching
+    the conventions of the legacy jql_query.py script.
     """
-    cmd = ["python3", str(_JQL_QUERY_SCRIPT), jql]
-    if limit:
-        cmd += ["--limit", str(limit)]
-    result = subprocess.run(cmd, capture_output=True, text=True)
-    if result.returncode != 0:
-        print(f"  [jql_query] failed: {result.stderr.strip()}")
+    server = os.environ.get("JIRA_SERVER", "").rstrip("/")
+    user = os.environ.get("JIRA_USER", "")
+    token = os.environ.get("JIRA_TOKEN", "")
+    if not server or not token:
+        print("  [jql_query] JIRA_SERVER/JIRA_TOKEN not set")
         return []
-    keys = []
-    for line in result.stdout.splitlines():
-        line = line.strip()
-        if line.startswith("TOTAL="):
-            continue
-        if line:
-            keys.append(line)
+
+    full_jql = (
+        f"({jql}) AND statusCategory != Done"
+        f" AND labels not in (rfe-creator-ignore, rfe-creator-autofix-rubric-pass)"
+    )
+
+    session = requests.Session()
+    session.headers["Accept"] = "application/json"
+    if user:
+        session.auth = (user, token)
+    else:
+        session.headers["Authorization"] = f"Bearer {token}"
+
+    api_url = f"{server}/rest/api/2/search"
+    page_size = 100
+    start_at = 0
+    keys: list[str] = []
+
+    while True:
+        resp = session.get(api_url, params={
+            "jql": full_jql,
+            "startAt": start_at,
+            "maxResults": page_size,
+            "fields": "key",
+        })
+        if not resp.ok:
+            print(f"  [jql_query] search failed ({resp.status_code}): {resp.text[:200]}")
+            return []
+
+        data = resp.json()
+        batch = [issue["key"] for issue in data.get("issues", [])]
+        keys.extend(batch)
+        total = data.get("total", len(keys))
+
+        if limit and len(keys) >= limit:
+            keys = keys[:limit]
+            break
+
+        if not batch or start_at + len(batch) >= total:
+            break
+
+        start_at += len(batch)
+        print(f"  [jql_query] paginating ... {len(keys)}/{total}")
+
     return keys
 
 
