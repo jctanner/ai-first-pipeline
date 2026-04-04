@@ -2507,7 +2507,7 @@ async def run_all_phases(args) -> None:
 
 _NATIVE_SKILL_PHASES = {
     "rfe-create", "rfe-review", "rfe-split", "rfe-submit",
-    "strat-create", "strat-refine", "strat-review", "strat-submit",
+    "strat-refine", "strat-review", "strat-submit",
     "strat-security-review",
 }
 
@@ -2597,11 +2597,12 @@ def _ensure_jira_env() -> bool:
     return bool(os.environ.get("JIRA_SERVER") and os.environ.get("JIRA_TOKEN"))
 
 
-def _jql_query(jql: str, limit: int | None = None) -> list[str]:
+def _jql_query(jql: str, limit: int | None = None, raw: bool = False) -> list[str]:
     """Run a paginated JQL search and return a list of issue keys.
 
-    Applies compound filters (excludes Done, ignored labels) matching
-    the conventions of the legacy jql_query.py script.
+    Unless *raw* is True, applies compound filters (excludes Done,
+    ignored labels) matching the conventions of the legacy
+    jql_query.py script.
     """
     server = os.environ.get("JIRA_SERVER", "").rstrip("/")
     user = os.environ.get("JIRA_USER", "")
@@ -2610,10 +2611,13 @@ def _jql_query(jql: str, limit: int | None = None) -> list[str]:
         print("  [jql_query] JIRA_SERVER/JIRA_TOKEN not set")
         return []
 
-    full_jql = (
-        f"({jql}) AND statusCategory != Done"
-        f" AND labels not in (rfe-creator-ignore, rfe-creator-autofix-rubric-pass)"
-    )
+    if raw:
+        full_jql = jql
+    else:
+        full_jql = (
+            f"({jql}) AND statusCategory != Done"
+            f" AND labels not in (rfe-creator-ignore, rfe-creator-autofix-rubric-pass)"
+        )
 
     session = requests.Session()
     session.headers["Accept"] = "application/json"
@@ -2663,9 +2667,15 @@ def _discover_strats(args) -> list[dict]:
     If ``--issue`` is given, returns that single key.  Otherwise queries
     Jira for all RHAISTRAT keys.  Falls back to local ``strat-tasks/*.md``
     artifacts only when Jira credentials are not configured.
+
+    When discovering from Jira, also queries RHAIRFE for approved RFEs
+    (those with the ``rfe-creator-autofix-rubric-pass`` label) and filters
+    the strategy list to only include strategies whose source RFE is
+    approved.
     """
     issue_filter = getattr(args, "issue", None)
     limit = getattr(args, "limit", None)
+    approved_rfe_keys: set[str] | None = None
 
     if issue_filter:
         keys = list(issue_filter)
@@ -2677,6 +2687,19 @@ def _discover_strats(args) -> list[dict]:
             print(f"  [discover] Found {len(keys)} strategies in Jira")
         else:
             print("  [discover] JQL query returned no results.")
+            return []
+
+        # Query RHAIRFE for approved RFEs to filter strategies
+        print("  [discover] Querying Jira for approved RFEs ...")
+        approved_rfe_keys = set(_jql_query(
+            "project = RHAIRFE AND labels = rfe-creator-autofix-rubric-pass"
+            " AND statusCategory != Done",
+            raw=True,
+        ))
+        if approved_rfe_keys:
+            print(f"  [discover] Found {len(approved_rfe_keys)} approved RFEs")
+        else:
+            print("  [discover] No approved RFEs found — no strategies to process.")
             return []
     else:
         # Fallback to local artifacts when Jira is not configured
@@ -2714,6 +2737,17 @@ def _discover_strats(args) -> list[dict]:
             "jira_key": key,
             "source_rfe": "",
         })
+
+    # Filter to only strategies whose source RFE is approved
+    if approved_rfe_keys is not None:
+        before = len(results)
+        results = [
+            r for r in results
+            if r["source_rfe"] in approved_rfe_keys
+        ]
+        skipped = before - len(results)
+        if skipped:
+            print(f"  [discover] Filtered out {skipped} strategies with non-approved source RFEs")
 
     return results
 
@@ -2844,7 +2878,7 @@ async def _run_strat_pipeline(
 
 async def _gather_with_progress(coros, task_labels, description):
     """Run coroutines concurrently, showing a rich progress bar as each completes."""
-    from rich.progress import Progress, BarColumn, MofNCompleteColumn, TimeElapsedColumn, TextColumn
+    from rich.progress import Progress, BarColumn, MofNCompleteColumn, TimeElapsedColumn, TimeRemainingColumn, TextColumn
 
     results = [None] * len(coros)
 
@@ -2853,6 +2887,7 @@ async def _gather_with_progress(coros, task_labels, description):
         BarColumn(),
         MofNCompleteColumn(),
         TimeElapsedColumn(),
+        TimeRemainingColumn(),
     ) as progress:
         task = progress.add_task(description, total=len(coros))
 
@@ -3053,6 +3088,105 @@ async def run_rfe_speedrun_phases(args) -> None:
 
 
 # ---------------------------------------------------------------------------
+# Top-level orchestrator for strat-create (batch mode)
+# ---------------------------------------------------------------------------
+
+
+async def run_strat_create_phases(args) -> None:
+    """Discover approved RFEs and run ``strat-create`` for each concurrently."""
+    issue_filter = getattr(args, "issue", None)
+    if issue_filter:
+        # Single-issue mode: delegate to the standard native skill handler
+        await run_native_skill_phase(args)
+        return
+
+    if not _ensure_jira_env():
+        print("  [strat-create] JIRA_SERVER/JIRA_TOKEN not set — cannot discover approved RFEs")
+        return
+
+    print("  [discover] Querying Jira for approved RFEs ...")
+    keys = _jql_query(
+        "project = RHAIRFE AND labels = rfe-creator-autofix-rubric-pass AND statusCategory != Done",
+        raw=True,
+    )
+    if not keys:
+        print("  [discover] No approved RFEs found.")
+        return
+    print(f"  [discover] Found {len(keys)} approved RFEs in Jira")
+
+    keys.sort()
+    limit = getattr(args, "limit", None)
+    if limit:
+        keys = keys[:limit]
+
+    model = args.model if isinstance(args.model, str) else args.model[0]
+    mid = get_model_id(model)
+    max_concurrent = getattr(args, "max_concurrent", 5)
+    semaphore = asyncio.Semaphore(max_concurrent)
+
+    log_dir = BASE_DIR / "logs" / "strat-create"
+    log_dir.mkdir(parents=True, exist_ok=True)
+
+    # Banner
+    print(f"\n{'=' * 80}")
+    print(f"STRAT-CREATE PIPELINE [{mid}]")
+    print(f"{'=' * 80}")
+    print(f"RFEs to process: {len(keys)}")
+    print(f"Model: {mid}")
+    print(f"Max concurrent agents: {max_concurrent}")
+    for key in keys:
+        print(f"  {key}")
+    print(f"{'=' * 80}\n")
+
+    _log_activity(
+        "_pipeline", "strat-create", "pipeline_started",
+        model=mid,
+        total_rfes=len(keys),
+        max_concurrent=max_concurrent,
+    )
+
+    coros = [
+        _run_native_skill_for_issue(
+            "strat-create", key, semaphore, model, log_dir,
+        )
+        for key in keys
+    ]
+    task_labels = [f"[strat-create] {key}" for key in keys]
+    all_results = await _gather_with_progress(
+        coros, task_labels, "Strategy Create",
+    )
+
+    # Summary
+    success = sum(
+        1 for r in all_results
+        if isinstance(r, dict) and r.get("success")
+    )
+    failed = sum(
+        1 for r in all_results
+        if isinstance(r, dict) and not r.get("success") and not r.get("skipped")
+    )
+    exceptions = [r for r in all_results if isinstance(r, Exception)]
+
+    print(f"\n{'=' * 80}")
+    print(f"STRAT-CREATE PIPELINE COMPLETE [{mid}]")
+    print(f"{'=' * 80}")
+    print(f"Total: {len(keys)}  success={success}  failed={failed}  exceptions={len(exceptions)}")
+    if exceptions:
+        for i, exc in enumerate(exceptions, 1):
+            print(f"  {i}. {exc}")
+    print(f"{'=' * 80}\n")
+
+    _log_activity(
+        "_pipeline", "strat-create", "pipeline_completed",
+        model=mid,
+        total_rfes=len(keys),
+        success=success,
+        failed=failed,
+        exceptions=len(exceptions),
+    )
+
+
+# ---------------------------------------------------------------------------
 # Top-level orchestrator for strat-all
 # ---------------------------------------------------------------------------
 
@@ -3202,6 +3336,8 @@ async def main(args) -> None:
         await run_all_phases(args)
     elif args.command in ("rfe-all", "rfe-speedrun"):
         await run_rfe_speedrun_phases(args)
+    elif args.command == "strat-create":
+        await run_strat_create_phases(args)
     elif args.command == "strat-all":
         await run_strat_all_phases(args)
     elif args.command == "dashboard":

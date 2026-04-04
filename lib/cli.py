@@ -273,6 +273,18 @@ Examples:
         help="Create strategies from approved RFEs",
     )
     _add_native_skill_args(strat_create_parser)
+    strat_create_parser.add_argument(
+        "--limit", type=int,
+        help="Process only the first N RFEs (for testing)",
+    )
+    strat_create_parser.add_argument(
+        "--max-concurrent", type=int, default=5,
+        help="Maximum number of agents to run concurrently (default: 5)",
+    )
+    strat_create_parser.add_argument(
+        "--force", action="store_true",
+        help="Re-process RFEs even if artifacts already exist",
+    )
 
     strat_refine_parser = subparsers.add_parser(
         "strat-refine",
