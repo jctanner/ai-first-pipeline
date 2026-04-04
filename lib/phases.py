@@ -474,10 +474,10 @@ def _print_phase_summary(phase_name: str, jobs: list, results: list, model_id: s
 
 ACTIVITY_LOG = BASE_DIR / "logs" / "activity.jsonl"
 
-_RFE_TASKS_DIR = BASE_DIR / "references" / "rfe-creator" / "artifacts" / "rfe-tasks"
-_STRAT_TASKS_DIR = BASE_DIR / "references" / "rfe-creator" / "artifacts" / "strat-tasks"
-_FRONTMATTER_SCRIPT = BASE_DIR / "references" / "rfe-creator" / "scripts" / "frontmatter.py"
-_FRONTMATTER_CWD = str(BASE_DIR / "references" / "rfe-creator")
+_RFE_TASKS_DIR = BASE_DIR / "remote_skills" / "rfe-creator" / "artifacts" / "rfe-tasks"
+_STRAT_TASKS_DIR = BASE_DIR / "remote_skills" / "rfe-creator" / "artifacts" / "strat-tasks"
+_FRONTMATTER_SCRIPT = BASE_DIR / "remote_skills" / "rfe-creator" / "scripts" / "frontmatter.py"
+_FRONTMATTER_CWD = str(BASE_DIR / "remote_skills" / "rfe-creator")
 
 # Module-level dashboard URL — set by run_all_phases from --dashboard-url arg.
 _dashboard_url: str | None = None

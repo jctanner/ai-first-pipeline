@@ -11,7 +11,7 @@ import yaml
 from lib.paths import BASE_DIR
 
 # Default artifact directories
-_ARTIFACTS_DIR = BASE_DIR / "references" / "rfe-creator" / "artifacts"
+_ARTIFACTS_DIR = BASE_DIR / "remote_skills" / "rfe-creator" / "artifacts"
 _SECURITY_REVIEWS_DIR = BASE_DIR / "security-reviews"
 
 

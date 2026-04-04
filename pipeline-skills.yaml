@@ -30,7 +30,7 @@ mcp_servers:
 
 skill_repos:
   rfe-creator:
-    path: references/rfe-creator
+    path: remote_skills/rfe-creator
 
 phases:
   # === Bug analysis (local skills, templated) ===

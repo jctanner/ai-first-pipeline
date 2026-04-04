@@ -17,7 +17,7 @@ odh-tests-context
 odh-test-context
 
 # External repo clones for skill isolation
-references/
+remote_skills/
 
 # Generated data and workspaces
 fix-workspaces/
