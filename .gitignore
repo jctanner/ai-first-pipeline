@@ -30,7 +30,6 @@ logs/
 
 # Internal notes and analysis (not for public consumption)
 notes/
-docs/
 BUG_BASH_PLAN.md
 security-reviews/
 
