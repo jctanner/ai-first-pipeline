@@ -247,6 +247,7 @@ async def run_agent_cli(
         "--model", model_id,
         "--dangerously-skip-permissions",
         "--verbose",
+        "--output-format", "stream-json",
     ]
 
     if allowed_tools:
@@ -299,23 +300,62 @@ async def run_agent_cli(
             env=proc_env,
         )
 
-        with open(log_file, "a") as log:
+        async def _stream_stdout(log_fh):
             async for line in proc.stdout:
                 decoded = line.decode("utf-8", errors="replace").rstrip("\n")
-                print(f"[{name}] {decoded}")
-                log.write(f"{decoded}\n")
-                log.flush()
+                if not decoded:
+                    continue
+
+                # Always write the raw JSON line to the log for full fidelity
+                log_fh.write(f"{decoded}\n")
+                log_fh.flush()
+
+                # Parse for console summary only
+                try:
+                    event = json.loads(decoded)
+                except json.JSONDecodeError:
+                    print(f"[{name}] {decoded}")
+                    continue
+
+                etype = event.get("type", "")
+
+                if etype == "assistant":
+                    msg = event.get("message", {})
+                    for block in msg.get("content", []):
+                        if block.get("type") == "text":
+                            print(f"[{name}] {block['text']}")
+                        elif block.get("type") == "tool_use":
+                            print(f"[{name}] [tool_use] {block.get('name', '?')}")
+                        elif block.get("type") == "tool_result":
+                            print(f"[{name}] [tool_result]")
+
+                elif etype == "result":
+                    cost = event.get("total_cost_usd", 0)
+                    duration_ms = event.get("duration_ms", 0)
+                    print(f"[{name}] [result] cost=${cost:.4f} duration={duration_ms}ms")
+
+                elif etype == "system":
+                    print(f"[{name}] [system:{event.get('subtype', '')}]")
+
+        async def _stream_stderr(log_fh):
+            async for line in proc.stderr:
+                decoded = line.decode("utf-8", errors="replace").rstrip("\n")
+                if decoded:
+                    log_fh.write(f"[stderr] {decoded}\n")
+                    log_fh.flush()
+
+        with open(log_file, "a") as log:
+            await asyncio.gather(
+                _stream_stdout(log),
+                _stream_stderr(log),
+            )
 
         await proc.wait()
 
         elapsed = time.monotonic() - start_time
 
         if proc.returncode != 0:
-            stderr_bytes = await proc.stderr.read()
-            stderr_text = stderr_bytes.decode("utf-8", errors="replace").strip()
             error_msg = f"CLI exited with code {proc.returncode}"
-            if stderr_text:
-                error_msg += f": {stderr_text}"
 
             print(f"\n{'=' * 60}")
             print(f"Failed: {name} ({format_duration(elapsed)})")
