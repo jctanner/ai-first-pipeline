@@ -12,7 +12,8 @@ from lib.paths import BASE_DIR
 
 # Default artifact directories
 _ARTIFACTS_DIR = BASE_DIR / "remote_skills" / "rfe-creator" / "artifacts"
-_SECURITY_REVIEWS_DIR = BASE_DIR / "security-reviews"
+_SECURITY_REVIEWS_DIR = BASE_DIR / "artifacts" / "security-reviews"
+_SECURITY_REQUIREMENTS_DIR = BASE_DIR / "artifacts" / "security-requirements"
 
 
 def parse_frontmatter(text: str) -> tuple[dict, str]:
@@ -55,6 +56,30 @@ def load_security_reviews(security_dir: Path | None = None) -> dict[str, dict]:
             stem = f.stem  # e.g. "RHAISTRAT-1-security-review"
             if stem.endswith("-security-review"):
                 key = stem[: -len("-security-review")]
+        if key:
+            meta["_body"] = body
+            result[key] = meta
+    return result
+
+
+def load_security_requirements(requirements_dir: Path | None = None) -> dict[str, dict]:
+    """Scan ``security-requirements/`` for ``*-security-requirements.md`` files.
+
+    Returns a dict keyed by ``strat_key`` (e.g. ``"RHAISTRAT-1"``) with
+    the parsed frontmatter fields.
+    """
+    d = requirements_dir or _SECURITY_REQUIREMENTS_DIR
+    result: dict[str, dict] = {}
+    if not d.is_dir():
+        return result
+    for f in sorted(d.glob("*-security-requirements.md")):
+        text = f.read_text(encoding="utf-8", errors="replace")
+        meta, body = parse_frontmatter(text)
+        key = meta.get("strat_key", "")
+        if not key:
+            stem = f.stem
+            if stem.endswith("-security-requirements"):
+                key = stem[: -len("-security-requirements")]
         if key:
             meta["_body"] = body
             result[key] = meta
@@ -171,10 +196,11 @@ def load_single_rfe(key: str, artifacts_dir: Path | None = None) -> dict | None:
 def load_strat_issues(
     artifacts_dir: Path | None = None,
     security_dir: Path | None = None,
+    requirements_dir: Path | None = None,
 ) -> list[dict]:
     """Scan ``strat-tasks/`` and ``strat-reviews/`` under *artifacts_dir*.
 
-    Also joins security review data from *security_dir*.
+    Also joins security review and requirements data.
 
     Returns a list of dicts, each with:
     - ``type="strategy"``
@@ -182,6 +208,7 @@ def load_strat_issues(
     - all strat-task frontmatter fields
     - ``review`` sub-dict with strat-review frontmatter (or ``None``)
     - ``security`` sub-dict with security review frontmatter (or ``None``)
+    - ``security_requirements`` sub-dict with requirements frontmatter (or ``None``)
     """
     base = artifacts_dir or _ARTIFACTS_DIR
     tasks_dir = base / "strat-tasks"
@@ -198,8 +225,9 @@ def load_strat_issues(
                 meta["_body"] = body
                 reviews[sid] = meta
 
-    # Load security reviews
+    # Load security reviews and requirements
     sec_reviews = load_security_reviews(security_dir)
+    sec_requirements = load_security_requirements(requirements_dir)
 
     # Load tasks and join reviews + security
     result: list[dict] = []
@@ -218,6 +246,7 @@ def load_strat_issues(
             "_body": body,
             "review": reviews.get(sid),
             "security": sec_reviews.get(sid),
+            "security_requirements": sec_requirements.get(sid),
         }
         result.append(entry)
     return result
@@ -227,11 +256,13 @@ def load_single_strat(
     key: str,
     artifacts_dir: Path | None = None,
     security_dir: Path | None = None,
+    requirements_dir: Path | None = None,
 ) -> dict | None:
     """Load all data for a single strategy *key*.
 
-    Reads the task, review, and security-review files and returns a
-    combined dict, or ``None`` if the task file is missing.
+    Reads the task, review, security-review, and security-requirements
+    files and returns a combined dict, or ``None`` if the task file is
+    missing.
     """
     if not key.startswith("RHAISTRAT-"):
         return None
@@ -265,5 +296,16 @@ def load_single_strat(
         entry["security"] = smeta
     else:
         entry["security"] = None
+
+    # Security requirements (frontmatter + body)
+    req_dir = requirements_dir or _SECURITY_REQUIREMENTS_DIR
+    req_file = req_dir / f"{key}-security-requirements.md"
+    if req_file.is_file():
+        qtxt = req_file.read_text(encoding="utf-8", errors="replace")
+        qmeta, qbody = parse_frontmatter(qtxt)
+        qmeta["_body"] = qbody
+        entry["security_requirements"] = qmeta
+    else:
+        entry["security_requirements"] = None
 
     return entry

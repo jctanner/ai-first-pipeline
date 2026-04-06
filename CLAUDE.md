@@ -118,7 +118,8 @@ remote_skills/rfe-creator/  # External repo (gitignored) with RFE/strategy skill
 - `issues/` - Fetched Jira JSON and phase output files
 - `workspace/` - Cloned midstream repos per issue + model-specific outputs
 - `logs/` - Structured activity logs (`activity.jsonl`) and phase logs
-- `security-reviews/` - Generated security review markdown files
+- `artifacts/security-reviews/` - Full analytical security reviews (on-disk reference)
+- `artifacts/security-requirements/` - Actionable security requirements (attached to Jira)
 
 ## Architecture
 

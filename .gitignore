@@ -31,7 +31,7 @@ logs/
 # Internal notes and analysis (not for public consumption)
 notes/
 BUG_BASH_PLAN.md
-security-reviews/
+artifacts/
 
 # Workflow definitions (not ready for public)
 ambient-code.workflows/

@@ -179,19 +179,26 @@ These are RHOAI/ODH-specific constraints that MUST be checked. These represent d
 
 ## Output
 
-Write the review output to `security-reviews/<STRAT-KEY>-security-review.md` (e.g., `security-reviews/RHAISTRAT-400-security-review.md`). Create the `security-reviews/` directory if it does not exist.
+Produce TWO files per review. Create the output directories if they do not exist.
 
-After writing the review file to disk, attach it to the RHAISTRAT Jira ticket:
+1. **Full review** → `artifacts/security-reviews/<STRAT-KEY>-security-review.md`
+2. **Requirements file** → `artifacts/security-requirements/<STRAT-KEY>-security-requirements.md`
+
+Write the full review first, then extract the actionable content into the requirements file. After both files are written, attach the **requirements file** (not the full review) to Jira:
 
 ```bash
-python3 scripts/attach_to_jira.py <STRAT-KEY> security-reviews/<STRAT-KEY>-security-review.md
+python3 scripts/attach_to_jira.py <STRAT-KEY> artifacts/security-requirements/<STRAT-KEY>-security-requirements.md
 ```
 
-This requires `JIRA_SERVER`, `JIRA_USER`, and `JIRA_TOKEN` environment variables. If the attachment fails (e.g., env vars not set), report the error but do not fail the review — the on-disk file is the primary artifact.
+This requires `JIRA_SERVER`, `JIRA_USER`, and `JIRA_TOKEN` environment variables. If the attachment fails (e.g., env vars not set), report the error but do not fail the review — the on-disk files are the primary artifacts.
 
-### Compact Format (Light tier with zero Security Risks)
+---
 
-Use this format when the review tier is Light and no Security Risks are identified:
+### File A: Full Review (`artifacts/security-reviews/`)
+
+This is the comprehensive analytical review. It stays on disk for security architect reference.
+
+#### Compact Format (Light tier with zero Security Risks)
 
 ```markdown
 ---
@@ -204,6 +211,7 @@ risk_count:
   high: 0
   medium: 0
   low: 0
+requirements_file: "artifacts/security-requirements/RHAISTRAT-NNN-security-requirements.md"
 ---
 
 # Security Review: [STRAT Title]
@@ -213,7 +221,7 @@ risk_count:
 **Summary:** <1-2 sentences explaining why this change has minimal security surface and no risks identified.>
 ```
 
-### Full Format (Standard/Deep tier, or any tier with Security Risks)
+#### Full Format (Standard/Deep tier, or any tier with Security Risks)
 
 ```markdown
 ---
@@ -229,6 +237,7 @@ risk_count:
 architecture_context_consulted:
   - "rhods-operator.md"
   - "notebooks.md"
+requirements_file: "artifacts/security-requirements/RHAISTRAT-NNN-security-requirements.md"
 ---
 
 # Security Review: [STRAT Title]
@@ -319,6 +328,84 @@ This section does NOT affect the verdict. It is informational feedback for impro
 - **PASS**: No Security Risks identified; NFR Gaps (if any) are minor
 - **CONCERNS**: One or more Security Risks identified with mitigations — STRAT should be revised
 - **FAIL**: Fundamental security issues that require re-architecture
+```
+
+---
+
+### File B: Requirements File (`artifacts/security-requirements/`)
+
+This is the PRIMARY artifact — concise, actionable, and attached to Jira. It contains only what the STRAT author needs to act on.
+
+#### Compact Format (Light tier PASS with no amendments)
+
+```markdown
+---
+strat_key: RHAISTRAT-NNN
+review_date: "YYYY-MM-DD"
+review_tier: "light"
+verdict: "PASS"
+risk_count:
+  critical: 0
+  high: 0
+  medium: 0
+  low: 0
+full_review: "artifacts/security-reviews/RHAISTRAT-NNN-security-review.md"
+---
+
+# Security Requirements: [STRAT Title]
+
+## Verdict: PASS
+
+**Summary:** <1-2 sentences>
+
+No security requirements to add.
+```
+
+#### Full Format (any tier with risks or amendments)
+
+```markdown
+---
+strat_key: RHAISTRAT-NNN
+review_date: "YYYY-MM-DD"
+review_tier: "standard|deep"
+verdict: "PASS|CONCERNS|FAIL"
+risk_count:
+  critical: N
+  high: N
+  medium: N
+  low: N
+full_review: "artifacts/security-reviews/RHAISTRAT-NNN-security-review.md"
+---
+
+# Security Requirements: [STRAT Title]
+
+## Verdict: [PASS | CONCERNS | FAIL]
+
+**Summary:** <1-2 sentence summary>
+
+## Required Amendments (Security Risk Mitigations)
+
+These must be addressed before implementation. Each references a risk ID from the full review for traceability.
+
+1. **[Amendment title]** (RISK-001): <specific text addition/modification the STRAT needs>
+2. ...
+
+If none: omit this section.
+
+## Recommended Amendments (NFR Additions)
+
+Recommended for completeness but not blocking.
+
+1. <amendment>
+2. ...
+
+If none: omit this section.
+
+## Organizational Constraint Violations
+
+<List any violations of RHOAI organizational requirements. Quote the constraint and explain how the STRAT violates it.>
+
+If none: "No organizational constraint violations detected."
 ```
 
 ## Verdict Criteria
