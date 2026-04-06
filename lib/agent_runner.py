@@ -1,6 +1,8 @@
 """Claude SDK agent launcher and model utilities."""
 
+import json
 import os
+import tempfile
 import time
 import asyncio
 from pathlib import Path
@@ -63,6 +65,7 @@ async def run_agent(
     enable_skills: bool = False,
     env: dict[str, str] | None = None,
     mcp_servers: dict | None = None,
+    runner: str = "sdk",
 ) -> dict:
     """
     Launch one independent Claude agent session.
@@ -89,6 +92,21 @@ async def run_agent(
     Returns:
         dict with 'name', 'success', 'log_file', and optional 'error' keys
     """
+    if runner == "cli":
+        if log_file is None:
+            log_file = log_dir / f"{name.replace('/', '_')}.log"
+        return await run_agent_cli(
+            name=name,
+            cwd=cwd,
+            prompt=prompt,
+            log_file=log_file,
+            model=model,
+            allowed_tools=allowed_tools,
+            enable_skills=enable_skills,
+            env=env,
+            mcp_servers=mcp_servers,
+        )
+
     if allowed_tools is None:
         allowed_tools = ["Read", "Write", "Glob", "Grep"]
 
@@ -184,3 +202,152 @@ async def run_agent(
             log.write(f"ERROR: {e}\n")
 
         return {"name": name, "success": False, "error": str(e), "log_file": str(log_file), "duration_seconds": elapsed}
+
+
+async def run_agent_cli(
+    name: str,
+    cwd: str,
+    prompt: str,
+    log_file: Path,
+    model: str = "sonnet",
+    allowed_tools: list[str] | None = None,
+    enable_skills: bool = False,
+    env: dict[str, str] | None = None,
+    mcp_servers: dict | None = None,
+) -> dict:
+    """Launch a Claude agent session via the ``claude -p`` CLI.
+
+    This runner provides persistent sessions (no premature ``end_turn``
+    termination) and native skill discovery — both unavailable in the
+    SDK runner for multi-turn / background-task workloads.
+
+    Returns the same dict shape as :func:`run_agent` so callers see no
+    difference.
+    """
+    if allowed_tools is None:
+        allowed_tools = ["Read", "Write", "Glob", "Grep"]
+
+    if enable_skills and "Skill" not in allowed_tools:
+        allowed_tools = [*allowed_tools, "Skill"]
+
+    model_id = get_model_id(model)
+
+    # Build subprocess environment
+    proc_env = dict(os.environ)
+    for var in _FORWARDED_ENV_VARS:
+        val = os.environ.get(var)
+        if val:
+            proc_env[var] = val
+    if env:
+        proc_env.update(env)
+
+    # Build the CLI command
+    cmd = [
+        "claude", "-p", prompt,
+        "--model", model_id,
+        "--dangerously-skip-permissions",
+        "--verbose",
+    ]
+
+    if allowed_tools:
+        cmd.extend(["--allowedTools", ",".join(allowed_tools)])
+
+    # MCP server config: write a temporary .mcp.json in the cwd
+    mcp_tmp_path = None
+    use_bare = not enable_skills
+
+    if mcp_servers:
+        use_bare = False
+        mcp_config = {"mcpServers": {}}
+        for srv_name, srv_cfg in mcp_servers.items():
+            mcp_config["mcpServers"][srv_name] = srv_cfg
+        mcp_tmp_path = Path(cwd) / ".mcp.json"
+        with open(mcp_tmp_path, "w") as f:
+            json.dump(mcp_config, f, indent=2)
+
+    if use_bare:
+        cmd.append("--bare")
+
+    log_file.parent.mkdir(parents=True, exist_ok=True)
+
+    print(f"\n{'=' * 60}")
+    print(f"Starting agent (CLI): {name}")
+    print(f"Model: {model}")
+    print(f"Working directory: {cwd}")
+    print(f"Log file: {log_file}")
+    print(f"{'=' * 60}")
+
+    with open(log_file, "w") as log:
+        log.write(f"Agent: {name}\n")
+        log.write(f"Runner: cli\n")
+        log.write(f"Model: {model}\n")
+        log.write(f"Working directory: {cwd}\n")
+        log.write(f"{'=' * 60}\n\n")
+        log.write("PROMPT:\n")
+        log.write(prompt)
+        log.write(f"\n\n{'=' * 60}\n")
+        log.write("AGENT OUTPUT:\n\n")
+
+    start_time = time.monotonic()
+
+    try:
+        proc = await asyncio.create_subprocess_exec(
+            *cmd,
+            stdout=asyncio.subprocess.PIPE,
+            stderr=asyncio.subprocess.PIPE,
+            cwd=cwd,
+            env=proc_env,
+        )
+
+        with open(log_file, "a") as log:
+            async for line in proc.stdout:
+                decoded = line.decode("utf-8", errors="replace").rstrip("\n")
+                print(f"[{name}] {decoded}")
+                log.write(f"{decoded}\n")
+                log.flush()
+
+        await proc.wait()
+
+        elapsed = time.monotonic() - start_time
+
+        if proc.returncode != 0:
+            stderr_bytes = await proc.stderr.read()
+            stderr_text = stderr_bytes.decode("utf-8", errors="replace").strip()
+            error_msg = f"CLI exited with code {proc.returncode}"
+            if stderr_text:
+                error_msg += f": {stderr_text}"
+
+            print(f"\n{'=' * 60}")
+            print(f"Failed: {name} ({format_duration(elapsed)})")
+            print(f"Error: {error_msg}")
+            print(f"{'=' * 60}")
+
+            with open(log_file, "a") as log:
+                log.write(f"\n\n{'=' * 60}\n")
+                log.write(f"ERROR: {error_msg}\n")
+
+            return {"name": name, "success": False, "error": error_msg, "log_file": str(log_file), "duration_seconds": elapsed}
+
+        print(f"\n{'=' * 60}")
+        print(f"Completed: {name} ({format_duration(elapsed)})")
+        print(f"{'=' * 60}")
+
+        return {"name": name, "success": True, "log_file": str(log_file), "duration_seconds": elapsed}
+
+    except Exception as e:
+        elapsed = time.monotonic() - start_time
+
+        print(f"\n{'=' * 60}")
+        print(f"Failed: {name} ({format_duration(elapsed)})")
+        print(f"Error: {e}")
+        print(f"{'=' * 60}")
+
+        with open(log_file, "a") as log:
+            log.write(f"\n\n{'=' * 60}\n")
+            log.write(f"ERROR: {e}\n")
+
+        return {"name": name, "success": False, "error": str(e), "log_file": str(log_file), "duration_seconds": elapsed}
+
+    finally:
+        if mcp_tmp_path and mcp_tmp_path.exists():
+            mcp_tmp_path.unlink()

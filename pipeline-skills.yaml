@@ -53,6 +53,7 @@ phases:
   patch-validation:
     skill: patch-validation
     invoke: native
+    runner: cli
     allowed_tools: [Read, Write, Glob, Grep, Bash]
 
   # === RFE phases (external skills, native) ===
@@ -60,12 +61,14 @@ phases:
     skill: rfe.create
     source: rfe-creator
     invoke: native
+    runner: cli
     allowed_tools: [Read, Write, Edit, Glob, Grep, Bash]
 
   rfe-review:
     skill: rfe.review
     source: rfe-creator
     invoke: native
+    runner: cli
     allowed_tools: [Read, Write, Edit, Glob, Grep, Bash]
     mcp_servers: [atlassian]
 
@@ -73,6 +76,7 @@ phases:
     skill: rfe.split
     source: rfe-creator
     invoke: native
+    runner: cli
     allowed_tools: [Read, Write, Edit, Glob, Grep, Bash]
     mcp_servers: [atlassian]
 
@@ -80,12 +84,14 @@ phases:
     skill: rfe.submit
     source: rfe-creator
     invoke: native
+    runner: cli
     allowed_tools: [Read, Write, Edit, Glob, Grep, Bash]
 
   rfe-speedrun:
     skill: rfe.speedrun
     source: rfe-creator
     invoke: native
+    runner: cli
     allowed_tools: [Read, Write, Edit, Glob, Grep, Bash, Skill]
     mcp_servers: [atlassian]
 
@@ -94,6 +100,7 @@ phases:
     skill: strat.create
     source: rfe-creator
     invoke: native
+    runner: cli
     allowed_tools: [Read, Write, Edit, Glob, Grep, Bash]
     mcp_servers: [atlassian]
 
@@ -101,22 +108,26 @@ phases:
     skill: strat.refine
     source: rfe-creator
     invoke: native
+    runner: cli
     allowed_tools: [Read, Write, Edit, Glob, Grep]
 
   strat-review:
     skill: strat.review
     source: rfe-creator
     invoke: native
+    runner: cli
     allowed_tools: [Read, Write, Edit, Glob, Grep, Bash]
 
   strat-submit:
     skill: strat-submit
     invoke: native
+    runner: cli
     allowed_tools: [Read, Glob, Grep, Bash]
     mcp_servers: [atlassian]
 
   strat-security-review:
     skill: strat-security-review
     invoke: native
+    runner: cli
     allowed_tools: [Read, Write, Glob, Grep, Bash]
     mcp_servers: [atlassian]

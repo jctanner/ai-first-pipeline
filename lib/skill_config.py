@@ -123,6 +123,14 @@ def should_enable_skills(phase: str) -> bool:
     return get_invoke_method(phase) == "native"
 
 
+def get_runner(phase: str) -> str:
+    """Return ``"sdk"`` or ``"cli"`` for *phase*.
+
+    Defaults to ``"sdk"`` when not specified in the config.
+    """
+    return get_phase_config(phase).get("runner", "sdk")
+
+
 def _expand_env(value: str) -> str:
     """Expand ``${VAR:-default}`` and ``${VAR}`` patterns in a string."""
     def _replace(m: re.Match) -> str:

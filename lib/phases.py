@@ -23,6 +23,7 @@ from lib.skill_config import (
     get_skill_name,
     get_allowed_tools,
     get_mcp_servers,
+    get_runner,
     resolve_cwd,
     should_enable_skills,
 )
@@ -580,6 +581,7 @@ async def _run_single_agent(
     model: str,
     mid: str = "",
     allowed_tools: list[str] | None = None,
+    runner: str = "sdk",
 ) -> dict:
     """Acquire semaphore, delete stale files, run one agent, validate output.
 
@@ -612,6 +614,7 @@ async def _run_single_agent(
             key, cwd, prompt, log_dir, model,
             allowed_tools=allowed_tools,
             log_file=log_file_path,
+            runner=runner,
         )
 
     if isinstance(result, dict):
@@ -692,6 +695,7 @@ async def _run_phase(phase_name: str, jobs: list, args) -> list:
             result = await run_agent(
                 job["name"], job["cwd"], job["prompt"], log_dir, ms,
                 log_file=log_file_path,
+                runner=job.get("runner", "sdk"),
             )
         if isinstance(result, dict):
             _log_activity(
@@ -2551,6 +2555,8 @@ async def run_native_skill_phase(args) -> None:
     log_dir = BASE_DIR / "logs"
     log_dir.mkdir(exist_ok=True)
 
+    runner = get_runner(phase)
+
     result = await run_agent(
         name=f"{phase}-{issue_arg or 'batch'}",
         cwd=cwd,
@@ -2560,6 +2566,7 @@ async def run_native_skill_phase(args) -> None:
         allowed_tools=allowed_tools,
         enable_skills=enable_skills,
         mcp_servers=mcp_servers or None,
+        runner=runner,
     )
 
     if result["success"]:
@@ -2767,6 +2774,7 @@ async def _run_native_skill_for_issue(
     allowed_tools = get_allowed_tools(phase)
     enable_skills = should_enable_skills(phase)
     mcp_servers = get_mcp_servers(phase)
+    runner = get_runner(phase)
 
     skill_args_parts: list[str] = ["--headless"]
     if issue_key:
@@ -2789,6 +2797,7 @@ async def _run_native_skill_for_issue(
                 allowed_tools=allowed_tools,
                 enable_skills=enable_skills,
                 mcp_servers=mcp_servers or None,
+                runner=runner,
             )
     except Exception as exc:
         duration = time.monotonic() - t0
