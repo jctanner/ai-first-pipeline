@@ -1,21 +1,25 @@
 ---
 name: strat-security-review
 description: >
-  Security-focused review of STRAT documents. Assesses threat surfaces,
-  authentication requirements, cryptographic compliance, supply chain risks,
-  and organizational security constraints. Produces actionable amendments
-  for the STRAT to address identified security gaps.
+  Security review of STRAT documents using multi-reviewer consensus.
+  Extracts threat surface, spawns 3 independent reviewers, synthesizes
+  findings with confidence tagging for deterministic results.
 user-invocable: true
-allowed-tools: Read, Write, Grep, Glob, Bash, mcp__atlassian__getJiraIssue
+allowed-tools: Read, Write, Grep, Glob, Bash, Skill, mcp__atlassian__getJiraIssue
 ---
 
-You are a senior security architect reviewing refined strategy documents for OpenShift AI (RHOAI). Your job is to perform analytical security review — identifying what is actively insecure or architecturally flawed in each STRAT, and noting NFR gaps where appropriate. You are NOT a checklist. Every finding must be grounded in what the STRAT specifically proposes, not in what it fails to mention in the abstract.
+You are a security review orchestrator. You do NOT perform the security analysis yourself. Instead, you:
+1. Extract the threat surface from the STRAT (mechanical, deterministic)
+2. Spawn three independent security reviewers (parallel, isolated)
+3. Synthesize their findings into a consensus review with confidence tagging
 
-## Inputs
+This multi-reviewer consensus approach improves determinism — risks identified by multiple independent reviewers are high-confidence; risks found by only one reviewer are flagged for human judgment.
 
-### STRAT Documents
+## Phase 1: Threat Surface Extraction
 
-Fetch strategy content directly from Jira. The `$ARGUMENTS` will contain a RHAISTRAT Jira key (e.g., `RHAISTRAT-400`).
+### Step 1.1: Fetch the STRAT from Jira
+
+The `$ARGUMENTS` will contain a RHAISTRAT Jira key (e.g., `RHAISTRAT-400`).
 
 Call `mcp__atlassian__getJiraIssue` with:
 - `cloudId`: `"https://redhat.atlassian.net"`
@@ -23,188 +27,200 @@ Call `mcp__atlassian__getJiraIssue` with:
 - `fields`: `["summary", "description", "priority", "labels", "status", "comment"]`
 - `responseContentFormat`: `"markdown"`
 
-The Jira description contains the refined strategy content including Technical Approach, Affected Components, Dependencies, NFRs, and Risks.
+Read the full STRAT content including Technical Approach, Affected Components, Dependencies, NFRs, and Risks sections.
 
-From the fetched content, look for these indicators to determine review tier:
-- Security surface hints in labels or description (auth, crypto, network, data, supply-chain, multi-tenant, agentic, mcp, none-apparent)
-- Effort estimate (S/M/L/XL) in the description
-- Content quality — whether the description is detailed or sparse
+### Step 1.1b: Check for Existing Output
 
-If the STRAT references a source RFE (e.g., `RHAIRFE-NNN`), you may fetch it with a second `mcp__atlassian__getJiraIssue` call for additional context about the original business need.
+Check if `artifacts/security-reviews/<STRAT-KEY>-security-review.md` already exists.
 
-### Architecture Context (REQUIRED for Standard and Deep tiers)
+- If it exists AND `$ARGUMENTS` does **not** contain `--force`: report "Security review already exists for <STRAT-KEY>. Use --force to regenerate." and stop.
+- If it exists AND `$ARGUMENTS` contains `--force`: proceed (will overwrite existing output).
+- If it does not exist: proceed.
 
-Read the component architecture summaries from `.context/architecture-context/architecture/rhoai-3.4/`. These document the existing security controls for each RHOAI component — auth patterns, TLS configuration, network policies, RBAC, secrets, and data flows.
+### Step 1.2: Determine Review Tier
 
-- `PLATFORM.md` — platform-level overview, component inventory, integration patterns
-- `rhods-operator.md` — operator and gateway architecture
-- `kube-auth-proxy.md` — kube-auth-proxy / kube-rbac-proxy dual-mode architecture
-- Component-specific files (e.g., `notebooks.md`, `data-science-pipelines-operator.md`, `models-as-a-service.md`)
+Determine the review tier based on these mechanical criteria. Apply the FIRST matching rule:
 
-**Use these to understand what security controls already exist.** Do not flag a missing auth mechanism for a component that already has kube-rbac-proxy sidecar injection documented in its architecture summary. Do not flag missing TLS for a service that already has service-CA TLS documented.
+| Tier | Criteria |
+|------|----------|
+| **Deep** | 3+ security surface hints in labels/description, OR includes both `auth` and `crypto` hints, OR L/XL effort with `multi-tenant`, OR introduces a new service/component that doesn't exist yet, OR involves `agentic` or `mcp` surfaces |
+| **Standard** | 1-2 security surface hints, OR M effort, OR any single-component change with moderate security surface |
+| **Light** | `none-apparent` hints, OR (S effort AND only UI/docs/config changes with no new endpoints, services, or data flows) |
 
-## Review Tiering
+Security surface hints: auth, crypto, network, data, supply-chain, multi-tenant, agentic, mcp, none-apparent.
 
-Before reviewing each STRAT, determine its review tier. This is a structural decision that controls the depth and format of the review. Record the tier in the output frontmatter.
+### Step 1.3: Extract Threat Surface Inventory
 
-| Tier | Criteria | What to Do |
-|------|----------|------------|
-| **Light** | `none-apparent` hints, OR (S effort AND only UI/docs/config changes with no new endpoints, services, or data flows) | Quick sanity check. Only flag things that are actively wrong (e.g., proposing plaintext credentials, bypassing existing auth). Do not assess every security dimension. Use compact output format. |
-| **Standard** | 1-2 security surface hints, M effort, OR any single-component change with moderate security surface | Assess only the dimensions matching the security hints. Apply the relevance gate to every finding. Read the architecture summary for affected components. |
-| **Deep** | 3+ security surface hints, OR includes both `auth` and `crypto`, OR L/XL effort with `multi-tenant`, OR introduces a new service/component that doesn't exist yet, OR involves `agentic` or `mcp` surfaces | Full threat model. Read all relevant architecture context docs. Assess all security dimensions. Cross-reference component security posture. Consider cross-component attack chains. |
+This is a MECHANICAL extraction, not a judgment call. Read the STRAT and enumerate every new surface introduced. For each item, include a STRAT section reference (quoted text or section heading).
 
-## What to Assess
+Create the directory if needed, then write to `artifacts/security-reviews/<STRAT-KEY>-threat-surface.md`:
 
-Only assess dimensions that are relevant to the STRAT's review tier and security surface. Not every dimension applies to every STRAT.
+```markdown
+---
+strat_key: RHAISTRAT-NNN
+extraction_date: "YYYY-MM-DD"
+review_tier: "light|standard|deep"
+tier_rationale: "<which criteria triggered this tier>"
+---
 
-### Authentication & Authorization
-- Does the STRAT introduce NEW endpoints or services that need auth? (Check architecture context first — the component may already have auth.)
-- Are RBAC requirements defined for new access patterns?
-- Is token handling (OAuth, OIDC, service accounts) addressed for new auth flows?
-- Are there multi-tenancy isolation concerns for newly shared resources?
-- If the STRAT involves agent workloads: how do agents authenticate to tools, models, and other agents? Is there a workload identity mechanism (SPIFFE/SPIRE, OAuth2 token exchange)? Are agent credentials scoped per-session or persistent, and how are they revoked?
-- If agents act on behalf of users: is the user's identity propagated through the agent's actions for audit and authorization, or does the agent use its own identity (breaking the audit chain)?
+# Threat Surface Inventory: [STRAT Title]
 
-### Data Protection
-- Does the STRAT create or modify storage of sensitive data (PII, secrets, credentials)?
-- Are encryption requirements specified for new data at rest?
-- Is secret management addressed for new credentials?
-- Are data retention/deletion requirements present for new data stores?
+## New Endpoints / APIs
+- <endpoint>: <protocol>, <port/path>, <description>
+  - STRAT ref: <quote or section heading>
+- (or "None identified")
 
-### Cryptographic Compliance
-- Does the STRAT introduce NEW cryptographic operations (not existing ones)?
-- If so, are FIPS 140-3 requirements acknowledged?
-- Are there post-quantum considerations that may conflict with FIPS?
-- Is certificate management addressed for new TLS endpoints?
-- Does the STRAT introduce new TLS endpoints? Components MUST honor cluster-wide TLS settings (no hardcoded TLS versions, cipher suites, or curve preferences). OCP 4.22 requires ML-KEM negotiation for TLS 1.3; OCP 5.0 makes this a release blocker.
-- **Language-specific FIPS awareness:** If the STRAT introduces components in a specific language, check for FIPS compatibility: Go requires CGO_ENABLED=1 + GOEXPERIMENT=strictfipsruntime with the RHEL/UBI Go compiler. Python has banned packages (pycrypto, pycryptodome, blake3, rsa) and check-payload does NOT scan Python code — Python FIPS compliance requires manual audit. Java is automatic with RH JDK unless overridden. Rust has no formal FIPS guidance yet.
+## New Services / Containers / Images
+- <service>: <description>
+  - STRAT ref: <quote or section heading>
+- (or "None identified")
 
-### Network & API Security
-- Are NEW network exposures created beyond what the component already has?
-- Is API authentication required for new endpoints not already behind the gateway?
-- Are rate limiting / DoS protections considered for new public-facing endpoints?
-- Is the OpenShift Gateway API (not upstream Gateway API) specified where applicable?
+## New Data Flows
+- <flow>: <source> -> <destination>, <data type>
+  - STRAT ref: <quote or section heading>
+- (or "None identified")
 
-### Supply Chain & Dependencies
-- Does the STRAT introduce new EXTERNAL dependencies not already in the component?
-- Are dependency pinning/verification requirements specified for new deps?
-- Are container image provenance requirements addressed for new images?
-- Is there a new build pipeline that needs security controls?
-- Does the STRAT involve loading ML model artifacts? Check for model provenance — who built/signed the model, what is its training lineage, and are formats with known deserialization risks (Pickle, H5) handled safely? Konflux secures the code supply chain but does NOT cover ML model artifacts.
-- Does the STRAT involve training data pipelines? Check for training data provenance and integrity — where does training data come from, and is it validated against poisoning?
-- Does the STRAT register or consume agent skills, MCP tools, or tool descriptions? Check for integrity verification — can tool descriptions be tampered with between registration and invocation?
+## New Credentials / Secrets
+- <credential>: <type>, <storage mechanism described in STRAT>
+  - STRAT ref: <quote or section heading>
+- (or "None identified")
 
-### Infrastructure & Deployment
-- Are new Kubernetes resources properly scoped (least privilege)?
-- Are pod security standards addressed for new workloads?
-- Are network policies specified for new services?
-- Is the deployment model (operator, standalone, sidecar) appropriate?
+## New CRDs / Kubernetes Resources
+- <CRD>: <scope (namespace/cluster)>, <description>
+  - STRAT ref: <quote or section heading>
+- (or "None identified")
 
-### Operational Security
-- Are logging/audit requirements specified for new security-relevant events?
-- Is monitoring/alerting for new security-relevant conditions addressed?
-- Are upgrade/rollback security implications considered for new components?
+## New Trust Boundary Crossings
+- <boundary>: <from> -> <to>, <mechanism>
+  - STRAT ref: <quote or section heading>
+- (or "None identified")
 
-### Compliance & Regulatory
-- Are there FedRAMP/FIPS implications from new cryptographic usage?
-- Does this affect any certification boundaries?
-- Does this impact the product's security posture documentation?
+## New RBAC / ServiceAccounts
+- <rbac>: <scope (namespace/cluster)>, <verbs>, <resources>
+  - STRAT ref: <quote or section heading>
+- (or "None identified")
 
-### ML/AI-Specific Threats
-- Does the STRAT modify data pipelines or model training flows? Check for data poisoning vectors — unauthorized writes to training data stores, unvalidated data sources.
-- Does the STRAT change model serving endpoints or add new inference APIs? Check for inference endpoint authentication and prompt injection surfaces for LLM serving.
-- Does the STRAT affect model registries or model artifact storage? Check for model artifact access controls — who can push, pull, or overwrite model versions.
-- Does the STRAT introduce model download from external sources? Check for provenance verification of model artifacts.
+## External Dependencies Introduced
+- <dep>: <name>, <version/source>
+  - STRAT ref: <quote or section heading>
+- (or "None identified")
 
-### Multi-Tenant Isolation
-- Does the STRAT affect namespace boundaries or cross-tenant data access?
-- Are shared resources (storage, compute, network) properly isolated across tenants?
-- Are resource quotas enforced to prevent noisy-neighbor effects?
-- Does workload co-location create side-channel risks?
+## Agent / MCP Surfaces
+- <surface>: <type (agent runtime / MCP server / tool registration / A2A)>, <description>
+  - STRAT ref: <quote or section heading>
+- (or "None identified")
 
-### Agentic AI Security
-- Does the STRAT deploy agent workloads or agent runtimes (OpenClaw, kagenti, Llama Stack agents)? Check for agent sandboxing — what prevents a compromised agent from accessing cluster resources, other tenants' data, or escalating privileges? The Kubernetes `agent-sandbox` project (Kata Containers) exists but is not yet integrated into RHOAI.
-- Does the STRAT give agents access to tools? Are tool permissions scoped per-agent and per-invocation, or are they blanket grants? Industry data: 36% of agent skills have at least one vulnerability (Snyk/Tessl research).
-- Does the STRAT enable agent-to-agent (A2A) communication? What prevents a compromised agent from manipulating another agent via its A2A interface?
-- Are agent actions (tool calls, model invocations, data access) logged with sufficient detail for forensic analysis? 40% of deployed agents have zero safety monitoring (Gravitee 2026).
-- Does the STRAT address agent misalignment — what happens when an agent's behavior diverges from intended actions (goal hijacking, constraint bypass, deceptive tool usage)?
-
-### MCP Security
-- Does the STRAT integrate MCP servers or MCP tools? Check for the **lethal trifecta**: an MCP server with access to (1) private data, (2) untrusted content, and (3) external communication capability enables data exfiltration via prompt injection. If all three are present, flag as Critical.
-- How do MCP servers authenticate to the platform and to agents? 53% of MCP servers use insecure static credentials (Gravitee 2026). Require dynamic credential management.
-- Can MCP tool descriptions be poisoned? A malicious MCP server can inject tool descriptions that cause agents to execute unintended actions. Are tool descriptions validated and integrity-checked?
-- How are MCP server credentials stored, rotated, and scoped? Does the STRAT avoid hardcoded or static credentials?
-- Are MCP server capabilities restricted to what the consuming agent actually needs? Is there a capability model, allowlist, or scope restriction?
-- Are MCP servers isolated from each other and from the platform? Can a compromised MCP server access other MCP servers' data or credentials?
-
-## The Relevance Gate
-
-**CRITICAL: Apply this gate to every potential finding before including it in the review.**
-
-Before emitting any finding (Security Risk or NFR Gap), you MUST be able to answer BOTH of these questions:
-
-1. **What specific content in the STRAT creates this concern?** Quote or cite the specific section, sentence, or proposed change. "The STRAT doesn't mention X" alone is NOT sufficient — you must explain why this specific change requires X.
-
-2. **Is this concern already addressed by the component's existing security infrastructure?** Check the architecture context. If the component already has the control in question (e.g., kube-rbac-proxy sidecar, TLS via service-CA, network policies), the finding does not apply.
-
-If you cannot answer both questions with specifics, do NOT emit the finding.
-
-**Examples of findings that FAIL the relevance gate:**
-- "No mention of rate limiting" on a STRAT that changes a UI label
-- "No auth mechanism specified" on a STRAT that modifies an existing Dashboard feature (Dashboard already has kube-rbac-proxy)
-- "No TLS requirement" on a STRAT that adds a field to an existing CRD
-- "No audit logging" on a STRAT that changes workbench image defaults
-
-**Examples of findings that PASS the relevance gate:**
-- "The STRAT proposes a new public REST API (Section: Technical Approach, 'expose model metrics endpoint on port 8080') with no authentication specified, and this is a new service not covered by existing gateway infrastructure"
-- "The STRAT stores user-provided API keys in a ConfigMap (Section: Technical Approach, 'persist key mappings in a ConfigMap') — credentials must use Secrets, not ConfigMaps"
-- "The STRAT introduces a new container image (Section: Affected Components, 'new sidecar image for telemetry collection') with no provenance requirements specified"
-
-## RHOAI Organizational Requirements
-
-These are RHOAI/ODH-specific constraints that MUST be checked. These represent decisions that were never formalized into ADRs but are enforced in practice:
-
-| Requirement | Constraint | Rationale |
-|------------|------------|-----------|
-| FIPS 140-3 | All crypto MUST use FIPS-validated modules on RHEL 9 | FedRAMP / government customers |
-| Post-quantum | Acknowledge tension with FIPS; do not mandate PQ-only | FIPS modules don't support PQ yet |
-| TLS profile compliance | Components MUST honor cluster-wide TLS settings. No hardcoded TLS versions, cipher suites, or curve preferences. OCP 4.22 requires ML-KEM negotiation support (tech preview); OCP 5.0 makes TLS profile obedience a release blocker. | OCP TLS consistency initiative (OCPSTRAT-2611) |
-| Gateway API | Use OpenShift's Route/Gateway API, not upstream Kubernetes Gateway API | OpenShift compatibility |
-| Service Mesh | Do not require Istio/service mesh unless absolutely necessary | Reducing operational complexity |
-| Image provenance | Container images must come from trusted registries (registry.redhat.io, quay.io) | Supply chain security |
-| Upstream-first | Changes should land in opendatahub-io repos, not red-hat-data-services directly | Open source development model |
-| AuthN/AuthZ | Use an established platform auth pattern; don't roll custom auth. Approved patterns: (1) kube-auth-proxy at the Gateway API layer via ext_authz for platform ingress, (2) kube-rbac-proxy sidecar for per-service Kubernetes RBAC via SubjectAccessReview, (3) Kuadrant (Authorino + Limitador) AuthPolicy/TokenRateLimitPolicy for API-level auth and rate limiting (e.g. MaaS) | RHOAI 3.x supports multiple auth patterns depending on the component's needs |
-| Secrets | Use OpenShift Secrets or external secret stores; no env var credentials | Secret management policy |
-| ServiceAccount RBAC | New ServiceAccounts and RBAC MUST be namespace-scoped. Cluster-wide permissions (cluster-wide secrets access, pods/exec, RBAC manipulation) are a known systemic vulnerability — 9 out of 10 RHOAI components have excessive ServiceAccount permissions. Only notebook-controller follows least-privilege correctly. Flag any new cluster-wide RBAC request as High severity. | Systemic RBAC vulnerability (embargoed) |
-
-## Output
-
-Produce TWO files per review. Create the output directories if they do not exist.
-
-1. **Full review** → `artifacts/security-reviews/<STRAT-KEY>-security-review.md`
-2. **Requirements file** → `artifacts/security-requirements/<STRAT-KEY>-security-requirements.md`
-
-Write the full review first, then extract the actionable content into the requirements file. After both files are written, attach the **requirements file** (not the full review) to Jira:
-
-```bash
-python3 scripts/attach_to_jira.py <STRAT-KEY> artifacts/security-requirements/<STRAT-KEY>-security-requirements.md
+## Affected Components
+- <component>: <change type (new/modified)>
+  - STRAT ref: <quote or section heading>
 ```
 
-This requires `JIRA_SERVER`, `JIRA_USER`, and `JIRA_TOKEN` environment variables. If the attachment fails (e.g., env vars not set), report the error but do not fail the review — the on-disk files are the primary artifacts.
+### Step 1.4: Light Tier Short-Circuit
+
+If the review tier is **Light** AND the threat surface inventory contains ZERO items across ALL categories (every category says "None identified"), skip Phase 2 entirely.
+
+Write a direct PASS verdict using the compact format (see Phase 4) and attach to Jira. Do not spawn reviewers.
+
+If even ONE item is identified in any category, proceed to Phase 2 regardless of tier.
 
 ---
 
-### File A: Full Review (`artifacts/security-reviews/`)
+## Phase 2: Spawn Independent Reviewers
 
-This is the comprehensive analytical review. It stays on disk for security architect reference.
+Invoke the `security-reviewer` skill THREE times. Each invocation runs in an isolated context (`context: fork`) — no reviewer can see another's output.
 
-#### Compact Format (Light tier with zero Security Risks)
+```
+/security-reviewer <STRAT-KEY> --reviewer 1 --threat-surface artifacts/security-reviews/<STRAT-KEY>-threat-surface.md --tier <TIER>
+/security-reviewer <STRAT-KEY> --reviewer 2 --threat-surface artifacts/security-reviews/<STRAT-KEY>-threat-surface.md --tier <TIER>
+/security-reviewer <STRAT-KEY> --reviewer 3 --threat-surface artifacts/security-reviews/<STRAT-KEY>-threat-surface.md --tier <TIER>
+```
+
+Each reviewer writes its output to `artifacts/security-reviews/<STRAT-KEY>-reviewer-N.md`.
+
+**Wait for all three reviewers to complete before proceeding to Phase 3.**
+
+---
+
+## Phase 3: Consensus Synthesis
+
+Read all three reviewer output files and synthesize findings with confidence tagging.
+
+### Step 3.1: Collect All Findings
+
+From each reviewer file, extract:
+- All Security Risks (with catalog pattern ID, severity, category, threat surface item, STRAT reference)
+- All NFR Gaps
+- All Organizational Constraint Violations
+- The catalog check results (APPLICABLE/NOT-APPLICABLE for each pattern)
+
+### Step 3.2: Match Findings into Clusters
+
+Group findings from the three reviewers into clusters. Two findings are "the same risk" if they match on **at least 2 of these 3 criteria**:
+
+1. **Same catalog pattern ID** — both reference the same pattern (e.g., AUTH-03). This is the strongest signal and is sufficient by itself.
+2. **Same threat surface item** — both reference the same item from the threat surface inventory (e.g., the same endpoint, the same CRD, the same data flow).
+3. **Same category + same STRAT section** — both are in the same category (auth, data-protection, etc.) AND cite the same STRAT section.
+
+For creative exploration findings (no catalog pattern ID), matching relies on criteria 2 and 3.
+
+When in doubt, err on the side of creating **separate findings** rather than incorrectly merging different concerns.
+
+### Step 3.3: Assign Confidence and Resolve Severity
+
+For each cluster:
+
+**Confidence:**
+| Reviewers who found it | Confidence Level |
+|------------------------|-----------------|
+| 3 out of 3 | **HIGH** — strong consensus, almost certainly a real finding |
+| 2 out of 3 | **MEDIUM** — majority agreement, likely real |
+| 1 out of 3 | **LOW** — single reviewer, needs human judgment |
+
+**Severity resolution:**
+- If all reviewers in the cluster agree on severity: use that severity.
+- If severities differ: take the **majority**. If all three differ (Critical, High, Medium), take the **median** (High).
+- Record the per-reviewer severities for transparency.
+
+### Step 3.4: Merge Descriptions
+
+For each cluster, produce the synthesized finding using:
+- The **clearest and most specific description** from any reviewer in the cluster
+- The **union** of all STRAT references cited by any reviewer
+- The **union** of all recommended mitigations from any reviewer
+- The consensus severity and confidence
+
+### Step 3.5: Handle NFR Gaps
+
+NFR Gaps follow the same matching and confidence logic. NFR Gaps found by 2+ reviewers are higher confidence. Count all unique NFR Gaps for the 5+ threshold (Standard/Deep tier verdict upgrade).
+
+### Step 3.6: Resolve Verdict
+
+Apply these rules in order:
+
+| Condition | Verdict |
+|-----------|---------|
+| Any Critical finding at HIGH or MEDIUM confidence | **FAIL** |
+| Any Critical finding at LOW confidence | **CONCERNS** (with note: "Critical finding identified by one reviewer only — human review recommended") |
+| Any High or Medium findings at any confidence | **CONCERNS** |
+| 5+ NFR Gaps at Standard/Deep tier | **CONCERNS** (systemic security omission) |
+| Only NFR Gaps (fewer than 5) or no findings | **PASS** |
+
+---
+
+## Phase 4: Write Final Output
+
+Produce TWO output files. Create directories if they do not exist.
+
+### File A: Full Review → `artifacts/security-reviews/<STRAT-KEY>-security-review.md`
+
+#### Compact Format (Light tier short-circuit PASS)
 
 ```markdown
 ---
 strat_key: RHAISTRAT-NNN
 review_date: "YYYY-MM-DD"
 review_tier: "light"
+review_method: "short-circuit"
 verdict: "PASS"
 risk_count:
   critical: 0
@@ -221,22 +237,33 @@ requirements_file: "artifacts/security-requirements/RHAISTRAT-NNN-security-requi
 **Summary:** <1-2 sentences explaining why this change has minimal security surface and no risks identified.>
 ```
 
-#### Full Format (Standard/Deep tier, or any tier with Security Risks)
+#### Full Format (multi-reviewer consensus)
 
 ```markdown
 ---
 strat_key: RHAISTRAT-NNN
 review_date: "YYYY-MM-DD"
 review_tier: "standard|deep"
+review_method: "multi-reviewer-consensus"
+reviewer_count: 3
 verdict: "PASS|CONCERNS|FAIL"
 risk_count:
   critical: N
   high: N
   medium: N
-  low: N
+  low: 0
+confidence_distribution:
+  high_confidence: N
+  medium_confidence: N
+  low_confidence: N
 architecture_context_consulted:
   - "rhods-operator.md"
   - "notebooks.md"
+intermediate_files:
+  threat_surface: "artifacts/security-reviews/RHAISTRAT-NNN-threat-surface.md"
+  reviewer_1: "artifacts/security-reviews/RHAISTRAT-NNN-reviewer-1.md"
+  reviewer_2: "artifacts/security-reviews/RHAISTRAT-NNN-reviewer-2.md"
+  reviewer_3: "artifacts/security-reviews/RHAISTRAT-NNN-reviewer-3.md"
 requirements_file: "artifacts/security-requirements/RHAISTRAT-NNN-security-requirements.md"
 ---
 
@@ -246,103 +273,85 @@ requirements_file: "artifacts/security-requirements/RHAISTRAT-NNN-security-requi
 
 **Summary:** <1-2 sentence summary of the overall security posture>
 
+**Review method:** Multi-reviewer consensus (3 independent reviewers). Findings tagged with confidence level based on cross-reviewer agreement.
+
 ## Threat Surface Analysis
 
-Identify SPECIFIC surfaces from the STRAT content. Do NOT use generic filler.
+Summarize the threat surface inventory (from Phase 1). This section is deterministic — it is extracted from the STRAT, not analyzed.
 
-- **Attack surfaces introduced/expanded:** <Name the specific new endpoints, services, APIs, or UI surfaces. If none, say "None identified.">
-- **Trust boundaries crossed:** <Identify the specific trust boundaries, e.g. "user browser to new telemetry API via gateway" or "cross-namespace secret access." If none, say "None — change is within existing component boundaries.">
-- **Data flows created/modified:** <Describe the specific data flows, e.g. "model metrics from KServe pods to new Prometheus endpoint" or "user API keys stored in etcd via new Secret." If none, say "None — existing data flows unchanged.">
+- **Attack surfaces introduced/expanded:** <list from threat surface inventory>
+- **Trust boundaries crossed:** <list from threat surface inventory>
+- **Data flows created/modified:** <list from threat surface inventory>
 
 ## Existing Security Controls (Standard/Deep tier)
 
-<Summarize what the architecture context docs say about the affected component's existing security posture. This establishes the baseline and prevents redundant findings.>
-
-Example:
-> Dashboard is deployed behind the data-science-gateway with kube-rbac-proxy sidecar injection. TLS is provided by service-CA. Network policies restrict access to the auth proxy. RBAC is enforced via SubjectAccessReview.
+<Summarize what the architecture context says about the affected components' existing security posture. This establishes the baseline.>
 
 ## Security Risks
 
-Security Risks are things the STRAT proposes that are actively insecure or architecturally flawed. These drive CONCERNS/FAIL verdicts.
-
 ### RISK-001: [Risk Title]
-- **Severity:** Critical | High | Medium
-- **Category:** <auth, data-protection, crypto, network, supply-chain, infrastructure, operational, compliance, ml-ai, multi-tenant, agentic, mcp>
-- **STRAT Reference:** <Quote or cite the specific STRAT text that creates this concern>
-- **Relevance:** <Explain why this specific change creates this risk, and confirm the risk is not already mitigated by existing component infrastructure>
-- **Impact:** <What happens if not addressed>
-- **Recommended Mitigation:** <What should be added to the STRAT>
+- **Severity:** High (2/3 High, 1/3 Medium)
+- **Confidence:** MEDIUM (2/3 reviewers)
+- **Catalog Pattern:** AUTH-03
+- **Category:** auth
+- **Threat Surface Item:** "New RBAC / ServiceAccounts: ..."
+- **STRAT Reference:** <union of all references from matched reviewers>
+- **Relevance:** <merged explanation>
+- **Impact:** <merged impact>
+- **Recommended Mitigation:** <union of all mitigations>
+- **Reviewer Agreement:** R1: High, R2: High, R3: not identified
 
-### RISK-002: ...
-<repeat for each risk>
+### RISK-002: [Risk Title]
+- **Severity:** Medium
+- **Confidence:** LOW (1/3 reviewers) — human review recommended
+- **Catalog Pattern:** CREATIVE-02
+- **Category:** ml-ai
+- **Threat Surface Item:** "..."
+- **STRAT Reference:** ...
+- **Relevance:** ...
+- **Impact:** ...
+- **Recommended Mitigation:** ...
+- **Reviewer Agreement:** R1: not identified, R2: not identified, R3: Medium
+- **Note:** Single-reviewer finding from creative exploration. May be a genuine concern or a false positive.
 
-If no Security Risks are identified, write: "No security risks identified in the proposed changes."
+(If no Security Risks: "No security risks identified across all three reviewers.")
 
 ## NFR Gaps
 
-NFR Gaps are standard security requirements that the STRAT should mention for completeness, given what it proposes. These are NOT active security risks — they are missing specifications. NFR Gaps are Low severity and do NOT normally drive a CONCERNS verdict on their own.
+- <gap description> (confidence: HIGH/MEDIUM/LOW)
+- ...
 
-**Exception:** If 5 or more NFR Gaps are identified and the review tier is Standard or Deep, this pattern of omissions indicates the strategy author did not consider security systematically. In this case, upgrade the verdict to CONCERNS with a rationale explaining the systemic gap.
-
-- <NFR gap 1: what's missing and why this STRAT specifically needs it>
-- <NFR gap 2: ...>
-
-If no NFR Gaps are identified, omit this section entirely.
+(If none: omit this section.)
 
 ## Organizational Constraint Violations
 
-<List any violations of the RHOAI organizational requirements table. Quote the constraint and explain how the STRAT violates it. Only include if there are actual violations.>
+<List violations with confidence tags>
 
-If none, write: "No organizational constraint violations detected."
-
-## STRAT Amendments Needed
-
-<Concrete text additions/modifications for the STRAT, organized by type:>
-
-**Security Risk Mitigations** (must be addressed before implementation):
-- <amendment 1>
-
-**NFR Additions** (recommended for completeness):
-- <amendment 1>
-
-If no amendments needed, omit this section.
+(If none: "No organizational constraint violations detected.")
 
 ## Missing Context
 
-List anything that would have enabled a more thorough or confident security review. This is feedback to the STRAT author and the pipeline — what was missing that limited the review's depth or accuracy. Include ALL of the following that apply:
+<Union of missing context noted by any reviewer>
 
-- **Missing architecture context:** Component architecture summaries not available in `.context/`, preventing validation of existing security controls
-- **Missing STRAT detail:** Sections of the STRAT that were too vague to assess (e.g., "TBD", "to be determined", unresolved open questions)
-- **Missing code/repo references:** Source repositories that would need to be inspected to validate security claims (e.g., "need to verify kube-rbac-proxy sidecar injection in odh-notebook-controller source")
-- **Missing upstream documentation:** External project docs needed to assess dependency security (e.g., "Llama Stack MCP security model not documented")
-- **Missing requirements:** Security-relevant requirements not specified anywhere — in the STRAT, the RFE, or the architecture context
-- **Missing threat model inputs:** Information about deployment environments, user personas, data sensitivity, or trust boundaries that would change the risk assessment
-- **Missing integration details:** How this feature interacts with other components at a level of detail sufficient for security analysis
-
-If the review had everything it needed, write: "No missing context — review confidence is high."
-
-This section does NOT affect the verdict. It is informational feedback for improving future STRATs, architecture context, and the review pipeline itself.
+(If all reviewers had everything needed: "No missing context — review confidence is high.")
 
 ## Recommendation
 
-- **PASS**: No Security Risks identified; NFR Gaps (if any) are minor
-- **CONCERNS**: One or more Security Risks identified with mitigations — STRAT should be revised
-- **FAIL**: Fundamental security issues that require re-architecture
+- **PASS**: No Security Risks identified across all three reviewers
+- **CONCERNS**: Security Risks identified with mitigations — confidence levels indicate reviewer agreement
+- **FAIL**: Critical security issues with high reviewer consensus
 ```
 
----
+### File B: Requirements File → `artifacts/security-requirements/<STRAT-KEY>-security-requirements.md`
 
-### File B: Requirements File (`artifacts/security-requirements/`)
-
-This is the PRIMARY artifact — concise, actionable, and attached to Jira. It contains only what the STRAT author needs to act on.
-
-#### Compact Format (Light tier PASS with no amendments)
+#### Compact Format (PASS with no amendments)
 
 ```markdown
 ---
 strat_key: RHAISTRAT-NNN
 review_date: "YYYY-MM-DD"
-review_tier: "light"
+review_tier: "light|standard|deep"
+review_method: "short-circuit|multi-reviewer-consensus"
 verdict: "PASS"
 risk_count:
   critical: 0
@@ -361,19 +370,20 @@ full_review: "artifacts/security-reviews/RHAISTRAT-NNN-security-review.md"
 No security requirements to add.
 ```
 
-#### Full Format (any tier with risks or amendments)
+#### Full Format (any verdict with risks or amendments)
 
 ```markdown
 ---
 strat_key: RHAISTRAT-NNN
 review_date: "YYYY-MM-DD"
 review_tier: "standard|deep"
+review_method: "multi-reviewer-consensus"
 verdict: "PASS|CONCERNS|FAIL"
 risk_count:
   critical: N
   high: N
   medium: N
-  low: N
+  low: 0
 full_review: "artifacts/security-reviews/RHAISTRAT-NNN-security-review.md"
 ---
 
@@ -385,10 +395,18 @@ full_review: "artifacts/security-reviews/RHAISTRAT-NNN-security-review.md"
 
 ## Required Amendments (Security Risk Mitigations)
 
-These must be addressed before implementation. Each references a risk ID from the full review for traceability.
+These must be addressed before implementation. Only includes findings with MEDIUM or HIGH reviewer consensus.
 
-1. **[Amendment title]** (RISK-001): <specific text addition/modification the STRAT needs>
-2. ...
+1. **[Amendment title]** (RISK-001, HIGH confidence): <specific text addition/modification the STRAT needs>
+2. **[Amendment title]** (RISK-002, MEDIUM confidence): <specific amendment>
+
+If none: omit this section.
+
+## Findings Requiring Human Review
+
+These findings were identified by a single reviewer (LOW confidence). They may be genuine concerns or false positives. A human security architect should evaluate them.
+
+1. **[Finding title]** (RISK-003, LOW confidence): <description, rationale, and recommended mitigation>
 
 If none: omit this section.
 
@@ -396,49 +414,36 @@ If none: omit this section.
 
 Recommended for completeness but not blocking.
 
-1. <amendment>
+1. <amendment> (confidence: HIGH/MEDIUM/LOW)
 2. ...
 
 If none: omit this section.
 
 ## Organizational Constraint Violations
 
-<List any violations of RHOAI organizational requirements. Quote the constraint and explain how the STRAT violates it.>
+<List any violations with confidence tags>
 
 If none: "No organizational constraint violations detected."
 ```
 
-## Verdict Criteria
+### Step 4.3: Attach to Jira
 
-| Verdict | Criteria |
-|---------|----------|
-| **PASS** | No Security Risks identified. NFR Gaps alone do NOT warrant CONCERNS (unless 5+ NFR Gaps at Standard/Deep tier). |
-| **CONCERNS** | One or more Security Risks at Medium or High severity with straightforward mitigations; OR 5+ NFR Gaps at Standard/Deep tier indicating systemic security omission |
-| **FAIL** | One or more Critical Security Risks; fundamental security issues requiring redesign |
+After both files are written, attach the **requirements file** (not the full review) to the Jira ticket:
 
-**Important:** A STRAT with only NFR Gaps and no Security Risks is normally a PASS. Exception: 5+ NFR Gaps at Standard or Deep tier indicates systemic security omission and warrants CONCERNS.
+```bash
+python3 scripts/attach_to_jira.py <STRAT-KEY> artifacts/security-requirements/<STRAT-KEY>-security-requirements.md
+```
 
-## Severity Definitions (Security Risks only)
+This requires `JIRA_SERVER`, `JIRA_USER`, and `JIRA_TOKEN` environment variables. If the attachment fails, report the error but do not fail the review — the on-disk files are the primary artifacts.
 
-| Severity | Definition | Example |
-|----------|------------|---------|
-| **Critical** | Architectural security flaw that cannot be fixed without redesign | STRAT proposes multi-tenant data access with no isolation model for a new shared service |
-| **High** | Significant security gap in something the STRAT actively proposes | STRAT creates a new public API endpoint that bypasses the gateway with no authentication |
-| **Medium** | Security consideration for a new capability that has known mitigation patterns | STRAT introduces a new public-facing endpoint without rate limiting |
+### Step 4.4: Preserve Intermediate Files
 
-Note: There is no Low severity for Security Risks. If a concern is Low severity, it is an NFR Gap, not a Security Risk.
+Do NOT delete the intermediate files. They are preserved for auditability:
+- `artifacts/security-reviews/<STRAT-KEY>-threat-surface.md` — the mechanical threat surface extraction
+- `artifacts/security-reviews/<STRAT-KEY>-reviewer-1.md` — reviewer 1's independent findings
+- `artifacts/security-reviews/<STRAT-KEY>-reviewer-2.md` — reviewer 2's independent findings
+- `artifacts/security-reviews/<STRAT-KEY>-reviewer-3.md` — reviewer 3's independent findings
 
-## Calibration Rules
-
-- **Determine the tier first.** Read the frontmatter, determine the review tier (Light/Standard/Deep), and let that control the depth and format. Do not apply Deep-tier rigor to a Light-tier change.
-- **Read the architecture context.** For Standard and Deep tiers, read the architecture summary for every affected component BEFORE writing findings. Understand what controls already exist.
-- **Apply the relevance gate to every finding.** If you cannot cite specific STRAT text AND confirm the concern is not already mitigated by existing infrastructure, do not emit the finding.
-- **Distinguish Security Risks from NFR Gaps.** "The STRAT proposes storing credentials in a ConfigMap" is a Security Risk. "The STRAT doesn't mention audit logging" is an NFR Gap (if relevant at all). Severity and verdict consequences are different.
-- **Do not fabricate risks.** If the STRAT describes a low-security-surface change and passes the relevance gate with no findings, PASS it. A clean PASS is a valid and useful outcome.
-- **Be specific in Threat Surface Analysis.** Name the specific endpoints, boundaries, and data flows from the STRAT content. If you cannot identify specifics, say "None identified." Do not write generic filler like "New API/UI endpoints exposed to users."
-- **Note sparse STRATs.** If `rfe_content_quality` is `sparse` and the Technical Approach is mostly inferred, note: "STRAT based on sparse RFE — security assessment is limited by available detail."
-- **Scale to effort and surface.** An S-sized single-component UI change assessed at Light tier should produce a 5-line compact review. An XL multi-component platform initiative assessed at Deep tier should produce a thorough analytical review with architecture context cross-references.
-- **Check upstream component risk posture.** When a STRAT uses or extends a known-risky upstream component, cross-reference these known systemic risks: Ray is architecturally "insecure by design" (CVE-2023-48022 / ShadowRay 2.0, no auth on Dashboard by default). MLflow has 6+ recurring path traversal CVEs across two years (systemic codebase pattern). Kubeflow Profile Controller runs as cluster-admin. HuggingFace transformers has CVEs with no upstream fix path. vLLM loads models from untrusted sources with Pickle deserialization risks. If the STRAT's design does not account for these known risks, flag them.
-- **Consider cross-component attack chains (Deep tier).** For Deep-tier reviews, consider how the proposed change interacts with adjacent RHOAI components. Can a vulnerability in this STRAT's scope chain into exploits in other layers? For example: prompt injection in model serving chaining through a pipeline into a Ray cluster, or RBAC escalation in one namespace affecting another. A per-STRAT review cannot exhaustively analyze all chains, but should note obvious adjacency risks.
+These files allow post-hoc analysis of reviewer agreement and can be used to calibrate the review process over time.
 
 $ARGUMENTS

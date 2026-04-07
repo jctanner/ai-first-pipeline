@@ -49,6 +49,11 @@ def _add_native_skill_args(parser: argparse.ArgumentParser) -> None:
         action="append",
         help="Jira issue key to process (e.g., RHAIRFE-1234); can be repeated",
     )
+    parser.add_argument(
+        "--force",
+        action="store_true",
+        help="Regenerate output even if it already exists",
+    )
 
 
 def parse_args():
@@ -262,10 +267,6 @@ Examples:
         "--max-concurrent", type=int, default=5,
         help="Maximum number of agents to run concurrently (default: 5)",
     )
-    rfe_speedrun_parser.add_argument(
-        "--force", action="store_true",
-        help="Re-process RFEs even if artifacts already exist",
-    )
 
     # === Strategy phases (rfe-creator skills, native invocation) ===
     strat_create_parser = subparsers.add_parser(
@@ -280,10 +281,6 @@ Examples:
     strat_create_parser.add_argument(
         "--max-concurrent", type=int, default=5,
         help="Maximum number of agents to run concurrently (default: 5)",
-    )
-    strat_create_parser.add_argument(
-        "--force", action="store_true",
-        help="Re-process RFEs even if artifacts already exist",
     )
 
     strat_refine_parser = subparsers.add_parser(
@@ -323,10 +320,6 @@ Examples:
     rfe_all_parser.add_argument(
         "--max-concurrent", type=int, default=5,
         help="Maximum number of agents to run concurrently (default: 5)",
-    )
-    rfe_all_parser.add_argument(
-        "--force", action="store_true",
-        help="Re-process RFEs even if artifacts already exist",
     )
 
     strat_all_parser = subparsers.add_parser(

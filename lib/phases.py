@@ -2546,6 +2546,8 @@ async def run_native_skill_phase(args) -> None:
     # Build the prompt as a slash-command invocation.  The agent will
     # parse this and call the Skill tool with the correct args.
     skill_args_parts: list[str] = ["--headless"]
+    if getattr(args, "force", False):
+        skill_args_parts.append("--force")
     if issue_arg:
         skill_args_parts.append(issue_arg)
     skill_args = " ".join(skill_args_parts)

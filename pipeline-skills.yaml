@@ -129,5 +129,5 @@ phases:
     skill: strat-security-review
     invoke: native
     runner: cli
-    allowed_tools: [Read, Write, Glob, Grep, Bash]
+    allowed_tools: [Read, Write, Glob, Grep, Bash, Skill]
     mcp_servers: [atlassian]

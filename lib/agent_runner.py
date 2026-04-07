@@ -292,12 +292,17 @@ async def run_agent_cli(
     start_time = time.monotonic()
 
     try:
+        # Use 10MB buffer limit — stream-json events can be very large when
+        # tool results contain full file contents (e.g. rfes.md index).
+        _STREAM_LIMIT = 10 * 1024 * 1024
+
         proc = await asyncio.create_subprocess_exec(
             *cmd,
             stdout=asyncio.subprocess.PIPE,
             stderr=asyncio.subprocess.PIPE,
             cwd=cwd,
             env=proc_env,
+            limit=_STREAM_LIMIT,
         )
 
         async def _stream_stdout(log_fh):
