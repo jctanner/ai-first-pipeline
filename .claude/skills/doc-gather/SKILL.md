@@ -27,23 +27,19 @@ Detect the input type:
 
 ### For Jira tickets
 
-Call the MCP tool to resolve the ticket:
+Use the resolve script to fetch and structure ticket metadata:
 
+```bash
+bash ${CLAUDE_SKILL_DIR}/scripts/resolve-jira.sh <JIRA-KEY>
 ```
-mcp__mcp-atlassian__jira_get_issue(issue_key="<JIRA-KEY>")
+
+This returns JSON with: `key`, `summary`, `description`, `acceptance_criteria`, `fix_versions`, `components`, `linked_tickets`, `epic_key`, `status`, `issue_type`.
+
+If the ticket has linked tickets that provide useful context (e.g., parent epic, related stories), resolve those too (up to 5 linked tickets):
+
+```bash
+bash ${CLAUDE_SKILL_DIR}/scripts/resolve-jira.sh <LINKED-KEY>
 ```
-
-Extract from the response:
-- `summary` — ticket title
-- `description` — full description text
-- `fix_versions` — list of version names from `fixVersions`
-- `components` — list of component names
-- `linked_tickets` — keys from `issuelinks`
-- `epic_key` — parent epic key
-- `status` — ticket status
-- `issue_type` — Story, Bug, Task, etc.
-
-If the ticket has linked tickets that provide useful context (e.g., parent epic, related stories), resolve those too (up to 5 linked tickets).
 
 ### For PR URLs
 
@@ -53,14 +49,14 @@ Use `gh` CLI to extract PR metadata:
 gh pr view <PR-URL> --json title,body,labels,files,headRefName
 ```
 
-Extract the Jira key from the PR title or body (pattern: `[A-Z]+-\d+`), then resolve the Jira ticket as above.
+Extract the Jira key from the PR title or body (pattern: `[A-Z]+-\d+`), then resolve the Jira ticket using the resolve script as above.
 
 ## Step 2: Parse product configuration
 
-Read `configs/rhoai.yaml` using the parse script:
+Read the product configuration bundled with this skill:
 
 ```bash
-python3 ${CLAUDE_SKILL_DIR}/scripts/parse-product-config.py configs/rhoai.yaml
+python3 ${CLAUDE_SKILL_DIR}/scripts/parse-product-config.py ${CLAUDE_SKILL_DIR}/configs/rhoai.yaml
 ```
 
 From the config, determine:
@@ -74,7 +70,7 @@ From the config, determine:
 For each fixVersion from the ticket:
 
 ```bash
-python3 ${CLAUDE_SKILL_DIR}/scripts/parse-product-config.py configs/rhoai.yaml --resolve-version "<fixVersion>"
+python3 ${CLAUDE_SKILL_DIR}/scripts/parse-product-config.py ${CLAUDE_SKILL_DIR}/configs/rhoai.yaml --resolve-version "<fixVersion>"
 ```
 
 This determines which branch to checkout for each repo.
@@ -84,7 +80,7 @@ This determines which branch to checkout for each repo.
 For each component from the ticket:
 
 ```bash
-python3 ${CLAUDE_SKILL_DIR}/scripts/parse-product-config.py configs/rhoai.yaml --resolve-component "<component-name>"
+python3 ${CLAUDE_SKILL_DIR}/scripts/parse-product-config.py ${CLAUDE_SKILL_DIR}/configs/rhoai.yaml --resolve-component "<component-name>"
 ```
 
 This identifies which source repos are relevant.
@@ -123,10 +119,11 @@ The pipeline runs six stages:
 
 ## Step 7: Read file contents
 
-For each selected candidate, read the file content from the cloned repo:
+Source the git utilities and read each selected candidate's content from the cloned repo:
 
 ```bash
-cat workspace/repos/<repo-slug>/<file-path>
+source ${CLAUDE_SKILL_DIR}/scripts/git-utils.sh
+git_file_content "workspace/repos/<repo-slug>" "<file-path>"
 ```
 
 Attach content to each candidate entry.
@@ -187,7 +184,7 @@ Write `workspace/context-package.json` with this structure:
 
 ## Stop conditions
 
-- **Halt**: Jira ticket not found or MCP tool unavailable
+- **Halt**: Jira ticket not found or resolve-jira.sh fails (missing credentials)
 - **Halt**: No context sources configured in product config
 - **Warn and continue**: Individual repo clone fails (skip that repo)
 - **Warn and continue**: Individual file unreadable (skip that file)

@@ -25,54 +25,38 @@
 set -euo pipefail
 
 SCRIPTS_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-PROJECT_ROOT="$(pwd)"
 
-# Load .env if available (GITHUB_TOKEN, etc.)
-source "${SCRIPTS_DIR}/load-env.sh"
-
-WORKSPACE="${PROJECT_ROOT}/workspace/repos"
+# Load shared git utilities (also loads .env via load-env.sh)
+source "${SCRIPTS_DIR}/git-utils.sh"
 
 REPO_SLUG="${1:?Usage: gather-context.sh <repo-slug> <branch> [path-pattern...]}"
 BRANCH="${2:?Usage: gather-context.sh <repo-slug> <branch> [path-pattern...]}"
 shift 2
 PATH_PATTERNS=("$@")
 
-# Determine clone target
-CLONE_DIR="${WORKSPACE}/${REPO_SLUG}"
-
-# Clone or fetch
-if [[ -d "${CLONE_DIR}/.git" ]]; then
-    git -C "${CLONE_DIR}" fetch origin "${BRANCH}" --depth=1 2>/dev/null || true
-    git -C "${CLONE_DIR}" checkout "origin/${BRANCH}" --force 2>/dev/null || \
-        git -C "${CLONE_DIR}" checkout "${BRANCH}" --force 2>/dev/null || true
-else
-    mkdir -p "$(dirname "${CLONE_DIR}")"
-    if ! git clone --depth=1 --branch "${BRANCH}" "https://github.com/${REPO_SLUG}.git" "${CLONE_DIR}" 2>/dev/null; then
-        echo "Error: failed to clone ${REPO_SLUG} at branch ${BRANCH}" >&2
-        # Output empty result
-        jq -n --arg repo "$REPO_SLUG" --arg branch "$BRANCH" --arg path "$CLONE_DIR" \
-            '{repo: $repo, branch: $branch, clone_path: $path, candidates: []}'
-        exit 0
-    fi
-fi
+# Clone or fetch using shared utility
+CLONE_DIR=$(git_clone_or_fetch "$REPO_SLUG" "$BRANCH" 2>/dev/null) || {
+    echo "Error: failed to clone ${REPO_SLUG} at branch ${BRANCH}" >&2
+    jq -n --arg repo "$REPO_SLUG" --arg branch "$BRANCH" --arg path "${WORKSPACE}/${REPO_SLUG}" \
+        '{repo: $repo, branch: $branch, clone_path: $path, candidates: []}'
+    exit 0
+}
 
 # Collect candidate files
 CANDIDATES="[]"
 
 if [[ ${#PATH_PATTERNS[@]} -eq 0 ]]; then
     # No patterns: list all tracked files
-    PATH_PATTERNS=("**/*")
+    PATH_PATTERNS=("*")
 fi
 
 for pattern in "${PATH_PATTERNS[@]}"; do
-    # Use find with glob-like matching via bash globstar
-    while IFS= read -r -d '' file; do
-        rel_path="${file#${CLONE_DIR}/}"
-        size=$(stat -c%s "$file" 2>/dev/null || stat -f%z "$file" 2>/dev/null || echo 0)
+    while IFS= read -r rel_path; do
+        [[ -z "$rel_path" ]] && continue
+        size=$(git_file_size "$CLONE_DIR" "$rel_path")
         CANDIDATES=$(echo "$CANDIDATES" | jq --arg fp "$rel_path" --argjson sz "$size" \
             '. + [{"file_path": $fp, "size_bytes": $sz}]')
-    done < <(cd "${CLONE_DIR}" && find . -path "./${pattern}" -type f -print0 2>/dev/null || \
-             cd "${CLONE_DIR}" && eval "shopt -s globstar nullglob; printf '%s\0' ${pattern}" 2>/dev/null || true)
+    done < <(git_list_files "$CLONE_DIR" "$pattern")
 done
 
 # Deduplicate by file_path

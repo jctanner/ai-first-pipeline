@@ -1,12 +1,10 @@
 #!/usr/bin/env bash
-# Resolve a Jira ticket via MCP Atlassian tools and emit structured JSON.
-#
-# This script is a reference wrapper that documents the MCP call pattern.
-# In practice, skills invoke MCP tools directly. This script serves as
-# documentation and as a fallback for non-MCP environments.
+# Resolve a Jira ticket via REST API and emit structured JSON.
 #
 # Usage:
 #   bash resolve-jira.sh RHOAIENG-55490
+#
+# Requires JIRA_EMAIL and JIRA_TOKEN environment variables (loaded from .env).
 #
 # Output (JSON to stdout):
 # {
@@ -21,22 +19,6 @@
 #   "status": "In Progress",
 #   "issue_type": "Story"
 # }
-#
-# MCP tool used: mcp__mcp-atlassian__jira_get_issue
-#
-# When running inside Claude Code, the skill should call the MCP tool directly:
-#   mcp__mcp-atlassian__jira_get_issue(issue_key="RHOAIENG-55490")
-#
-# The skill then extracts from the MCP response:
-#   - summary (fields.summary)
-#   - description (fields.description)
-#   - acceptance criteria (fields.customfield_* or from description)
-#   - fixVersions (fields.fixVersions[].name)
-#   - components (fields.components[].name)
-#   - issuelinks (fields.issuelinks[].outwardIssue.key / inwardIssue.key)
-#   - epic link (fields.customfield_10014 or parent.key for next-gen projects)
-#   - status (fields.status.name)
-#   - issuetype (fields.issuetype.name)
 
 set -euo pipefail
 
@@ -52,8 +34,7 @@ TICKET_KEY="${1:?Usage: resolve-jira.sh <JIRA-KEY>}"
 JIRA_URL="${JIRA_URL:-https://issues.redhat.com}"
 
 if [[ -z "${JIRA_EMAIL:-}" ]] || [[ -z "${JIRA_TOKEN:-}" ]]; then
-    echo "Error: JIRA_EMAIL and JIRA_TOKEN must be set for REST API access." >&2
-    echo "When running inside Claude Code, use MCP tools instead." >&2
+    echo "Error: JIRA_EMAIL and JIRA_TOKEN must be set (add them to .env)." >&2
     exit 1
 fi
 
