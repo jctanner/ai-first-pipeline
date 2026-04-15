@@ -5,7 +5,7 @@ description: >
   GitLab MR. Reads workspace findings files and formats them as
   inline or summary comments.
 argument-hint: "<PR-URL> [--validation] [--review] [--all]"
-model: haiku
+model: claude-haiku-3-5
 effort: low
 ---
 

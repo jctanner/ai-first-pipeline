@@ -5,7 +5,7 @@ description: >
   workspace/context-package.json and produces workspace/gap-report.json
   with severity-rated gaps and a proceed/gather-more/stop recommendation.
 argument-hint: "[component-focus]"
-model: sonnet
+model: claude-sonnet-4-5
 effort: medium
 ---
 
@@ -42,7 +42,7 @@ Record each check as a finding with pass/fail status.
 
 ## Step 3: LLM assessment
 
-Read the gap analysis prompt from `prompts/gap-analysis.md`.
+Read the gap analysis prompt from `${CLAUDE_SKILL_DIR}/prompts/gap-analysis.md`.
 
 Construct an LLM prompt combining:
 - The gap analysis prompt template

@@ -5,7 +5,7 @@ description: >
   Checks factual accuracy, completeness, consistency, and hallucination.
   Produces workspace/review-findings.json.
 argument-hint: "<file-or-directory> [--context workspace/context-package.json]"
-model: opus
+model: claude-opus-4-6
 effort: high
 ---
 
@@ -48,7 +48,7 @@ Group context files by type for targeted comparison:
 
 For each AsciiDoc file, read its content and construct a review prompt combining:
 
-1. Read `prompts/review-content.md` template
+1. Read `${CLAUDE_SKILL_DIR}/prompts/review-content.md` template
 2. The documentation content being reviewed
 3. Relevant context files (matched by topic/component)
 4. Ticket metadata

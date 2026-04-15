@@ -6,7 +6,7 @@ description: >
   against a STRAT's threat surface inventory.
 context: fork
 allowed-tools: Read, Write, Grep, Glob, Bash, mcp__atlassian__getJiraIssue
-model: opus
+model: claude-opus-4-6
 user-invocable: false
 ---
 

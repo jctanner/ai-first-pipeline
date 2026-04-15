@@ -6,7 +6,7 @@ description: >
   YAML syntax checks, and LLM-powered cross-reference validation.
   Produces workspace/validation-findings.json.
 argument-hint: "<file-or-directory> [--context workspace/context-package.json]"
-model: sonnet
+model: claude-sonnet-4-5
 effort: high
 ---
 

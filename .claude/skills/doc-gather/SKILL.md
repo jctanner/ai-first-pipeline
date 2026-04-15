@@ -5,7 +5,7 @@ description: >
   clones relevant repos, collects candidate files, runs filtering
   pipeline, and produces workspace/context-package.json.
 argument-hint: "<JIRA-KEY|PR-URL>"
-model: sonnet
+model: claude-sonnet-4-5
 effort: high
 ---
 

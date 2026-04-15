@@ -6,7 +6,7 @@ description: >
   self-validates with iterative correction (up to 3 retries).
   Produces generated files and workspace/generation-report.json.
 argument-hint: "[--type concept|procedure|reference|assembly] [--topic <topic>]"
-model: opus
+model: claude-opus-4-6
 effort: high
 ---
 
@@ -31,7 +31,7 @@ If no arguments, generate all appropriate module types based on the feature.
 
 1. Read `workspace/context-package.json`
 2. Read `workspace/gap-report.json` (if exists)
-3. Read `prompts/generate-docs.md`
+3. Read `${CLAUDE_SKILL_DIR}/prompts/generate-docs.md`
 4. Source `${CLAUDE_SKILL_DIR}/scripts/product-config.sh` and `${CLAUDE_SKILL_DIR}/scripts/asciidoc-conventions.sh` for module templates
 
 Check gap report recommendation:
@@ -63,7 +63,7 @@ For each module to generate:
 
 1. Select relevant context files (highest relevance scores first)
 2. Construct generation prompt combining:
-   - `prompts/generate-docs.md` template
+   - `${CLAUDE_SKILL_DIR}/prompts/generate-docs.md` template
    - Ticket metadata
    - Selected context file contents
    - Gap analysis findings relevant to this module

@@ -5,7 +5,7 @@ description: >
   doc-validate, doc-review, and doc-generate skills based on the
   requested pipeline mode.
 argument-hint: "<JIRA-KEY> <gather|gap|validate|review|generate>"
-model: sonnet
+model: claude-sonnet-4-5
 effort: high
 ---
 

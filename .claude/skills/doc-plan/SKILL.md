@@ -5,7 +5,7 @@ description: >
   child epics and stories to produce a systematic doc plan identifying
   what documentation is needed, what type, and at what priority.
 argument-hint: "<STRAT-KEY|EPIC-KEY>"
-model: opus
+model: claude-opus-4-6
 effort: high
 ---
 
@@ -84,7 +84,7 @@ Identify:
 
 ## Step 5: Generate doc plan
 
-Read `prompts/doc-plan.md` for the planning prompt.
+Read `${CLAUDE_SKILL_DIR}/prompts/doc-plan.md` for the planning prompt.
 
 Construct the plan combining:
 - All ticket assessments
