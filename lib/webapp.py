@@ -7,6 +7,7 @@ import shutil
 import stat
 import threading
 from datetime import datetime
+from pathlib import Path
 
 from flask import Flask, render_template_string, jsonify, abort, Response, request
 from jinja2 import DictLoader, ChoiceLoader
@@ -333,7 +334,7 @@ LAYOUT = """\
 <body>
   <nav class="container-fluid">
     <ul><li><strong><a href="/">Pipeline Dashboard</a></strong></li></ul>
-    <ul><li><a href="/">Dashboard</a></li><li><a href="/jobs">Jobs</a></li><li><a href="/activity">Activity</a></li><li><a href="/readiness">Readiness</a></li><li><a href="/stats">Stats</a></li><li><a href="/summary">Summary</a></li><li><a href="/settings">Settings</a></li></ul>
+    <ul><li><a href="/">Dashboard</a></li><li><a href="/jobs">Jobs</a></li><li><a href="/files">Files</a></li><li><a href="/activity">Activity</a></li><li><a href="/readiness">Readiness</a></li><li><a href="/stats">Stats</a></li><li><a href="/summary">Summary</a></li><li><a href="/settings">Settings</a></li></ul>
   </nav>
   <main class="container-fluid">
     {% block content %}{% endblock %}
@@ -4227,6 +4228,312 @@ if (K8S_AVAILABLE) {
 {% endblock %}
 """
 
+FILES = """\
+{% extends "layout.html" %}
+{% block title %}File Browser{% endblock %}
+{% block content %}
+<style>
+  .file-browser {
+    display: grid;
+    grid-template-columns: 300px 1fr;
+    gap: 1rem;
+    height: calc(100vh - 200px);
+  }
+  @media (max-width: 900px) {
+    .file-browser { grid-template-columns: 1fr; height: auto; }
+  }
+  .file-tree {
+    background: #f8f9fa;
+    padding: 1rem;
+    border-radius: 8px;
+    overflow-y: auto;
+  }
+  .file-viewer {
+    background: #f8f9fa;
+    padding: 1rem;
+    border-radius: 8px;
+    overflow-y: auto;
+  }
+  .breadcrumb {
+    background: #fff;
+    padding: 0.5rem 1rem;
+    border-radius: 6px;
+    margin-bottom: 1rem;
+    font-size: 0.9em;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    flex-wrap: wrap;
+  }
+  .breadcrumb a {
+    color: #3498db;
+    text-decoration: none;
+  }
+  .breadcrumb a:hover { text-decoration: underline; }
+  .breadcrumb span { color: #95a5a6; }
+  .dir-list {
+    list-style: none;
+    padding-left: 1rem;
+    margin: 0;
+  }
+  .dir-list li {
+    padding: 0.3rem 0;
+    cursor: pointer;
+  }
+  .dir-entry {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.2rem 0.5rem;
+    border-radius: 4px;
+  }
+  .dir-entry:hover {
+    background: #e9ecef;
+  }
+  .dir-entry.selected {
+    background: #3498db;
+    color: white;
+  }
+  .icon-dir::before { content: '📁 '; }
+  .icon-file::before { content: '📄 '; }
+  .file-content {
+    background: #1e1e1e;
+    color: #d4d4d4;
+    padding: 1rem;
+    border-radius: 6px;
+    font-family: monospace;
+    font-size: 0.85em;
+    white-space: pre-wrap;
+    word-wrap: break-word;
+    overflow-x: auto;
+    max-height: calc(100vh - 300px);
+  }
+  .file-info {
+    background: #fff;
+    padding: 0.5rem 1rem;
+    border-radius: 6px;
+    margin-bottom: 1rem;
+    font-size: 0.9em;
+    display: flex;
+    justify-content: space-between;
+  }
+  .empty-state {
+    text-align: center;
+    color: #95a5a6;
+    padding: 3rem 1rem;
+  }
+  .error-state {
+    background: #fdedec;
+    border: 1px solid #e74c3c;
+    color: #c0392b;
+    padding: 1rem;
+    border-radius: 6px;
+  }
+  .base-dir-links {
+    margin-bottom: 1rem;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+  }
+  .base-dir-btn {
+    background: #3498db;
+    color: white;
+    border: none;
+    padding: 0.4rem 0.8rem;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 0.85em;
+  }
+  .base-dir-btn:hover { background: #2980b9; }
+  .base-dir-btn.active { background: #27ae60; }
+</style>
+
+<h1>File Browser</h1>
+
+<div class="base-dir-links">
+  <button class="base-dir-btn" onclick="navigateTo('/app/artifacts')">artifacts/</button>
+  <button class="base-dir-btn" onclick="navigateTo('/app/issues')">issues/</button>
+  <button class="base-dir-btn" onclick="navigateTo('/app/workspace')">workspace/</button>
+  <button class="base-dir-btn" onclick="navigateTo('/app/logs')">logs/</button>
+  <button class="base-dir-btn" onclick="navigateTo('/app/.context')">.context/</button>
+</div>
+
+<div class="file-browser">
+  <div class="file-tree">
+    <h3 style="margin-top: 0;">Directory</h3>
+    <div class="breadcrumb" id="breadcrumb"></div>
+    <ul class="dir-list" id="dir-list">
+      <li class="empty-state">Select a base directory above</li>
+    </ul>
+  </div>
+
+  <div class="file-viewer">
+    <h3 style="margin-top: 0;">File Viewer</h3>
+    <div id="file-display">
+      <div class="empty-state">Select a file to view its contents</div>
+    </div>
+  </div>
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+let currentPath = '';
+let currentEntries = [];
+
+function formatSize(bytes) {
+  if (bytes === 0) return '0 B';
+  const k = 1024;
+  const sizes = ['B', 'KB', 'MB', 'GB'];
+  const i = Math.floor(Math.log(bytes) / Math.log(k));
+  return Math.round(bytes / Math.pow(k, i) * 100) / 100 + ' ' + sizes[i];
+}
+
+function formatDate(isoString) {
+  if (!isoString) return 'N/A';
+  const d = new Date(isoString);
+  return d.toLocaleString();
+}
+
+async function navigateTo(path) {
+  currentPath = path;
+
+  try {
+    const response = await fetch('/api/files/list?path=' + encodeURIComponent(path));
+    const data = await response.json();
+
+    if (!response.ok) {
+      showError('Error loading directory: ' + (data.error || 'Unknown error'));
+      return;
+    }
+
+    currentEntries = data.entries || [];
+    renderBreadcrumb(path);
+    renderDirectoryList(currentEntries);
+
+    // Clear file viewer
+    document.getElementById('file-display').innerHTML = '<div class="empty-state">Select a file to view its contents</div>';
+  } catch (err) {
+    showError('Error loading directory: ' + err.message);
+  }
+}
+
+function renderBreadcrumb(path) {
+  const parts = path.split('/').filter(p => p);
+  const breadcrumb = document.getElementById('breadcrumb');
+
+  let html = '<a href="#" onclick="navigateTo(\\'/\\'); return false;">/</a>';
+  let accumulated = '';
+
+  for (let i = 0; i < parts.length; i++) {
+    accumulated += '/' + parts[i];
+    if (i < parts.length - 1) {
+      html += '<span>/</span><a href="#" onclick="navigateTo(\\'' + accumulated + '\\'); return false;">' + parts[i] + '</a>';
+    } else {
+      html += '<span>/</span><strong>' + parts[i] + '</strong>';
+    }
+  }
+
+  breadcrumb.innerHTML = html;
+}
+
+function renderDirectoryList(entries) {
+  const dirList = document.getElementById('dir-list');
+
+  if (entries.length === 0) {
+    dirList.innerHTML = '<li class="empty-state">Empty directory</li>';
+    return;
+  }
+
+  // Sort: directories first, then files, alphabetically
+  const sorted = [...entries].sort((a, b) => {
+    if (a.type !== b.type) {
+      return a.type === 'directory' ? -1 : 1;
+    }
+    return a.name.localeCompare(b.name);
+  });
+
+  let html = '';
+
+  // Add parent directory link if not at root
+  if (currentPath && currentPath !== '/') {
+    const parentPath = currentPath.substring(0, currentPath.lastIndexOf('/')) || '/';
+    html += '<li><div class="dir-entry" onclick="navigateTo(\\'' + parentPath + '\\')"><span class="icon-dir"></span>.. (parent)</div></li>';
+  }
+
+  for (const entry of sorted) {
+    const fullPath = currentPath + '/' + entry.name;
+    const iconClass = entry.type === 'directory' ? 'icon-dir' : 'icon-file';
+    const onclick = entry.type === 'directory'
+      ? `navigateTo('${fullPath}')`
+      : `viewFile('${fullPath}', '${entry.name}')`;
+
+    html += `<li><div class="dir-entry" onclick="${onclick}"><span class="${iconClass}"></span>${entry.name}</div></li>`;
+  }
+
+  dirList.innerHTML = html;
+}
+
+async function viewFile(path, name) {
+  const display = document.getElementById('file-display');
+  display.innerHTML = '<div class="empty-state">Loading...</div>';
+
+  try {
+    const response = await fetch('/api/files/read?path=' + encodeURIComponent(path));
+    const data = await response.json();
+
+    if (!response.ok) {
+      showError('Error reading file: ' + (data.error || 'Unknown error'));
+      return;
+    }
+
+    let html = '';
+
+    // File info header
+    html += '<div class="file-info">';
+    html += '<div><strong>' + name + '</strong></div>';
+    html += '<div>';
+    if (data.size !== undefined) {
+      html += 'Size: ' + formatSize(data.size) + ' | ';
+    }
+    if (data.modified) {
+      html += 'Modified: ' + formatDate(data.modified);
+    }
+    html += '</div>';
+    html += '</div>';
+
+    if (data.binary) {
+      html += '<div class="empty-state">Binary file (' + formatSize(data.size) + ')<br>Cannot display</div>';
+    } else if (data.content !== undefined) {
+      html += '<div class="file-content">' + escapeHtml(data.content) + '</div>';
+    } else if (data.error) {
+      html += '<div class="error-state">' + data.error + '</div>';
+    }
+
+    display.innerHTML = html;
+  } catch (err) {
+    showError('Error reading file: ' + err.message);
+  }
+}
+
+function showError(message) {
+  document.getElementById('file-display').innerHTML = '<div class="error-state">' + message + '</div>';
+}
+
+function escapeHtml(text) {
+  const div = document.createElement('div');
+  div.textContent = text;
+  return div.innerHTML;
+}
+
+// Make functions global
+window.navigateTo = navigateTo;
+window.viewFile = viewFile;
+</script>
+{% endblock %}
+"""
+
 # ---------------------------------------------------------------------------
 # Flask app factory
 # ---------------------------------------------------------------------------
@@ -4244,6 +4551,7 @@ def create_app() -> Flask:
             "tab_strategies.html": TAB_STRATEGIES,
             "settings.html": SETTINGS,
             "jobs.html": JOBS,
+            "files.html": FILES,
         }),
         app.jinja_loader,
     ])
@@ -4598,6 +4906,10 @@ def create_app() -> Flask:
     def jobs():
         return render_template_string(JOBS, k8s_available=K8S_AVAILABLE)
 
+    @app.route("/files")
+    def files():
+        return render_template_string(FILES)
+
     @app.route("/api/issues")
     def api_issues():
         issues = load_all_issues()
@@ -4843,5 +5155,134 @@ def create_app() -> Flask:
                 return jsonify({"error": "Job not found"}), 404
         except Exception as e:
             return jsonify({"error": str(e)}), 500
+
+    @app.route("/api/files/list")
+    def api_list_files():
+        """List files in a directory."""
+        path = request.args.get("path", "")
+
+        # Security: only allow browsing within /app directories
+        allowed_bases = ["/app/artifacts", "/app/issues", "/app/workspace", "/app/logs", "/app/.context", "/app/tmp"]
+
+        # Resolve path to absolute and check if it's within allowed bases
+        try:
+            resolved_path = Path(path).resolve()
+        except Exception as e:
+            return jsonify({"error": f"Invalid path: {e}"}), 400
+
+        # Check if path is within allowed bases
+        allowed = any(
+            str(resolved_path).startswith(base) or str(resolved_path) == base
+            for base in allowed_bases
+        )
+
+        if not allowed:
+            return jsonify({"error": "Access denied - path outside allowed directories"}), 403
+
+        # Check if directory exists
+        if not resolved_path.exists():
+            return jsonify({"error": "Directory not found"}), 404
+
+        if not resolved_path.is_dir():
+            return jsonify({"error": "Not a directory"}), 400
+
+        # List directory contents
+        try:
+            entries = []
+            for entry in sorted(resolved_path.iterdir(), key=lambda e: (not e.is_dir(), e.name)):
+                try:
+                    stat_info = entry.stat()
+                    entries.append({
+                        "name": entry.name,
+                        "type": "directory" if entry.is_dir() else "file",
+                        "size": stat_info.st_size if entry.is_file() else 0,
+                        "modified": datetime.fromtimestamp(stat_info.st_mtime).isoformat(),
+                    })
+                except (OSError, PermissionError):
+                    # Skip entries we can't stat (broken symlinks, permission issues)
+                    continue
+
+            return jsonify({
+                "path": str(resolved_path),
+                "entries": entries
+            })
+        except PermissionError:
+            return jsonify({"error": "Permission denied"}), 403
+        except Exception as e:
+            return jsonify({"error": f"Error listing directory: {e}"}), 500
+
+    @app.route("/api/files/read")
+    def api_read_file():
+        """Read file contents."""
+        path = request.args.get("path", "")
+
+        # Security: only allow reading within /app directories
+        allowed_bases = ["/app/artifacts", "/app/issues", "/app/workspace", "/app/logs", "/app/.context", "/app/tmp"]
+
+        # Resolve path to absolute and check if it's within allowed bases
+        try:
+            resolved_path = Path(path).resolve()
+        except Exception as e:
+            return jsonify({"error": f"Invalid path: {e}"}), 400
+
+        # Check if path is within allowed bases
+        allowed = any(
+            str(resolved_path).startswith(base)
+            for base in allowed_bases
+        )
+
+        if not allowed:
+            return jsonify({"error": "Access denied - path outside allowed directories"}), 403
+
+        # Check if file exists
+        if not resolved_path.exists():
+            return jsonify({"error": "File not found"}), 404
+
+        if not resolved_path.is_file():
+            return jsonify({"error": "Not a file"}), 400
+
+        # Get file info
+        try:
+            stat_info = resolved_path.stat()
+            file_size = stat_info.st_size
+            modified = datetime.fromtimestamp(stat_info.st_mtime).isoformat()
+        except Exception as e:
+            return jsonify({"error": f"Error reading file info: {e}"}), 500
+
+        # Check if binary file (simple heuristic: check for null bytes in first 8KB)
+        try:
+            with open(resolved_path, 'rb') as f:
+                sample = f.read(8192)
+                is_binary = b'\x00' in sample
+
+            if is_binary:
+                return jsonify({
+                    "binary": True,
+                    "size": file_size,
+                    "modified": modified
+                })
+
+            # Read text file (limit to 1MB to prevent memory issues)
+            max_size = 1024 * 1024  # 1MB
+            if file_size > max_size:
+                return jsonify({
+                    "error": f"File too large to display ({file_size} bytes, max {max_size} bytes)",
+                    "size": file_size,
+                    "modified": modified
+                }), 400
+
+            with open(resolved_path, 'r', encoding='utf-8', errors='replace') as f:
+                content = f.read()
+
+            return jsonify({
+                "content": content,
+                "size": file_size,
+                "modified": modified,
+                "binary": False
+            })
+        except PermissionError:
+            return jsonify({"error": "Permission denied"}), 403
+        except Exception as e:
+            return jsonify({"error": f"Error reading file: {e}"}), 500
 
     return app
