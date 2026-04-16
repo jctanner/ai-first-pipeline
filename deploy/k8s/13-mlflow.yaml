@@ -1,0 +1,114 @@
+---
+# Service for MLflow
+apiVersion: v1
+kind: Service
+metadata:
+  name: mlflow
+  namespace: ai-pipeline
+  labels:
+    app: mlflow
+spec:
+  type: ClusterIP
+  selector:
+    app: mlflow
+  ports:
+    - name: http
+      port: 5000
+      targetPort: 5000
+      protocol: TCP
+---
+# PersistentVolumeClaim for MLflow data
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: mlflow-data
+  namespace: ai-pipeline
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 10Gi
+  storageClassName: local-path
+---
+# Deployment for MLflow
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: mlflow
+  namespace: ai-pipeline
+  labels:
+    app: mlflow
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: mlflow
+  template:
+    metadata:
+      labels:
+        app: mlflow
+    spec:
+      containers:
+      - name: mlflow
+        image: ghcr.io/mlflow/mlflow:v3.11.1
+        imagePullPolicy: IfNotPresent
+
+        command:
+        - mlflow
+        - server
+        - --host
+        - "0.0.0.0"
+        - --port
+        - "5000"
+        - --backend-store-uri
+        - sqlite:///data/mlflow.db
+        - --default-artifact-root
+        - /data/artifacts
+        - --serve-artifacts
+        - --allowed-hosts
+        - "*"
+        - --cors-allowed-origins
+        - "*"
+
+        ports:
+        - name: http
+          containerPort: 5000
+          protocol: TCP
+
+        env:
+        - name: MLFLOW_TRACKING_URI
+          value: http://localhost:5000
+
+        volumeMounts:
+        - name: data
+          mountPath: /data
+
+        resources:
+          requests:
+            memory: "512Mi"
+            cpu: "250m"
+          limits:
+            memory: "2Gi"
+            cpu: "1000m"
+
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: 5000
+          initialDelaySeconds: 30
+          periodSeconds: 10
+          timeoutSeconds: 5
+
+        readinessProbe:
+          httpGet:
+            path: /health
+            port: 5000
+          initialDelaySeconds: 10
+          periodSeconds: 5
+          timeoutSeconds: 3
+
+      volumes:
+      - name: data
+        persistentVolumeClaim:
+          claimName: mlflow-data

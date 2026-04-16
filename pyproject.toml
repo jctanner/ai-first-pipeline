@@ -7,6 +7,8 @@ dependencies = [
     "claude-agent-sdk==0.1.48",
     "flask>=3.0",
     "jsonschema>=4.20",
+    "kubernetes>=35.0.0",
+    "mlflow>=3.4",
     "python-dotenv>=1.1",
     "pyyaml>=6.0",
     "requests>=2.32",

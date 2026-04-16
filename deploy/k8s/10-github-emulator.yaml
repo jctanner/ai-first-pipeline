@@ -1,0 +1,147 @@
+---
+# Service for GitHub Emulator
+apiVersion: v1
+kind: Service
+metadata:
+  name: github-emulator
+  namespace: ai-pipeline
+  labels:
+    app: github-emulator
+spec:
+  type: LoadBalancer
+  selector:
+    app: github-emulator
+  ports:
+    - name: https
+      port: 443
+      targetPort: 443
+      protocol: TCP
+    - name: http
+      port: 80
+      targetPort: 80
+      protocol: TCP
+---
+# Deployment for GitHub Emulator
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: github-emulator
+  namespace: ai-pipeline
+  labels:
+    app: github-emulator
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: github-emulator
+  template:
+    metadata:
+      labels:
+        app: github-emulator
+    spec:
+      # Init container to update CA trust
+      initContainers:
+      - name: setup-ca-trust
+        image: alpine:3.19
+        command:
+        - sh
+        - -c
+        - |
+          set -ex
+          if [ -f /tmp/ca-cert/ca.crt ]; then
+            cp /tmp/ca-cert/ca.crt /shared/internal-ca.crt
+            echo "CA cert copied to shared volume"
+          fi
+        volumeMounts:
+        - name: ca-cert
+          mountPath: /tmp/ca-cert
+          readOnly: true
+        - name: shared-ca
+          mountPath: /shared
+
+      containers:
+      - name: github-emulator
+        image: github-emulator:k3s
+        imagePullPolicy: IfNotPresent
+
+        ports:
+        - name: https
+          containerPort: 443
+          protocol: TCP
+        - name: http
+          containerPort: 80
+          protocol: TCP
+
+        env:
+        # Application port (override k8s auto-generated GITHUB_EMULATOR_PORT env var)
+        - name: GITHUB_EMULATOR_PORT
+          value: "8000"
+        - name: GITHUB_EMULATOR_HOST
+          value: "0.0.0.0"
+        # TLS configuration
+        - name: TLS_CERT_FILE
+          value: /etc/tls/tls.crt
+        - name: TLS_KEY_FILE
+          value: /etc/tls/tls.key
+        - name: GITHUB_EMULATOR_HOSTNAME
+          value: github-emulator.ai-pipeline.svc.cluster.local
+        - name: PUBLIC_HOSTNAME
+          value: github-emulator.ai-pipeline.svc.cluster.local
+        # Disable self-signed cert generation if supported
+        - name: AUTO_TLS
+          value: "false"
+        # GitHub token for authentication (optional)
+        - name: GH_TOKEN
+          valueFrom:
+            secretKeyRef:
+              name: github-token
+              key: token
+              optional: true
+
+        volumeMounts:
+        # Mount the cert-manager issued certificate
+        - name: tls-cert
+          mountPath: /etc/tls
+          readOnly: true
+        # Mount Caddyfile from ConfigMap
+        - name: caddy-config
+          mountPath: /etc/caddy/Caddyfile
+          subPath: Caddyfile
+          readOnly: true
+        # Mount persistent data
+        - name: data
+          mountPath: /data
+        # Mount shared CA cert
+        - name: shared-ca
+          mountPath: /etc/ssl/certs/internal
+          readOnly: true
+
+        resources:
+          requests:
+            memory: "256Mi"
+            cpu: "100m"
+          limits:
+            memory: "512Mi"
+            cpu: "500m"
+
+      volumes:
+      - name: tls-cert
+        secret:
+          secretName: github-emulator-tls
+          items:
+          - key: tls.crt
+            path: tls.crt
+          - key: tls.key
+            path: tls.key
+      - name: caddy-config
+        configMap:
+          name: github-emulator-config
+      - name: data
+        persistentVolumeClaim:
+          claimName: github-emulator-data
+      - name: ca-cert
+        configMap:
+          name: internal-ca-cert
+          optional: true
+      - name: shared-ca
+        emptyDir: {}

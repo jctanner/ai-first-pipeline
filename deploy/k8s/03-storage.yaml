@@ -1,0 +1,42 @@
+---
+# PersistentVolumeClaim for pipeline data (issues, workspace, logs, artifacts)
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: pipeline-data
+  namespace: ai-pipeline
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 20Gi
+  storageClassName: local-path
+---
+# PersistentVolumeClaim for github-emulator data
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: github-emulator-data
+  namespace: ai-pipeline
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 5Gi
+  storageClassName: local-path
+---
+# PersistentVolumeClaim for jira-emulator data
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: jira-emulator-data
+  namespace: ai-pipeline
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 5Gi
+  storageClassName: local-path

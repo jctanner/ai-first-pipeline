@@ -11,22 +11,34 @@ __pycache__/
 dist/
 build/
 
+# Vagrant
+.vagrant/
+
 # Symlinked external context directories
 architecture-context
 odh-tests-context
 odh-test-context
+.context/
 
 # External repo clones for skill isolation
 remote_skills/
+
+# Reference repositories cloned for development
+deploy/repos/
 
 # Generated data and workspaces
 fix-workspaces/
 issues/
 workspace/
 logs/
+tmp/
 
 # Log files in project root
 *.log
+
+# Data archives (may contain sensitive Jira data)
+*.tar.gz
+*.zip
 
 # Internal notes and analysis (not for public consumption)
 notes/
@@ -52,3 +64,4 @@ Thumbs.db
 *.swp
 *.swo
 *~
+.gcloud/

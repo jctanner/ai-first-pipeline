@@ -1,0 +1,160 @@
+---
+# Service for Jira Emulator
+apiVersion: v1
+kind: Service
+metadata:
+  name: jira-emulator
+  namespace: ai-pipeline
+  labels:
+    app: jira-emulator
+spec:
+  type: LoadBalancer
+  selector:
+    app: jira-emulator
+  ports:
+    - name: https
+      port: 443
+      targetPort: 443
+      protocol: TCP
+    - name: http
+      port: 80
+      targetPort: 80
+      protocol: TCP
+    - name: mcp
+      port: 8081
+      targetPort: 8081
+      protocol: TCP
+---
+# Deployment for Jira Emulator
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: jira-emulator
+  namespace: ai-pipeline
+  labels:
+    app: jira-emulator
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: jira-emulator
+  template:
+    metadata:
+      labels:
+        app: jira-emulator
+    spec:
+      # Init container to update CA trust
+      initContainers:
+      - name: setup-ca-trust
+        image: alpine:3.19
+        command:
+        - sh
+        - -c
+        - |
+          set -ex
+          if [ -f /tmp/ca-cert/ca.crt ]; then
+            cp /tmp/ca-cert/ca.crt /shared/internal-ca.crt
+            echo "CA cert copied to shared volume"
+          fi
+        volumeMounts:
+        - name: ca-cert
+          mountPath: /tmp/ca-cert
+          readOnly: true
+        - name: shared-ca
+          mountPath: /shared
+
+      containers:
+      - name: jira-emulator
+        image: jira-emulator:k3s
+        imagePullPolicy: IfNotPresent
+
+        ports:
+        - name: https
+          containerPort: 443
+          protocol: TCP
+        - name: http
+          containerPort: 80
+          protocol: TCP
+        - name: mcp
+          containerPort: 8081
+          protocol: TCP
+
+        env:
+        # Application ports
+        - name: PORT
+          value: "8080"
+        - name: HOST
+          value: "0.0.0.0"
+        - name: MCP_PORT
+          value: "8081"
+        - name: MCP_HOST
+          value: "0.0.0.0"
+        # TLS configuration
+        - name: TLS_CERT_FILE
+          value: /etc/tls/tls.crt
+        - name: TLS_KEY_FILE
+          value: /etc/tls/tls.key
+        - name: JIRA_EMULATOR_HOSTNAME
+          value: jira-emulator.ai-pipeline.svc.cluster.local
+        # Database
+        - name: DATABASE_URL
+          value: "sqlite+aiosqlite:////data/jira.db"
+        # Jira configuration
+        - name: JIRA_USER
+          value: "admin"
+        - name: JIRA_TOKEN
+          value: "jira-emulator-default-token"
+        - name: SEED_DATA
+          value: "true"
+        - name: IMPORT_ON_STARTUP
+          value: "false"
+        - name: ATTACHMENT_DIR
+          value: "/data/attachments"
+
+        volumeMounts:
+        # Mount the cert-manager issued certificate
+        - name: tls-cert
+          mountPath: /etc/tls
+          readOnly: true
+        # Mount Caddyfile from ConfigMap
+        - name: caddy-config
+          mountPath: /etc/caddy/Caddyfile
+          subPath: Caddyfile
+          readOnly: true
+        # Mount persistent data
+        - name: data
+          mountPath: /data
+        # Mount shared CA cert
+        - name: shared-ca
+          mountPath: /etc/ssl/certs/internal
+          readOnly: true
+
+        resources:
+          requests:
+            memory: "512Mi"
+            cpu: "200m"
+          limits:
+            memory: "1Gi"
+            cpu: "1000m"
+
+      volumes:
+      - name: tls-cert
+        secret:
+          secretName: jira-emulator-tls
+          items:
+          - key: tls.crt
+            path: tls.crt
+          - key: tls.key
+            path: tls.key
+      - name: caddy-config
+        configMap:
+          name: jira-emulator-config
+      - name: data
+        persistentVolumeClaim:
+          claimName: jira-emulator-data
+      - name: ca-cert
+        configMap:
+          name: internal-ca-cert
+          optional: true
+      - name: shared-ca
+        emptyDir: {}

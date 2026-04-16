@@ -1,0 +1,41 @@
+---
+# ServiceAccount for Pipeline Dashboard
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: pipeline-dashboard
+  namespace: ai-pipeline
+---
+# Role with permissions to manage Jobs and Pods
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: pipeline-orchestrator
+  namespace: ai-pipeline
+rules:
+# Job management
+- apiGroups: ["batch"]
+  resources: ["jobs"]
+  verbs: ["get", "list", "watch", "create", "delete"]
+# Pod access (for logs)
+- apiGroups: [""]
+  resources: ["pods"]
+  verbs: ["get", "list", "watch"]
+- apiGroups: [""]
+  resources: ["pods/log"]
+  verbs: ["get"]
+---
+# Bind the role to the service account
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: pipeline-orchestrator-binding
+  namespace: ai-pipeline
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: pipeline-orchestrator
+subjects:
+- kind: ServiceAccount
+  name: pipeline-dashboard
+  namespace: ai-pipeline

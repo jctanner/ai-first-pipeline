@@ -1,0 +1,22 @@
+---
+# ConfigMap for GitHub Emulator Caddyfile
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: github-emulator-config
+  namespace: ai-pipeline
+data:
+  Caddyfile: |
+    {$GITHUB_EMULATOR_HOSTNAME:github-emulator.ai-pipeline.svc.cluster.local} {
+        # Use cert-manager provided certificates
+        tls {$TLS_CERT_FILE:/etc/tls/tls.crt} {$TLS_KEY_FILE:/etc/tls/tls.key}
+
+        # Proxy to uvicorn running on localhost
+        reverse_proxy 127.0.0.1:8000
+
+        # Enable access logging
+        log {
+            output stdout
+            format console
+        }
+    }

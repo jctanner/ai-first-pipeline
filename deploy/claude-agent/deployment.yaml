@@ -1,0 +1,144 @@
+---
+# Service for Claude Agent (optional - only if agents need to communicate)
+apiVersion: v1
+kind: Service
+metadata:
+  name: claude-agent
+  namespace: ai-pipeline
+  labels:
+    app: claude-agent
+spec:
+  type: ClusterIP
+  selector:
+    app: claude-agent
+  ports:
+    - name: http
+      port: 8080
+      targetPort: 8080
+      protocol: TCP
+---
+# Deployment for Claude Agent
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: claude-agent
+  namespace: ai-pipeline
+  labels:
+    app: claude-agent
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: claude-agent
+  template:
+    metadata:
+      labels:
+        app: claude-agent
+    spec:
+      containers:
+      - name: agent
+        image: claude-agent:latest
+        imagePullPolicy: IfNotPresent
+
+        env:
+        # Vertex AI Configuration
+        - name: CLAUDE_CODE_USE_VERTEX
+          valueFrom:
+            secretKeyRef:
+              name: pipeline-secrets
+              key: CLAUDE_CODE_USE_VERTEX
+        - name: CLOUD_ML_REGION
+          valueFrom:
+            secretKeyRef:
+              name: pipeline-secrets
+              key: CLOUD_ML_REGION
+        - name: ANTHROPIC_VERTEX_PROJECT_ID
+          valueFrom:
+            secretKeyRef:
+              name: pipeline-secrets
+              key: ANTHROPIC_VERTEX_PROJECT_ID
+
+        # GCP credentials path
+        - name: GOOGLE_APPLICATION_CREDENTIALS
+          value: /home/agent/.config/gcloud/credentials.json
+
+        # Optional: Agent-specific configuration
+        - name: AGENT_NAME
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.name
+
+        volumeMounts:
+        # Mount GCP credentials
+        - name: gcp-credentials
+          mountPath: /home/agent/.config/gcloud
+          readOnly: true
+
+        # Mount workspace for agent operations (ephemeral)
+        - name: workspace
+          mountPath: /home/agent/workspace
+
+        # Optional: Mount persistent storage for agent state
+        - name: agent-data
+          mountPath: /home/agent/data
+
+        resources:
+          requests:
+            memory: "512Mi"
+            cpu: "250m"
+          limits:
+            memory: "2Gi"
+            cpu: "1000m"
+
+        # Liveness probe - check if container is healthy
+        livenessProbe:
+          exec:
+            command:
+            - test
+            - -f
+            - /home/agent/.config/gcloud/credentials.json
+          initialDelaySeconds: 10
+          periodSeconds: 30
+
+        # Readiness probe - check if agent is ready to receive work
+        readinessProbe:
+          exec:
+            command:
+            - test
+            - -f
+            - /home/agent/.config/gcloud/credentials.json
+          initialDelaySeconds: 5
+          periodSeconds: 10
+
+      volumes:
+      # GCP credentials from secret
+      - name: gcp-credentials
+        secret:
+          secretName: gcp-credentials
+          optional: true
+          items:
+          - key: credentials.json
+            path: credentials.json
+
+      # Ephemeral workspace (cleared on pod restart)
+      - name: workspace
+        emptyDir: {}
+
+      # Persistent storage for agent state (optional)
+      - name: agent-data
+        persistentVolumeClaim:
+          claimName: agent-data
+---
+# PersistentVolumeClaim for agent data (optional)
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: agent-data
+  namespace: ai-pipeline
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 5Gi
+  storageClassName: local-path

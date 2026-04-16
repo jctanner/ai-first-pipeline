@@ -1,0 +1,73 @@
+---
+# ConfigMap with Traefik dynamic configuration to trust internal CA
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: traefik-config
+  namespace: traefik
+data:
+  dynamic.yaml: |
+    http:
+      serversTransports:
+        internal-ca:
+          insecureSkipVerify: true
+        internal-ca-github:
+          insecureSkipVerify: true
+---
+# Update Traefik deployment to mount CA cert and dynamic config
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: traefik
+  namespace: traefik
+  labels:
+    app: traefik
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: traefik
+  template:
+    metadata:
+      labels:
+        app: traefik
+    spec:
+      serviceAccountName: traefik
+      containers:
+      - name: traefik
+        image: traefik:v2.11
+        args:
+          - --api.insecure=true
+          - --providers.kubernetesingress
+          - --providers.file.filename=/config/dynamic.yaml
+          - --entrypoints.web.address=:80
+          - --entrypoints.websecure.address=:443
+          - --log.level=INFO
+        ports:
+        - name: web
+          containerPort: 80
+        - name: websecure
+          containerPort: 443
+        - name: admin
+          containerPort: 8080
+        volumeMounts:
+        - name: ca-cert
+          mountPath: /certs
+          readOnly: true
+        - name: config
+          mountPath: /config
+          readOnly: true
+        resources:
+          requests:
+            cpu: 100m
+            memory: 128Mi
+          limits:
+            cpu: 500m
+            memory: 512Mi
+      volumes:
+      - name: ca-cert
+        configMap:
+          name: internal-ca-cert
+      - name: config
+        configMap:
+          name: traefik-config

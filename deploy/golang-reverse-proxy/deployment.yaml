@@ -1,0 +1,121 @@
+---
+# Service for the reverse proxy
+apiVersion: v1
+kind: Service
+metadata:
+  name: ingress-proxy
+  namespace: ai-pipeline
+  labels:
+    app: ingress-proxy
+spec:
+  type: LoadBalancer
+  selector:
+    app: ingress-proxy
+  ports:
+    - name: http
+      port: 80
+      targetPort: 80
+      protocol: TCP
+    - name: https
+      port: 443
+      targetPort: 443
+      protocol: TCP
+---
+# Deployment for the reverse proxy
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ingress-proxy
+  namespace: ai-pipeline
+  labels:
+    app: ingress-proxy
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: ingress-proxy
+  template:
+    metadata:
+      labels:
+        app: ingress-proxy
+    spec:
+      containers:
+      - name: proxy
+        image: ingress-proxy:latest
+        imagePullPolicy: IfNotPresent
+
+        ports:
+        - name: http
+          containerPort: 80
+          protocol: TCP
+        - name: https
+          containerPort: 443
+          protocol: TCP
+
+        env:
+        - name: TLS_CERT_FILE
+          value: /etc/tls/tls.crt
+        - name: TLS_KEY_FILE
+          value: /etc/tls/tls.key
+
+        volumeMounts:
+        # Mount TLS certificate (we'll use a wildcard cert or SNI)
+        - name: tls-cert
+          mountPath: /etc/tls
+          readOnly: true
+
+        resources:
+          requests:
+            memory: "64Mi"
+            cpu: "50m"
+          limits:
+            memory: "256Mi"
+            cpu: "500m"
+
+        livenessProbe:
+          httpGet:
+            path: /
+            port: 80
+            httpHeaders:
+            - name: Host
+              value: dashboard.local
+          initialDelaySeconds: 5
+          periodSeconds: 10
+
+        readinessProbe:
+          httpGet:
+            path: /
+            port: 80
+            httpHeaders:
+            - name: Host
+              value: dashboard.local
+          initialDelaySeconds: 3
+          periodSeconds: 5
+
+      volumes:
+      - name: tls-cert
+        secret:
+          secretName: ingress-proxy-tls
+---
+# Certificate for the ingress proxy (wildcard for *.ai-pipeline.svc.cluster.local)
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: ingress-proxy-tls
+  namespace: ai-pipeline
+spec:
+  secretName: ingress-proxy-tls
+  dnsNames:
+    - "*.ai-pipeline.svc.cluster.local"
+    - "*.local"
+    - github-emulator.ai-pipeline.svc.cluster.local
+    - jira-emulator.ai-pipeline.svc.cluster.local
+    - dashboard.ai-pipeline.svc.cluster.local
+    - mlflow.ai-pipeline.svc.cluster.local
+    - github.local
+    - jira.local
+    - dashboard.local
+    - mlflow.local
+  issuerRef:
+    name: internal-ca-issuer
+    kind: Issuer

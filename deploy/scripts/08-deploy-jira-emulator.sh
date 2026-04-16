@@ -1,0 +1,55 @@
+#!/bin/bash
+# Deploy Jira Emulator to k3s with cert-manager certificates
+
+set -euo pipefail
+
+echo "==> Deploying Jira Emulator to k3s..."
+
+# Ensure we're in the right directory
+cd /vagrant/deploy/k8s
+
+# Apply resources in order
+echo "--- Creating namespace ---"
+kubectl apply -f 00-namespace.yaml
+
+echo "--- Setting up certificate infrastructure ---"
+kubectl apply -f 01-ca-issuer.yaml
+
+echo "--- Creating certificates ---"
+kubectl apply -f 02-certificates.yaml
+
+echo "--- Waiting for certificates to be ready ---"
+kubectl wait --for=condition=ready certificate/jira-emulator-tls -n ai-pipeline --timeout=120s || {
+  echo "WARNING: Certificate not ready after 120s"
+  echo "Check cert-manager status:"
+  kubectl get certificate -n ai-pipeline
+  kubectl describe certificate jira-emulator-tls -n ai-pipeline
+}
+
+echo "--- Creating storage ---"
+kubectl apply -f 03-storage.yaml
+
+echo "--- Creating Jira Emulator configuration ---"
+kubectl apply -f 11-jira-emulator-config.yaml
+
+echo "--- Deploying Jira Emulator ---"
+kubectl apply -f 12-jira-emulator.yaml
+
+echo ""
+echo "==> Deployment complete!"
+echo ""
+echo "Checking status:"
+kubectl get pods -n ai-pipeline -l app=jira-emulator
+echo ""
+echo "To watch the deployment:"
+echo "  kubectl get pods -n ai-pipeline -w"
+echo ""
+echo "To view logs:"
+echo "  kubectl logs -n ai-pipeline deployment/jira-emulator -f"
+echo ""
+echo "To test the service:"
+echo "  kubectl run -it --rm debug --image=curlimages/curl --restart=Never -- \\"
+echo "    curl -k https://jira-emulator.ai-pipeline.svc.cluster.local/rest/api/2/priority"
+echo ""
+echo "To test the MCP server:"
+echo "  kubectl port-forward -n ai-pipeline svc/jira-emulator 8081:8081"

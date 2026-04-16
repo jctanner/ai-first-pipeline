@@ -1,0 +1,40 @@
+---
+# Helper pod to populate pipeline storage PVCs
+apiVersion: v1
+kind: Pod
+metadata:
+  name: populate-storage
+  namespace: ai-pipeline
+spec:
+  restartPolicy: Never
+  containers:
+  - name: populate
+    image: alpine:latest
+    command: ["sh", "-c", "sleep 3600"]  # Keep pod alive for manual population
+    volumeMounts:
+    - name: issues
+      mountPath: /storage/issues
+    - name: workspace
+      mountPath: /storage/workspace
+    - name: logs
+      mountPath: /storage/logs
+    - name: context
+      mountPath: /storage/context
+    - name: remote-skills
+      mountPath: /storage/remote-skills
+  volumes:
+  - name: issues
+    persistentVolumeClaim:
+      claimName: pipeline-issues
+  - name: workspace
+    persistentVolumeClaim:
+      claimName: pipeline-workspace
+  - name: logs
+    persistentVolumeClaim:
+      claimName: pipeline-logs
+  - name: context
+    persistentVolumeClaim:
+      claimName: pipeline-context
+  - name: remote-skills
+    persistentVolumeClaim:
+      claimName: pipeline-remote-skills

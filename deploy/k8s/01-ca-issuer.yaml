@@ -1,0 +1,38 @@
+---
+# Self-signed issuer to bootstrap our CA
+apiVersion: cert-manager.io/v1
+kind: ClusterIssuer
+metadata:
+  name: selfsigned-issuer
+spec:
+  selfSigned: {}
+---
+# CA certificate - this becomes our internal root CA
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: internal-ca
+  namespace: ai-pipeline
+spec:
+  isCA: true
+  commonName: "AI Pipeline Internal CA"
+  secretName: internal-ca-secret
+  duration: 87600h # 10 years
+  renewBefore: 8760h # 1 year
+  privateKey:
+    algorithm: RSA
+    size: 4096
+  issuerRef:
+    name: selfsigned-issuer
+    kind: ClusterIssuer
+---
+# CA issuer that uses our internal CA to sign certificates
+# Using Issuer (namespace-scoped) instead of ClusterIssuer for easier secret access
+apiVersion: cert-manager.io/v1
+kind: Issuer
+metadata:
+  name: internal-ca-issuer
+  namespace: ai-pipeline
+spec:
+  ca:
+    secretName: internal-ca-secret

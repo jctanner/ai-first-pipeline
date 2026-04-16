@@ -1,0 +1,122 @@
+---
+# Ingress for GitHub Emulator - Routes to Caddy HTTPS backend
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: github-emulator-https
+  namespace: ai-pipeline
+  annotations:
+    cert-manager.io/issuer: internal-ca-issuer
+    traefik.ingress.kubernetes.io/router.tls: "true"
+    # Tell Traefik the backend uses HTTPS
+    traefik.ingress.kubernetes.io/service.serversscheme: https
+    # Use our custom transport with CA trust and correct SNI
+    traefik.ingress.kubernetes.io/service.serverstransport: internal-ca-github@file
+spec:
+  ingressClassName: traefik
+  tls:
+  - hosts:
+    - github-emulator.ai-pipeline.svc.cluster.local
+    - github.local
+    secretName: github-emulator-tls
+  rules:
+  - host: github-emulator.ai-pipeline.svc.cluster.local
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: github-emulator
+            port:
+              number: 443
+  - host: github.local
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: github-emulator
+            port:
+              number: 443
+---
+# Ingress for Jira Emulator - Routes to Caddy HTTPS backend
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: jira-emulator-https
+  namespace: ai-pipeline
+  annotations:
+    cert-manager.io/issuer: internal-ca-issuer
+    traefik.ingress.kubernetes.io/router.tls: "true"
+    # Tell Traefik the backend uses HTTPS
+    traefik.ingress.kubernetes.io/service.serversscheme: https
+    # Use our custom transport with CA trust
+    traefik.ingress.kubernetes.io/service.serverstransport: internal-ca@file
+spec:
+  ingressClassName: traefik
+  tls:
+  - hosts:
+    - jira-emulator.ai-pipeline.svc.cluster.local
+    - jira.local
+    secretName: jira-emulator-tls
+  rules:
+  - host: jira-emulator.ai-pipeline.svc.cluster.local
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: jira-emulator
+            port:
+              number: 443
+  - host: jira.local
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: jira-emulator
+            port:
+              number: 443
+---
+# Ingress for Pipeline Dashboard
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: dashboard-https
+  namespace: ai-pipeline
+  annotations:
+    cert-manager.io/issuer: internal-ca-issuer
+    traefik.ingress.kubernetes.io/router.tls: "true"
+spec:
+  ingressClassName: traefik
+  tls:
+  - hosts:
+    - dashboard.ai-pipeline.svc.cluster.local
+    - dashboard.local
+    secretName: pipeline-dashboard-tls
+  rules:
+  - host: dashboard.ai-pipeline.svc.cluster.local
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: pipeline-dashboard
+            port:
+              number: 5000
+  - host: dashboard.local
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: pipeline-dashboard
+            port:
+              number: 5000

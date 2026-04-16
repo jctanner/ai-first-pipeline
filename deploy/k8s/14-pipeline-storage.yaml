@@ -1,0 +1,84 @@
+---
+# Raw Jira issue JSON
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: pipeline-issues
+  namespace: ai-pipeline
+spec:
+  accessModes:
+    - ReadWriteOnce  # Single node (K3s local-path limitation)
+  resources:
+    requests:
+      storage: 5Gi
+  storageClassName: local-path
+---
+# Cloned repos and phase outputs per issue
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: pipeline-workspace
+  namespace: ai-pipeline
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 50Gi  # Large - holds cloned repos
+  storageClassName: local-path
+---
+# Activity logs and phase logs
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: pipeline-logs
+  namespace: ai-pipeline
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 10Gi
+  storageClassName: local-path
+---
+# Architecture context and test recipes (read-only reference data)
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: pipeline-context
+  namespace: ai-pipeline
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 10Gi  # .context/ directory
+  storageClassName: local-path
+---
+# RFE/strategy skills from external repo
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: pipeline-remote-skills
+  namespace: ai-pipeline
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 1Gi
+  storageClassName: local-path
+---
+# RFE/strategy skill artifacts (reviews, tasks, etc.)
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: pipeline-artifacts
+  namespace: ai-pipeline
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 5Gi
+  storageClassName: local-path

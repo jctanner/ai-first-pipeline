@@ -6,6 +6,7 @@ import queue
 import shutil
 import stat
 import threading
+from datetime import datetime
 
 from flask import Flask, render_template_string, jsonify, abort, Response, request
 from jinja2 import DictLoader, ChoiceLoader
@@ -18,6 +19,21 @@ from lib.report_data import (
 from lib.paths import discover_models, model_workspace
 from lib.rfe_data import load_rfe_issues, load_single_rfe, load_strat_issues, load_single_strat
 from lib.stats import compute_all_stats
+
+# K8s orchestration (imported lazily to avoid requiring K8s client when not needed)
+try:
+    from lib.k8s_orchestrator import PipelineOrchestrator
+    _orchestrator = None
+    def get_orchestrator():
+        global _orchestrator
+        if _orchestrator is None:
+            _orchestrator = PipelineOrchestrator()
+        return _orchestrator
+    K8S_AVAILABLE = True
+except ImportError:
+    K8S_AVAILABLE = False
+    def get_orchestrator():
+        return None
 
 # ---------------------------------------------------------------------------
 # In-memory pipeline state (single-process Flask dev server)
@@ -317,7 +333,7 @@ LAYOUT = """\
 <body>
   <nav class="container-fluid">
     <ul><li><strong><a href="/">Pipeline Dashboard</a></strong></li></ul>
-    <ul><li><a href="/">Dashboard</a></li><li><a href="/activity">Activity</a></li><li><a href="/readiness">Readiness</a></li><li><a href="/stats">Stats</a></li><li><a href="/summary">Summary</a></li></ul>
+    <ul><li><a href="/">Dashboard</a></li><li><a href="/jobs">Jobs</a></li><li><a href="/activity">Activity</a></li><li><a href="/readiness">Readiness</a></li><li><a href="/stats">Stats</a></li><li><a href="/summary">Summary</a></li><li><a href="/settings">Settings</a></li></ul>
   </nav>
   <main class="container-fluid">
     {% block content %}{% endblock %}
@@ -3796,6 +3812,421 @@ document.querySelectorAll('#readiness-table th.sortable').forEach(th => {
 {% endblock %}
 """
 
+SETTINGS = """
+{% extends "layout.html" %}
+{% block title %}Settings{% endblock %}
+{% block content %}
+<div class="container">
+  <h2>Configuration Settings</h2>
+
+  <section style="margin-top: 2rem;">
+    <h3>Environment Variables</h3>
+    <table>
+      <thead>
+        <tr>
+          <th>Variable</th>
+          <th>Value</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for key, value in config.items() %}
+        <tr>
+          <td><code>{{ key }}</code></td>
+          <td>
+            {% if value %}
+              {% if 'TOKEN' in key or 'PASSWORD' in key or 'SECRET' in key %}
+                <code>{{ '***' + value[-4:] if value and value|length > 4 else '***' }}</code>
+              {% else %}
+                <code>{{ value }}</code>
+              {% endif %}
+            {% else %}
+              <em style="color: #999;">not set</em>
+            {% endif %}
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </section>
+
+  <section style="margin-top: 2rem;">
+    <h3>Cluster Information</h3>
+    <table>
+      <thead>
+        <tr>
+          <th>Property</th>
+          <th>Value</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>Namespace</td>
+          <td><code>{{ cluster.namespace }}</code></td>
+        </tr>
+        <tr>
+          <td>Platform</td>
+          <td><code>{{ cluster.platform }}</code></td>
+        </tr>
+        <tr>
+          <td>Storage Class</td>
+          <td><code>{{ cluster.storage_class }}</code></td>
+        </tr>
+      </tbody>
+    </table>
+  </section>
+
+  <section style="margin-top: 2rem;">
+    <h3>Service Endpoints</h3>
+    <table>
+      <thead>
+        <tr>
+          <th>Service</th>
+          <th>URL</th>
+          <th>Status</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for service in services %}
+        <tr>
+          <td>{{ service.name }}</td>
+          <td><code>{{ service.url }}</code></td>
+          <td>
+            {% if service.status == 'available' %}
+              <span style="color: green;">●</span> Available
+            {% elif service.status == 'unknown' %}
+              <span style="color: #999;">●</span> Unknown
+            {% else %}
+              <span style="color: red;">●</span> Unavailable
+            {% endif %}
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </section>
+
+  <section style="margin-top: 2rem;">
+    <details>
+      <summary>About These Settings</summary>
+      <div style="max-width: 800px; line-height: 1.6; padding: 1em 0;">
+        <p>This page displays the configuration used by the AI-First Pipeline system.</p>
+        <p><strong>Environment Variables</strong> are loaded from the <code>.env</code> file or
+        Kubernetes secrets and control how the pipeline connects to external services.</p>
+        <p><strong>Cluster Information</strong> describes the Kubernetes environment where the
+        pipeline is running.</p>
+        <p><strong>Service Endpoints</strong> lists the URLs for Jira, GitHub emulators, and
+        other services used by the pipeline.</p>
+        <p><em>Note:</em> Sensitive values like tokens and passwords are partially masked for security.</p>
+      </div>
+    </details>
+  </section>
+</div>
+{% endblock %}
+"""
+
+# ---------------------------------------------------------------------------
+# Jobs Page Template
+# ---------------------------------------------------------------------------
+
+JOBS = """\
+{% extends "layout.html" %}
+{% block title %}Jobs{% endblock %}
+{% block content %}
+<style>
+  .job-form {
+    background: #f8f9fa;
+    padding: 1.5rem;
+    border-radius: 8px;
+    margin-bottom: 2rem;
+  }
+  .job-form h2 { margin-top: 0; }
+  .form-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr auto;
+    gap: 1rem;
+    align-items: end;
+  }
+  @media (max-width: 900px) {
+    .form-grid { grid-template-columns: 1fr 1fr; }
+  }
+  .jobs-table { margin-top: 1rem; }
+  .status-pending { color: #95a5a6; }
+  .status-running { color: #3498db; font-weight: bold; }
+  .status-completed { color: #27ae60; font-weight: bold; }
+  .status-failed { color: #e74c3c; font-weight: bold; }
+  .btn-delete {
+    background: #e74c3c;
+    color: white;
+    border: none;
+    padding: 0.2em 0.6em;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 0.85em;
+  }
+  .btn-delete:hover { background: #c0392b; }
+  .btn-logs {
+    background: #3498db;
+    color: white;
+    border: none;
+    padding: 0.2em 0.6em;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 0.85em;
+  }
+  .btn-logs:hover { background: #2980b9; }
+  #log-viewer {
+    display: none;
+    margin-top: 1rem;
+    background: #1e1e1e;
+    color: #d4d4d4;
+    padding: 1rem;
+    border-radius: 6px;
+    max-height: 500px;
+    overflow-y: auto;
+    font-family: monospace;
+    font-size: 0.85em;
+    white-space: pre-wrap;
+    word-wrap: break-word;
+  }
+  #log-viewer.active { display: block; }
+  .log-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 0.5rem;
+  }
+  .btn-close-logs {
+    background: #95a5a6;
+    color: white;
+    border: none;
+    padding: 0.3em 0.8em;
+    border-radius: 4px;
+    cursor: pointer;
+  }
+</style>
+
+<h1>Kubernetes Jobs</h1>
+
+{% if not k8s_available %}
+<div class="action-bar" style="background: #fdedec; border-color: #e74c3c;">
+  <strong>⚠️ Kubernetes orchestration not available</strong>
+  <p style="margin: 0;">The K8s client library is not installed or the cluster is not accessible.</p>
+</div>
+{% else %}
+
+<div class="job-form">
+  <h2>Submit New Job</h2>
+  <form id="submit-form" class="form-grid">
+    <div>
+      <label for="phase">Phase</label>
+      <select id="phase" name="phase" required>
+        <option value="">Select phase...</option>
+        <option value="bug-completeness">bug-completeness</option>
+        <option value="bug-context-map">bug-context-map</option>
+        <option value="bug-fix-attempt">bug-fix-attempt</option>
+        <option value="bug-test-plan">bug-test-plan</option>
+        <option value="bug-write-test">bug-write-test</option>
+        <option value="rfe-create">rfe-create</option>
+        <option value="rfe-review">rfe-review</option>
+        <option value="rfe-split">rfe-split</option>
+        <option value="strat-create">strat-create</option>
+        <option value="strat-refine">strat-refine</option>
+        <option value="strat-review">strat-review</option>
+        <option value="strat-security-review">strat-security-review</option>
+      </select>
+    </div>
+    <div>
+      <label for="issue">Issue Key</label>
+      <input type="text" id="issue" name="issue" placeholder="RHOAIENG-12345" required>
+    </div>
+    <div>
+      <label for="model">Model</label>
+      <select id="model" name="model" required>
+        <option value="haiku">haiku</option>
+        <option value="sonnet">sonnet</option>
+        <option value="opus" selected>opus</option>
+      </select>
+    </div>
+    <div>
+      <label>&nbsp;</label>
+      <button type="submit">Submit Job</button>
+    </div>
+  </form>
+  <div id="submit-status" style="margin-top: 1rem;"></div>
+</div>
+
+<h2>Active Jobs <span id="job-count" style="color: #95a5a6; font-size: 0.9em;">(0)</span></h2>
+
+<div class="jobs-table">
+  <table id="jobs-table">
+    <thead>
+      <tr>
+        <th>Job Name</th>
+        <th>Phase</th>
+        <th>Issue</th>
+        <th>Model</th>
+        <th>Status</th>
+        <th>Created</th>
+        <th>Duration (s)</th>
+        <th>Actions</th>
+      </tr>
+    </thead>
+    <tbody id="jobs-tbody">
+      <tr><td colspan="8" style="text-align: center; color: #95a5a6;">Loading jobs...</td></tr>
+    </tbody>
+  </table>
+</div>
+
+<div id="log-viewer">
+  <div class="log-header">
+    <strong id="log-job-name"></strong>
+    <button class="btn-close-logs" onclick="closeLogs()">Close</button>
+  </div>
+  <div id="log-content"></div>
+</div>
+
+{% endif %}
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+const K8S_AVAILABLE = {{ 'true' if k8s_available else 'false' }};
+
+if (K8S_AVAILABLE) {
+  // Submit job form
+  document.getElementById('submit-form').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const phase = document.getElementById('phase').value;
+    const issue = document.getElementById('issue').value.toUpperCase();
+    const model = document.getElementById('model').value;
+    const statusDiv = document.getElementById('submit-status');
+
+    statusDiv.innerHTML = '<em style="color: #3498db;">Submitting job...</em>';
+
+    try {
+      const response = await fetch('/api/jobs/submit', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          command: phase,
+          args: { issue, model }
+        })
+      });
+
+      const data = await response.json();
+
+      if (response.ok) {
+        statusDiv.innerHTML = '<strong style="color: #27ae60;">✓ Job submitted:</strong> ' + data.job_name;
+        document.getElementById('submit-form').reset();
+        document.getElementById('model').value = 'opus';
+        refreshJobs();
+      } else {
+        statusDiv.innerHTML = '<strong style="color: #e74c3c;">✗ Error:</strong> ' + (data.error || 'Unknown error');
+      }
+    } catch (err) {
+      statusDiv.innerHTML = '<strong style="color: #e74c3c;">✗ Error:</strong> ' + err.message;
+    }
+  });
+
+  // Refresh jobs table
+  async function refreshJobs() {
+    try {
+      const response = await fetch('/api/jobs');
+      const jobs = await response.json();
+
+      document.getElementById('job-count').textContent = '(' + jobs.length + ')';
+
+      const tbody = document.getElementById('jobs-tbody');
+
+      if (jobs.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="8" style="text-align: center; color: #95a5a6;">No jobs found</td></tr>';
+        return;
+      }
+
+      tbody.innerHTML = jobs.map(job => {
+        const statusClass = 'status-' + job.status;
+        const duration = job.duration ? job.duration.toFixed(1) : '-';
+        const created = new Date(job.created).toLocaleString();
+
+        return `
+          <tr>
+            <td style="font-family: monospace; font-size: 0.85em;">${job.name}</td>
+            <td>${job.phase}</td>
+            <td>${job.issue.toUpperCase()}</td>
+            <td>${job.model}</td>
+            <td class="${statusClass}">${job.status}</td>
+            <td>${created}</td>
+            <td>${duration}</td>
+            <td>
+              <button class="btn-logs" onclick="viewLogs('${job.name}')">Logs</button>
+              <button class="btn-delete" onclick="deleteJob('${job.name}')">Delete</button>
+            </td>
+          </tr>
+        `;
+      }).join('');
+    } catch (err) {
+      console.error('Failed to refresh jobs:', err);
+    }
+  }
+
+  // View job logs
+  async function viewLogs(jobName) {
+    const logViewer = document.getElementById('log-viewer');
+    const logContent = document.getElementById('log-content');
+    const logJobName = document.getElementById('log-job-name');
+
+    logJobName.textContent = 'Logs: ' + jobName;
+    logContent.textContent = 'Loading logs...';
+    logViewer.classList.add('active');
+
+    try {
+      const response = await fetch('/api/jobs/' + jobName + '/logs');
+      const logs = await response.text();
+      logContent.textContent = logs || '(no logs available)';
+    } catch (err) {
+      logContent.textContent = 'Error loading logs: ' + err.message;
+    }
+  }
+
+  // Close log viewer
+  function closeLogs() {
+    document.getElementById('log-viewer').classList.remove('active');
+  }
+
+  // Delete job
+  async function deleteJob(jobName) {
+    if (!confirm('Delete job "' + jobName + '"?')) return;
+
+    try {
+      const response = await fetch('/api/jobs/' + jobName, {
+        method: 'DELETE'
+      });
+
+      if (response.ok) {
+        refreshJobs();
+      } else {
+        const data = await response.json();
+        alert('Error deleting job: ' + (data.error || 'Unknown error'));
+      }
+    } catch (err) {
+      alert('Error deleting job: ' + err.message);
+    }
+  }
+
+  // Make functions global
+  window.viewLogs = viewLogs;
+  window.closeLogs = closeLogs;
+  window.deleteJob = deleteJob;
+
+  // Auto-refresh every 3 seconds
+  refreshJobs();
+  setInterval(refreshJobs, 3000);
+}
+</script>
+{% endblock %}
+"""
+
 # ---------------------------------------------------------------------------
 # Flask app factory
 # ---------------------------------------------------------------------------
@@ -3811,6 +4242,8 @@ def create_app() -> Flask:
             "tab_rfes.html": TAB_RFES,
             "rfe_detail.html": RFE_DETAIL,
             "tab_strategies.html": TAB_STRATEGIES,
+            "settings.html": SETTINGS,
+            "jobs.html": JOBS,
         }),
         app.jinja_loader,
     ])
@@ -4116,6 +4549,55 @@ def create_app() -> Flask:
         components = compute_component_readiness(model=model)
         return render_template_string(COMPONENT_READINESS, components=components)
 
+    @app.route("/settings")
+    def settings():
+        config = {
+            'JIRA_SERVER': os.getenv('JIRA_SERVER'),
+            'JIRA_USER': os.getenv('JIRA_USER'),
+            'JIRA_TOKEN': os.getenv('JIRA_TOKEN'),
+            'GITHUB_EMULATOR_URL': os.getenv('GITHUB_EMULATOR_URL'),
+            'CLAUDE_CODE_USE_VERTEX': os.getenv('CLAUDE_CODE_USE_VERTEX'),
+            'CLOUD_ML_REGION': os.getenv('CLOUD_ML_REGION'),
+            'ANTHROPIC_VERTEX_PROJECT_ID': os.getenv('ANTHROPIC_VERTEX_PROJECT_ID'),
+            'ATLASSIAN_MCP_URL': os.getenv('ATLASSIAN_MCP_URL'),
+            'GOOGLE_APPLICATION_CREDENTIALS': os.getenv('GOOGLE_APPLICATION_CREDENTIALS'),
+        }
+
+        cluster = {
+            'namespace': 'ai-pipeline',
+            'platform': 'K3s',
+            'storage_class': 'local-path',
+        }
+
+        services = [
+            {
+                'name': 'Jira Emulator',
+                'url': os.getenv('JIRA_SERVER', 'https://jira-emulator.ai-pipeline.svc.cluster.local'),
+                'status': 'available' if os.getenv('JIRA_SERVER') else 'unknown',
+            },
+            {
+                'name': 'GitHub Emulator',
+                'url': os.getenv('GITHUB_EMULATOR_URL', 'https://github-emulator.ai-pipeline.svc.cluster.local'),
+                'status': 'available' if os.getenv('GITHUB_EMULATOR_URL') else 'unknown',
+            },
+            {
+                'name': 'Atlassian MCP',
+                'url': os.getenv('ATLASSIAN_MCP_URL', 'http://jira-emulator.ai-pipeline.svc.cluster.local:8081/sse'),
+                'status': 'available' if os.getenv('ATLASSIAN_MCP_URL') else 'unknown',
+            },
+            {
+                'name': 'Vertex AI',
+                'url': f"https://{os.getenv('CLOUD_ML_REGION', 'us-east5')}-aiplatform.googleapis.com",
+                'status': 'available' if os.getenv('CLAUDE_CODE_USE_VERTEX') == '1' else 'unknown',
+            },
+        ]
+
+        return render_template_string(SETTINGS, config=config, cluster=cluster, services=services)
+
+    @app.route("/jobs")
+    def jobs():
+        return render_template_string(JOBS, k8s_available=K8S_AVAILABLE)
+
     @app.route("/api/issues")
     def api_issues():
         issues = load_all_issues()
@@ -4213,5 +4695,153 @@ def create_app() -> Flask:
             else:
                 results.append({"key": key, "model": mid, "status": "not_found"})
         return jsonify({"results": results})
+
+    # =========================================================================
+    # K8s Job Management APIs
+    # =========================================================================
+
+    @app.route("/api/jobs/submit", methods=["POST"])
+    def api_submit_job():
+        """Submit a new pipeline job to K8s.
+
+        POST body:
+        {
+          "command": "bug-completeness",
+          "args": {
+            "issue": "RHOAIENG-37036",
+            "model": "opus",
+            "force": true
+          }
+        }
+
+        Returns:
+        {
+          "job_name": "bug-completeness-rhoaieng-37036-opus-1234",
+          "status": "pending"
+        }
+        """
+        if not K8S_AVAILABLE:
+            return jsonify({"error": "K8s orchestration not available"}), 503
+
+        try:
+            data = request.get_json()
+            phase = data.get("command")
+            args = data.get("args", {})
+
+            issue_key = args.get("issue")
+            model = args.get("model", "opus")
+
+            if not phase or not issue_key:
+                return jsonify({"error": "Missing required fields: command, args.issue"}), 400
+
+            orchestrator = get_orchestrator()
+            job = orchestrator.submit_phase_job(phase, issue_key, model, args)
+
+            return jsonify({
+                "job_name": job.metadata.name,
+                "status": "pending"
+            })
+        except Exception as e:
+            return jsonify({"error": str(e)}), 500
+
+    @app.route("/api/jobs")
+    def api_list_jobs():
+        """List all pipeline jobs with optional filters.
+
+        Query params:
+        - phase: Filter by phase name
+        - status: Filter by status (pending|running|completed|failed)
+
+        Returns:
+        [{
+          "name": "bug-completeness-rhoaieng-37036-opus-1234",
+          "phase": "bug-completeness",
+          "issue": "rhoaieng-37036",
+          "model": "opus",
+          "status": "running",
+          "created": "2026-04-16T12:34:56",
+          "duration": 45.2
+        }, ...]
+        """
+        if not K8S_AVAILABLE:
+            return jsonify({"error": "K8s orchestration not available"}), 503
+
+        try:
+            phase = request.args.get("phase")
+            status = request.args.get("status")
+
+            orchestrator = get_orchestrator()
+            jobs = orchestrator.list_jobs(phase=phase, status=status)
+
+            results = []
+            for job in jobs:
+                job_status = orchestrator._get_job_status(job)
+
+                # Calculate duration
+                duration = None
+                if job.status.start_time:
+                    end_time = job.status.completion_time or datetime.now(job.status.start_time.tzinfo)
+                    duration = (end_time - job.status.start_time).total_seconds()
+
+                results.append({
+                    "name": job.metadata.name,
+                    "phase": job.metadata.labels.get("phase", ""),
+                    "issue": job.metadata.labels.get("issue", ""),
+                    "model": job.metadata.labels.get("model", ""),
+                    "status": job_status,
+                    "created": job.metadata.creation_timestamp.isoformat() if job.metadata.creation_timestamp else None,
+                    "duration": duration
+                })
+
+            return jsonify(results)
+        except Exception as e:
+            return jsonify({"error": str(e)}), 500
+
+    @app.route("/api/jobs/<job_name>")
+    def api_get_job_status(job_name):
+        """Get detailed status of a specific job."""
+        if not K8S_AVAILABLE:
+            return jsonify({"error": "K8s orchestration not available"}), 503
+
+        try:
+            orchestrator = get_orchestrator()
+            status = orchestrator.get_job_status(job_name)
+            return jsonify(status)
+        except Exception as e:
+            return jsonify({"error": str(e)}), 500
+
+    @app.route("/api/jobs/<job_name>/logs")
+    def api_get_job_logs(job_name):
+        """Get logs from a job's pod."""
+        if not K8S_AVAILABLE:
+            return jsonify({"error": "K8s orchestration not available"}), 503
+
+        try:
+            orchestrator = get_orchestrator()
+            logs = orchestrator.get_job_logs(job_name)
+
+            if logs is None:
+                return "No logs available yet", 404
+
+            return Response(logs, mimetype="text/plain")
+        except Exception as e:
+            return Response(f"Error: {str(e)}", mimetype="text/plain"), 500
+
+    @app.route("/api/jobs/<job_name>", methods=["DELETE"])
+    def api_delete_job(job_name):
+        """Delete a job."""
+        if not K8S_AVAILABLE:
+            return jsonify({"error": "K8s orchestration not available"}), 503
+
+        try:
+            orchestrator = get_orchestrator()
+            deleted = orchestrator.delete_job(job_name)
+
+            if deleted:
+                return jsonify({"status": "deleted"})
+            else:
+                return jsonify({"error": "Job not found"}), 404
+        except Exception as e:
+            return jsonify({"error": str(e)}), 500
 
     return app

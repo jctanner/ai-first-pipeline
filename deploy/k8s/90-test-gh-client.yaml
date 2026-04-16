@@ -1,0 +1,124 @@
+apiVersion: v1
+kind: Pod
+metadata:
+  name: gh-test-client
+  namespace: ai-pipeline
+  labels:
+    app: gh-test-client
+spec:
+  # Init container to update CA trust store
+  initContainers:
+  - name: update-ca-trust
+    image: alpine:3.19
+    command:
+    - sh
+    - -c
+    - |
+      set -ex
+
+      # Install ca-certificates package
+      apk add --no-cache ca-certificates
+
+      if [ -f /tmp/ca-cert/ca.crt ]; then
+        mkdir -p /usr/local/share/ca-certificates
+        cp /tmp/ca-cert/ca.crt /usr/local/share/ca-certificates/internal-ca.crt
+        update-ca-certificates
+        cp /etc/ssl/certs/ca-certificates.crt /shared/ca-certificates.crt
+        echo "CA trust store updated successfully"
+      else
+        echo "WARNING: No CA cert found"
+        # Still create a basic bundle even without custom CA
+        cp /etc/ssl/certs/ca-certificates.crt /shared/ca-certificates.crt || touch /shared/ca-certificates.crt
+      fi
+    volumeMounts:
+    - name: ca-cert
+      mountPath: /tmp/ca-cert
+      readOnly: true
+    - name: shared-ca
+      mountPath: /shared
+
+  containers:
+  - name: client
+    image: alpine:3.19
+    command:
+    - sh
+    - -c
+    - |
+      set -e
+
+      echo "==> Installing dependencies..."
+      apk add --no-cache \
+        git \
+        curl \
+        ca-certificates \
+        github-cli \
+        bash \
+        openssh-client \
+        jq
+
+      # Copy the CA bundle from init container
+      if [ -f /shared/ca-certificates.crt ]; then
+        cp /shared/ca-certificates.crt /etc/ssl/certs/ca-certificates.crt
+        echo "✓ CA trust bundle installed"
+      fi
+
+      # Configure Git to use the CA bundle
+      git config --global http.sslCAInfo /etc/ssl/certs/ca-certificates.crt
+      git config --global user.email "test@example.com"
+      git config --global user.name "Test User"
+
+      echo ""
+      echo "==> GitHub Emulator Test Client Ready"
+      echo ""
+      echo "Service DNS: github-emulator.ai-pipeline.svc.cluster.local"
+      echo ""
+      echo "Test commands available:"
+      echo "  # Test HTTPS connectivity"
+      echo "  curl -v https://github-emulator.ai-pipeline.svc.cluster.local/"
+      echo ""
+      echo "  # Test with specific CA"
+      echo "  curl --cacert /etc/ssl/certs/ca-certificates.crt https://github-emulator.ai-pipeline.svc.cluster.local/"
+      echo ""
+      echo "  # Check certificate"
+      echo "  openssl s_client -connect github-emulator.ai-pipeline.svc.cluster.local:443 -showcerts </dev/null"
+      echo ""
+      echo "  # Test gh CLI (if emulator has API endpoint)"
+      echo "  gh api --hostname github-emulator.ai-pipeline.svc.cluster.local /"
+      echo ""
+      echo "Dropping into shell for manual testing..."
+      echo ""
+
+      # Keep container running for interactive testing
+      exec /bin/bash
+
+    env:
+    - name: GIT_SSL_CAINFO
+      value: /etc/ssl/certs/ca-certificates.crt
+    - name: CURL_CA_BUNDLE
+      value: /etc/ssl/certs/ca-certificates.crt
+    # If you have a github token secret, uncomment:
+    # - name: GH_TOKEN
+    #   valueFrom:
+    #     secretKeyRef:
+    #       name: github-token
+    #       key: token
+    #       optional: true
+
+    volumeMounts:
+    - name: shared-ca
+      mountPath: /shared
+      readOnly: true
+
+    # Interactive TTY for manual testing
+    stdin: true
+    tty: true
+
+  volumes:
+  - name: ca-cert
+    configMap:
+      name: internal-ca-cert
+      optional: true
+  - name: shared-ca
+    emptyDir: {}
+
+  restartPolicy: Never

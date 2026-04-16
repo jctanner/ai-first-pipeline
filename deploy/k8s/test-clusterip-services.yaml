@@ -1,0 +1,65 @@
+---
+# Temporary: Convert services to ClusterIP to test Ingress
+# This file patches the existing services
+apiVersion: v1
+kind: Service
+metadata:
+  name: github-emulator
+  namespace: ai-pipeline
+  labels:
+    app: github-emulator
+spec:
+  type: ClusterIP
+  selector:
+    app: github-emulator
+  ports:
+    - name: https
+      port: 443
+      targetPort: 443
+      protocol: TCP
+    - name: http
+      port: 80
+      targetPort: 80
+      protocol: TCP
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: jira-emulator
+  namespace: ai-pipeline
+  labels:
+    app: jira-emulator
+spec:
+  type: ClusterIP
+  selector:
+    app: jira-emulator
+  ports:
+    - name: https
+      port: 443
+      targetPort: 443
+      protocol: TCP
+    - name: http
+      port: 80
+      targetPort: 80
+      protocol: TCP
+    - name: mcp
+      port: 8081
+      targetPort: 8081
+      protocol: TCP
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: pipeline-dashboard
+  namespace: ai-pipeline
+  labels:
+    app: pipeline-dashboard
+spec:
+  type: ClusterIP
+  selector:
+    app: pipeline-dashboard
+  ports:
+    - name: http
+      port: 5000
+      targetPort: 5000
+      protocol: TCP

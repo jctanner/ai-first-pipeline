@@ -1,0 +1,133 @@
+# Template for running pipeline phases as Kubernetes Jobs
+# Usage: kubectl create -f this-file.yaml
+# Customize the command args to run different phases
+
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: pipeline-bug-fetch
+  namespace: ai-pipeline
+spec:
+  template:
+    spec:
+      restartPolicy: Never
+
+      # Init container to update CA trust
+      initContainers:
+      - name: update-ca-trust
+        image: alpine:3.19
+        command:
+        - sh
+        - -c
+        - |
+          set -ex
+          if [ -f /tmp/ca-cert/ca.crt ]; then
+            cp /tmp/ca-cert/ca.crt /usr/local/share/ca-certificates/internal-ca.crt
+            update-ca-certificates
+            cp /etc/ssl/certs/ca-certificates.crt /shared/ca-certificates.crt
+          fi
+        volumeMounts:
+        - name: ca-cert
+          mountPath: /tmp/ca-cert
+          readOnly: true
+        - name: shared-ca
+          mountPath: /shared
+
+      containers:
+      - name: pipeline
+        image: ai-first-pipeline:latest
+        imagePullPolicy: IfNotPresent
+
+        # Customize this command to run different pipeline phases
+        # Examples:
+        #   ["python", "main.py", "bug-fetch", "--limit", "10"]
+        #   ["python", "main.py", "bug-completeness", "--limit", "5"]
+        #   ["python", "main.py", "rfe-create", "--issue", "RHAIRFE-123"]
+        command:
+        - /bin/bash
+        - -c
+        - |
+          if [ -f /shared/ca-certificates.crt ]; then
+            cp /shared/ca-certificates.crt /etc/ssl/certs/ca-certificates.crt
+          fi
+          uv run python main.py bug-fetch --limit 10
+
+        env:
+        - name: CLAUDE_CODE_USE_VERTEX
+          valueFrom:
+            secretKeyRef:
+              name: pipeline-secrets
+              key: CLAUDE_CODE_USE_VERTEX
+        - name: CLOUD_ML_REGION
+          valueFrom:
+            secretKeyRef:
+              name: pipeline-secrets
+              key: CLOUD_ML_REGION
+        - name: ANTHROPIC_VERTEX_PROJECT_ID
+          valueFrom:
+            secretKeyRef:
+              name: pipeline-secrets
+              key: ANTHROPIC_VERTEX_PROJECT_ID
+        - name: JIRA_SERVER
+          valueFrom:
+            secretKeyRef:
+              name: pipeline-secrets
+              key: JIRA_SERVER
+        - name: JIRA_USER
+          valueFrom:
+            secretKeyRef:
+              name: pipeline-secrets
+              key: JIRA_USER
+        - name: JIRA_TOKEN
+          valueFrom:
+            secretKeyRef:
+              name: pipeline-secrets
+              key: JIRA_TOKEN
+        - name: GOOGLE_APPLICATION_CREDENTIALS
+          value: /secrets/gcp/credentials.json
+
+        volumeMounts:
+        - name: data
+          mountPath: /app/issues
+          subPath: issues
+        - name: data
+          mountPath: /app/workspace
+          subPath: workspace
+        - name: data
+          mountPath: /app/logs
+          subPath: logs
+        - name: data
+          mountPath: /app/artifacts
+          subPath: artifacts
+        - name: gcp-credentials
+          mountPath: /secrets/gcp
+          readOnly: true
+        - name: shared-ca
+          mountPath: /shared
+          readOnly: true
+
+        resources:
+          requests:
+            memory: "1Gi"
+            cpu: "500m"
+          limits:
+            memory: "4Gi"
+            cpu: "2000m"
+
+      volumes:
+      - name: data
+        persistentVolumeClaim:
+          claimName: pipeline-data
+      - name: gcp-credentials
+        secret:
+          secretName: gcp-credentials
+          optional: true
+      - name: ca-cert
+        configMap:
+          name: internal-ca-cert
+          optional: true
+      - name: shared-ca
+        emptyDir: {}
+
+  backoffLimit: 2
+  ttlSecondsAfterFinished: 86400  # Clean up after 24 hours

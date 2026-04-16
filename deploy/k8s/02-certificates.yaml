@@ -1,0 +1,93 @@
+---
+# Certificate for GitHub Emulator
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: github-emulator-tls
+  namespace: ai-pipeline
+spec:
+  secretName: github-emulator-tls
+  duration: 8760h # 1 year
+  renewBefore: 720h # 30 days
+
+  commonName: github-emulator.ai-pipeline.svc.cluster.local
+
+  dnsNames:
+    - github-emulator
+    - github-emulator.ai-pipeline
+    - github-emulator.ai-pipeline.svc
+    - github-emulator.ai-pipeline.svc.cluster.local
+    - github.local
+
+  ipAddresses:
+    - 192.168.56.10
+
+  privateKey:
+    algorithm: RSA
+    size: 2048
+
+  issuerRef:
+    name: internal-ca-issuer
+    kind: Issuer
+---
+# Certificate for Pipeline Dashboard
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: pipeline-dashboard-tls
+  namespace: ai-pipeline
+spec:
+  secretName: pipeline-dashboard-tls
+  duration: 8760h # 1 year
+  renewBefore: 720h # 30 days
+
+  commonName: pipeline-dashboard.ai-pipeline.svc.cluster.local
+
+  dnsNames:
+    - pipeline-dashboard
+    - pipeline-dashboard.ai-pipeline
+    - pipeline-dashboard.ai-pipeline.svc
+    - pipeline-dashboard.ai-pipeline.svc.cluster.local
+    - dashboard.local
+
+  ipAddresses:
+    - 192.168.56.10
+
+  privateKey:
+    algorithm: RSA
+    size: 2048
+
+  issuerRef:
+    name: internal-ca-issuer
+    kind: Issuer
+---
+# Certificate for Jira Emulator
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: jira-emulator-tls
+  namespace: ai-pipeline
+spec:
+  secretName: jira-emulator-tls
+  duration: 8760h # 1 year
+  renewBefore: 720h # 30 days
+
+  commonName: jira-emulator.ai-pipeline.svc.cluster.local
+
+  dnsNames:
+    - jira-emulator
+    - jira-emulator.ai-pipeline
+    - jira-emulator.ai-pipeline.svc
+    - jira-emulator.ai-pipeline.svc.cluster.local
+    - jira.local
+
+  ipAddresses:
+    - 192.168.56.10
+
+  privateKey:
+    algorithm: RSA
+    size: 2048
+
+  issuerRef:
+    name: internal-ca-issuer
+    kind: Issuer

@@ -1,0 +1,53 @@
+# Exclude deployment infrastructure
+deploy/
+.vagrant/
+vagrant/
+
+# Exclude Python virtual environments
+.venv/
+venv/
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+
+# Exclude generated data (will be mounted via PVCs)
+issues/
+workspace/
+logs/
+artifacts/
+reports/
+bugs/
+
+# Exclude version control
+.git/
+.gitignore
+
+# Exclude development/testing artifacts
+.pytest_cache/
+.coverage
+htmlcov/
+*.egg-info/
+
+# Exclude IDE settings
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Exclude documentation that's not needed at runtime
+docs/
+*.md
+!README.md
+
+# Exclude remote skills (will be cloned via init container)
+remote_skills/
+
+# Exclude context repos (will be mounted via PVC)
+.context/
+
+# Exclude build/temp files
+*.log
+.DS_Store

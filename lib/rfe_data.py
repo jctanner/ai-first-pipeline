@@ -11,7 +11,8 @@ import yaml
 from lib.paths import BASE_DIR
 
 # Default artifact directories
-_ARTIFACTS_DIR = BASE_DIR / "remote_skills" / "rfe-creator" / "artifacts"
+# RFE/strat artifacts are now stored in the persistent /app/artifacts volume
+_ARTIFACTS_DIR = BASE_DIR / "artifacts"
 _SECURITY_REVIEWS_DIR = BASE_DIR / "artifacts" / "security-reviews"
 _SECURITY_REQUIREMENTS_DIR = BASE_DIR / "artifacts" / "security-requirements"
 

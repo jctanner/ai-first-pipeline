@@ -1,0 +1,198 @@
+---
+# Service for Pipeline Dashboard
+apiVersion: v1
+kind: Service
+metadata:
+  name: pipeline-dashboard
+  namespace: ai-pipeline
+  labels:
+    app: pipeline-dashboard
+spec:
+  type: LoadBalancer
+  selector:
+    app: pipeline-dashboard
+  ports:
+    - name: http
+      port: 5000
+      targetPort: 5000
+      protocol: TCP
+---
+# Deployment for Pipeline Dashboard
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: pipeline-dashboard
+  namespace: ai-pipeline
+  labels:
+    app: pipeline-dashboard
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: pipeline-dashboard
+  template:
+    metadata:
+      labels:
+        app: pipeline-dashboard
+    spec:
+      serviceAccountName: pipeline-dashboard  # For K8s API access
+
+      # Init containers
+      initContainers:
+      # Update CA trust
+      - name: update-ca-trust
+        image: alpine:3.19
+        command:
+        - sh
+        - -c
+        - |
+          set -ex
+
+          # Install ca-certificates package
+          apk add --no-cache ca-certificates
+
+          if [ -f /tmp/ca-cert/ca.crt ]; then
+            mkdir -p /usr/local/share/ca-certificates
+            cp /tmp/ca-cert/ca.crt /usr/local/share/ca-certificates/internal-ca.crt
+            update-ca-certificates
+            cp /etc/ssl/certs/ca-certificates.crt /shared/ca-certificates.crt
+            echo "CA trust store updated successfully"
+          else
+            echo "No CA cert found, skipping"
+            cp /etc/ssl/certs/ca-certificates.crt /shared/ca-certificates.crt || touch /shared/ca-certificates.crt
+          fi
+        volumeMounts:
+        - name: ca-cert
+          mountPath: /tmp/ca-cert
+          readOnly: true
+        - name: shared-ca
+          mountPath: /shared
+
+      containers:
+      - name: dashboard
+        image: pipeline-agent:latest
+        imagePullPolicy: Never  # Use local image
+
+        command:
+        - /bin/bash
+        - -c
+        - |
+          # Run the dashboard
+          uv run python main.py dashboard --port 5000 --host 0.0.0.0
+
+        ports:
+        - name: http
+          containerPort: 5000
+          protocol: TCP
+
+        env:
+        # Secrets from pipeline-secrets
+        - name: CLAUDE_CODE_USE_VERTEX
+          valueFrom:
+            secretKeyRef:
+              name: pipeline-secrets
+              key: CLAUDE_CODE_USE_VERTEX
+        - name: CLOUD_ML_REGION
+          valueFrom:
+            secretKeyRef:
+              name: pipeline-secrets
+              key: CLOUD_ML_REGION
+        - name: ANTHROPIC_VERTEX_PROJECT_ID
+          valueFrom:
+            secretKeyRef:
+              name: pipeline-secrets
+              key: ANTHROPIC_VERTEX_PROJECT_ID
+        - name: JIRA_SERVER
+          valueFrom:
+            secretKeyRef:
+              name: pipeline-secrets
+              key: JIRA_SERVER
+        - name: JIRA_USER
+          valueFrom:
+            secretKeyRef:
+              name: pipeline-secrets
+              key: JIRA_USER
+        - name: JIRA_TOKEN
+          valueFrom:
+            secretKeyRef:
+              name: pipeline-secrets
+              key: JIRA_TOKEN
+        - name: ATLASSIAN_MCP_URL
+          valueFrom:
+            secretKeyRef:
+              name: pipeline-secrets
+              key: ATLASSIAN_MCP_URL
+              optional: true
+        # GCP credentials path
+        - name: GOOGLE_APPLICATION_CREDENTIALS
+          value: /home/pipelineagent/.config/gcloud/credentials.json
+
+        volumeMounts:
+        # Mount persistent data (new PVCs)
+        - name: issues
+          mountPath: /app/issues
+        - name: workspace
+          mountPath: /app/workspace
+        - name: logs
+          mountPath: /app/logs
+        - name: artifacts
+          mountPath: /app/artifacts
+        - name: context
+          mountPath: /app/.context
+        # Mount GCP credentials
+        - name: gcp-credentials
+          mountPath: /home/pipelineagent/.config/gcloud
+          readOnly: true
+        # Mount shared CA cert
+        - name: shared-ca
+          mountPath: /shared
+          readOnly: true
+
+        resources:
+          requests:
+            memory: "512Mi"
+            cpu: "250m"
+          limits:
+            memory: "2Gi"
+            cpu: "1000m"
+
+        livenessProbe:
+          httpGet:
+            path: /
+            port: 5000
+          initialDelaySeconds: 30
+          periodSeconds: 10
+
+        readinessProbe:
+          httpGet:
+            path: /
+            port: 5000
+          initialDelaySeconds: 10
+          periodSeconds: 5
+
+      volumes:
+      - name: issues
+        persistentVolumeClaim:
+          claimName: pipeline-issues
+      - name: workspace
+        persistentVolumeClaim:
+          claimName: pipeline-workspace
+      - name: logs
+        persistentVolumeClaim:
+          claimName: pipeline-logs
+      - name: artifacts
+        persistentVolumeClaim:
+          claimName: pipeline-artifacts
+      - name: context
+        persistentVolumeClaim:
+          claimName: pipeline-context
+      - name: gcp-credentials
+        secret:
+          secretName: gcp-credentials
+          optional: true
+      - name: ca-cert
+        configMap:
+          name: internal-ca-cert
+          optional: true
+      - name: shared-ca
+        emptyDir: {}

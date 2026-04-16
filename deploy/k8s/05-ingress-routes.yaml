@@ -1,0 +1,83 @@
+---
+# Ingress for GitHub Emulator
+# Routes to backend application port (8000), bypassing Caddy
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: github-emulator
+  namespace: ai-pipeline
+  annotations:
+    cert-manager.io/issuer: internal-ca-issuer
+    traefik.ingress.kubernetes.io/router.tls: "true"
+spec:
+  ingressClassName: traefik
+  tls:
+  - hosts:
+    - github-emulator.ai-pipeline.svc.cluster.local
+    secretName: github-emulator-tls
+  rules:
+  - host: github-emulator.ai-pipeline.svc.cluster.local
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: github-emulator-backend
+            port:
+              number: 8000
+---
+# Ingress for Jira Emulator
+# Routes to backend application port (8080), bypassing Caddy
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: jira-emulator
+  namespace: ai-pipeline
+  annotations:
+    cert-manager.io/issuer: internal-ca-issuer
+    traefik.ingress.kubernetes.io/router.tls: "true"
+spec:
+  ingressClassName: traefik
+  tls:
+  - hosts:
+    - jira-emulator.ai-pipeline.svc.cluster.local
+    secretName: jira-emulator-tls
+  rules:
+  - host: jira-emulator.ai-pipeline.svc.cluster.local
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: jira-emulator-backend
+            port:
+              number: 8080
+---
+# Ingress for Pipeline Dashboard
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: pipeline-dashboard
+  namespace: ai-pipeline
+  annotations:
+    cert-manager.io/issuer: internal-ca-issuer
+    traefik.ingress.kubernetes.io/router.tls: "true"
+spec:
+  ingressClassName: traefik
+  tls:
+  - hosts:
+    - dashboard.ai-pipeline.svc.cluster.local
+    secretName: pipeline-dashboard-tls
+  rules:
+  - host: dashboard.ai-pipeline.svc.cluster.local
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: pipeline-dashboard
+            port:
+              number: 5000

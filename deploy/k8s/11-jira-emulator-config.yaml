@@ -1,0 +1,22 @@
+---
+# ConfigMap for Jira Emulator Caddyfile
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: jira-emulator-config
+  namespace: ai-pipeline
+data:
+  Caddyfile: |
+    {$JIRA_EMULATOR_HOSTNAME:jira-emulator.ai-pipeline.svc.cluster.local} {
+        # Use cert-manager provided certificates
+        tls {$TLS_CERT_FILE:/etc/tls/tls.crt} {$TLS_KEY_FILE:/etc/tls/tls.key}
+
+        # Proxy to jira-api running on localhost
+        reverse_proxy 127.0.0.1:8080
+
+        # Enable access logging
+        log {
+            output stdout
+            format console
+        }
+    }
