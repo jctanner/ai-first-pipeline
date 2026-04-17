@@ -2,8 +2,8 @@ graph TB
     User["User"]
 
     subgraph Host["Host Machine"]
-        CLI["CLI: python main.py"]
         Browser["Browser: localhost:5000"]
+        CLI["CLI: python main.py - DEPRECATED"]
     end
 
     subgraph VM["Vagrant VM - 8GB RAM - 8 CPU"]
@@ -11,12 +11,20 @@ graph TB
 
         K3s["K3s Cluster"]
         Storage["Persistent Storage - 5 PVCs"]
-        Dashboard["Dashboard - Flask + SSE"]
-        Jobs["K8s Jobs - Parallel Execution"]
+
+        subgraph Services["Cluster Services"]
+            Dashboard["Dashboard - Flask API + UI + SSE"]
+            MLflow["MLflow - Tracking Server"]
+            JiraEmu["Jira Emulator - MCP Server"]
+            GitHubEmu["GitHub Emulator"]
+        end
+
+        Jobs["K8s Jobs - Dynamic Parallel Execution"]
 
         K3s --> Storage
-        K3s --> Dashboard
+        K3s --> Services
         K3s --> Jobs
+        Dashboard -->|creates| Jobs
     end
 
     subgraph Runners["Agent Runners in Jobs"]
@@ -36,19 +44,20 @@ graph TB
         GitHub["GitHub"]
     end
 
-    User --> CLI
     User --> Browser
 
-    CLI --> K3s
-    Browser --> Dashboard
+    Browser -->|submit jobs| Dashboard
+    Dashboard -->|SSE stream| Browser
+
+    CLI -.->|legacy| K3s
 
     Jobs --> Runners
 
     Runners --> VertexAI
+    Runners --> MLflow
+    Runners --> JiraEmu
     Runners --> JiraCloud
     Runners --> GitHub
-
-    Dashboard --> Browser
 
     classDef vm fill:#fff3e0,stroke:#f57c00,stroke-width:3px
     classDef runner fill:#fce4ec,stroke:#c2185b,stroke-width:3px

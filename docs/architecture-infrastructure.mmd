@@ -7,11 +7,11 @@ graph TB
         subgraph K3s["K3s Cluster - Namespace: ai-pipeline"]
             direction TB
 
-            subgraph Services["Services"]
-                Dashboard["Dashboard - Flask App - Port 5000"]
-                MLflow["MLflow - Tracking Server - Port 5000"]
-                JiraEmu["Jira Emulator - MCP Port 30961"]
-                GitHubEmu["GitHub Emulator - HTTP Port 32661"]
+            subgraph Services["Deployed Services - K8s Deployments"]
+                Dashboard["Dashboard - K8s Deployment - Flask API + UI - Port 5000 - Job submission endpoint - SSE activity stream"]
+                MLflow["MLflow - K8s Deployment - Tracking Server - Port 5000 - ClusterIP: mlflow.ai-pipeline.svc.cluster.local:5000"]
+                JiraEmu["Jira Emulator - K8s Deployment - HTTP 32359 - HTTPS 30872 - MCP SSE 30961 - NodePorts"]
+                GitHubEmu["GitHub Emulator - K8s Deployment - HTTP 32661 - HTTPS 30783 - NodePorts"]
             end
 
             subgraph Storage["Persistent Volume Claims"]

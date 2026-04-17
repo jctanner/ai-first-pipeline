@@ -1,7 +1,10 @@
 graph TB
+    Browser["Browser - User submits job via Dashboard UI"]
+
     subgraph K8s["K3s Cluster - ai-pipeline namespace"]
         direction TB
 
+        Dashboard["Dashboard - Flask API - POST /api/jobs"]
         Orchestrator["PipelineOrchestrator - lib/k8s_orchestrator.py"]
 
         subgraph Jobs["K8s Jobs - Created Dynamically"]
@@ -10,9 +13,11 @@ graph TB
             Job3["rfe-create-RFE-001-sonnet"]
         end
 
-        Orchestrator -->|creates| Job1
-        Orchestrator -->|creates| Job2
-        Orchestrator -->|creates| Job3
+        Browser -->|HTTP POST| Dashboard
+        Dashboard -->|calls| Orchestrator
+        Orchestrator -->|batch_v1.create_namespaced_job| Job1
+        Orchestrator -->|batch_v1.create_namespaced_job| Job2
+        Orchestrator -->|batch_v1.create_namespaced_job| Job3
     end
 
     subgraph JobPod["Inside Job Pod - Container: pipeline-agent"]
@@ -41,10 +46,16 @@ graph TB
         Native["Native Invocation - SDK skill discovery - setting_sources project - Used for: RFE and strategy phases"]
     end
 
+    subgraph ClusterServices["In-Cluster Services"]
+        MLflowService["MLflow - K8s Service - mlflow.ai-pipeline.svc.cluster.local:5000"]
+        JiraEmuService["Jira Emulator - K8s Service - MCP SSE endpoint"]
+        GitHubEmuService["GitHub Emulator - K8s Service"]
+    end
+
     subgraph External["External APIs"]
         VertexAI["Vertex AI - Claude API - us-east5"]
-        JiraAPI["Jira Cloud - REST API - issues.redhat.com"]
-        MLflow["MLflow - Tracking Server - Traces and metrics"]
+        JiraCloud["Jira Cloud - REST API - issues.redhat.com"]
+        GitHubCloud["GitHub - Code repos"]
     end
 
     Job1 --> Scripts
@@ -57,8 +68,14 @@ graph TB
     SDKRunner --> VertexAI
     CLIRunner --> VertexAI
 
-    SDKRunner --> JiraAPI
-    CLIRunner --> MLflow
+    SDKRunner --> MLflowService
+    CLIRunner --> MLflowService
+
+    SDKRunner --> JiraEmuService
+    CLIRunner --> JiraEmuService
+
+    SDKRunner --> JiraCloud
+    CLIRunner --> GitHubCloud
 
     classDef job fill:#f3e5f5,stroke:#7b1fa2,stroke-width:2px
     classDef runner fill:#fce4ec,stroke:#c2185b,stroke-width:2px

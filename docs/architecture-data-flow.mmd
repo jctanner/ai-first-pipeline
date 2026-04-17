@@ -9,14 +9,25 @@ graph TB
         FetchScript --> IssuesDir
     end
 
-    subgraph Phase2["Phase 2: Run Pipeline Phases"]
+    subgraph Phase2["Phase 2: Submit Jobs via Dashboard"]
         direction TB
-        CLI["CLI: python main.py"]
-        PhasesLib["lib/phases.py - Orchestrator"]
-        AgentRunner["lib/agent_runner.py - SDK or CLI"]
+        Browser["Browser - Dashboard UI"]
+        DashboardAPI["Dashboard API - POST /api/jobs"]
+        K8sOrchestrator["lib/k8s_orchestrator.py - PipelineOrchestrator"]
+        K8sJobs["K8s Jobs - Created in ai-pipeline namespace"]
 
-        CLI --> PhasesLib
-        PhasesLib -->|parallel execution| AgentRunner
+        Browser -->|submit job request| DashboardAPI
+        DashboardAPI -->|calls| K8sOrchestrator
+        K8sOrchestrator -->|creates| K8sJobs
+
+        CLI["LEGACY: python main.py - lib/phases.py"]
+        CLI -.->|deprecated| K8sOrchestrator
+    end
+
+    subgraph Phase2b["Phase 2b: Job Execution in Pod"]
+        direction TB
+        AgentRunner["lib/agent_runner.py - SDK or CLI runner"]
+        K8sJobs -->|pod starts| AgentRunner
     end
 
     subgraph Phase3["Phase 3: Generate Outputs"]
@@ -76,7 +87,8 @@ graph TB
     end
 
     IssuesDir --> Phase2
-    Phase2 --> Phase3
+    Phase2 --> Phase2b
+    Phase2b --> Phase3
     Phase3 --> Phase4
     Phase4 --> Phase5
 
