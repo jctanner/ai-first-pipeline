@@ -1,10 +1,10 @@
 graph TB
-    Browser["Browser - User submits job via Dashboard UI"]
+    Browser["Browser - https://dashboard.local"]
 
     subgraph K8s["K3s Cluster - ai-pipeline namespace"]
         direction TB
 
-        Dashboard["Dashboard - Flask API - POST /api/jobs"]
+        Dashboard["Dashboard - https://dashboard.local - Flask API - POST /api/jobs"]
         Orchestrator["PipelineOrchestrator - lib/k8s_orchestrator.py"]
 
         subgraph Jobs["K8s Jobs - Created Dynamically"]
@@ -47,9 +47,9 @@ graph TB
     end
 
     subgraph ClusterServices["In-Cluster Services"]
-        MLflowService["MLflow - K8s Service - mlflow.ai-pipeline.svc.cluster.local:5000"]
-        JiraEmuService["Jira Emulator - K8s Service - MCP SSE endpoint"]
-        GitHubEmuService["GitHub Emulator - K8s Service"]
+        MLflowService["MLflow - https://mlflow.local - ClusterIP: mlflow.ai-pipeline.svc.cluster.local:5000"]
+        JiraEmuService["Jira Emulator - https://jira.local - MCP SSE endpoint"]
+        GitHubEmuService["GitHub Emulator - https://github.local"]
     end
 
     subgraph External["External APIs"]

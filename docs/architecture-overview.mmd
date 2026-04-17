@@ -2,7 +2,7 @@ graph TB
     User["User"]
 
     subgraph Host["Host Machine"]
-        Browser["Browser: localhost:5000"]
+        Browser["Browser: https://dashboard.local"]
         CLI["CLI: python main.py - DEPRECATED"]
     end
 
@@ -13,10 +13,10 @@ graph TB
         Storage["Persistent Storage - 5 PVCs"]
 
         subgraph Services["Cluster Services"]
-            Dashboard["Dashboard - Flask API + UI + SSE"]
-            MLflow["MLflow - Tracking Server"]
-            JiraEmu["Jira Emulator - MCP Server"]
-            GitHubEmu["GitHub Emulator"]
+            Dashboard["Dashboard - https://dashboard.local - Flask API + UI + SSE"]
+            MLflow["MLflow - https://mlflow.local - Tracking Server"]
+            JiraEmu["Jira Emulator - https://jira.local - MCP Server"]
+            GitHubEmu["GitHub Emulator - https://github.local"]
         end
 
         Jobs["K8s Jobs - Dynamic Parallel Execution"]

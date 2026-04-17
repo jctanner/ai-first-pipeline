@@ -11,8 +11,8 @@ graph TB
 
     subgraph Phase2["Phase 2: Submit Jobs via Dashboard"]
         direction TB
-        Browser["Browser - Dashboard UI"]
-        DashboardAPI["Dashboard API - POST /api/jobs"]
+        Browser["Browser - https://dashboard.local"]
+        DashboardAPI["Dashboard API - https://dashboard.local/api/jobs - POST"]
         K8sOrchestrator["lib/k8s_orchestrator.py - PipelineOrchestrator"]
         K8sJobs["K8s Jobs - Created in ai-pipeline namespace"]
 
@@ -63,8 +63,8 @@ graph TB
 
     subgraph Phase5["Phase 5: Dashboard View"]
         direction TB
-        Dashboard["Dashboard - Flask App"]
-        Browser["Browser - localhost:5000"]
+        Dashboard["Dashboard - https://dashboard.local - Flask App"]
+        BrowserView["Browser - https://dashboard.local"]
 
         subgraph DashboardData["Dashboard Reads"]
             ReadIssues["issues/*.json"]
@@ -83,7 +83,7 @@ graph TB
         ReadLogs --> Dashboard
 
         Dashboard -->|SSE events| SSE
-        SSE --> Browser
+        SSE --> BrowserView
     end
 
     IssuesDir --> Phase2
