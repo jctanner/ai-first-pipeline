@@ -64,11 +64,17 @@ vagrant-rebuild-github: ## Rebuild and redeploy GitHub emulator
 
 ##@ Vagrant: Full Stack Management
 
-vagrant-rebuild-all: ## Rebuild dashboard and agent images
-	@echo "==> Rebuilding dashboard and agent images..."
+vagrant-build-all: ## Build dashboard and agent images only (no redeploy)
+	@echo "==> Building dashboard and agent images..."
 	@$(MAKE) vagrant-build-dashboard
 	@$(MAKE) vagrant-build-agent
-	@echo "✓ Dashboard and agent images rebuilt"
+	@echo "✓ Dashboard and agent images built"
+
+vagrant-rebuild-all: ## Rebuild and redeploy dashboard, rebuild agent
+	@echo "==> Rebuilding dashboard and agent images..."
+	@$(MAKE) vagrant-rebuild-dashboard
+	@$(MAKE) vagrant-build-agent
+	@echo "✓ Dashboard redeployed, agent image rebuilt"
 
 vagrant-rebuild-all-with-emulators: ## Rebuild all images including emulators
 	@echo "==> Rebuilding all images (dashboard, agent, emulators)..."
