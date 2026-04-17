@@ -3,7 +3,6 @@ graph TB
 
     subgraph Host["Host Machine"]
         Browser["Browser: https://dashboard.local"]
-        CLI["CLI: python main.py - DEPRECATED"]
     end
 
     subgraph VM["Vagrant VM - 8GB RAM - 8 CPU"]
@@ -48,8 +47,6 @@ graph TB
 
     Browser -->|submit jobs| Dashboard
     Dashboard -->|SSE stream| Browser
-
-    CLI -.->|legacy| K3s
 
     Jobs --> Runners
 

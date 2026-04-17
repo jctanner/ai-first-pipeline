@@ -19,9 +19,6 @@ graph TB
         Browser -->|submit job request| DashboardAPI
         DashboardAPI -->|calls| K8sOrchestrator
         K8sOrchestrator -->|creates| K8sJobs
-
-        CLI["LEGACY: python main.py - lib/phases.py"]
-        CLI -.->|deprecated| K8sOrchestrator
     end
 
     subgraph Phase2b["Phase 2b: Job Execution in Pod"]
