@@ -34,12 +34,12 @@ graph TB
         Scripts --> CLIRunner
     end
 
-    subgraph Skills["Skills - pipeline-skills.yaml"]
+    subgraph Skills["Skills - .claude/skills/"]
         direction TB
 
-        LocalSkills["Local Skills - .claude/skills/ - bug-completeness - bug-context-map - bug-fix-attempt - bug-test-plan - patch-validation - strat.security.review"]
+        LocalSkills["Local Skills - bug-completeness - bug-context-map - bug-fix-attempt - bug-test-plan - patch-validation - strat.security.review"]
 
-        RemoteSkills["Remote Skills - remote_skills/rfe-creator - rfe.create - rfe.review - rfe.split - rfe.submit - strat.create - strat.refine"]
+        MarketplaceSkills["Marketplace Skills - rfe.create - rfe.review - rfe.split - rfe.submit - strat.create - strat.refine"]
     end
 
     subgraph ClusterServices["In-Cluster Services"]
@@ -60,8 +60,8 @@ graph TB
 
     LocalSkills --> SDKRunner
     LocalSkills --> CLIRunner
-    RemoteSkills --> SDKRunner
-    RemoteSkills --> CLIRunner
+    MarketplaceSkills --> SDKRunner
+    MarketplaceSkills --> CLIRunner
 
     SDKRunner --> VertexAI
     CLIRunner --> VertexAI
