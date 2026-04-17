@@ -16,10 +16,12 @@ help: ## Show this help message
 
 ##@ Vagrant: Dashboard Management
 
+vagrant-build-dashboard: ## Build dashboard image only (no redeploy)
+	vagrant ssh -c "cd /vagrant/deploy/scripts && sudo bash 05a-build-dashboard.sh"
+
 vagrant-rebuild-dashboard: ## Rebuild and redeploy dashboard (for dashboard/lib code changes)
 	@echo "==> Rebuilding dashboard image..."
-	vagrant ssh -c "cd /vagrant && sudo docker build -t ai-first-pipeline:latest ."
-	vagrant ssh -c "sudo docker save ai-first-pipeline:latest | sudo k3s ctr images import -"
+	vagrant ssh -c "cd /vagrant/deploy/scripts && sudo bash 05a-build-dashboard.sh"
 	vagrant ssh -c "kubectl delete pod -n ai-pipeline -l app=pipeline-dashboard --wait=false"
 	@echo "==> Waiting for dashboard pod to be ready..."
 	vagrant ssh -c "kubectl wait --for=condition=ready pod -n ai-pipeline -l app=pipeline-dashboard --timeout=60s" || true
@@ -31,10 +33,12 @@ vagrant-dashboard-logs: ## Follow dashboard logs
 
 ##@ Vagrant: Agent Management
 
+vagrant-build-agent: ## Build agent image only (no pod restart needed)
+	vagrant ssh -c "cd /vagrant/deploy/scripts && sudo bash 05b-build-agent.sh"
+
 vagrant-rebuild-agent: ## Rebuild agent image (has Claude CLI, used for K8s jobs)
-	@echo "==> Building pipeline-agent image from deploy/pipeline-agent/Dockerfile..."
-	vagrant ssh -c "cd /vagrant && sudo docker build -f deploy/pipeline-agent/Dockerfile -t pipeline-agent:latest ."
-	vagrant ssh -c "sudo docker save pipeline-agent:latest | sudo k3s ctr images import -"
+	@echo "==> Building pipeline-agent image..."
+	vagrant ssh -c "cd /vagrant/deploy/scripts && sudo bash 05b-build-agent.sh"
 	@echo "✓ Agent image rebuilt and imported to k3s"
 	@echo "   New jobs will use the updated image"
 
@@ -60,10 +64,15 @@ vagrant-rebuild-github: ## Rebuild and redeploy GitHub emulator
 
 ##@ Vagrant: Full Stack Management
 
-vagrant-rebuild-all: ## Rebuild all images (dashboard, agent, emulators)
-	@echo "==> Rebuilding all images..."
+vagrant-rebuild-all: ## Rebuild dashboard and agent images
+	@echo "==> Rebuilding dashboard and agent images..."
+	@$(MAKE) vagrant-build-dashboard
+	@$(MAKE) vagrant-build-agent
+	@echo "✓ Dashboard and agent images rebuilt"
+
+vagrant-rebuild-all-with-emulators: ## Rebuild all images including emulators
+	@echo "==> Rebuilding all images (dashboard, agent, emulators)..."
 	vagrant ssh -c "cd /vagrant/deploy/scripts && sudo bash 05-build-images.sh"
-	@$(MAKE) vagrant-rebuild-agent
 	@echo "✓ All images rebuilt"
 
 vagrant-deploy-all: ## Run full deployment from scratch

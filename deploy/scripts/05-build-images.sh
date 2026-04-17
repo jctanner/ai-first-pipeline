@@ -16,19 +16,41 @@ fi
 
 echo "==> Building container images with ${CONTAINER_CMD}..."
 
-# Build the main pipeline dashboard image
-echo "--- Building ai-first-pipeline dashboard image ---"
+# Build the pipeline dashboard image (Flask web UI)
+echo "--- Building pipeline-dashboard image (web UI) ---"
 cd /vagrant
 
-# The Dockerfile should exist in the root
-if [ -f Dockerfile ]; then
-  ${CONTAINER_CMD} build -t ai-first-pipeline:latest .
+if [ -f deploy/dashboard/Dockerfile ]; then
+  ${CONTAINER_CMD} build -f deploy/dashboard/Dockerfile -t pipeline-dashboard:latest .
   # Import into k3s
-  echo "  Importing ai-first-pipeline image into k3s..."
-  ${CONTAINER_CMD} save ai-first-pipeline:latest | sudo k3s ctr images import -
-  echo "  Successfully built and imported ai-first-pipeline:latest"
+  echo "  Importing pipeline-dashboard image into k3s..."
+  ${CONTAINER_CMD} save pipeline-dashboard:latest | sudo k3s ctr images import -
+  echo "  Successfully built and imported pipeline-dashboard:latest"
 else
-  # Create a default Dockerfile if it doesn't exist
+  echo "  ERROR: deploy/dashboard/Dockerfile not found"
+  exit 1
+fi
+echo ""
+
+# Build the pipeline agent image (job runner with Claude CLI)
+echo "--- Building pipeline-agent image (job runner with Claude CLI) ---"
+cd /vagrant
+
+if [ -f deploy/pipeline-agent/Dockerfile ]; then
+  ${CONTAINER_CMD} build -f deploy/pipeline-agent/Dockerfile -t pipeline-agent:latest .
+  # Import into k3s
+  echo "  Importing pipeline-agent image into k3s..."
+  ${CONTAINER_CMD} save pipeline-agent:latest | sudo k3s ctr images import -
+  echo "  Successfully built and imported pipeline-agent:latest"
+else
+  echo "  ERROR: deploy/pipeline-agent/Dockerfile not found"
+  exit 1
+fi
+echo ""
+
+# Remove old build logic
+if false; then
+  # This code is kept for reference but not executed
   echo "  Creating default Dockerfile..."
   cat > Dockerfile <<'EOF'
 FROM python:3.13-slim

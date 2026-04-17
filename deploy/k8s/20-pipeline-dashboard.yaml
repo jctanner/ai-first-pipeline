@@ -70,7 +70,7 @@ spec:
 
       containers:
       - name: dashboard
-        image: pipeline-agent:latest
+        image: pipeline-dashboard:latest
         imagePullPolicy: Never  # Use local image
 
         command:

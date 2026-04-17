@@ -71,6 +71,8 @@ PLUGIN_BASE=$(find ~/.claude/plugins/cache -name "rfe-creator" -type d | head -1
 if [ -n "$PLUGIN_BASE" ]; then
   # Find all version subdirectories and create symlinks in each
   for VERSION_DIR in "$PLUGIN_BASE"/*/ ; do
+    # Remove trailing slash from VERSION_DIR
+    VERSION_DIR="${VERSION_DIR%/}"
     if [ -d "$VERSION_DIR" ]; then
       # Remove existing directories in versioned plugin dir if they exist
       rm -rf "$VERSION_DIR/artifacts" "$VERSION_DIR/tmp" "$VERSION_DIR/.context"

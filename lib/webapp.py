@@ -4412,7 +4412,8 @@ function formatDate(isoString) {
 }
 
 async function navigateTo(path) {
-  currentPath = path;
+  // Normalize path: remove trailing slash (except for root)
+  currentPath = path === '/' ? path : path.replace(/\/+$/, '');
 
   try {
     const response = await fetch('/api/files/list?path=' + encodeURIComponent(path));
@@ -4478,7 +4479,8 @@ function renderDirectoryList(entries) {
   }
 
   for (const entry of sorted) {
-    const fullPath = currentPath + '/' + entry.name;
+    const basePath = currentPath.endsWith('/') ? currentPath.slice(0, -1) : currentPath;
+    const fullPath = basePath + '/' + entry.name;
     const iconClass = entry.type === 'directory' ? 'icon-dir' : 'icon-file';
     const onclick = entry.type === 'directory'
       ? `navigateTo('${fullPath}')`
