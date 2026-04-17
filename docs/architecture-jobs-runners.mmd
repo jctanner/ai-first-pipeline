@@ -34,14 +34,12 @@ graph TB
         Scripts --> CLIRunner
     end
 
-    subgraph Skills["Skill Configuration - pipeline-skills.yaml"]
+    subgraph Skills["Skills - pipeline-skills.yaml"]
         direction TB
 
         LocalSkills["Local Skills - .claude/skills/ - bug-completeness - bug-context-map - bug-fix-attempt - bug-test-plan - patch-validation - strat.security.review"]
 
         RemoteSkills["Remote Skills - remote_skills/rfe-creator - rfe.create - rfe.review - rfe.split - rfe.submit - strat.create - strat.refine"]
-
-        Native["Native Invocation - SDK skill discovery - setting_sources project - All phases use native skill invocation"]
     end
 
     subgraph ClusterServices["In-Cluster Services"]
@@ -60,10 +58,10 @@ graph TB
     Job2 --> Scripts
     Job3 --> Scripts
 
-    LocalSkills -->|native| SDKRunner
-    LocalSkills -->|native| CLIRunner
-    RemoteSkills -->|native| SDKRunner
-    RemoteSkills -->|native| CLIRunner
+    LocalSkills --> SDKRunner
+    LocalSkills --> CLIRunner
+    RemoteSkills --> SDKRunner
+    RemoteSkills --> CLIRunner
 
     SDKRunner --> VertexAI
     CLIRunner --> VertexAI
