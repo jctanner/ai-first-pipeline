@@ -1,0 +1,59 @@
+graph TB
+    User["User"]
+
+    subgraph Host["Host Machine"]
+        CLI["CLI: python main.py"]
+        Browser["Browser: localhost:5000"]
+    end
+
+    subgraph VM["Vagrant VM - 8GB RAM - 8 CPU"]
+        direction TB
+
+        K3s["K3s Cluster"]
+        Storage["Persistent Storage - 5 PVCs"]
+        Dashboard["Dashboard - Flask + SSE"]
+        Jobs["K8s Jobs - Parallel Execution"]
+
+        K3s --> Storage
+        K3s --> Dashboard
+        K3s --> Jobs
+    end
+
+    subgraph Runners["Agent Runners in Jobs"]
+        direction TB
+        SDKRunner["SDK Runner: claude_agent_sdk"]
+        CLIRunner["CLI Runner: claude -p"]
+        Skills["Skills: Local + Remote"]
+
+        SDKRunner --> Skills
+        CLIRunner --> Skills
+    end
+
+    subgraph External["External Services"]
+        direction TB
+        VertexAI["Vertex AI: Claude API"]
+        JiraCloud["Jira Cloud"]
+        GitHub["GitHub"]
+    end
+
+    User --> CLI
+    User --> Browser
+
+    CLI --> K3s
+    Browser --> Dashboard
+
+    Jobs --> Runners
+
+    Runners --> VertexAI
+    Runners --> JiraCloud
+    Runners --> GitHub
+
+    Dashboard --> Browser
+
+    classDef vm fill:#fff3e0,stroke:#f57c00,stroke-width:3px
+    classDef runner fill:#fce4ec,stroke:#c2185b,stroke-width:3px
+    classDef external fill:#e8f5e9,stroke:#388e3c,stroke-width:3px
+
+    class VM,K3s,Storage,Dashboard,Jobs vm
+    class Runners,SDKRunner,CLIRunner,Skills runner
+    class External,VertexAI,JiraCloud,GitHub external

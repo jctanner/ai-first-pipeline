@@ -1,0 +1,93 @@
+graph TB
+    subgraph Phase1["Phase 1: Fetch Bugs"]
+        direction TB
+        JiraAPI["Jira Cloud API - issues.redhat.com"]
+        FetchScript["scripts/fetch_bugs.py"]
+        IssuesDir["issues/ - JSON files per bug"]
+
+        JiraAPI --> FetchScript
+        FetchScript --> IssuesDir
+    end
+
+    subgraph Phase2["Phase 2: Run Pipeline Phases"]
+        direction TB
+        CLI["CLI: python main.py"]
+        PhasesLib["lib/phases.py - Orchestrator"]
+        AgentRunner["lib/agent_runner.py - SDK or CLI"]
+
+        CLI --> PhasesLib
+        PhasesLib -->|parallel execution| AgentRunner
+    end
+
+    subgraph Phase3["Phase 3: Generate Outputs"]
+        direction TB
+        Workspace["workspace/ISSUE_KEY/MODEL/ - Per-issue per-model outputs"]
+
+        subgraph Outputs["Output Files"]
+            PhaseJSON["phase.json - Structured output"]
+            PhaseMD["phase.md - Human-readable"]
+            PhaseLog["phase.log - Agent execution log"]
+            PatchDiff["patch.diff - Code changes"]
+            MemoryMD["MEMORY.md - Session metadata"]
+        end
+
+        AgentRunner --> Workspace
+        Workspace --> PhaseJSON
+        Workspace --> PhaseMD
+        Workspace --> PhaseLog
+        Workspace --> PatchDiff
+        Workspace --> MemoryMD
+    end
+
+    subgraph Phase4["Phase 4: Validation Optional"]
+        direction TB
+        ValidationLib["lib/validation.py"]
+        PodmanContainer["Podman Container - odh-tests-context recipes"]
+
+        PatchDiff --> ValidationLib
+        ValidationLib -->|apply patch + test| PodmanContainer
+        PodmanContainer -->|pass/fail| ValidationLib
+        ValidationLib -.->|retry on failure| AgentRunner
+    end
+
+    subgraph Phase5["Phase 5: Dashboard View"]
+        direction TB
+        Dashboard["Dashboard - Flask App"]
+        Browser["Browser - localhost:5000"]
+
+        subgraph DashboardData["Dashboard Reads"]
+            ReadIssues["issues/*.json"]
+            ReadWorkspace["workspace/*/*/*"]
+            ReadLogs["logs/*.log"]
+        end
+
+        SSE["SSE Stream - Real-time updates"]
+
+        IssuesDir --> ReadIssues
+        Workspace --> ReadWorkspace
+        PhaseLog --> ReadLogs
+
+        ReadIssues --> Dashboard
+        ReadWorkspace --> Dashboard
+        ReadLogs --> Dashboard
+
+        Dashboard -->|SSE events| SSE
+        SSE --> Browser
+    end
+
+    IssuesDir --> Phase2
+    Phase2 --> Phase3
+    Phase3 --> Phase4
+    Phase4 --> Phase5
+
+    classDef fetch fill:#e3f2fd,stroke:#1976d2,stroke-width:2px
+    classDef process fill:#fff3e0,stroke:#f57c00,stroke-width:2px
+    classDef output fill:#f3e5f5,stroke:#7b1fa2,stroke-width:2px
+    classDef validate fill:#ffebee,stroke:#c62828,stroke-width:2px
+    classDef view fill:#e8f5e9,stroke:#388e3c,stroke-width:2px
+
+    class JiraAPI,FetchScript,IssuesDir fetch
+    class CLI,PhasesLib,AgentRunner process
+    class Workspace,PhaseJSON,PhaseMD,PhaseLog,PatchDiff,MemoryMD output
+    class ValidationLib,PodmanContainer validate
+    class Dashboard,Browser,SSE,ReadIssues,ReadWorkspace,ReadLogs view

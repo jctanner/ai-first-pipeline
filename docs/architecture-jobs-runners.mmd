@@ -1,0 +1,71 @@
+graph TB
+    subgraph K8s["K3s Cluster - ai-pipeline namespace"]
+        direction TB
+
+        Orchestrator["PipelineOrchestrator - lib/k8s_orchestrator.py"]
+
+        subgraph Jobs["K8s Jobs - Created Dynamically"]
+            Job1["bug-completeness-RHOAIENG-12345-opus"]
+            Job2["bug-fix-attempt-RHOAIENG-12345-opus"]
+            Job3["rfe-create-RFE-001-sonnet"]
+        end
+
+        Orchestrator -->|creates| Job1
+        Orchestrator -->|creates| Job2
+        Orchestrator -->|creates| Job3
+    end
+
+    subgraph JobPod["Inside Job Pod - Container: pipeline-agent"]
+        direction TB
+
+        Scripts["Entry Point - scripts/run_skill.sh or run_skill_sdk.sh"]
+
+        subgraph RunnerLogic["lib/agent_runner.py"]
+            SDKRunner["SDK Runner - ClaudeSDKClient - Fast programmatic - MCP support v0.1.59+"]
+            CLIRunner["CLI Runner - Subprocess: claude -p - Full persistence - Multi-turn workflows"]
+        end
+
+        Scripts --> SDKRunner
+        Scripts --> CLIRunner
+    end
+
+    subgraph Skills["Skill Configuration - pipeline-skills.yaml"]
+        direction TB
+
+        LocalSkills["Local Skills - .claude/skills/ - bug-completeness - bug-context-map - bug-fix-attempt - bug-test-plan - patch-validation - strat.security.review"]
+
+        RemoteSkills["Remote Skills - remote_skills/rfe-creator - rfe.create - rfe.review - rfe.split - rfe.submit - strat.create - strat.refine"]
+
+        Templated["Templated Invocation - SKILL.md injected into prompt - Used for: bug analysis phases"]
+
+        Native["Native Invocation - SDK skill discovery - setting_sources project - Used for: RFE and strategy phases"]
+    end
+
+    subgraph External["External APIs"]
+        VertexAI["Vertex AI - Claude API - us-east5"]
+        JiraAPI["Jira Cloud - REST API - issues.redhat.com"]
+        MLflow["MLflow - Tracking Server - Traces and metrics"]
+    end
+
+    Job1 --> Scripts
+    Job2 --> Scripts
+    Job3 --> Scripts
+
+    LocalSkills -->|templated| SDKRunner
+    RemoteSkills -->|native| CLIRunner
+
+    SDKRunner --> VertexAI
+    CLIRunner --> VertexAI
+
+    SDKRunner --> JiraAPI
+    CLIRunner --> MLflow
+
+    classDef job fill:#f3e5f5,stroke:#7b1fa2,stroke-width:2px
+    classDef runner fill:#fce4ec,stroke:#c2185b,stroke-width:2px
+    classDef skill fill:#fff9c4,stroke:#f9a825,stroke-width:2px
+    classDef external fill:#e8f5e9,stroke:#388e3c,stroke-width:2px
+
+    class Job1,Job2,Job3 job
+    class SDKRunner,CLIRunner runner
+    class LocalSkills,RemoteSkills,Templated,Native skill
+    class VertexAI,JiraAPI,MLflow external

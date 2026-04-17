@@ -1,0 +1,51 @@
+graph TB
+    Host["Host Machine - NFS Mount"]
+
+    subgraph VM["Vagrant VM - Ubuntu 24.04"]
+        direction TB
+
+        subgraph K3s["K3s Cluster - Namespace: ai-pipeline"]
+            direction TB
+
+            subgraph Services["Services"]
+                Dashboard["Dashboard - Flask App - Port 5000"]
+                MLflow["MLflow - Tracking Server - Port 5000"]
+                JiraEmu["Jira Emulator - MCP Port 30961"]
+                GitHubEmu["GitHub Emulator - HTTP Port 32661"]
+            end
+
+            subgraph Storage["Persistent Volume Claims"]
+                IssuesPVC["pipeline-issues - Jira JSON files"]
+                WorkspacePVC["pipeline-workspace - Cloned repos + outputs"]
+                LogsPVC["pipeline-logs - Agent execution logs"]
+                ArtifactsPVC["pipeline-artifacts - Generated outputs"]
+                ContextPVC["pipeline-context - Architecture docs"]
+            end
+
+            subgraph Security["Secrets and ConfigMaps"]
+                PipelineSecrets["pipeline-secrets - JIRA_TOKEN - VERTEX_PROJECT_ID - CLOUD_ML_REGION"]
+                GCPCreds["gcp-credentials - Service account JSON"]
+                CACert["internal-ca-cert - TLS certificates"]
+            end
+
+            RBAC["RBAC - ServiceAccount: pipeline-agent - Permissions: Jobs, Pods"]
+        end
+
+        Docker["Docker - Image builds"]
+    end
+
+    Host -.->|NFS sync| Storage
+
+    Dashboard -->|reads| IssuesPVC
+    Dashboard -->|reads| WorkspacePVC
+    Dashboard -->|reads| LogsPVC
+
+    MLflow -->|writes| ArtifactsPVC
+
+    classDef storage fill:#e1f5ff,stroke:#0288d1,stroke-width:2px
+    classDef service fill:#fff3e0,stroke:#f57c00,stroke-width:2px
+    classDef security fill:#ffebee,stroke:#c62828,stroke-width:2px
+
+    class IssuesPVC,WorkspacePVC,LogsPVC,ArtifactsPVC,ContextPVC storage
+    class Dashboard,MLflow,JiraEmu,GitHubEmu service
+    class PipelineSecrets,GCPCreds,CACert,RBAC security
