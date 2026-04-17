@@ -82,6 +82,17 @@ settings['apiProvider'] = 'vertex'
 settings['vertexProjectId'] = os.environ.get('ANTHROPIC_VERTEX_PROJECT_ID', '')
 settings['vertexRegion'] = os.environ.get('CLOUD_ML_REGION', 'us-east5')
 
+# Add Atlassian MCP server if configured
+atlassian_mcp_url = os.environ.get('ATLASSIAN_MCP_URL', '')
+if atlassian_mcp_url:
+    if 'mcpServers' not in settings:
+        settings['mcpServers'] = {}
+    settings['mcpServers']['atlassian'] = {
+        'type': 'sse',
+        'url': atlassian_mcp_url
+    }
+    print('✓ Atlassian MCP server configured')
+
 # Write back
 with open(settings_file, 'w') as f:
     json.dump(settings, f, indent=2)

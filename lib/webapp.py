@@ -4030,6 +4030,7 @@ JOBS = """\
         <option value="rfe-create">rfe-create</option>
         <option value="rfe-review">rfe-review</option>
         <option value="rfe-split">rfe-split</option>
+        <option value="rfe-submit">rfe-submit</option>
         <option value="strat-create">strat-create</option>
         <option value="strat-refine">strat-refine</option>
         <option value="strat-review">strat-review</option>
