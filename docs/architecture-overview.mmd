@@ -8,32 +8,37 @@ graph TB
     subgraph VM["Vagrant VM - 8GB RAM - 8 CPU"]
         direction TB
 
-        K3s["K3s Cluster"]
-        Storage["Persistent Storage - 5 PVCs"]
+        subgraph K3s["K3s Cluster - Namespace: ai-pipeline"]
+            direction TB
 
-        subgraph Services["Cluster Services"]
-            Dashboard["Dashboard - https://dashboard.local - Flask API + UI + SSE"]
-            MLflow["MLflow - https://mlflow.local - Tracking Server"]
-            JiraEmu["Jira Emulator - https://jira.local - MCP Server"]
-            GitHubEmu["GitHub Emulator - https://github.local"]
+            Storage["Persistent Storage - 5 PVCs"]
+
+            subgraph Services["Cluster Services - K8s Deployments"]
+                Dashboard["Dashboard - https://dashboard.local - Flask API + UI + SSE"]
+                MLflow["MLflow - https://mlflow.local - Tracking Server"]
+                JiraEmu["Jira Emulator - https://jira.local - MCP Server"]
+                GitHubEmu["GitHub Emulator - https://github.local"]
+            end
+
+            subgraph Jobs["K8s Jobs - Dynamic Parallel Execution"]
+                direction TB
+                Job1["bug-completeness-KEY-opus"]
+                Job2["bug-fix-attempt-KEY-opus"]
+                Job3["rfe-create-RFE-sonnet"]
+            end
+
+            subgraph Runners["Agent Runners inside Job Pods"]
+                direction TB
+                SDKRunner["SDK Runner: claude_agent_sdk"]
+                CLIRunner["CLI Runner: claude -p"]
+                Skills["Skills: Local + Remote"]
+            end
+
+            Dashboard -->|creates| Jobs
+            Jobs --> Runners
+            SDKRunner --> Skills
+            CLIRunner --> Skills
         end
-
-        Jobs["K8s Jobs - Dynamic Parallel Execution"]
-
-        K3s --> Storage
-        K3s --> Services
-        K3s --> Jobs
-        Dashboard -->|creates| Jobs
-    end
-
-    subgraph Runners["Agent Runners in Jobs"]
-        direction TB
-        SDKRunner["SDK Runner: claude_agent_sdk"]
-        CLIRunner["CLI Runner: claude -p"]
-        Skills["Skills: Local + Remote"]
-
-        SDKRunner --> Skills
-        CLIRunner --> Skills
     end
 
     subgraph External["External Services"]
@@ -48,13 +53,14 @@ graph TB
     Browser -->|submit jobs| Dashboard
     Dashboard -->|SSE stream| Browser
 
-    Jobs --> Runners
-
-    Runners --> VertexAI
-    Runners --> MLflow
-    Runners --> JiraEmu
-    Runners --> JiraCloud
-    Runners --> GitHub
+    SDKRunner --> VertexAI
+    CLIRunner --> VertexAI
+    SDKRunner --> MLflow
+    CLIRunner --> MLflow
+    SDKRunner --> JiraEmu
+    CLIRunner --> JiraEmu
+    SDKRunner --> JiraCloud
+    CLIRunner --> GitHub
 
     classDef vm fill:#fff3e0,stroke:#f57c00,stroke-width:3px
     classDef runner fill:#fce4ec,stroke:#c2185b,stroke-width:3px
