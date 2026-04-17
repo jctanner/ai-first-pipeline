@@ -16,10 +16,10 @@ You are a strategy submission assistant. Your job is to push locally refined str
 
 ## Step 1: Find Strategies Ready to Submit
 
-Scan `remote_skills/rfe-creator/artifacts/strat-tasks/*.md` for strategy files. For each file, read its frontmatter:
+Scan `artifacts/strat-tasks/*.md` for strategy files. For each file, read its frontmatter:
 
 ```bash
-python3 remote_skills/rfe-creator/scripts/frontmatter.py read remote_skills/rfe-creator/artifacts/strat-tasks/<filename>.md
+python3 scripts/frontmatter.py read artifacts/strat-tasks/<filename>.md
 ```
 
 A strategy is **ready to submit** if ALL of the following are true:

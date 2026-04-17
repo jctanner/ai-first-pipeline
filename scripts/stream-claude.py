@@ -233,6 +233,9 @@ while True:
     # wasted turns responding to late-arriving background agents.
     if msg_type == "user":
         for block in msg.get("message", {}).get("content", []):
+            # Skip non-dict blocks (sometimes content is a list of strings)
+            if not isinstance(block, dict):
+                continue
             if block.get("type") == "tool_result":
                 content = block.get("content", "")
                 if isinstance(content, str) and "FULL RUN COMPLETE" in content:

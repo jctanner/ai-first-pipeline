@@ -104,6 +104,13 @@ phases:
     allowed_tools: [Read, Write, Edit, Glob, Grep, Bash]
     mcp_servers: [atlassian]
 
+  strat-create-local:
+    skill: strat.create.local
+    invoke: native
+    runner: cli
+    allowed_tools: [Read, Write, Edit, Glob, Grep, Bash, AskUserQuestion]
+    mcp_servers: [atlassian]
+
   strat-refine:
     skill: strat.refine
     source: rfe-creator
@@ -119,14 +126,14 @@ phases:
     allowed_tools: [Read, Write, Edit, Glob, Grep, Bash]
 
   strat-submit:
-    skill: strat-submit
+    skill: strat.submit
     invoke: native
     runner: cli
     allowed_tools: [Read, Glob, Grep, Bash]
     mcp_servers: [atlassian]
 
   strat-security-review:
-    skill: strat-security-review
+    skill: strat.security.review
     invoke: native
     runner: cli
     allowed_tools: [Read, Write, Glob, Grep, Bash, Skill]

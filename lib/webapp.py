@@ -3943,7 +3943,7 @@ JOBS = """\
   .job-form h2 { margin-top: 0; }
   .form-grid {
     display: grid;
-    grid-template-columns: 1fr 1fr 1fr auto;
+    grid-template-columns: 1fr 1fr 1fr 1fr auto;
     gap: 1rem;
     align-items: end;
   }
@@ -4032,8 +4032,10 @@ JOBS = """\
         <option value="rfe-split">rfe-split</option>
         <option value="rfe-submit">rfe-submit</option>
         <option value="strat-create">strat-create</option>
+        <option value="strat-create-local">strat-create-local</option>
         <option value="strat-refine">strat-refine</option>
         <option value="strat-review">strat-review</option>
+        <option value="strat-submit">strat-submit</option>
         <option value="strat-security-review">strat-security-review</option>
       </select>
     </div>
@@ -4047,6 +4049,13 @@ JOBS = """\
         <option value="haiku">haiku</option>
         <option value="sonnet">sonnet</option>
         <option value="opus" selected>opus</option>
+      </select>
+    </div>
+    <div>
+      <label for="runner">Runner</label>
+      <select id="runner" name="runner" required>
+        <option value="cli" selected>CLI</option>
+        <option value="sdk">SDK</option>
       </select>
     </div>
     <div>
@@ -4067,6 +4076,7 @@ JOBS = """\
         <th>Phase</th>
         <th>Issue</th>
         <th>Model</th>
+        <th>Runner</th>
         <th>Status</th>
         <th>Created</th>
         <th>Duration (s)</th>
@@ -4074,7 +4084,7 @@ JOBS = """\
       </tr>
     </thead>
     <tbody id="jobs-tbody">
-      <tr><td colspan="8" style="text-align: center; color: #95a5a6;">Loading jobs...</td></tr>
+      <tr><td colspan="9" style="text-align: center; color: #95a5a6;">Loading jobs...</td></tr>
     </tbody>
   </table>
 </div>
@@ -4102,6 +4112,7 @@ if (K8S_AVAILABLE) {
     const phase = document.getElementById('phase').value;
     const issue = document.getElementById('issue').value.toUpperCase();
     const model = document.getElementById('model').value;
+    const runner = document.getElementById('runner').value;
     const statusDiv = document.getElementById('submit-status');
 
     statusDiv.innerHTML = '<em style="color: #3498db;">Submitting job...</em>';
@@ -4112,7 +4123,7 @@ if (K8S_AVAILABLE) {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           command: phase,
-          args: { issue, model }
+          args: { issue, model, runner }
         })
       });
 
@@ -4122,6 +4133,7 @@ if (K8S_AVAILABLE) {
         statusDiv.innerHTML = '<strong style="color: #27ae60;">✓ Job submitted:</strong> ' + data.job_name;
         document.getElementById('submit-form').reset();
         document.getElementById('model').value = 'opus';
+        document.getElementById('runner').value = 'cli';
         refreshJobs();
       } else {
         statusDiv.innerHTML = '<strong style="color: #e74c3c;">✗ Error:</strong> ' + (data.error || 'Unknown error');
@@ -4142,7 +4154,7 @@ if (K8S_AVAILABLE) {
       const tbody = document.getElementById('jobs-tbody');
 
       if (jobs.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="8" style="text-align: center; color: #95a5a6;">No jobs found</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="9" style="text-align: center; color: #95a5a6;">No jobs found</td></tr>';
         return;
       }
 
@@ -4150,6 +4162,7 @@ if (K8S_AVAILABLE) {
         const statusClass = 'status-' + job.status;
         const duration = job.duration ? job.duration.toFixed(1) : '-';
         const created = new Date(job.created).toLocaleString();
+        const runner = job.runner || 'cli';
 
         return `
           <tr>
@@ -4157,6 +4170,7 @@ if (K8S_AVAILABLE) {
             <td>${job.phase}</td>
             <td>${job.issue.toUpperCase()}</td>
             <td>${job.model}</td>
+            <td>${runner}</td>
             <td class="${statusClass}">${job.status}</td>
             <td>${created}</td>
             <td>${duration}</td>
@@ -5023,6 +5037,7 @@ def create_app() -> Flask:
           "args": {
             "issue": "RHOAIENG-37036",
             "model": "opus",
+            "runner": "cli",
             "force": true
           }
         }
@@ -5043,12 +5058,13 @@ def create_app() -> Flask:
 
             issue_key = args.get("issue")
             model = args.get("model", "opus")
+            runner = args.get("runner", "cli")
 
             if not phase or not issue_key:
                 return jsonify({"error": "Missing required fields: command, args.issue"}), 400
 
             orchestrator = get_orchestrator()
-            job = orchestrator.submit_phase_job(phase, issue_key, model, args)
+            job = orchestrator.submit_phase_job(phase, issue_key, model, runner, args)
 
             return jsonify({
                 "job_name": job.metadata.name,

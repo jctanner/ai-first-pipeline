@@ -30,7 +30,8 @@ class PipelineOrchestrator:
         phase: str,
         issue_key: str,
         model: str,
-        args: dict
+        runner: str = "cli",
+        args: dict = None
     ) -> client.V1Job:
         """Create and submit a K8s Job for a pipeline phase.
 
@@ -38,12 +39,15 @@ class PipelineOrchestrator:
             phase: Phase name (e.g., "bug-completeness")
             issue_key: Jira issue key (e.g., "RHOAIENG-37036")
             model: Model shorthand ("opus", "sonnet", "haiku")
+            runner: Runner type ("cli" or "sdk")
             args: Additional arguments (force, component, etc.)
 
         Returns:
             Created K8s Job object
         """
-        job = self._create_job_manifest(phase, issue_key, model, args)
+        if args is None:
+            args = {}
+        job = self._create_job_manifest(phase, issue_key, model, runner, args)
         return self.batch_v1.create_namespaced_job(
             namespace=self.namespace,
             body=job
@@ -104,7 +108,8 @@ class PipelineOrchestrator:
             "failed": job.status.failed or 0,
             "phase": job.metadata.labels.get("phase"),
             "issue": job.metadata.labels.get("issue"),
-            "model": job.metadata.labels.get("model")
+            "model": job.metadata.labels.get("model"),
+            "runner": job.metadata.labels.get("runner", "cli")
         }
 
     def get_job_logs(self, job_name: str) -> str:
@@ -164,6 +169,7 @@ class PipelineOrchestrator:
         phase: str,
         issue_key: str,
         model: str,
+        runner: str,
         args: dict
     ) -> client.V1Job:
         """Generate a K8s Job manifest for a pipeline phase."""
@@ -174,8 +180,12 @@ class PipelineOrchestrator:
         timestamp = datetime.now().strftime("%m%d-%H%M%S")
         job_name = f"{job_name}-{timestamp}"
 
-        # Build command args - use bash wrapper to install skills and run via Claude CLI
-        cmd_args = ["/bin/bash", "/app/scripts/run_skill.sh"]
+        # Build command args - choose script based on runner type
+        if runner == "sdk":
+            cmd_args = ["/bin/bash", "/app/scripts/run_skill_sdk.sh"]
+        else:
+            cmd_args = ["/bin/bash", "/app/scripts/run_skill.sh"]
+
         cmd_args.extend(["--skill", phase])
         cmd_args.extend(["--issue", issue_key])
         cmd_args.extend(["--model", model])
@@ -193,7 +203,8 @@ class PipelineOrchestrator:
                     "app": "pipeline-agent",
                     "phase": phase,
                     "issue": issue_key.lower(),
-                    "model": model
+                    "model": model,
+                    "runner": runner
                 }
             ),
             spec=client.V1JobSpec(

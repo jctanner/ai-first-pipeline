@@ -1,6 +1,11 @@
 # Environment and secrets
 .env
 .env.*
+!.env.template
+*credentials.json
+secrets.yaml
+secrets.yml
+kubeconfig*
 
 # Python
 .venv/
@@ -10,6 +15,9 @@ __pycache__/
 *.egg-info/
 dist/
 build/
+
+# Local binaries
+bin/
 
 # Vagrant
 .vagrant/
@@ -53,6 +61,15 @@ ambient-code.workflows/
 
 # Lock files (optional - uncomment to include)
 # uv.lock
+
+# Certificates and keys
+*.pem
+*.key
+!*.key.pub
+*.crt
+*.cert
+*.p12
+*.pfx
 
 # OS files
 .DS_Store

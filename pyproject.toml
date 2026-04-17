@@ -4,7 +4,7 @@ version = "0.1.0"
 description = "AI-driven RHOAIENG bug bash analysis pipeline"
 requires-python = ">=3.13"
 dependencies = [
-    "claude-agent-sdk==0.1.48",
+    "claude-agent-sdk==0.1.61",
     "flask>=3.0",
     "jsonschema>=4.20",
     "kubernetes>=35.0.0",

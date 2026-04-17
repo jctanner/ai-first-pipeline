@@ -1,5 +1,5 @@
 ---
-name: strat-security-review
+name: strat.security.review
 description: >
   Security review of STRAT documents using multi-reviewer consensus.
   Extracts threat surface, spawns 3 independent reviewers, synthesizes

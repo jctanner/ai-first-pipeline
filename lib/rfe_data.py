@@ -237,17 +237,20 @@ def load_strat_issues(
     for f in sorted(tasks_dir.glob("*.md")):
         text = f.read_text(encoding="utf-8", errors="replace")
         meta, body = parse_frontmatter(text)
-        sid = meta.get("strat_id", "")
-        if not sid or not sid.startswith("RHAISTRAT-"):
+        # Use jira_key as the primary key (RHAISTRAT-*)
+        # strat_id is the local identifier (STRAT-001, etc.)
+        jira_key = meta.get("jira_key", "")
+        strat_id = meta.get("strat_id", "")
+        if not jira_key or not jira_key.startswith("RHAISTRAT-"):
             continue
         entry = {
             "type": "strategy",
-            "key": sid,
+            "key": jira_key,  # Use jira_key for the key field
             **meta,
             "_body": body,
-            "review": reviews.get(sid),
-            "security": sec_reviews.get(sid),
-            "security_requirements": sec_requirements.get(sid),
+            "review": reviews.get(jira_key),
+            "security": sec_reviews.get(jira_key),
+            "security_requirements": sec_requirements.get(jira_key),
         }
         result.append(entry)
     return result
@@ -259,7 +262,7 @@ def load_single_strat(
     security_dir: Path | None = None,
     requirements_dir: Path | None = None,
 ) -> dict | None:
-    """Load all data for a single strategy *key*.
+    """Load all data for a single strategy *key* (RHAISTRAT-* jira_key).
 
     Reads the task, review, security-review, and security-requirements
     files and returns a combined dict, or ``None`` if the task file is
@@ -268,8 +271,21 @@ def load_single_strat(
     if not key.startswith("RHAISTRAT-"):
         return None
     base = artifacts_dir or _ARTIFACTS_DIR
-    task_file = base / "strat-tasks" / f"{key}.md"
-    if not task_file.is_file():
+    tasks_dir = base / "strat-tasks"
+    if not tasks_dir.is_dir():
+        return None
+
+    # Scan for the file with matching jira_key in frontmatter
+    # (files are named by strat_id, not jira_key)
+    task_file = None
+    for f in tasks_dir.glob("*.md"):
+        text = f.read_text(encoding="utf-8", errors="replace")
+        meta, _ = parse_frontmatter(text)
+        if meta.get("jira_key") == key:
+            task_file = f
+            break
+
+    if not task_file:
         return None
 
     # Task (frontmatter + body)

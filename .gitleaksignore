@@ -1,0 +1,25 @@
+# Gitleaks ignore file
+# https://github.com/gitleaks/gitleaks#gitleaksignore
+#
+# Format: exact fingerprint from gitleaks output
+# Use full fingerprints to avoid accidentally ignoring real secrets
+
+# False positives: Example admin:admin credentials in Jira emulator documentation
+# These are local-only default credentials, not production secrets
+36ee1191f5daf4b1ef309344d6b247676ed3e7d5:deploy/JIRA_DEPLOYMENT.md:curl-auth-user:174
+36ee1191f5daf4b1ef309344d6b247676ed3e7d5:deploy/JIRA_DEPLOYMENT.md:curl-auth-user:233
+36ee1191f5daf4b1ef309344d6b247676ed3e7d5:deploy/JIRA_DEPLOYMENT.md:curl-auth-user:248
+36ee1191f5daf4b1ef309344d6b247676ed3e7d5:deploy/JIRA_DEPLOYMENT.md:curl-auth-user:323
+36ee1191f5daf4b1ef309344d6b247676ed3e7d5:deploy/JIRA_DEPLOYMENT.md:curl-auth-user:327
+36ee1191f5daf4b1ef309344d6b247676ed3e7d5:deploy/JIRA_DEPLOYMENT.md:curl-auth-user:331
+
+# False positives: Public Jira ticket IDs (RHOAIENG-55490, RHOAIENG-37036)
+# These are example public Red Hat Jira tickets used in documentation
+33d28891aa6a5bb57984fea938c326e8e4e1398b:.claude/skills/doc-gather/SKILL.md:generic-api-key:141
+33d28891aa6a5bb57984fea938c326e8e4e1398b:.claude/skills/doc-generate/SKILL.md:generic-api-key:116
+33d28891aa6a5bb57984fea938c326e8e4e1398b:.claude/skills/doc-gather/scripts/context-filter.py:generic-api-key:24
+f8f746618eb5e53ea509b8c9ca7fdc1db7e855f9:.claude/skills/doc-plan/prompts/doc-plan.md:generic-api-key:51
+f8f746618eb5e53ea509b8c9ca7fdc1db7e855f9:.claude/skills/doc-plan/prompts/doc-plan.md:generic-api-key:65
+33d28891aa6a5bb57984fea938c326e8e4e1398b:.claude/skills/doc-gather/scripts/resolve-jira.sh:generic-api-key:13
+33d28891aa6a5bb57984fea938c326e8e4e1398b:.claude/skills/doc-gather/scripts/resolve-jira.sh:generic-api-key:28
+36ee1191f5daf4b1ef309344d6b247676ed3e7d5:deploy/docs/ARCHITECTURE-V2.md:generic-api-key:1413

@@ -1,0 +1,155 @@
+sequenceDiagram
+    autonumber
+    participant User as 👤 User
+    participant CLI as 🖥️ main.py CLI
+    participant Phases as 📋 lib/phases.py
+    participant Orchestrator as ☸️ K8s Orchestrator
+    participant K3s as ☁️ K3s Cluster
+    participant Job as 📦 K8s Job Pod
+    participant Runner as 🤖 Agent Runner<br/>(SDK or CLI)
+    participant Claude as 🧠 Claude Agent SDK
+    participant Vertex as ☁️ Vertex AI
+    participant Jira as 🎫 Jira API
+    participant Dashboard as 🎨 Flask Dashboard
+    participant Browser as 🌐 Browser
+
+    rect rgb(230, 245, 255)
+        Note over User,CLI: Phase 1: Initialization
+        User->>CLI: python main.py bug-fetch
+        CLI->>Jira: Fetch RHOAIENG bugs (REST API)
+        Jira-->>CLI: Return bug JSON
+        CLI->>CLI: Save to issues/*.json
+    end
+
+    rect rgb(255, 245, 230)
+        Note over User,Phases: Phase 2: Pipeline Execution (Local or K8s)
+        User->>CLI: python main.py bug-completeness --issue KEY --model opus
+        CLI->>Phases: parse_args() → main(args)
+
+        alt Local Execution (default)
+            Phases->>Phases: Load skill config (pipeline-skills.yaml)
+            Phases->>Phases: Build prompt (templated or native)
+            Phases->>Runner: run_agent(prompt, cwd, model, allowed_tools, mcp_servers)
+
+            alt SDK Runner
+                Runner->>Claude: ClaudeSDKClient(options).query(prompt)
+                Claude->>Vertex: Messages API request
+                Vertex-->>Claude: Stream response
+                Claude-->>Runner: Response iterator
+            else CLI Runner
+                Runner->>Runner: subprocess: claude -p "..." --model X --output-format stream-json
+                Runner->>Claude: (CLI spawns SDK internally)
+                Claude->>Vertex: Messages API request
+                Vertex-->>Claude: Stream response
+                Claude-->>Runner: Stream-json events via stdout
+            end
+
+            Runner-->>Phases: Agent output + success/failure
+            Phases->>Phases: Validate JSON schema
+            Phases->>Phases: Write workspace/{KEY}/{MODEL}/{phase}.json
+            Phases->>Phases: Write workspace/{KEY}/{MODEL}/{phase}.md
+            Phases->>Phases: Write logs/{phase}.log
+            Phases->>Phases: Broadcast SSE event (if dashboard running)
+            Phases-->>CLI: Phase complete
+        else K8s Execution (optional)
+            Phases->>Orchestrator: submit_phase_job(phase, issue_key, model, runner)
+            Orchestrator->>Orchestrator: _create_job_manifest()
+            Orchestrator->>K3s: batch_v1.create_namespaced_job()
+            K3s->>Job: Schedule pod in ai-pipeline namespace
+
+            Job->>Job: Mount PVCs (issues, workspace, logs, artifacts, context)
+            Job->>Job: Load secrets (JIRA_TOKEN, GCP creds, etc.)
+            Job->>Job: Init container: update-ca-trust
+            Job->>Runner: bash scripts/run_skill.sh or run_skill_sdk.sh
+
+            Runner->>Runner: Load /app/issues/{KEY}.json
+            Runner->>Runner: Build prompt from .claude/skills/{skill}/SKILL.md
+            Runner->>Claude: ClaudeSDKClient(options).query(prompt) or subprocess
+            Claude->>Vertex: Messages API request
+            Vertex-->>Claude: Stream response
+            Claude-->>Runner: Response
+
+            Runner->>Runner: Write /app/workspace/{KEY}/{MODEL}/{phase}.json
+            Runner->>Runner: Write /app/logs/{phase}.log
+            Runner->>Runner: Push MLflow trace (optional)
+            Runner-->>Job: Exit 0 (success) or 1 (failure)
+
+            Job-->>K3s: Pod completed
+            K3s-->>Orchestrator: Job status update
+            Orchestrator-->>CLI: get_job_status(job_name)
+        end
+    end
+
+    rect rgb(230, 255, 230)
+        Note over Dashboard,Browser: Phase 3: Monitoring & Visualization
+        Browser->>Dashboard: GET / (load dashboard)
+        Dashboard->>Dashboard: load_all_issues() → scan issues/*.json
+        Dashboard->>Dashboard: load_pipeline_status() → scan workspace/*/*/
+        Dashboard->>Dashboard: compute_summary_stats()
+        Dashboard-->>Browser: HTML + JavaScript
+
+        Browser->>Dashboard: EventSource /events/stream (SSE)
+        Dashboard-->>Browser: SSE: manifest, job_started, job_completed events
+
+        loop Real-time Updates
+            Phases->>Dashboard: _broadcast_sse(event)
+            Dashboard->>Dashboard: Push to SSE queue
+            Dashboard-->>Browser: data: {"event": "job_started", "issue_key": "KEY", ...}
+            Browser->>Browser: Update UI table + progress bars
+        end
+
+        Browser->>Dashboard: GET /api/issues/{KEY}
+        Dashboard->>Dashboard: load_single_issue(KEY) → read workspace files
+        Dashboard-->>Browser: JSON with all phase outputs
+
+        Browser->>Dashboard: GET /api/stats
+        Dashboard->>Dashboard: compute_all_stats() → aggregate across all issues
+        Dashboard-->>Browser: JSON with readiness scores, distributions
+    end
+
+    rect rgb(255, 230, 230)
+        Note over User,CLI: Phase 4: Validation (optional)
+        User->>CLI: python main.py bug-fix-attempt --issue KEY --validation-retries 2
+        CLI->>Phases: run_fix_attempt_phase()
+        Phases->>Runner: Initial fix attempt
+        Runner-->>Phases: patch.diff generated
+
+        Phases->>Phases: is_validation_eligible(component)
+        Phases->>Phases: start_validation_container(recipe)
+        Phases->>Phases: Podman run -v workspace:/src
+        Phases->>Phases: Apply patch + run tests in container
+
+        alt Validation Failed
+            Phases->>Phases: Build retry prompt with failure logs
+            Phases->>Runner: run_agent(retry_prompt)
+            Runner-->>Phases: Updated patch.diff
+            Phases->>Phases: Retry validation (up to max retries)
+        else Validation Passed
+            Phases->>Phases: Mark phase complete
+        end
+
+        Phases->>Phases: stop_validation_container()
+        Phases-->>CLI: Validation result
+    end
+
+    rect rgb(245, 230, 255)
+        Note over User,CLI: Phase 5: RFE/Strategy Pipeline (native skills)
+        User->>CLI: python main.py rfe-speedrun
+        CLI->>Phases: run_rfe_speedrun()
+        Phases->>Phases: Resolve remote skill (rfe-creator repo)
+        Phases->>Phases: setting_sources=["project"] for skill discovery
+        Phases->>Runner: run_agent(cwd=remote_skills/rfe-creator, enable_skills=True)
+
+        Runner->>Claude: Agent has access to sub-skills via Skill tool
+        Claude->>Claude: Invoke rfe.create, rfe.review, rfe.split via Skill tool
+        Claude-->>Runner: Multi-phase RFE workflow complete
+
+        Runner->>Runner: Write rfes/*.yaml (frontmatter + content)
+        Runner-->>Phases: Success
+        Phases-->>CLI: RFE pipeline complete
+    end
+
+    rect rgb(255, 255, 230)
+        Note over User,K3s: Deployment Architecture Notes
+        Note over User,K3s: • Vagrant VM: Ubuntu 24.04, 8GB RAM, 8 CPU, 100GB disk<br/>• K3s: Lightweight Kubernetes (single-node)<br/>• Storage: 5x PVCs for issues, workspace, logs, artifacts, context<br/>• Secrets: JIRA_TOKEN, GCP service account, MCP URLs<br/>• Services: Dashboard (Flask), MLflow, Jira/GitHub emulators<br/>• Jobs: Dynamic K8s Jobs for parallel agent execution<br/>• Networking: NFS mount from host → VM, port forwards for dashboard
+    end

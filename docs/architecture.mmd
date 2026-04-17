@@ -1,0 +1,165 @@
+graph TB
+    subgraph Host["Host Machine"]
+        CLI["CLI python main.py"]
+        Browser["Browser localhost:5000"]
+        HostFiles["Project Files NFS mount"]
+    end
+
+    subgraph Vagrant["Vagrant VM libvirt - Ubuntu 24.04 - 8GB RAM - 8 CPU - 100GB Disk"]
+        subgraph K3s["K3s Cluster"]
+            subgraph Namespace["Namespace: ai-pipeline"]
+
+                subgraph Storage["Persistent Storage PVCs"]
+                    IssuesPVC["pipeline-issues - Jira JSON"]
+                    WorkspacePVC["pipeline-workspace - cloned repos"]
+                    LogsPVC["pipeline-logs - agent logs"]
+                    ArtifactsPVC["pipeline-artifacts - outputs"]
+                    ContextPVC["pipeline-context - .context repos"]
+                end
+
+                subgraph Secrets["Secrets and Config"]
+                    PipelineSecrets["pipeline-secrets: JIRA_TOKEN, ANTHROPIC_VERTEX_PROJECT_ID, CLOUD_ML_REGION, ATLASSIAN_MCP_URL"]
+                    GCPCreds["gcp-credentials: service account JSON"]
+                    CACert["internal-ca-cert: ConfigMap"]
+                end
+
+                subgraph Services["Backend Services"]
+                    Dashboard["Dashboard - Flask app - Port 5000 - SSE activity stream"]
+                    MLflow["MLflow - tracking server - Port 5000"]
+                    JiraEmu["Jira Emulator - HTTP: 32359 - HTTPS: 30872 - MCP: 30961"]
+                    GitHubEmu["GitHub Emulator - HTTP: 32661 - HTTPS: 30783"]
+                end
+
+                subgraph Jobs["K8s Jobs Dynamic"]
+                    Job1["Job: bug-completeness-RHOAIENG-12345-opus - Container: pipeline-agent - Runner: SDK or CLI"]
+                    Job2["Job: bug-fix-attempt-RHOAIENG-12345-opus - Container: pipeline-agent - Runner: SDK or CLI"]
+                    Job3["Job: rfe-create-RFE-001-sonnet - Container: pipeline-agent - Runner: CLI native skills"]
+                    JobN["... more jobs ... parallel execution"]
+                end
+
+                RBAC["RBAC: ServiceAccount pipeline-agent - Role: pipeline-job-runner - Jobs: create/list/watch - Pods: get/list/logs"]
+            end
+        end
+
+        Docker["Docker for image builds"]
+    end
+
+    subgraph External["External Services"]
+        VertexAI["Vertex AI - Claude API - us-east5"]
+        JiraCloud["Jira Cloud - issues.redhat.com - production"]
+        GitHub["GitHub code repos"]
+    end
+
+    subgraph AgentArchitecture["Agent Runner Architecture in Jobs"]
+        subgraph RunnerTypes["Runner Types"]
+            SDKRunner["SDK Runner - claude_agent_sdk - Fast startup - Programmatic control - MCP support v0.1.59+ - Limited session persistence"]
+            CLIRunner["CLI Runner - claude -p - Subprocess spawn - Stream-json output - Full session persistence - Native skill discovery - Better for multi-turn"]
+        end
+
+        subgraph SkillConfig["Skill Configuration pipeline-skills.yaml"]
+            LocalSkills["Local Skills - .claude/skills/ - bug-completeness - bug-context-map - bug-fix-attempt - bug-test-plan - bug-write-test - patch-validation - strat.security.review - strat.submit"]
+            RemoteSkills["Remote Skills - remote_skills/rfe-creator - rfe.create - rfe.review - rfe.split - rfe.submit - strat.create - strat.refine - strat.review"]
+        end
+
+        subgraph InvokeMethods["Invocation Methods"]
+            Templated["Templated - SKILL.md to prompt injection - Deterministic batch-friendly - Used for bug phases"]
+            Native["Native - SDK skill discovery - setting_sources project - Used for RFE/strategy phases"]
+        end
+    end
+
+    subgraph DataFlow["Data Flow"]
+        Phase1["1 Fetch Bugs - scripts/fetch_bugs.py - Jira to issues/*.json"]
+        Phase2["2 Run Phases - lib/phases.py - Orchestrate agents - Parallel execution"]
+        Phase3["3 Generate Outputs - workspace/KEY/MODEL/ - phase.json - phase.md - phase.log - patch.diff - MEMORY.md"]
+        Phase4["4 Validation optional - Podman containers - odh-tests-context recipes"]
+        Phase5["5 Dashboard View - SSE live updates - JSON aggregation - Stats computation"]
+    end
+
+    CLI -->|kubectl apply| K3s
+    CLI -->|NFS mount| HostFiles
+    Browser -->|Port 5000| Dashboard
+
+    HostFiles -.->|synced via NFS| Namespace
+
+    Dashboard -->|SSE broadcast| Browser
+    Dashboard -->|reads| IssuesPVC
+    Dashboard -->|reads| WorkspacePVC
+    Dashboard -->|reads| LogsPVC
+    Dashboard -->|reads| ArtifactsPVC
+
+    Job1 -->|mount| IssuesPVC
+    Job1 -->|mount| WorkspacePVC
+    Job1 -->|mount| LogsPVC
+    Job1 -->|mount| ArtifactsPVC
+    Job1 -->|mount| ContextPVC
+    Job1 -->|read| PipelineSecrets
+    Job1 -->|read| GCPCreds
+
+    Job2 -->|mount| IssuesPVC
+    Job2 -->|mount| WorkspacePVC
+    Job2 -->|mount| LogsPVC
+    Job2 -->|mount| ArtifactsPVC
+    Job2 -->|mount| ContextPVC
+    Job2 -->|read| PipelineSecrets
+    Job2 -->|read| GCPCreds
+
+    Job3 -->|mount| IssuesPVC
+    Job3 -->|mount| WorkspacePVC
+    Job3 -->|mount| LogsPVC
+    Job3 -->|mount| ArtifactsPVC
+    Job3 -->|mount| ContextPVC
+    Job3 -->|read| PipelineSecrets
+    Job3 -->|read| GCPCreds
+
+    JobN -->|mount| IssuesPVC
+    JobN -->|mount| WorkspacePVC
+    JobN -->|mount| LogsPVC
+    JobN -->|mount| ArtifactsPVC
+    JobN -->|mount| ContextPVC
+    JobN -->|read| PipelineSecrets
+    JobN -->|read| GCPCreds
+
+    Job1 -->|API calls| VertexAI
+    Job1 -->|trace data| MLflow
+    Job1 -->|REST API| JiraCloud
+    Job1 -->|MCP SSE| JiraEmu
+
+    Job2 -->|API calls| VertexAI
+    Job2 -->|trace data| MLflow
+    Job2 -->|REST API| JiraCloud
+    Job2 -->|MCP SSE| JiraEmu
+
+    Job3 -->|API calls| VertexAI
+    Job3 -->|trace data| MLflow
+    Job3 -->|REST API| JiraCloud
+    Job3 -->|MCP SSE| JiraEmu
+
+    JobN -->|API calls| VertexAI
+    JobN -->|trace data| MLflow
+    JobN -->|REST API| JiraCloud
+    JobN -->|MCP SSE| JiraEmu
+
+    SDKRunner -.->|v0.1.48 no MCP/Agent| Job1
+    CLIRunner -.->|full features MCP + Agent| Job2
+
+    LocalSkills -->|templated invoke| SDKRunner
+    RemoteSkills -->|native invoke| CLIRunner
+
+    Phase1 --> Phase2
+    Phase2 --> Phase3
+    Phase3 --> Phase4
+    Phase4 --> Phase5
+
+    classDef storage fill:#e1f5ff,stroke:#0288d1,stroke-width:2px
+    classDef service fill:#fff3e0,stroke:#f57c00,stroke-width:2px
+    classDef job fill:#f3e5f5,stroke:#7b1fa2,stroke-width:2px
+    classDef external fill:#e8f5e9,stroke:#388e3c,stroke-width:2px
+    classDef runner fill:#fce4ec,stroke:#c2185b,stroke-width:2px
+    classDef skill fill:#fff9c4,stroke:#f9a825,stroke-width:2px
+
+    class IssuesPVC,WorkspacePVC,LogsPVC,ArtifactsPVC,ContextPVC storage
+    class Dashboard,MLflow,JiraEmu,GitHubEmu service
+    class Job1,Job2,Job3,JobN job
+    class VertexAI,JiraCloud,GitHub external
+    class SDKRunner,CLIRunner runner
+    class LocalSkills,RemoteSkills,Templated,Native skill
