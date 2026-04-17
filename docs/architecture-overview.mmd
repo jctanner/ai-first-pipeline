@@ -29,15 +29,15 @@ graph TB
 
             subgraph Runners["Agent Runners inside Job Pods"]
                 direction TB
-                SDKRunner["SDK Runner: claude_agent_sdk"]
-                CLIRunner["CLI Runner: claude -p"]
-                Skills["Skills: Local + Remote"]
+                SDKRunner["SDK Runner: claude_agent_sdk - Native skill discovery"]
+                CLIRunner["CLI Runner: claude -p - Native skill discovery"]
+                Skills["Skills: Local .claude/skills + Remote rfe-creator"]
             end
 
             Dashboard -->|creates| Jobs
             Jobs --> Runners
-            SDKRunner --> Skills
-            CLIRunner --> Skills
+            SDKRunner -->|uses| Skills
+            CLIRunner -->|uses| Skills
         end
     end
 

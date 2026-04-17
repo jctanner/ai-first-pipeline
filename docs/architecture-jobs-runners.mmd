@@ -41,9 +41,7 @@ graph TB
 
         RemoteSkills["Remote Skills - remote_skills/rfe-creator - rfe.create - rfe.review - rfe.split - rfe.submit - strat.create - strat.refine"]
 
-        Templated["Templated Invocation - SKILL.md injected into prompt - Used for: bug analysis phases"]
-
-        Native["Native Invocation - SDK skill discovery - setting_sources project - Used for: RFE and strategy phases"]
+        Native["Native Invocation - SDK skill discovery - setting_sources project - All phases use native skill invocation"]
     end
 
     subgraph ClusterServices["In-Cluster Services"]
@@ -62,7 +60,9 @@ graph TB
     Job2 --> Scripts
     Job3 --> Scripts
 
-    LocalSkills -->|templated| SDKRunner
+    LocalSkills -->|native| SDKRunner
+    LocalSkills -->|native| CLIRunner
+    RemoteSkills -->|native| SDKRunner
     RemoteSkills -->|native| CLIRunner
 
     SDKRunner --> VertexAI
