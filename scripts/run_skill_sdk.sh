@@ -225,6 +225,9 @@ async def run_skill():
 
     # Start MLflow run if available
     if MLFLOW_AVAILABLE:
+        # Enable tracing to capture conversation
+        mlflow.tracing.enable()
+
         mlflow.start_run(run_name=f"{skill_name}-{issue_key}-sdk")
         mlflow.log_params({
             "skill": skill_name,
@@ -234,8 +237,9 @@ async def run_skill():
             "cwd": cwd,
         })
 
-    # Run agent
-    try:
+    # Run agent wrapped in a trace
+    @mlflow.trace(name=f"{skill_name}", span_type="LLM")
+    async def execute_agent():
         async with ClaudeSDKClient(options=options) as client:
             print("=== Agent Output ===")
             print()
@@ -263,26 +267,44 @@ async def run_skill():
                     if msg.stop_reason:
                         print(f"Stop reason: {msg.stop_reason}")
 
-            # Log final metrics to MLflow
-            if MLFLOW_AVAILABLE and result_msg:
-                mlflow.log_metrics({
-                    "duration_ms": result_msg.duration_ms,
-                    "duration_api_ms": result_msg.duration_api_ms,
-                    "num_turns": result_msg.num_turns,
-                    "cost_usd": result_msg.total_cost_usd or 0.0,
-                    "is_error": 1 if result_msg.is_error else 0,
-                })
+            return result_msg
 
+    try:
+        result_msg = await execute_agent()
+
+        # Set trace attributes with token usage and model info
+        if MLFLOW_AVAILABLE and result_msg:
+            trace_id = mlflow.get_last_active_trace_id()
+            if trace_id:
+                # Set attributes for usage reporting
+                mlflow.set_trace_tag(trace_id, "mlflow.traceModel", get_model_id(model))
+
+                # Add token usage attributes
                 if result_msg.usage:
                     for key, value in result_msg.usage.items():
                         if isinstance(value, (int, float)):
-                            mlflow.log_metric(f"usage_{key}", value)
+                            mlflow.set_trace_tag(trace_id, f"usage.{key}", str(int(value)))
 
-                mlflow.end_run()
+        # Log final metrics to MLflow run
+        if MLFLOW_AVAILABLE and result_msg:
+            mlflow.log_metrics({
+                "duration_ms": result_msg.duration_ms,
+                "duration_api_ms": result_msg.duration_api_ms,
+                "num_turns": result_msg.num_turns,
+                "cost_usd": result_msg.total_cost_usd or 0.0,
+                "is_error": 1 if result_msg.is_error else 0,
+            })
 
-            # Exit with error code if execution failed
-            if result_msg and result_msg.is_error:
-                sys.exit(1)
+            if result_msg.usage:
+                for key, value in result_msg.usage.items():
+                    if isinstance(value, (int, float)):
+                        mlflow.log_metric(f"usage_{key}", value)
+
+            mlflow.end_run()
+
+        # Exit with error code if execution failed
+        if result_msg and result_msg.is_error:
+            sys.exit(1)
 
     except Exception as e:
         print(f"ERROR: {e}", file=sys.stderr)

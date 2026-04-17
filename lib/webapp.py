@@ -5119,6 +5119,7 @@ def create_app() -> Flask:
                     "phase": job.metadata.labels.get("phase", ""),
                     "issue": job.metadata.labels.get("issue", ""),
                     "model": job.metadata.labels.get("model", ""),
+                    "runner": job.metadata.labels.get("runner", "cli"),
                     "status": job_status,
                     "created": job.metadata.creation_timestamp.isoformat() if job.metadata.creation_timestamp else None,
                     "duration": duration
