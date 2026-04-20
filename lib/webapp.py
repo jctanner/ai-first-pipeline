@@ -3975,6 +3975,16 @@ JOBS = """\
     font-size: 0.85em;
   }
   .btn-logs:hover { background: #2980b9; }
+  .btn-stop {
+    background: #e67e22;
+    color: white;
+    border: none;
+    padding: 0.2em 0.6em;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 0.85em;
+  }
+  .btn-stop:hover { background: #d35400; }
   #log-viewer {
     display: none;
     margin-top: 1rem;
@@ -4031,6 +4041,7 @@ JOBS = """\
         <option value="rfe-review">rfe-review</option>
         <option value="rfe-split">rfe-split</option>
         <option value="rfe-submit">rfe-submit</option>
+        <option value="rfe-speedrun">rfe-speedrun</option>
         <option value="strat-create">strat-create</option>
         <option value="strat-create-local">strat-create-local</option>
         <option value="strat-refine">strat-refine</option>
@@ -4040,8 +4051,8 @@ JOBS = """\
       </select>
     </div>
     <div>
-      <label for="issue">Issue Key</label>
-      <input type="text" id="issue" name="issue" placeholder="RHOAIENG-12345" required>
+      <label for="issue">Issue Key <small style="color: #95a5a6;">(optional for some phases)</small></label>
+      <input type="text" id="issue" name="issue" placeholder="RHOAIENG-12345">
     </div>
     <div>
       <label for="model">Model</label>
@@ -4110,7 +4121,8 @@ if (K8S_AVAILABLE) {
   document.getElementById('submit-form').addEventListener('submit', async (e) => {
     e.preventDefault();
     const phase = document.getElementById('phase').value;
-    const issue = document.getElementById('issue').value.toUpperCase();
+    const issueRaw = document.getElementById('issue').value.trim();
+    const issue = issueRaw ? issueRaw.toUpperCase() : '';
     const model = document.getElementById('model').value;
     const runner = document.getElementById('runner').value;
     const statusDiv = document.getElementById('submit-status');
@@ -4118,13 +4130,12 @@ if (K8S_AVAILABLE) {
     statusDiv.innerHTML = '<em style="color: #3498db;">Submitting job...</em>';
 
     try {
+      const args = { model, runner };
+      if (issue) args.issue = issue;
       const response = await fetch('/api/jobs/submit', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          command: phase,
-          args: { issue, model, runner }
-        })
+        body: JSON.stringify({ command: phase, args })
       });
 
       const data = await response.json();
@@ -4176,6 +4187,7 @@ if (K8S_AVAILABLE) {
             <td>${duration}</td>
             <td>
               <button class="btn-logs" onclick="viewLogs('${job.name}')">Logs</button>
+              ${(job.status === 'running' || job.status === 'pending') ? `<button class="btn-stop" onclick="stopJob('${job.name}')">Stop</button>` : ''}
               <button class="btn-delete" onclick="deleteJob('${job.name}')">Delete</button>
             </td>
           </tr>
@@ -4210,6 +4222,26 @@ if (K8S_AVAILABLE) {
     document.getElementById('log-viewer').classList.remove('active');
   }
 
+  // Stop job
+  async function stopJob(jobName) {
+    if (!confirm('Stop job "' + jobName + '"?')) return;
+
+    try {
+      const response = await fetch('/api/jobs/' + jobName + '/stop', {
+        method: 'POST'
+      });
+
+      if (response.ok) {
+        refreshJobs();
+      } else {
+        const data = await response.json();
+        alert('Error stopping job: ' + (data.error || 'Unknown error'));
+      }
+    } catch (err) {
+      alert('Error stopping job: ' + err.message);
+    }
+  }
+
   // Delete job
   async function deleteJob(jobName) {
     if (!confirm('Delete job "' + jobName + '"?')) return;
@@ -4233,6 +4265,7 @@ if (K8S_AVAILABLE) {
   // Make functions global
   window.viewLogs = viewLogs;
   window.closeLogs = closeLogs;
+  window.stopJob = stopJob;
   window.deleteJob = deleteJob;
 
   // Auto-refresh every 3 seconds
@@ -5058,12 +5091,12 @@ def create_app() -> Flask:
             phase = data.get("command")
             args = data.get("args", {})
 
-            issue_key = args.get("issue")
+            issue_key = args.get("issue", "")
             model = args.get("model", "opus")
             runner = args.get("runner", "cli")
 
-            if not phase or not issue_key:
-                return jsonify({"error": "Missing required fields: command, args.issue"}), 400
+            if not phase:
+                return jsonify({"error": "Missing required field: command"}), 400
 
             orchestrator = get_orchestrator()
             job = orchestrator.submit_phase_job(phase, issue_key, model, runner, args)
@@ -5158,6 +5191,23 @@ def create_app() -> Flask:
             return Response(logs, mimetype="text/plain")
         except Exception as e:
             return Response(f"Error: {str(e)}", mimetype="text/plain"), 500
+
+    @app.route("/api/jobs/<job_name>/stop", methods=["POST"])
+    def api_stop_job(job_name):
+        """Stop a running job by deleting it and its pods."""
+        if not K8S_AVAILABLE:
+            return jsonify({"error": "K8s orchestration not available"}), 503
+
+        try:
+            orchestrator = get_orchestrator()
+            stopped = orchestrator.stop_job(job_name)
+
+            if stopped:
+                return jsonify({"status": "stopped"})
+            else:
+                return jsonify({"error": "Job not found or not running"}), 404
+        except Exception as e:
+            return jsonify({"error": str(e)}), 500
 
     @app.route("/api/jobs/<job_name>", methods=["DELETE"])
     def api_delete_job(job_name):

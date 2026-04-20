@@ -15,23 +15,9 @@ Vagrant.configure("2") do |config|
   # Private network required for NFS with libvirt
   # config.vm.network "private_network", ip: "192.168.56.10"
 
-  # Optional: Forward specific ports to host
-  # Dashboard
-  config.vm.network "forwarded_port", guest: 5000, host: 5000, host_ip: "127.0.0.1"
-
-  # Emulator NodePorts (forwarding k3s NodePorts to host)
-  # Note: NodePorts are dynamically assigned. Check with:
-  #   vagrant ssh -c "kubectl get services -n ai-pipeline"
-  # GitHub Emulator - HTTPS NodePort (check actual port)
-  config.vm.network "forwarded_port", guest: 30783, host: 8443, host_ip: "127.0.0.1"
-  # GitHub Emulator - HTTP NodePort
-  config.vm.network "forwarded_port", guest: 32661, host: 8080, host_ip: "127.0.0.1"
-  # Jira Emulator - HTTPS NodePort
-  config.vm.network "forwarded_port", guest: 30872, host: 9443, host_ip: "127.0.0.1"
-  # Jira Emulator - HTTP NodePort
-  config.vm.network "forwarded_port", guest: 32359, host: 9080, host_ip: "127.0.0.1"
-  # Jira Emulator - MCP Server NodePort
-  config.vm.network "forwarded_port", guest: 30961, host: 8081, host_ip: "127.0.0.1"
+  # No port forwarding needed — libvirt VM is directly reachable at its IP.
+  # Add entries to /etc/hosts on the host pointing *.local names at the VM IP.
+  # The ingress-proxy routes by Host header to backend services.
 
   # Provider-specific configuration
   #config.vm.provider "virtualbox" do |vb|

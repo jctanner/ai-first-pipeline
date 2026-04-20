@@ -143,6 +143,31 @@ class PipelineOrchestrator:
         except ApiException:
             return None
 
+    def stop_job(self, job_name: str) -> bool:
+        """Stop a running job by deleting it and its pods.
+
+        Args:
+            job_name: Name of the job to stop
+
+        Returns:
+            True if stopped, False if not found or already finished
+        """
+        try:
+            job = self.batch_v1.read_namespaced_job(
+                name=job_name,
+                namespace=self.namespace
+            )
+        except ApiException as e:
+            if e.status == 404:
+                return False
+            raise
+
+        status = self._get_job_status(job)
+        if status not in ("running", "pending"):
+            return False
+
+        return self.delete_job(job_name)
+
     def delete_job(self, job_name: str) -> bool:
         """Delete a job and its pods.
 
@@ -175,10 +200,11 @@ class PipelineOrchestrator:
         """Generate a K8s Job manifest for a pipeline phase."""
 
         # Sanitize for K8s naming (lowercase, no underscores)
-        job_name = f"{phase}-{issue_key}-{model}".lower().replace("_", "-")
-        # Add timestamp to ensure uniqueness
         timestamp = datetime.now().strftime("%m%d-%H%M%S")
-        job_name = f"{job_name}-{timestamp}"
+        if issue_key:
+            job_name = f"{phase}-{issue_key}-{model}-{timestamp}".lower().replace("_", "-")
+        else:
+            job_name = f"{phase}-all-{model}-{timestamp}".lower().replace("_", "-")
 
         # Build command args - choose script based on runner type
         if runner == "sdk":
@@ -187,7 +213,8 @@ class PipelineOrchestrator:
             cmd_args = ["/bin/bash", "/app/scripts/run_skill.sh"]
 
         cmd_args.extend(["--skill", phase])
-        cmd_args.extend(["--issue", issue_key])
+        if issue_key:
+            cmd_args.extend(["--issue", issue_key])
         cmd_args.extend(["--model", model])
 
         if args.get("force"):
@@ -202,7 +229,7 @@ class PipelineOrchestrator:
                 labels={
                     "app": "pipeline-agent",
                     "phase": phase,
-                    "issue": issue_key.lower(),
+                    "issue": issue_key.lower() if issue_key else "all",
                     "model": model,
                     "runner": runner
                 }
@@ -215,7 +242,7 @@ class PipelineOrchestrator:
                         labels={
                             "app": "pipeline-agent",
                             "phase": phase,
-                            "issue": issue_key.lower()
+                            "issue": issue_key.lower() if issue_key else "all"
                         }
                     ),
                     spec=client.V1PodSpec(

@@ -8,7 +8,7 @@ metadata:
   labels:
     app: github-emulator
 spec:
-  type: LoadBalancer
+  type: ClusterIP
   selector:
     app: github-emulator
   ports:
