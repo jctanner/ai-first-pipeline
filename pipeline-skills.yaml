@@ -1,12 +1,15 @@
 # Pipeline skill configuration
 #
-# Maps pipeline phases to skill sources and invocation methods.
+# Maps pipeline skills to their sources, invocation methods, and tool permissions.
 #
 # skill_repos:
-#   Each entry names a cloned external repository whose .claude/skills/
+#   Each entry names an external repository whose .claude/skills/
 #   directory contains skills the pipeline can use.
+#   - github: owner/repo on GitHub (used for display and installation)
+#   - path: local checkout path (for development / templated invocation)
+#   - registry: marketplace plugin name (for K8s runner installation)
 #
-# phases:
+# skills:
 #   skill         - name of the skill directory (under .claude/skills/)
 #   source        - (optional) key in skill_repos; omit for local skills
 #   invoke        - "templated" (default) or "native"
@@ -30,23 +33,29 @@ mcp_servers:
 
 skill_repos:
   rfe-creator:
+    github: jwforres/rfe-creator
     path: remote_skills/rfe-creator
+    registry: rfe-creator@opendatahub-skills
+  strat-creator:
+    github: ederign/strat-creator
+    path: remote_skills/strat-creator
+    registry: strat-creator@opendatahub-skills
 
-phases:
+skills:
   # === Bug analysis (local skills, templated) ===
-  completeness:
+  bug-completeness:
     skill: bug-completeness
 
-  context-map:
+  bug-context-map:
     skill: bug-context-map
 
-  fix-attempt:
+  bug-fix-attempt:
     skill: bug-fix-attempt
 
-  test-plan:
+  bug-test-plan:
     skill: bug-test-plan
 
-  write-test:
+  bug-write-test:
     skill: bug-write-test
 
   # === Bug validation (local skill, native) ===
@@ -56,7 +65,7 @@ phases:
     runner: cli
     allowed_tools: [Read, Write, Glob, Grep, Bash]
 
-  # === RFE phases (external skills, native) ===
+  # === RFE skills (jwforres/rfe-creator) ===
   rfe-create:
     skill: rfe.create
     source: rfe-creator
@@ -95,7 +104,7 @@ phases:
     allowed_tools: [Read, Write, Edit, Glob, Grep, Bash, Skill]
     mcp_servers: [atlassian]
 
-  # === Strategy phases (external skills, native) ===
+  # === Strategy skills (jwforres/rfe-creator) ===
   strat-create:
     skill: strat.create
     source: rfe-creator
@@ -138,3 +147,26 @@ phases:
     runner: cli
     allowed_tools: [Read, Write, Glob, Grep, Bash, Skill]
     mcp_servers: [atlassian]
+
+  # === Strategy skills (ederign/strat-creator) ===
+  strategy-create:
+    skill: strategy.create
+    source: strat-creator
+    invoke: native
+    runner: cli
+    allowed_tools: [Read, Write, Edit, Glob, Grep, Bash, AskUserQuestion]
+    mcp_servers: [atlassian]
+
+  strategy-refine:
+    skill: strategy.refine
+    source: strat-creator
+    invoke: native
+    runner: cli
+    allowed_tools: [Read, Write, Edit, Glob, Grep]
+
+  strategy-review:
+    skill: strategy.review
+    source: strat-creator
+    invoke: native
+    runner: cli
+    allowed_tools: [Read, Write, Edit, Glob, Grep, Bash, Skill]

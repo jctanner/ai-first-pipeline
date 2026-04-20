@@ -1,8 +1,8 @@
-"""Resolve pipeline phases to skill sources and invocation settings.
+"""Resolve pipeline skills to their sources and invocation settings.
 
 Reads ``pipeline-skills.yaml`` from the project root and provides
 helper functions that return the skill directory, working directory,
-and invocation method for any registered phase.
+and invocation method for any registered skill.
 """
 
 from __future__ import annotations
@@ -29,19 +29,24 @@ def _load() -> dict:
     return _config
 
 
+def _get_skills_block() -> dict:
+    """Return the skills block, supporting both 'skills' and legacy 'phases' key."""
+    cfg = _load()
+    return cfg.get("skills") or cfg.get("phases") or {}
+
+
 def get_phase_config(phase: str) -> dict:
     """Return the full config dict for *phase*.
 
     Raises ``KeyError`` if the phase is not registered.
     """
-    cfg = _load()
-    phases = cfg.get("phases", {})
-    if phase not in phases:
+    skills = _get_skills_block()
+    if phase not in skills:
         raise KeyError(
-            f"Phase {phase!r} is not registered in {_CONFIG_PATH.name}. "
-            f"Known phases: {', '.join(sorted(phases))}"
+            f"Skill {phase!r} is not registered in {_CONFIG_PATH.name}. "
+            f"Known skills: {', '.join(sorted(skills))}"
         )
-    return dict(phases[phase])
+    return dict(skills[phase])
 
 
 def get_skill_name(phase: str) -> str:
@@ -72,6 +77,22 @@ def _resolve_repo_path(source: str) -> Path:
             f"Skill repo {source!r} path does not exist: {resolved}"
         )
     return resolved
+
+
+def get_repo_github(source: str) -> str | None:
+    """Return the ``github`` owner/repo string for a skill repo, or None."""
+    cfg = _load()
+    repos = cfg.get("skill_repos", {})
+    repo = repos.get(source, {})
+    return repo.get("github")
+
+
+def get_repo_registry(source: str) -> str | None:
+    """Return the marketplace registry identifier for a skill repo, or None."""
+    cfg = _load()
+    repos = cfg.get("skill_repos", {})
+    repo = repos.get(source, {})
+    return repo.get("registry")
 
 
 def resolve_skills_dir(phase: str) -> Path:
@@ -159,7 +180,7 @@ def get_mcp_servers(phase: str) -> dict:
     for name in server_names:
         if name not in all_servers:
             raise KeyError(
-                f"MCP server {name!r} referenced by phase {phase!r} "
+                f"MCP server {name!r} referenced by skill {phase!r} "
                 f"is not defined in {_CONFIG_PATH.name}"
             )
         server_cfg = dict(all_servers[name])
@@ -168,4 +189,33 @@ def get_mcp_servers(phase: str) -> dict:
             if isinstance(v, str):
                 server_cfg[k] = _expand_env(v)
         result[name] = server_cfg
+    return result
+
+
+def list_skills() -> list[dict]:
+    """Return all registered skills with display metadata.
+
+    Each entry contains:
+      - key: the internal skill key (e.g. "rfe-create")
+      - skill: the skill name (e.g. "rfe.create")
+      - source: the repo key or None for local
+      - display: fully-qualified display name (e.g. "jwforres/rfe-creator:rfe.create")
+    """
+    skills_block = _get_skills_block()
+    result = []
+    for key, conf in skills_block.items():
+        skill_name = conf.get("skill", key)
+        source = conf.get("source")
+        if source:
+            github = get_repo_github(source)
+            display = f"{github}:{skill_name}" if github else f"{source}:{skill_name}"
+        else:
+            display = f"local:{skill_name}"
+        result.append({
+            "key": key,
+            "skill": skill_name,
+            "source": source,
+            "display": display,
+        })
+    result.sort(key=lambda s: s["display"])
     return result

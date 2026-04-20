@@ -34,8 +34,8 @@ while [[ $# -gt 0 ]]; do
   esac
 done
 
-if [ -z "$SKILL" ] || [ -z "$ISSUE_KEY" ]; then
-  echo "Usage: $0 --skill <skill-name> --issue <issue-key> [--model <model>] [--force]"
+if [ -z "$SKILL" ]; then
+  echo "Usage: $0 --skill <skill-name> [--issue <issue-key>] [--model <model>] [--force]"
   exit 1
 fi
 
@@ -117,46 +117,56 @@ echo
 # Install skills from opendatahub-io registry
 echo "Installing skills from opendatahub-io/skills-registry..."
 claude plugin marketplace add opendatahub-io/skills-registry || true
-claude plugin install rfe-creator@opendatahub-skills || true
+
+# Discover which plugins to install from pipeline-skills.yaml
+REGISTRIES=$(python3 -c "
+import yaml
+with open('/app/pipeline-skills.yaml') as f:
+    cfg = yaml.safe_load(f)
+for repo in (cfg.get('skill_repos') or {}).values():
+    reg = repo.get('registry', '')
+    if reg:
+        print(reg)
+" 2>/dev/null | sort -u)
+
+for REG in $REGISTRIES; do
+  echo "  Installing plugin: $REG"
+  claude plugin install "$REG" || true
+done
 
 echo
 echo "Setting up artifact symlinks..."
 
-# Find the installed plugin directory (with version subdirectory)
-PLUGIN_BASE=$(find ~/.claude/plugins/cache -name "rfe-creator" -type d | head -1)
-
-if [ -n "$PLUGIN_BASE" ]; then
-  # Find all version subdirectories and create symlinks in each
+# Set up symlinks for all installed plugins
+for PLUGIN_BASE in $(find ~/.claude/plugins/cache -mindepth 1 -maxdepth 1 -type d 2>/dev/null); do
+  PLUGIN_NAME=$(basename "$PLUGIN_BASE")
   for VERSION_DIR in "$PLUGIN_BASE"/*/ ; do
-    # Remove trailing slash from VERSION_DIR
     VERSION_DIR="${VERSION_DIR%/}"
     if [ -d "$VERSION_DIR" ]; then
-      # Remove existing directories in versioned plugin dir if they exist
       rm -rf "$VERSION_DIR/artifacts" "$VERSION_DIR/tmp" "$VERSION_DIR/.context"
-
-      # Create symlinks from versioned plugin directory to persistent volumes
       ln -s /app/artifacts "$VERSION_DIR/artifacts"
       ln -s /app/tmp "$VERSION_DIR/tmp"
       ln -s /app/.context "$VERSION_DIR/.context"
-
-      echo "✓ Created symlinks in $(basename $VERSION_DIR):"
-      echo "  $VERSION_DIR/artifacts -> /app/artifacts"
-      echo "  $VERSION_DIR/tmp -> /app/tmp"
-      echo "  $VERSION_DIR/.context -> /app/.context"
+      echo "✓ Created symlinks for $PLUGIN_NAME/$(basename $VERSION_DIR)"
     fi
   done
-else
-  echo "⚠ Warning: Could not find plugin directory for symlink setup"
-fi
+done
 
 echo
 echo "Running skill..."
 echo
 
-# Map phase names (dashes) to skill names (dots)
-# Phase names: rfe-review, rfe-create, strat-create, etc.
-# Skill names: rfe.review, rfe.create, strat.create, etc.
-SKILL_NAME="${SKILL//-/.}"
+# Resolve skill name from pipeline-skills.yaml (falls back to dash-to-dot conversion)
+SKILL_NAME=$(python3 -c "
+import yaml
+with open('/app/pipeline-skills.yaml') as f:
+    cfg = yaml.safe_load(f)
+skills = cfg.get('skills') or cfg.get('phases') or {}
+if '${SKILL}' in skills:
+    print(skills['${SKILL}']['skill'])
+else:
+    print('${SKILL}'.replace('-', '.'))
+" 2>/dev/null)
 
 echo "Skill name: $SKILL_NAME"
 echo
@@ -182,21 +192,35 @@ echo
 # Skills accept issue keys as positional arguments, not flags
 # Example: /rfe.review --headless RHAIRFE-953
 # --headless flag suppresses interactive prompts and end-of-run summary
-PROMPT="/$SKILL_NAME --headless $ISSUE_KEY"
+PROMPT="/$SKILL_NAME --headless${ISSUE_KEY:+ $ISSUE_KEY}"
 
-# Verify rfe-creator plugin is installed (but don't cd to it)
-PLUGIN_DIR=$(find ~/.claude/plugins/cache -name "rfe-creator" -type d | head -1)
+# Resolve which plugin source this skill needs
+SKILL_SOURCE=$(python3 -c "
+import yaml
+with open('/app/pipeline-skills.yaml') as f:
+    cfg = yaml.safe_load(f)
+skills = cfg.get('skills') or cfg.get('phases') or {}
+sc = skills.get('${SKILL}', {})
+source = sc.get('source', '')
+if source:
+    repos = cfg.get('skill_repos', {})
+    repo = repos.get(source, {})
+    # Print the plugin directory name (repo key)
+    print(source)
+" 2>/dev/null)
 
-if [ -z "$PLUGIN_DIR" ]; then
-  echo "ERROR: rfe-creator plugin not found in ~/.claude/plugins/cache"
-  exit 1
+if [ -n "$SKILL_SOURCE" ]; then
+  PLUGIN_DIR=$(find ~/.claude/plugins/cache -name "$SKILL_SOURCE" -type d | head -1)
+  if [ -z "$PLUGIN_DIR" ]; then
+    echo "ERROR: Plugin $SKILL_SOURCE not found in ~/.claude/plugins/cache"
+    exit 1
+  fi
+  echo "Plugin directory: $PLUGIN_DIR"
+  echo "✓ $SKILL_SOURCE plugin installed"
+else
+  echo "Using local skill"
 fi
 
-echo "Plugin directory: $PLUGIN_DIR"
-echo "✓ rfe-creator plugin installed"
-
-# Create artifact and context directories if they don't exist
-# Skills will write to these via symlinks from the plugin directory
 mkdir -p /app/artifacts/rfe-tasks /app/artifacts/strat-tasks /app/tmp /app/.context
 
 # Debug: Show what we're about to run

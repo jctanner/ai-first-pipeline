@@ -4029,29 +4029,16 @@ JOBS = """\
   <h2>Submit New Job</h2>
   <form id="submit-form" class="form-grid">
     <div>
-      <label for="phase">Phase</label>
-      <select id="phase" name="phase" required>
-        <option value="">Select phase...</option>
-        <option value="bug-completeness">bug-completeness</option>
-        <option value="bug-context-map">bug-context-map</option>
-        <option value="bug-fix-attempt">bug-fix-attempt</option>
-        <option value="bug-test-plan">bug-test-plan</option>
-        <option value="bug-write-test">bug-write-test</option>
-        <option value="rfe-create">rfe-create</option>
-        <option value="rfe-review">rfe-review</option>
-        <option value="rfe-split">rfe-split</option>
-        <option value="rfe-submit">rfe-submit</option>
-        <option value="rfe-speedrun">rfe-speedrun</option>
-        <option value="strat-create">strat-create</option>
-        <option value="strat-create-local">strat-create-local</option>
-        <option value="strat-refine">strat-refine</option>
-        <option value="strat-review">strat-review</option>
-        <option value="strat-submit">strat-submit</option>
-        <option value="strat-security-review">strat-security-review</option>
+      <label for="skill">Skill</label>
+      <select id="skill" name="skill" required>
+        <option value="">Select skill...</option>
+        {% for s in skills %}
+        <option value="{{ s.key }}">{{ s.display }}</option>
+        {% endfor %}
       </select>
     </div>
     <div>
-      <label for="issue">Issue Key <small style="color: #95a5a6;">(optional for some phases)</small></label>
+      <label for="issue">Issue Key <small style="color: #95a5a6;">(optional for some skills)</small></label>
       <input type="text" id="issue" name="issue" placeholder="RHOAIENG-12345">
     </div>
     <div>
@@ -4084,7 +4071,7 @@ JOBS = """\
     <thead>
       <tr>
         <th>Job Name</th>
-        <th>Phase</th>
+        <th>Skill</th>
         <th>Issue</th>
         <th>Model</th>
         <th>Runner</th>
@@ -4115,12 +4102,15 @@ JOBS = """\
 {% block scripts %}
 <script>
 const K8S_AVAILABLE = {{ 'true' if k8s_available else 'false' }};
+const SKILL_DISPLAY = {{ skills | tojson }};
+const SKILL_MAP = {};
+SKILL_DISPLAY.forEach(s => { SKILL_MAP[s.key] = s.display; });
 
 if (K8S_AVAILABLE) {
   // Submit job form
   document.getElementById('submit-form').addEventListener('submit', async (e) => {
     e.preventDefault();
-    const phase = document.getElementById('phase').value;
+    const skill = document.getElementById('skill').value;
     const issueRaw = document.getElementById('issue').value.trim();
     const issue = issueRaw ? issueRaw.toUpperCase() : '';
     const model = document.getElementById('model').value;
@@ -4135,7 +4125,7 @@ if (K8S_AVAILABLE) {
       const response = await fetch('/api/jobs/submit', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ command: phase, args })
+        body: JSON.stringify({ command: skill, args })
       });
 
       const data = await response.json();
@@ -4178,7 +4168,7 @@ if (K8S_AVAILABLE) {
         return `
           <tr>
             <td style="font-family: monospace; font-size: 0.85em;">${job.name}</td>
-            <td>${job.phase}</td>
+            <td>${SKILL_MAP[job.phase] || job.phase}</td>
             <td>${job.issue.toUpperCase()}</td>
             <td>${job.model}</td>
             <td>${runner}</td>
@@ -4954,7 +4944,10 @@ def create_app() -> Flask:
 
     @app.route("/jobs")
     def jobs():
-        return render_template_string(JOBS, k8s_available=K8S_AVAILABLE)
+        from lib.skill_config import list_skills
+        return render_template_string(
+            JOBS, k8s_available=K8S_AVAILABLE, skills=list_skills()
+        )
 
     @app.route("/files")
     def files():

@@ -34,8 +34,8 @@ while [[ $# -gt 0 ]]; do
   esac
 done
 
-if [ -z "$SKILL" ] || [ -z "$ISSUE_KEY" ]; then
-  echo "Usage: $0 --skill <skill-name> --issue <issue-key> [--model <model>] [--force]"
+if [ -z "$SKILL" ]; then
+  echo "Usage: $0 --skill <skill-name> [--issue <issue-key>] [--model <model>] [--force]"
   exit 1
 fi
 
@@ -60,45 +60,57 @@ git config --global url."https://github.com/".insteadOf "git@github.com:"
 # Install skills from opendatahub-io registry
 echo "Installing skills from opendatahub-io/skills-registry..."
 claude plugin marketplace add opendatahub-io/skills-registry || true
-claude plugin install rfe-creator@opendatahub-skills || true
+
+# Discover which plugins to install from pipeline-skills.yaml
+REGISTRIES=$(python3 -c "
+import yaml
+with open('/app/pipeline-skills.yaml') as f:
+    cfg = yaml.safe_load(f)
+for repo in (cfg.get('skill_repos') or {}).values():
+    reg = repo.get('registry', '')
+    if reg:
+        print(reg)
+" 2>/dev/null | sort -u)
+
+for REG in $REGISTRIES; do
+  echo "  Installing plugin: $REG"
+  claude plugin install "$REG" || true
+done
 
 echo
 echo "Setting up artifact symlinks..."
 
-# Find the installed plugin directory (with version subdirectory)
-PLUGIN_BASE=$(find ~/.claude/plugins/cache -name "rfe-creator" -type d | head -1)
-
-if [ -n "$PLUGIN_BASE" ]; then
-  # Find all version subdirectories and create symlinks in each
+# Set up symlinks for all installed plugins
+for PLUGIN_BASE in $(find ~/.claude/plugins/cache -mindepth 1 -maxdepth 1 -type d 2>/dev/null); do
+  PLUGIN_NAME=$(basename "$PLUGIN_BASE")
   for VERSION_DIR in "$PLUGIN_BASE"/*/ ; do
-    # Remove trailing slash from VERSION_DIR
     VERSION_DIR="${VERSION_DIR%/}"
     if [ -d "$VERSION_DIR" ]; then
-      # Remove existing directories in versioned plugin dir if they exist
       rm -rf "$VERSION_DIR/artifacts" "$VERSION_DIR/tmp" "$VERSION_DIR/.context"
-
-      # Create symlinks from versioned plugin directory to persistent volumes
       ln -s /app/artifacts "$VERSION_DIR/artifacts"
       ln -s /app/tmp "$VERSION_DIR/tmp"
       ln -s /app/.context "$VERSION_DIR/.context"
-
-      echo "✓ Created symlinks in $(basename $VERSION_DIR):"
-      echo "  $VERSION_DIR/artifacts -> /app/artifacts"
-      echo "  $VERSION_DIR/tmp -> /app/tmp"
-      echo "  $VERSION_DIR/.context -> /app/.context"
+      echo "✓ Created symlinks for $PLUGIN_NAME/$(basename $VERSION_DIR)"
     fi
   done
-else
-  echo "⚠ Warning: Could not find plugin directory for symlink setup"
-fi
+done
 
 echo
 
 # Create artifact and context directories if they don't exist
 mkdir -p /app/artifacts/rfe-tasks /app/artifacts/strat-tasks /app/tmp /app/.context
 
-# Map phase names (dashes) to skill names (dots)
-SKILL_NAME="${SKILL//-/.}"
+# Resolve skill name from pipeline-skills.yaml (falls back to dash-to-dot conversion)
+SKILL_NAME=$(python3 -c "
+import yaml
+with open('/app/pipeline-skills.yaml') as f:
+    cfg = yaml.safe_load(f)
+skills = cfg.get('skills') or cfg.get('phases') or {}
+if '${SKILL}' in skills:
+    print(skills['${SKILL}']['skill'])
+else:
+    print('${SKILL}'.replace('-', '.'))
+" 2>/dev/null)
 
 echo "Skill name: $SKILL_NAME"
 echo "Working directory: /app"
@@ -162,34 +174,35 @@ async def run_skill():
     issue_key = "${ISSUE_KEY}"
     model = "${MODEL}"
 
-    # Map skill name back to phase name (skill names use dots, phase names use dashes)
-    phase_name = skill_name.replace('.', '-')
+    # Look up skill key (the pipeline-skills.yaml key, e.g. "rfe-create")
+    skill_key = "${SKILL}"
 
     try:
-        phase_config = get_phase_config(phase_name)
+        phase_config = get_phase_config(skill_key)
     except KeyError:
-        print(f"ERROR: Could not find phase config for {phase_name}")
+        print(f"ERROR: Could not find skill config for {skill_key}")
         sys.exit(1)
 
     # Get plugin directory for source skills
     plugin_dir = None
-    if phase_config.get('source') == 'rfe-creator':
+    source = phase_config.get('source')
+    if source:
         import subprocess
         result = subprocess.run(
             ['find', os.path.expanduser('~/.claude/plugins/cache'),
-             '-name', 'rfe-creator', '-type', 'd'],
+             '-name', source, '-type', 'd'],
             capture_output=True, text=True
         )
         if result.stdout.strip():
             plugin_dir = result.stdout.strip().split('\\n')[0]
-            # Get the versioned subdirectory
             for version_dir in Path(plugin_dir).iterdir():
                 if version_dir.is_dir() and version_dir.name[0].isdigit():
                     plugin_dir = str(version_dir)
                     break
 
     # Build prompt
-    prompt = f"/{skill_name} --headless {issue_key}"
+    issue_part = f" {issue_key}" if issue_key else ""
+    prompt = f"/{skill_name} --headless{issue_part}"
 
     # Set working directory
     cwd = plugin_dir if plugin_dir else "/app"
