@@ -114,11 +114,12 @@ fi
 
 echo
 
-# Install skills from opendatahub-io registry
-echo "Installing skills from opendatahub-io/skills-registry..."
+# Register skill marketplaces
+echo "Registering skill marketplaces..."
 claude plugin marketplace add opendatahub-io/skills-registry || true
+claude plugin marketplace add /app/skills-registry || true
 
-# Discover which plugins to install from pipeline-skills.yaml
+# Discover and install plugins from pipeline-skills.yaml
 REGISTRIES=$(python3 -c "
 import yaml
 with open('/app/pipeline-skills.yaml') as f:
@@ -138,17 +139,19 @@ echo
 echo "Setting up artifact symlinks..."
 
 # Set up symlinks for all installed plugins
-for PLUGIN_BASE in $(find ~/.claude/plugins/cache -mindepth 1 -maxdepth 1 -type d 2>/dev/null); do
-  PLUGIN_NAME=$(basename "$PLUGIN_BASE")
-  for VERSION_DIR in "$PLUGIN_BASE"/*/ ; do
-    VERSION_DIR="${VERSION_DIR%/}"
-    if [ -d "$VERSION_DIR" ]; then
-      rm -rf "$VERSION_DIR/artifacts" "$VERSION_DIR/tmp" "$VERSION_DIR/.context"
-      ln -s /app/artifacts "$VERSION_DIR/artifacts"
-      ln -s /app/tmp "$VERSION_DIR/tmp"
-      ln -s /app/.context "$VERSION_DIR/.context"
-      echo "✓ Created symlinks for $PLUGIN_NAME/$(basename $VERSION_DIR)"
-    fi
+for CACHE_ROOT in ~/.claude/plugins/cache/*/; do
+  for PLUGIN_BASE in "$CACHE_ROOT"*/; do
+    PLUGIN_NAME=$(basename "$PLUGIN_BASE")
+    for VERSION_DIR in "$PLUGIN_BASE"*/; do
+      VERSION_DIR="${VERSION_DIR%/}"
+      if [ -d "$VERSION_DIR" ]; then
+        rm -rf "$VERSION_DIR/artifacts" "$VERSION_DIR/tmp" "$VERSION_DIR/.context"
+        ln -s /app/artifacts "$VERSION_DIR/artifacts"
+        ln -s /app/tmp "$VERSION_DIR/tmp"
+        ln -s /app/.context "$VERSION_DIR/.context"
+        echo "✓ Created symlinks for $PLUGIN_NAME/$(basename $VERSION_DIR)"
+      fi
+    done
   done
 done
 

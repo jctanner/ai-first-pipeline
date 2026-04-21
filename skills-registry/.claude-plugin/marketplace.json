@@ -1,0 +1,37 @@
+{
+  "metadata": {
+    "description": "Staging registry for skills not yet published to the opendatahub-io/skills-registry. Entries here should be migrated to the official registry once stable."
+  },
+  "name": "pipeline-staging",
+  "owner": {
+    "name": "ai-first-pipeline"
+  },
+  "plugins": [
+    {
+      "author": {
+        "name": "ederign"
+      },
+      "category": "planning",
+      "description": "Strategy creation, refinement, and review skills for RHAISTRAT Jira tickets. Provides strategy.create, strategy.refine, strategy.review, and specialized review sub-skills.",
+      "homepage": "https://github.com/ederign/strat-creator",
+      "keywords": [
+        "strategy",
+        "jira",
+        "review",
+        "planning"
+      ],
+      "name": "strat-creator",
+      "repository": "https://github.com/ederign/strat-creator",
+      "skills": [
+        "./.claude/skills"
+      ],
+      "source": {
+        "ref": "main",
+        "repo": "ederign/strat-creator",
+        "source": "github"
+      },
+      "strict": false,
+      "version": "0.1.0"
+    }
+  ]
+}

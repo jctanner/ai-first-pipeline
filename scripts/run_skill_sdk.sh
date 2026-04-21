@@ -57,11 +57,12 @@ fi
 # Configure git to use HTTPS instead of SSH for GitHub
 git config --global url."https://github.com/".insteadOf "git@github.com:"
 
-# Install skills from opendatahub-io registry
-echo "Installing skills from opendatahub-io/skills-registry..."
+# Register skill marketplaces
+echo "Registering skill marketplaces..."
 claude plugin marketplace add opendatahub-io/skills-registry || true
+claude plugin marketplace add /app/skills-registry || true
 
-# Discover which plugins to install from pipeline-skills.yaml
+# Discover and install plugins from pipeline-skills.yaml
 REGISTRIES=$(python3 -c "
 import yaml
 with open('/app/pipeline-skills.yaml') as f:
@@ -81,17 +82,19 @@ echo
 echo "Setting up artifact symlinks..."
 
 # Set up symlinks for all installed plugins
-for PLUGIN_BASE in $(find ~/.claude/plugins/cache -mindepth 1 -maxdepth 1 -type d 2>/dev/null); do
-  PLUGIN_NAME=$(basename "$PLUGIN_BASE")
-  for VERSION_DIR in "$PLUGIN_BASE"/*/ ; do
-    VERSION_DIR="${VERSION_DIR%/}"
-    if [ -d "$VERSION_DIR" ]; then
-      rm -rf "$VERSION_DIR/artifacts" "$VERSION_DIR/tmp" "$VERSION_DIR/.context"
-      ln -s /app/artifacts "$VERSION_DIR/artifacts"
-      ln -s /app/tmp "$VERSION_DIR/tmp"
-      ln -s /app/.context "$VERSION_DIR/.context"
-      echo "✓ Created symlinks for $PLUGIN_NAME/$(basename $VERSION_DIR)"
-    fi
+for CACHE_ROOT in ~/.claude/plugins/cache/*/; do
+  for PLUGIN_BASE in "$CACHE_ROOT"*/; do
+    PLUGIN_NAME=$(basename "$PLUGIN_BASE")
+    for VERSION_DIR in "$PLUGIN_BASE"*/; do
+      VERSION_DIR="${VERSION_DIR%/}"
+      if [ -d "$VERSION_DIR" ]; then
+        rm -rf "$VERSION_DIR/artifacts" "$VERSION_DIR/tmp" "$VERSION_DIR/.context"
+        ln -s /app/artifacts "$VERSION_DIR/artifacts"
+        ln -s /app/tmp "$VERSION_DIR/tmp"
+        ln -s /app/.context "$VERSION_DIR/.context"
+        echo "✓ Created symlinks for $PLUGIN_NAME/$(basename $VERSION_DIR)"
+      fi
+    done
   done
 done
 
@@ -195,10 +198,10 @@ async def run_skill():
         )
         if result.stdout.strip():
             plugin_dir = result.stdout.strip().split('\\n')[0]
-            for version_dir in Path(plugin_dir).iterdir():
-                if version_dir.is_dir() and version_dir.name[0].isdigit():
-                    plugin_dir = str(version_dir)
-                    break
+            # Find versioned subdir (e.g. 0.1.0) or branch name (e.g. main)
+            subdirs = [d for d in Path(plugin_dir).iterdir() if d.is_dir()]
+            if subdirs:
+                plugin_dir = str(subdirs[0])
 
     # Build prompt
     issue_part = f" {issue_key}" if issue_key else ""

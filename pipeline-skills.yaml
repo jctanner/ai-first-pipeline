@@ -39,7 +39,7 @@ skill_repos:
   strat-creator:
     github: ederign/strat-creator
     path: remote_skills/strat-creator
-    registry: strat-creator@opendatahub-skills
+    registry: strat-creator@pipeline-staging
 
 skills:
   # === Bug analysis (local skills, templated) ===

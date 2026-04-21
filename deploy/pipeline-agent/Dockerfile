@@ -34,6 +34,7 @@ COPY --chown=pipelineagent:pipelineagent lib/ ./lib/
 COPY --chown=pipelineagent:pipelineagent scripts/ ./scripts/
 COPY --chown=pipelineagent:pipelineagent .claude/ ./.claude/
 COPY --chown=pipelineagent:pipelineagent pipeline-skills.yaml ./
+COPY --chown=pipelineagent:pipelineagent skills-registry/ ./skills-registry/
 
 # Set up Python path to find installed packages
 ENV PYTHONPATH=/app
