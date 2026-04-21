@@ -155,6 +155,10 @@ for CACHE_ROOT in ~/.claude/plugins/cache/*/; do
   done
 done
 
+# Hotpatch: remove "context: fork" from installed skills so streaming output works
+echo "Patching context:fork from installed skills..."
+find ~/.claude/plugins/cache -name "SKILL.md" -exec sed -i '/^context: *fork/d' {} +
+
 echo
 echo "Running skill..."
 echo

@@ -95,6 +95,14 @@ def get_repo_registry(source: str) -> str | None:
     return repo.get("registry")
 
 
+def get_repo_ref(source: str) -> str:
+    """Return the git ref (branch/tag) for a skill repo, defaulting to 'main'."""
+    cfg = _load()
+    repos = cfg.get("skill_repos", {})
+    repo = repos.get(source, {})
+    return repo.get("ref", "main")
+
+
 def resolve_skills_dir(phase: str) -> Path:
     """Return the ``.claude/skills`` directory that contains the skill for *phase*.
 
@@ -208,7 +216,9 @@ def list_skills() -> list[dict]:
         source = conf.get("source")
         if source:
             github = get_repo_github(source)
-            display = f"{github}:{skill_name}" if github else f"{source}:{skill_name}"
+            ref = get_repo_ref(source)
+            repo_part = github if github else source
+            display = f"{repo_part}@{ref}:{skill_name}"
         else:
             display = f"local:{skill_name}"
         result.append({

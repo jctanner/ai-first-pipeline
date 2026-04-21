@@ -1,0 +1,74 @@
+Problem: Scripts not found for marketplace-installed skills (strat-creator)
+=========================================================================
+
+When a skill is installed via `claude plugin install`, the entire repo gets
+cloned to:
+
+    ~/.claude/plugins/cache/<marketplace>/<plugin>/<version>/
+
+For strat-creator that's:
+
+    ~/.claude/plugins/cache/pipeline-staging/strat-creator/0.1.0/
+    ├── .claude/skills/strategy.refine/SKILL.md
+    ├── scripts/frontmatter.py
+    ├── scripts/fetch_issue.py
+    ├── scripts/state.py
+    └── ...
+
+The scripts exist in the clone, but the SKILL.md references them as
+`python3 scripts/frontmatter.py` — which assumes cwd is the repo root.
+When our runner invokes the skill, cwd is `/app` (the pipeline project),
+so those paths don't resolve.
+
+This isn't an issue when running the skill locally from within the
+strat-creator checkout, only when it's installed as a marketplace plugin
+and invoked from a different working directory.
+
+Additionally, `strategy.refine` and the four reviewer sub-skills use
+`context: fork` in their SKILL.md frontmatter. Forked skill contexts
+suppress all intermediate streaming output by design — the parent Claude
+process collects messages locally and only returns the final result text.
+This means `--output-format stream-json` and the SDK's
+`receive_response()` both produce zero output until the skill completes.
+We currently hotpatch this with sed in the runner, but the upstream fix
+is to remove `context: fork` from skills that don't need it.
+
+Affected skills:
+  - strategy.refine (context: fork, script paths)
+  - strategy-feasibility-review (context: fork)
+  - strategy-testability-review (context: fork)
+  - strategy-scope-review (context: fork)
+  - strategy-architecture-review (context: fork)
+
+Possible fixes
+--------------
+
+1. Use ${CLAUDE_SKILL_DIR} in SKILL.md (upstream change to strat-creator)
+
+   Claude Code expands this variable to the skill's directory at
+   invocation time. Scripts would be referenced as:
+
+       python3 ${CLAUDE_SKILL_DIR}/../../scripts/frontmatter.py read ...
+
+   No duplication, works regardless of cwd. This is the mechanism Claude
+   Code provides for exactly this purpose.
+
+2. Move scripts into each skill directory (upstream change)
+
+   Put frontmatter.py etc. inside .claude/skills/strategy.refine/. Then
+   ${CLAUDE_SKILL_DIR}/frontmatter.py works cleanly. Downside: duplicates
+   shared scripts across multiple skills.
+
+3. Runner symlinks plugin scripts to a known path (our side)
+
+   Extend the existing symlink setup in our runner to also link the
+   plugin's scripts/ dir. E.g.:
+
+       ln -s $PLUGIN_DIR/scripts /app/plugin-scripts/strat-creator
+
+   SKILL.md would still need updating to use the new path.
+
+Recommendation: Option 1 is the cleanest — no duplication, no runner
+changes, uses the intended Claude Code mechanism. It's a change in
+ederign's repo. The context:fork removal should also be raised upstream
+since it prevents streaming in CI/pipeline contexts.

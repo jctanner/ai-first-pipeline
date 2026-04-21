@@ -98,6 +98,10 @@ for CACHE_ROOT in ~/.claude/plugins/cache/*/; do
   done
 done
 
+# Hotpatch: remove "context: fork" from installed skills so streaming output works
+echo "Patching context:fork from installed skills..."
+find ~/.claude/plugins/cache -name "SKILL.md" -exec sed -i '/^context: *fork/d' {} +
+
 echo
 
 # Create artifact and context directories if they don't exist
@@ -216,10 +220,10 @@ async def run_skill():
     print()
 
     # Configure agent options
-    allowed_tools = get_allowed_tools(phase_name)
+    allowed_tools = get_allowed_tools(skill_key)
 
     # MCP servers configuration
-    mcp_servers = get_mcp_servers(phase_name)
+    mcp_servers = get_mcp_servers(skill_key)
 
     # Set up hooks for MLflow tool tracking
     hooks = {}

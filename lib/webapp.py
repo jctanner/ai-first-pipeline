@@ -3985,6 +3985,16 @@ JOBS = """\
     font-size: 0.85em;
   }
   .btn-stop:hover { background: #d35400; }
+  .btn-rerun {
+    background: #27ae60;
+    color: white;
+    border: none;
+    padding: 0.2em 0.6em;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 0.85em;
+  }
+  .btn-rerun:hover { background: #219a52; }
   #log-viewer {
     display: none;
     margin-top: 1rem;
@@ -4177,6 +4187,7 @@ if (K8S_AVAILABLE) {
             <td>${duration}</td>
             <td>
               <button class="btn-logs" onclick="viewLogs('${job.name}')">Logs</button>
+              <button class="btn-rerun" onclick="rerunJob('${job.phase}', '${job.issue}', '${job.model}', '${job.runner || 'cli'}')">Re-run</button>
               ${(job.status === 'running' || job.status === 'pending') ? `<button class="btn-stop" onclick="stopJob('${job.name}')">Stop</button>` : ''}
               <button class="btn-delete" onclick="deleteJob('${job.name}')">Delete</button>
             </td>
@@ -4252,11 +4263,35 @@ if (K8S_AVAILABLE) {
     }
   }
 
+  // Re-run job with same parameters
+  async function rerunJob(phase, issue, model, runner) {
+    const args = { model, runner };
+    if (issue && issue !== 'all') args.issue = issue.toUpperCase();
+
+    try {
+      const response = await fetch('/api/jobs/submit', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ command: phase, args })
+      });
+
+      const data = await response.json();
+      if (response.ok) {
+        refreshJobs();
+      } else {
+        alert('Error re-running job: ' + (data.error || 'Unknown error'));
+      }
+    } catch (err) {
+      alert('Error re-running job: ' + err.message);
+    }
+  }
+
   // Make functions global
   window.viewLogs = viewLogs;
   window.closeLogs = closeLogs;
   window.stopJob = stopJob;
   window.deleteJob = deleteJob;
+  window.rerunJob = rerunJob;
 
   // Auto-refresh every 3 seconds
   refreshJobs();

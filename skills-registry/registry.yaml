@@ -55,3 +55,51 @@ plugins:
       claude-code:
         install: "/plugin install strat-creator@pipeline-staging"
     depends_on: []
+
+  - name: strat-creator-fork
+    description: >
+      Fork of strat-creator with reorganized scripts for marketplace
+      compatibility. Uses ${CLAUDE_SKILL_DIR} paths and removes
+      context:fork from skills that don't need it.
+    version: "0.1.0"
+    category: planning
+    tags: [strategy, jira, review, planning]
+    author:
+      name: jctanner-opendatahub-io
+    source:
+      type: github
+      repo: jctanner-opendatahub-io/eder-strat-creator
+      ref: reorganize-scripts
+    strict: false
+    skills_dir: ./.claude/skills
+    homepage: https://github.com/jctanner-opendatahub-io/eder-strat-creator
+    repository: https://github.com/jctanner-opendatahub-io/eder-strat-creator
+    skills:
+      - name: strategy.create
+        description: Create strategies from approved RFEs
+        user-invocable: true
+      - name: strategy.refine
+        description: Refine strategies with dependencies and NFRs
+        user-invocable: true
+      - name: strategy.review
+        description: Adversarial review of strategies against rubric
+        user-invocable: true
+      - name: export-rubric
+        description: Export the scoring rubric
+        user-invocable: true
+      - name: strategy-architecture-review
+        description: Review strategy for architectural correctness
+        user-invocable: false
+      - name: strategy-feasibility-review
+        description: Review strategy for technical feasibility
+        user-invocable: false
+      - name: strategy-scope-review
+        description: Review strategy for appropriate scope
+        user-invocable: false
+      - name: strategy-testability-review
+        description: Review strategy for testability
+        user-invocable: false
+    harnesses:
+      claude-code:
+        install: "/plugin install strat-creator-fork@pipeline-staging"
+    depends_on: []

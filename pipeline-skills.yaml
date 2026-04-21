@@ -34,12 +34,19 @@ mcp_servers:
 skill_repos:
   rfe-creator:
     github: jwforres/rfe-creator
+    ref: main
     path: remote_skills/rfe-creator
     registry: rfe-creator@opendatahub-skills
   strat-creator:
     github: ederign/strat-creator
+    ref: main
     path: remote_skills/strat-creator
     registry: strat-creator@pipeline-staging
+  strat-creator-fork:
+    github: jctanner-opendatahub-io/eder-strat-creator
+    ref: reorganize-scripts
+    path: remote_skills/strat-creator-fork
+    registry: strat-creator-fork@pipeline-staging
 
 skills:
   # === Bug analysis (local skills, templated) ===
@@ -167,6 +174,29 @@ skills:
   strategy-review:
     skill: strategy.review
     source: strat-creator
+    invoke: native
+    runner: cli
+    allowed_tools: [Read, Write, Edit, Glob, Grep, Bash, Skill]
+
+  # === Strategy skills (jctanner-opendatahub-io/eder-strat-creator fork) ===
+  strategy-create-fork:
+    skill: strategy-create
+    source: strat-creator-fork
+    invoke: native
+    runner: cli
+    allowed_tools: [Read, Write, Edit, Glob, Grep, Bash, AskUserQuestion]
+    mcp_servers: [atlassian]
+
+  strategy-refine-fork:
+    skill: strategy-refine
+    source: strat-creator-fork
+    invoke: native
+    runner: cli
+    allowed_tools: [Read, Write, Edit, Glob, Grep]
+
+  strategy-review-fork:
+    skill: strategy-review
+    source: strat-creator-fork
     invoke: native
     runner: cli
     allowed_tools: [Read, Write, Edit, Glob, Grep, Bash, Skill]

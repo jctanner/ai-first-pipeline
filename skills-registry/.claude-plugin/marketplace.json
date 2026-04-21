@@ -32,6 +32,32 @@
       },
       "strict": false,
       "version": "0.1.0"
+    },
+    {
+      "author": {
+        "name": "jctanner-opendatahub-io"
+      },
+      "category": "planning",
+      "description": "Fork of strat-creator with reorganized scripts for marketplace compatibility. Uses ${CLAUDE_SKILL_DIR} paths and removes context:fork from skills that don't need it.",
+      "homepage": "https://github.com/jctanner-opendatahub-io/eder-strat-creator",
+      "keywords": [
+        "strategy",
+        "jira",
+        "review",
+        "planning"
+      ],
+      "name": "strat-creator-fork",
+      "repository": "https://github.com/jctanner-opendatahub-io/eder-strat-creator",
+      "skills": [
+        "./.claude/skills"
+      ],
+      "source": {
+        "ref": "reorganize-scripts",
+        "repo": "jctanner-opendatahub-io/eder-strat-creator",
+        "source": "github"
+      },
+      "strict": false,
+      "version": "0.1.0"
     }
   ]
 }

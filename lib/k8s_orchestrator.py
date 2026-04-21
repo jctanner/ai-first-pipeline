@@ -235,7 +235,7 @@ class PipelineOrchestrator:
                 }
             ),
             spec=client.V1JobSpec(
-                ttl_seconds_after_finished=3600,  # Clean up after 1hr
+                ttl_seconds_after_finished=86400,  # Clean up after 24hrs
                 backoff_limit=0,  # Don't retry failed jobs
                 template=client.V1PodTemplateSpec(
                     metadata=client.V1ObjectMeta(
