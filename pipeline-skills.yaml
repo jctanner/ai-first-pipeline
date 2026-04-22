@@ -157,7 +157,7 @@ skills:
 
   # === Strategy skills (ederign/strat-creator) ===
   strategy-create:
-    skill: strategy.create
+    skill: strategy-create
     source: strat-creator
     invoke: native
     runner: cli
@@ -165,14 +165,14 @@ skills:
     mcp_servers: [atlassian]
 
   strategy-refine:
-    skill: strategy.refine
+    skill: strategy-refine
     source: strat-creator
     invoke: native
     runner: cli
     allowed_tools: [Read, Write, Edit, Glob, Grep]
 
   strategy-review:
-    skill: strategy.review
+    skill: strategy-review
     source: strat-creator
     invoke: native
     runner: cli

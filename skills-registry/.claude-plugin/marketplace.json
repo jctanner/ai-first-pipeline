@@ -12,7 +12,7 @@
         "name": "ederign"
       },
       "category": "planning",
-      "description": "Strategy creation, refinement, and review skills for RHAISTRAT Jira tickets. Provides strategy.create, strategy.refine, strategy.review, and specialized review sub-skills.",
+      "description": "Strategy creation, refinement, and review skills for RHAISTRAT Jira tickets. Provides strategy-create, strategy-refine, strategy-review, and specialized review sub-skills.",
       "homepage": "https://github.com/ederign/strat-creator",
       "keywords": [
         "strategy",

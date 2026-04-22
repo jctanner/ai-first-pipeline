@@ -11,8 +11,8 @@ plugins:
   - name: strat-creator
     description: >
       Strategy creation, refinement, and review skills for RHAISTRAT
-      Jira tickets. Provides strategy.create, strategy.refine,
-      strategy.review, and specialized review sub-skills.
+      Jira tickets. Provides strategy-create, strategy-refine,
+      strategy-review, and specialized review sub-skills.
     version: "0.1.0"
     category: planning
     tags: [strategy, jira, review, planning]
@@ -27,13 +27,13 @@ plugins:
     homepage: https://github.com/ederign/strat-creator
     repository: https://github.com/ederign/strat-creator
     skills:
-      - name: strategy.create
+      - name: strategy-create
         description: Create strategies from approved RFEs
         user-invocable: true
-      - name: strategy.refine
+      - name: strategy-refine
         description: Refine strategies with dependencies and NFRs
         user-invocable: true
-      - name: strategy.review
+      - name: strategy-review
         description: Adversarial review of strategies against rubric
         user-invocable: true
       - name: export-rubric
@@ -75,13 +75,13 @@ plugins:
     homepage: https://github.com/jctanner-opendatahub-io/eder-strat-creator
     repository: https://github.com/jctanner-opendatahub-io/eder-strat-creator
     skills:
-      - name: strategy.create
+      - name: strategy-create
         description: Create strategies from approved RFEs
         user-invocable: true
-      - name: strategy.refine
+      - name: strategy-refine
         description: Refine strategies with dependencies and NFRs
         user-invocable: true
-      - name: strategy.review
+      - name: strategy-review
         description: Adversarial review of strategies against rubric
         user-invocable: true
       - name: export-rubric

@@ -20,22 +20,67 @@ If no directory specified, reviews the current working directory as a skill.
 ## What This Skill Checks
 
 ### 1. SKILL.md Structure
-- ✅ File exists
+- ✅ File exists (must be exactly `SKILL.md`, case-sensitive — not SKILL.MD, skill.md, etc.)
 - ✅ YAML frontmatter present (must start with `---`)
 - ✅ Frontmatter is valid YAML
 - ✅ Required fields present: `name`, `description`
+- ✅ No `README.md` in skill directory (all documentation belongs in SKILL.md or `references/`)
 
-### 2. Frontmatter Field Validation
-- **name** (string, required): Skill name, typically matches directory name
-- **description** (string, required): Brief description of what the skill does
+### 2. Naming Conventions
+**Skill folder name:**
+- ✅ kebab-case only: `notion-project-setup`
+- ❌ No spaces: `Notion Project Setup`
+- ❌ No underscores: `notion_project_setup`
+- ❌ No capitals: `NotionProjectSetup`
+- ❌ No dots: `strategy.refine` (use `strategy-refine`)
+
+**`name` field in frontmatter:**
+- Must be kebab-case (no spaces, capitals, underscores, or dots)
+- Should match the folder name
+- Must not contain "claude" or "anthropic" (reserved by Anthropic)
+
+### 3. Frontmatter Field Validation
+- **name** (string, required): Skill name in kebab-case, must match directory name
+- **description** (string, required): Must include BOTH what the skill does AND when to use it (trigger conditions). Under 1024 characters. No XML angle brackets (`<` or `>`). Include specific tasks/phrases users might say. Mention relevant file types if applicable.
 - **user-invocable** (boolean, optional): Whether user can invoke with `/skill-name`
 - **allowed-tools** (string or array, optional): Tools the skill is allowed to use
 - **model** (string, optional): Must be "opus", "sonnet", or "haiku"
 - **effort** (string, optional): Must be "low", "medium", or "high"
 - **context** (string, optional): Must be "fork" or other valid context type
 - **disable-model-invocation** (boolean, optional): For non-AI skills
+- **compatibility** (string, optional): 1-500 characters, environment requirements
+- **license** (string, optional): e.g., MIT, Apache-2.0
+- **metadata** (object, optional): Custom key-value pairs (author, version, mcp-server)
 
-### 3. Variable Substitution Validation
+**Security restrictions in frontmatter:**
+- ❌ No XML angle brackets (`<` or `>`) — frontmatter appears in system prompt, could inject content
+- ❌ No "claude" or "anthropic" in skill name — reserved names
+
+### 4. Description Quality
+The description is the most important field — it determines when Claude loads the skill.
+
+**Structure:** `[What it does] + [When to use it] + [Key capabilities]`
+
+**Good descriptions:**
+- Include trigger phrases users would actually say
+- Mention relevant file types if applicable
+- Are specific and actionable
+
+**Bad descriptions:**
+- Too vague: "Helps with projects"
+- Missing triggers: "Creates sophisticated multi-page documentation systems"
+- Too technical: "Implements the Project entity model with hierarchical relationships"
+
+### 5. SKILL.md Size and Progressive Disclosure
+- ⚠️ SKILL.md should be under 5,000 words
+- Move detailed documentation to `references/` directory and link to it
+- Keep SKILL.md focused on core instructions
+- Skills use a three-level progressive disclosure system:
+  1. **Frontmatter** — always loaded, tells Claude when to use the skill
+  2. **SKILL.md body** — loaded when skill is relevant
+  3. **Linked files** (references/, scripts/) — loaded on demand
+
+### 6. Variable Substitution Validation
 Checks for invalid variable references in SKILL.md content.
 
 **Valid variables:**
@@ -49,7 +94,7 @@ Checks for invalid variable references in SKILL.md content.
 - `${SKILL_DIR}` - Missing CLAUDE_ prefix
 - `$ARG` - Non-standard variable name
 
-### 4. File Reference Validation
+### 7. File Reference Validation
 Detects files referenced in SKILL.md and checks if they exist.
 
 **Explicit references:**
@@ -61,7 +106,7 @@ Detects files referenced in SKILL.md and checks if they exist.
 - ⚠️ **Found in repo root** - Packaging issue (won't work after marketplace install)
 - ❌ **Not found** - Missing file (will fail at runtime)
 
-### 5. External Script Detection
+### 8. External Script Detection
 Identifies scripts referenced at repository root that won't be available after marketplace installation.
 
 **Common patterns:**
@@ -71,7 +116,7 @@ Identifies scripts referenced at repository root that won't be available after m
 
 **Impact:** Skills claiming marketplace install support (`/plugin install`) must be self-contained.
 
-### 6. Runtime Dependency Analysis
+### 9. Runtime Dependency Analysis
 Analyzes what files the skill will attempt to access during execution.
 
 **Detection patterns:**
@@ -82,7 +127,112 @@ Analyzes what files the skill will attempt to access during execution.
 
 **Output:** Categorizes dependencies by location (skill dir, repo root, missing).
 
-### 7. Marketplace Compatibility
+### 10. `context: fork` Impact Assessment
+Checks if the skill uses `context: fork` in frontmatter and warns about its implications.
+
+**What `context: fork` does:**
+- Creates an isolated sub-agent that runs the skill in a forked context
+- All intermediate messages (thinking, tool use, streaming) are consumed locally
+- Only the final result text is returned to the parent agent
+- `--output-format stream-json` and SDK `receive_response()` produce zero output until completion
+
+**When to flag:**
+- ⚠️ Any skill with `context: fork` — warn that streaming/logging will be suppressed in CI/pipeline contexts
+- ❌ Skills that don't orchestrate background agents but use `context: fork` — likely unnecessary and should be removed
+- ✅ Skills that orchestrate multiple sub-agents (e.g., strategy-review launching 4 independent reviewers) — `context: fork` may be intentional
+
+**Detection:**
+```bash
+if grep -q '^context: *fork' /tmp/frontmatter.yaml; then
+    echo "⚠️ context:fork detected — streaming output will be suppressed"
+    echo "   This means --output-format stream-json and SDK receive_response()"
+    echo "   will produce zero events until the skill completes."
+    echo "   Remove context:fork unless this skill orchestrates background agents."
+fi
+```
+
+### 11. Script Path Portability (Marketplace Install)
+Validates that script references will resolve correctly after marketplace installation.
+
+**The problem:** When a skill is installed via `claude plugin install`, the entire repo is cloned to:
+```
+~/.claude/plugins/cache/<marketplace>/<plugin>/<version>/
+```
+But the agent's `cwd` remains the invoking project (e.g., `/app`), not the plugin directory. Scripts referenced as `python3 scripts/foo.py` assume cwd is the repo root and will fail.
+
+**What to check:**
+- Scripts referenced without `${CLAUDE_SKILL_DIR}` prefix — will break after install
+- Scripts at repo root (`scripts/`, `./scripts/`) — exist in the plugin clone but cwd won't find them
+- Scripts using relative paths (`../../scripts/`) — fragile, depends on install location
+
+**Correct patterns:**
+- `python3 ${CLAUDE_SKILL_DIR}/scripts/foo.py` — works regardless of cwd
+- `bash ${CLAUDE_SKILL_DIR}/../../scripts/foo.py` — works but fragile; better to vendor scripts into skill dir
+- Scripts symlinked into skill directory — works if symlink targets are also in the repo
+
+**Detection:**
+```bash
+# Find script references NOT using ${CLAUDE_SKILL_DIR}
+grep -E '(python3?|bash|sh|node) +[a-zA-Z]' "$skill_dir/SKILL.md" | \
+    grep -v 'CLAUDE_SKILL_DIR' | \
+    while read line; do
+        echo "⚠️ Script reference without \${CLAUDE_SKILL_DIR}: $line"
+        echo "   Will fail after marketplace install (cwd is not the plugin dir)"
+    done
+```
+
+### 12. Shared Artifact Directory Safety
+Analyzes whether a skill is safe to run concurrently on a shared filesystem.
+
+**The problem:** Skills that glob an entire directory (e.g., `artifacts/strat-tasks/*.md`) and process all files will:
+- Waste tokens reading/processing unrelated artifacts in per-ticket job mode
+- Race with concurrent jobs writing to the same files
+- Rely on LLM reasoning to filter to the right artifact, which is non-deterministic
+
+**What to check:**
+
+**Glob patterns — does the skill scan everything?**
+- ❌ `ls artifacts/strat-tasks/` or `artifacts/strat-tasks/*.md` — processes all files
+- ✅ `artifacts/strat-tasks/RHAISTRAT-*.md` — targeted glob, skips stubs and symlinks
+- ✅ `artifacts/strat-tasks/$ISSUE_KEY.md` — opens exactly one file
+
+**Index files — are writes atomic?**
+- ❌ Skills that rewrite an entire index file (read-then-write pattern) — will clobber under concurrency
+- ⚠️ Skills that append to shared files — not atomic on shared PVCs
+- ✅ Skills that use per-ticket files or symlinks — inherently safe
+
+**Per-ticket filtering — does the skill respect $ARGUMENTS?**
+- ❌ Skill globs all artifacts and relies on LLM to pick the right one
+- ⚠️ Skill reads $ARGUMENTS but filtering is done by LLM reasoning, not code
+- ✅ Skill uses $ARGUMENTS to construct a specific filename and opens only that file
+
+**Recommended pattern for shared artifact dirs:**
+- Use symlinks for cross-referencing (e.g., `RHAIRFE-1981.md → RHAISTRAT-3.md`)
+- Use targeted globs with known prefixes (e.g., `RHAISTRAT-*.md` not `*.md`)
+- Accept `--issue KEY` in `$ARGUMENTS` and open that file directly
+- Write per-ticket output files, not shared index tables
+
+**Detection:**
+```bash
+# Check for broad glob patterns in code blocks
+grep -E '(ls|for.*in|glob) .*\*\.md' "$skill_dir/SKILL.md" | \
+    grep -v 'RHAISTRAT-\*\|RHAIRFE-\*' | \
+    while read line; do
+        echo "⚠️ Broad glob pattern: $line"
+        echo "   Will process ALL files in directory — unsafe for concurrent per-ticket jobs"
+        echo "   Consider using a targeted prefix (e.g., RHAISTRAT-*.md)"
+    done
+
+# Check for shared index file writes
+grep -E '(Write|write|>|>>).*\.(md|yaml|json)' "$skill_dir/SKILL.md" | \
+    grep -v 'RHAISTRAT-\|RHAIRFE-\|review' | \
+    while read line; do
+        echo "⚠️ Shared file write: $line"
+        echo "   May race with concurrent jobs writing to the same file"
+    done
+```
+
+### 13. Marketplace Compatibility
 Determines if a skill can be installed via `/plugin install` or requires full repository checkout.
 
 **Self-contained skills:**
@@ -232,15 +382,34 @@ When the user invokes this skill:
    done
    ```
 
-7. **Detect external scripts**
-   
-   Look for script references that won't be available after marketplace install:
+7. **Check `context: fork` usage**
+
    ```bash
-   # Find script references
+   if grep -q '^context: *fork' /tmp/frontmatter.yaml; then
+       echo "⚠️ context:fork detected — streaming output will be suppressed"
+       echo "   --output-format stream-json and SDK receive_response() will"
+       echo "   produce zero events until the skill completes."
+       echo "   Remove context:fork unless this skill orchestrates background agents."
+   fi
+   ```
+
+8. **Check script path portability**
+
+   Find script references that won't resolve after marketplace install
+   (where cwd is the invoking project, not the plugin directory):
+   ```bash
+   # Scripts WITHOUT ${CLAUDE_SKILL_DIR} — will break after install
+   grep -E '(python3?|bash|sh|node) +[a-zA-Z]' "$skill_dir/SKILL.md" | \
+       grep -v 'CLAUDE_SKILL_DIR' | \
+       while read line; do
+           echo "⚠️ Script reference without \${CLAUDE_SKILL_DIR}: $line"
+           echo "   Will fail after marketplace install (cwd is not the plugin dir)"
+       done
+
+   # External script dependencies at repo root
    grep -E '(python3?|bash|sh|source|\.) (scripts?|\.\.)/[a-zA-Z0-9_\-/\.]+' "$skill_dir/SKILL.md" | \
        while read line; do
            script=$(echo "$line" | grep -oE '(scripts?|\.\.)/[a-zA-Z0-9_\-/\.]+')
-           
            if [ -f "$script" ]; then
                echo "⚠️ External script dependency: $script"
                echo "   This will NOT be available after marketplace installation"
@@ -248,7 +417,30 @@ When the user invokes this skill:
        done
    ```
 
-8. **Analyze runtime dependencies**
+9. **Check shared artifact directory safety**
+
+   Detect patterns that are unsafe for concurrent per-ticket jobs on a
+   shared filesystem:
+   ```bash
+   # Broad glob patterns that process all files
+   grep -E '(ls|for.*in|glob) .*\*\.md' "$skill_dir/SKILL.md" | \
+       grep -v 'RHAISTRAT-\*\|RHAIRFE-\*' | \
+       while read line; do
+           echo "⚠️ Broad glob pattern: $line"
+           echo "   Will process ALL files in directory — unsafe for concurrent per-ticket jobs"
+           echo "   Consider using a targeted prefix (e.g., RHAISTRAT-*.md)"
+       done
+
+   # Shared index file writes (read-then-rewrite pattern)
+   grep -E '(Write|write|>).*tickets\.(md|yaml|json)' "$skill_dir/SKILL.md" | \
+       while read line; do
+           echo "⚠️ Shared index file write: $line"
+           echo "   Read-then-rewrite will clobber under concurrent jobs"
+           echo "   Consider per-ticket files or symlinks instead"
+       done
+   ```
+
+10. **Analyze runtime dependencies**
    
    Detect file operations and script executions:
    ```bash
@@ -273,7 +465,7 @@ When the user invokes this skill:
    done
    ```
 
-9. **Determine marketplace compatibility**
+11. **Determine marketplace compatibility**
    
    Synthesize all findings:
    ```bash
@@ -312,7 +504,7 @@ When the user invokes this skill:
    fi
    ```
 
-10. **Generate summary report**
+12. **Generate summary report**
     
     Create a comprehensive summary with proper severity assessment:
     ```bash
@@ -381,7 +573,7 @@ When the user invokes this skill:
     echo "============================================================"
     ```
 
-11. **Categorize issues by severity**
+13. **Categorize issues by severity**
     
     **CRITICAL (skill is BROKEN and will not work):**
     - Missing frontmatter entirely
@@ -395,13 +587,19 @@ When the user invokes this skill:
     - Invalid variable substitution patterns
     - Missing optional fields
     - Invalid field values (model, effort, context)
+    - `context: fork` suppresses streaming output in CI/pipeline contexts
+    - Script references without `${CLAUDE_SKILL_DIR}` will break after marketplace install
+    - Broad glob patterns process all files in shared artifact directories
+    - Shared index file writes race under concurrent jobs
     
     **INFO (recommendations):**
     - Marketplace compatibility suggestions
     - Best practices for file organization
     - Optional field suggestions
+    - Use symlinks + targeted globs for shared artifact directories
+    - Use `${CLAUDE_SKILL_DIR}` for all script references
 
-12. **Provide actionable recommendations**
+14. **Provide actionable recommendations**
     
     Based on findings, suggest next steps with priority:
     
@@ -476,12 +674,31 @@ allowed-tools: "Read, Grep, Bash"
 ---
 ```
 
+### Example 4: CI/Pipeline Safety Issues
+```
+/skill-review .claude/skills/strategy-refine
+
+✅ Frontmatter valid
+⚠️ context:fork detected — streaming output will be suppressed
+⚠️ Script reference without ${CLAUDE_SKILL_DIR}: python3 scripts/frontmatter.py
+⚠️ Script reference without ${CLAUDE_SKILL_DIR}: python3 scripts/fetch_issue.py
+⚠️ Broad glob pattern: for f in artifacts/strat-tasks/*.md
+⚠️ REQUIRES FULL REPOSITORY CHECKOUT
+
+Recommendations:
+1. Remove context:fork — this skill does not orchestrate background agents
+2. Use ${CLAUDE_SKILL_DIR}/scripts/frontmatter.py for marketplace portability
+3. Change glob from *.md to RHAISTRAT-*.md for per-ticket safety
+4. Add symlink-based RFE→STRAT lookup in strategy-create for O(1) resolution
+```
+
 ## Notes
 
 - This skill encodes best practices from testing 38 skills across 5 plugins in the opendatahub-io/skills-registry
 - Validation rules based on Claude Code 2.1.109 behavior and Agent Skills specification
 - Runtime dependency detection may have false positives for generic words (filtered in analysis)
 - Marketplace compatibility is the key differentiator for skill distribution strategies
+- `context: fork`, script path portability, and shared artifact safety checks are based on real issues found running ederign/strat-creator skills as K8s pipeline jobs (see `bugs/eder-strat-skills-script.txt` and `bugs/eder-strat-skills-tracing.md`)
 
 ## See Also
 
