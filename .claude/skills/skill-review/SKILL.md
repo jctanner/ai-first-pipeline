@@ -35,9 +35,11 @@ If no directory specified, reviews the current working directory as a skill.
 - ❌ No dots: `strategy.refine` (use `strategy-refine`)
 
 **`name` field in frontmatter:**
-- Must be kebab-case (no spaces, capitals, underscores, or dots)
-- Should match the folder name
+- Maximum 64 characters
+- Must contain only lowercase letters, numbers, and hyphens
 - Must not contain "claude" or "anthropic" (reserved by Anthropic)
+- Must not contain XML tags
+- Should match the folder name
 
 ### 3. Frontmatter Field Validation
 - **name** (string, required): Skill name in kebab-case, must match directory name
@@ -72,9 +74,11 @@ The description is the most important field — it determines when Claude loads 
 - Too technical: "Implements the Project entity model with hierarchical relationships"
 
 ### 5. SKILL.md Size and Progressive Disclosure
-- ⚠️ SKILL.md should be under 5,000 words
+- ⚠️ SKILL.md body should be under 500 lines for optimal performance
+- If content exceeds 500 lines, split into separate files using progressive disclosure
 - Move detailed documentation to `references/` directory and link to it
-- Keep SKILL.md focused on core instructions
+- Keep references one level deep from SKILL.md (no nested references)
+- For reference files over 100 lines, include a table of contents at the top
 - Skills use a three-level progressive disclosure system:
   1. **Frontmatter** — always loaded, tells Claude when to use the skill
   2. **SKILL.md body** — loaded when skill is relevant
