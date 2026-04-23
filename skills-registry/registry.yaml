@@ -103,3 +103,51 @@ plugins:
       claude-code:
         install: "/plugin install strat-creator-fork@pipeline-staging"
     depends_on: []
+
+  - name: strat-creator-fix
+    description: >
+      Fork of strat-creator with concurrency fixes for per-ticket
+      filtering, symlink-based RFE-to-STRAT lookup, and targeted
+      glob patterns for shared artifact directory safety.
+    version: "0.1.0"
+    category: planning
+    tags: [strategy, jira, review, planning, concurrency]
+    author:
+      name: jctanner-opendatahub-io
+    source:
+      type: github
+      repo: jctanner-opendatahub-io/eder-strat-creator
+      ref: concurrency_fixes
+    strict: false
+    skills_dir: ./.claude/skills
+    homepage: https://github.com/jctanner-opendatahub-io/eder-strat-creator
+    repository: https://github.com/jctanner-opendatahub-io/eder-strat-creator
+    skills:
+      - name: strategy-create
+        description: Create strategies from approved RFEs
+        user-invocable: true
+      - name: strategy-refine
+        description: Refine strategies with dependencies and NFRs
+        user-invocable: true
+      - name: strategy-review
+        description: Adversarial review of strategies against rubric
+        user-invocable: true
+      - name: export-rubric
+        description: Export the scoring rubric
+        user-invocable: true
+      - name: strategy-architecture-review
+        description: Review strategy for architectural correctness
+        user-invocable: false
+      - name: strategy-feasibility-review
+        description: Review strategy for technical feasibility
+        user-invocable: false
+      - name: strategy-scope-review
+        description: Review strategy for appropriate scope
+        user-invocable: false
+      - name: strategy-testability-review
+        description: Review strategy for testability
+        user-invocable: false
+    harnesses:
+      claude-code:
+        install: "/plugin install strat-creator-fix@pipeline-staging"
+    depends_on: []

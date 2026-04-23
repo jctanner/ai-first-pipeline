@@ -47,6 +47,11 @@ skill_repos:
     ref: reorganize-scripts
     path: remote_skills/strat-creator-fork
     registry: strat-creator-fork@pipeline-staging
+  strat-creator-fix:
+    github: jctanner-opendatahub-io/eder-strat-creator
+    ref: concurrency_fixes
+    path: remote_skills/strat-creator-fix
+    registry: strat-creator-fix@pipeline-staging
 
 skills:
   # === Bug analysis (local skills, templated) ===
@@ -148,6 +153,13 @@ skills:
     allowed_tools: [Read, Glob, Grep, Bash]
     mcp_servers: [atlassian]
 
+  strat-breakdown:
+    skill: strat-breakdown
+    invoke: native
+    runner: cli
+    allowed_tools: [Read, Write, Bash]
+    mcp_servers: [atlassian]
+
   strat-security-review:
     skill: strat.security.review
     invoke: native
@@ -197,6 +209,29 @@ skills:
   strategy-review-fork:
     skill: strategy-review
     source: strat-creator-fork
+    invoke: native
+    runner: cli
+    allowed_tools: [Read, Write, Edit, Glob, Grep, Bash, Skill]
+
+  # === Strategy skills (jctanner-opendatahub-io/eder-strat-creator concurrency_fixes) ===
+  strategy-create-fix:
+    skill: strategy-create
+    source: strat-creator-fix
+    invoke: native
+    runner: cli
+    allowed_tools: [Read, Write, Edit, Glob, Grep, Bash, AskUserQuestion]
+    mcp_servers: [atlassian]
+
+  strategy-refine-fix:
+    skill: strategy-refine
+    source: strat-creator-fix
+    invoke: native
+    runner: cli
+    allowed_tools: [Read, Write, Edit, Glob, Grep]
+
+  strategy-review-fix:
+    skill: strategy-review
+    source: strat-creator-fix
     invoke: native
     runner: cli
     allowed_tools: [Read, Write, Edit, Glob, Grep, Bash, Skill]
