@@ -116,6 +116,8 @@ spec:
     - jira.local
     - dashboard.local
     - mlflow.local
+    - markovd.ai-pipeline.svc.cluster.local
+    - markovd.local
   issuerRef:
     name: internal-ca-issuer
     kind: Issuer

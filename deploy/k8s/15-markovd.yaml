@@ -1,0 +1,304 @@
+---
+# Certificate for markovd
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: markovd-tls
+  namespace: ai-pipeline
+spec:
+  secretName: markovd-tls
+  duration: 8760h
+  renewBefore: 720h
+  commonName: markovd.ai-pipeline.svc.cluster.local
+  dnsNames:
+    - markovd
+    - markovd.ai-pipeline
+    - markovd.ai-pipeline.svc
+    - markovd.ai-pipeline.svc.cluster.local
+    - markovd.local
+  ipAddresses:
+    - 192.168.56.10
+  privateKey:
+    algorithm: RSA
+    size: 2048
+  issuerRef:
+    name: internal-ca-issuer
+    kind: Issuer
+---
+# Ingress for markovd
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: markovd
+  namespace: ai-pipeline
+  annotations:
+    cert-manager.io/issuer: internal-ca-issuer
+    traefik.ingress.kubernetes.io/router.tls: "true"
+spec:
+  ingressClassName: traefik
+  tls:
+  - hosts:
+    - markovd.ai-pipeline.svc.cluster.local
+    - markovd.local
+    secretName: markovd-tls
+  rules:
+  - host: markovd.ai-pipeline.svc.cluster.local
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: markovd
+            port:
+              number: 8080
+  - host: markovd.local
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: markovd
+            port:
+              number: 8080
+---
+# Service for markovd
+apiVersion: v1
+kind: Service
+metadata:
+  name: markovd
+  namespace: ai-pipeline
+  labels:
+    app: markovd
+spec:
+  type: ClusterIP
+  selector:
+    app: markovd
+  ports:
+    - name: http
+      port: 8080
+      targetPort: 8081
+      protocol: TCP
+---
+# PVC for PostgreSQL data
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: markovd-pgdata
+  namespace: ai-pipeline
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 5Gi
+  storageClassName: local-path
+---
+# PostgreSQL Deployment
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: markovd-postgres
+  namespace: ai-pipeline
+  labels:
+    app: markovd-postgres
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: markovd-postgres
+  template:
+    metadata:
+      labels:
+        app: markovd-postgres
+    spec:
+      containers:
+      - name: postgres
+        image: docker.io/library/postgres:16
+        imagePullPolicy: IfNotPresent
+        ports:
+        - containerPort: 5432
+        env:
+        - name: POSTGRES_USER
+          value: markovd
+        - name: POSTGRES_PASSWORD
+          value: markovd
+        - name: POSTGRES_DB
+          value: markovd
+        volumeMounts:
+        - name: pgdata
+          mountPath: /var/lib/postgresql/data
+        resources:
+          requests:
+            memory: "256Mi"
+            cpu: "100m"
+          limits:
+            memory: "512Mi"
+            cpu: "500m"
+        readinessProbe:
+          exec:
+            command: ["pg_isready", "-U", "markovd"]
+          initialDelaySeconds: 5
+          periodSeconds: 5
+      volumes:
+      - name: pgdata
+        persistentVolumeClaim:
+          claimName: markovd-pgdata
+---
+# PostgreSQL Service
+apiVersion: v1
+kind: Service
+metadata:
+  name: markovd-postgres
+  namespace: ai-pipeline
+  labels:
+    app: markovd-postgres
+spec:
+  type: ClusterIP
+  selector:
+    app: markovd-postgres
+  ports:
+    - port: 5432
+      targetPort: 5432
+---
+# ServiceAccount for markovd
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: markovd
+  namespace: ai-pipeline
+---
+# Nginx config for markovd UI + API proxy
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: markovd-nginx-config
+  namespace: ai-pipeline
+data:
+  default.conf: |
+    server {
+        listen 8081;
+
+        location / {
+            root /srv/ui;
+            try_files $uri $uri/ /index.html;
+        }
+
+        location /api/ {
+            proxy_pass http://127.0.0.1:8080;
+            proxy_set_header Host $host;
+            proxy_set_header X-Real-IP $remote_addr;
+            proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+            proxy_set_header X-Forwarded-Proto $scheme;
+        }
+    }
+---
+# markovd Deployment
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: markovd
+  namespace: ai-pipeline
+  labels:
+    app: markovd
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: markovd
+  template:
+    metadata:
+      labels:
+        app: markovd
+    spec:
+      serviceAccountName: markovd
+      initContainers:
+      - name: copy-ui
+        image: markovd:latest
+        imagePullPolicy: Never
+        command: ["cp", "-r", "/srv/ui/.", "/shared/ui/"]
+        volumeMounts:
+        - name: ui-static
+          mountPath: /shared/ui
+      containers:
+      - name: markovd
+        image: markovd:latest
+        imagePullPolicy: Never
+        ports:
+        - name: api
+          containerPort: 8080
+          protocol: TCP
+        env:
+        - name: MARKOVD_PORT
+          value: "8080"
+        - name: MARKOVD_DB_URL
+          value: "postgres://markovd:markovd@markovd-postgres:5432/markovd?sslmode=disable"
+        - name: MARKOVD_JWT_SECRET
+          valueFrom:
+            secretKeyRef:
+              name: pipeline-secrets
+              key: MARKOVD_JWT_SECRET
+              optional: true
+        - name: MARKOVD_CALLBACK_TOKEN
+          valueFrom:
+            secretKeyRef:
+              name: pipeline-secrets
+              key: MARKOVD_CALLBACK_TOKEN
+              optional: true
+        - name: MARKOVD_CALLBACK_URL
+          value: "http://markovd.ai-pipeline.svc.cluster.local:8080/api/v1/events"
+        - name: MARKOVD_ADMIN_PASSWORD
+          value: "admin"
+        - name: MARKOVD_RUNNER
+          value: "kubernetes"
+        - name: MARKOVD_MARKOV_IMAGE
+          value: "markov:latest"
+        - name: MARKOVD_JOB_IMAGE_PULL_POLICY
+          value: "Never"
+        resources:
+          requests:
+            memory: "128Mi"
+            cpu: "100m"
+          limits:
+            memory: "512Mi"
+            cpu: "500m"
+        livenessProbe:
+          httpGet:
+            path: /api/v1/health
+            port: 8080
+          initialDelaySeconds: 10
+          periodSeconds: 10
+        readinessProbe:
+          httpGet:
+            path: /api/v1/health
+            port: 8080
+          initialDelaySeconds: 5
+          periodSeconds: 5
+      - name: nginx
+        image: docker.io/library/nginx:1-alpine
+        imagePullPolicy: IfNotPresent
+        ports:
+        - name: http
+          containerPort: 8081
+          protocol: TCP
+        volumeMounts:
+        - name: ui-static
+          mountPath: /srv/ui
+          readOnly: true
+        - name: nginx-config
+          mountPath: /etc/nginx/conf.d
+          readOnly: true
+        resources:
+          requests:
+            memory: "32Mi"
+            cpu: "50m"
+          limits:
+            memory: "128Mi"
+            cpu: "200m"
+      volumes:
+      - name: ui-static
+        emptyDir: {}
+      - name: nginx-config
+        configMap:
+          name: markovd-nginx-config

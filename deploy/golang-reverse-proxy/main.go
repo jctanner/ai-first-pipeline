@@ -49,6 +49,14 @@ var routes = []Route{
 		Host:    "mlflow.local",
 		Backend: "http://mlflow.ai-pipeline.svc.cluster.local:5000",
 	},
+	{
+		Host:    "markovd.ai-pipeline.svc.cluster.local",
+		Backend: "http://markovd.ai-pipeline.svc.cluster.local:8080",
+	},
+	{
+		Host:    "markovd.local",
+		Backend: "http://markovd.ai-pipeline.svc.cluster.local:8080",
+	},
 }
 
 func getBackend(host string) string {

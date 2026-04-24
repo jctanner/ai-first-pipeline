@@ -120,3 +120,41 @@ spec:
             name: pipeline-dashboard
             port:
               number: 5000
+---
+# Ingress for markovd
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: markovd-https
+  namespace: ai-pipeline
+  annotations:
+    cert-manager.io/issuer: internal-ca-issuer
+    traefik.ingress.kubernetes.io/router.tls: "true"
+spec:
+  ingressClassName: traefik
+  tls:
+  - hosts:
+    - markovd.ai-pipeline.svc.cluster.local
+    - markovd.local
+    secretName: markovd-tls
+  rules:
+  - host: markovd.ai-pipeline.svc.cluster.local
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: markovd
+            port:
+              number: 8080
+  - host: markovd.local
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: markovd
+            port:
+              number: 8080
