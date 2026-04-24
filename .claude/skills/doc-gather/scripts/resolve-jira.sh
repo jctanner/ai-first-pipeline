@@ -30,8 +30,8 @@ source "${SCRIPTS_DIR}/load-env.sh"
 TICKET_KEY="${1:?Usage: resolve-jira.sh <JIRA-KEY>}"
 
 # When MCP is not available, attempt to use the Jira REST API directly.
-# Requires JIRA_URL, JIRA_USER (or JIRA_EMAIL), JIRA_TOKEN environment variables.
-JIRA_URL="${JIRA_URL:-https://issues.redhat.com}"
+# Requires JIRA_URL (or JIRA_SERVER), JIRA_USER (or JIRA_EMAIL), JIRA_TOKEN environment variables.
+JIRA_URL="${JIRA_URL:-${JIRA_SERVER:-https://issues.redhat.com}}"
 JIRA_AUTH_USER="${JIRA_USER:-${JIRA_EMAIL:-}}"
 
 if [[ -z "${JIRA_AUTH_USER}" ]] || [[ -z "${JIRA_TOKEN:-}" ]]; then
