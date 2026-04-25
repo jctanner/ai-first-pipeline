@@ -267,7 +267,27 @@ Use `python3 ${CLAUDE_SKILL_DIR}/scripts/jira_ops.py create-issue '<JSON>'` to c
 - `customfield_10011`: Epic Name (same as summary)
 - `customfield_10855`: Target Version (mirror of fixVersions)
 
-After creation, output a summary table:
+After creation, output a summary table AND write a receipt artifact to
+`/app/artifacts/epic-receipts/{STRAT-KEY}.md`:
+
+```markdown
+---
+strat_key: RHAISTRAT-{key}
+created_at: "YYYY-MM-DDTHH:MM:SSZ"
+epics:
+  - key: RHOAIENG-XXXXX
+    title: "[Eng RHAISTRAT-{key}] ..."
+    type: eng
+  - key: RHOAIENG-XXXXX
+    title: "[QE RHAISTRAT-{key}] ..."
+    type: qe
+---
+```
+
+Create the `/app/artifacts/epic-receipts/` directory if it does not exist.
+This receipt file is used by the workflow engine to skip re-runs.
+
+Also output the summary table to stdout:
 ```
 ## Created Epics
 
@@ -276,6 +296,8 @@ After creation, output a summary table:
 | RHOAIENG-XXXXX | [Eng RHAISTRAT-{key}] ... | RHAISTRAT-{key} |
 | RHOAIENG-XXXXX | [QE RHAISTRAT-{key}] ... | RHAISTRAT-{key} |
 ```
+
+In `--dry-run` mode, do NOT write the receipt artifact.
 
 ## JIRA Field Reference
 

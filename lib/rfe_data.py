@@ -235,6 +235,8 @@ def load_strat_issues(
     if not tasks_dir.is_dir():
         return result
     for f in sorted(tasks_dir.glob("*.md")):
+        if f.is_symlink():
+            continue
         text = f.read_text(encoding="utf-8", errors="replace")
         meta, body = parse_frontmatter(text)
         # Use jira_key as the primary key (RHAISTRAT-*)
