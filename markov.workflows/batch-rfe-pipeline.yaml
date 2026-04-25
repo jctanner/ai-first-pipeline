@@ -200,6 +200,12 @@ workflows:
 
     steps:
 
+      - name: debug_stop
+        type: assert
+        that:
+          - "false"
+        msg: "DEBUG: per-ticket reached for {{ issue }} — stopping here"
+
       # ── Load phase ─────────────────────────────────────────
 
       - name: check_existing
