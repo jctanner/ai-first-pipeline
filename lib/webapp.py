@@ -3907,6 +3907,61 @@ SETTINGS = """
   </section>
 
   <section style="margin-top: 2rem;">
+    <h3>Data Volumes</h3>
+    <p style="color: #666; font-size: 0.9em;">Clear analysis data from shared volumes. This cannot be undone.</p>
+    <table>
+      <thead>
+        <tr>
+          <th style="width: 2em;"><input type="checkbox" id="vol-select-all" onchange="toggleVolSelectAll(this)"></th>
+          <th>Volume</th>
+          <th>Path</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><input type="checkbox" class="vol-select" value="issues"></td>
+          <td>Issues</td>
+          <td><code>/app/issues</code></td>
+        </tr>
+        <tr>
+          <td><input type="checkbox" class="vol-select" value="workspace"></td>
+          <td>Workspace</td>
+          <td><code>/app/workspace</code></td>
+        </tr>
+        <tr>
+          <td><input type="checkbox" class="vol-select" value="logs"></td>
+          <td>Logs</td>
+          <td><code>/app/logs</code></td>
+        </tr>
+        <tr>
+          <td><input type="checkbox" class="vol-select" value="artifacts"></td>
+          <td>Artifacts</td>
+          <td><code>/app/artifacts</code></td>
+        </tr>
+        <tr>
+          <td><input type="checkbox" class="vol-select" value="context"></td>
+          <td>Context</td>
+          <td><code>/app/.context</code></td>
+        </tr>
+      </tbody>
+    </table>
+    <button style="background:#c0392b; color:white; border:none; padding:0.4em 1.2em; border-radius:4px; cursor:pointer; margin-top:0.5rem;"
+            onclick="confirmClearVolumes()">Clear Selected</button>
+  </section>
+
+  <dialog id="clear-volumes-modal">
+    <article>
+      <h3>Clear Data Volumes</h3>
+      <p>This will <strong>permanently delete</strong> all contents from the following volumes:</p>
+      <p id="clear-volumes-list" style="max-height:200px; overflow-y:auto; font-size:0.85em;"></p>
+      <footer>
+        <button class="secondary" onclick="document.getElementById('clear-volumes-modal').close()">Cancel</button>
+        <button style="background:#c0392b; color:white; border:none;" onclick="executeClearVolumes()">Confirm &amp; Clear</button>
+      </footer>
+    </article>
+  </dialog>
+
+  <section style="margin-top: 2rem;">
     <details>
       <summary>About These Settings</summary>
       <div style="max-width: 800px; line-height: 1.6; padding: 1em 0;">
@@ -3922,6 +3977,43 @@ SETTINGS = """
     </details>
   </section>
 </div>
+{% endblock %}
+{% block scripts %}
+<script>
+function toggleVolSelectAll(master) {
+  document.querySelectorAll('.vol-select').forEach(cb => cb.checked = master.checked);
+}
+
+function confirmClearVolumes() {
+  const checked = document.querySelectorAll('.vol-select:checked');
+  if (checked.length === 0) { alert('No volumes selected.'); return; }
+  const names = Array.from(checked).map(cb => cb.value);
+  document.getElementById('clear-volumes-list').innerHTML =
+    names.map(n => '<code>' + n + '</code>').join('<br>');
+  document.getElementById('clear-volumes-modal').showModal();
+}
+
+function executeClearVolumes() {
+  const checked = document.querySelectorAll('.vol-select:checked');
+  const volumes = Array.from(checked).map(cb => cb.value);
+  fetch('/api/volumes/clear', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({volumes})
+  })
+  .then(r => r.json())
+  .then(data => {
+    document.getElementById('clear-volumes-modal').close();
+    const cleared = Object.entries(data.results)
+      .map(([k,v]) => k + ': ' + v.status + ' (' + v.deleted + ' items)')
+      .join('\\n');
+    let msg = 'Clear complete:\\n' + cleared;
+    if (data.errors.length) msg += '\\n\\nErrors:\\n' + data.errors.join('\\n');
+    alert(msg);
+  })
+  .catch(err => alert('Clear failed: ' + err));
+}
+</script>
 {% endblock %}
 """
 
@@ -5085,6 +5177,56 @@ def create_app() -> Flask:
             else:
                 results.append({"key": key, "model": mid, "status": "not_found"})
         return jsonify({"results": results})
+
+    @app.route("/api/volumes/clear", methods=["POST"])
+    def api_clear_volumes():
+        """Clear contents of shared data volumes."""
+        data = request.get_json()
+        requested = data.get("volumes", [])
+        volume_map = {
+            "issues": "/app/issues",
+            "workspace": "/app/workspace",
+            "logs": "/app/logs",
+            "artifacts": "/app/artifacts",
+            "context": "/app/.context",
+        }
+        results = {}
+        errors = []
+        for vol in requested:
+            path = volume_map.get(vol)
+            if not path:
+                errors.append(f"Unknown volume: {vol}")
+                continue
+            p = Path(path)
+            if not p.exists():
+                results[vol] = {"status": "empty", "deleted": 0}
+                continue
+            count = 0
+            try:
+                for child in list(p.iterdir()):
+                    if child.is_dir():
+                        for dirpath, _dirnames, filenames in os.walk(child):
+                            try:
+                                os.chmod(dirpath, stat.S_IRWXU)
+                            except (FileNotFoundError, OSError):
+                                pass
+                            for fn in filenames:
+                                try:
+                                    os.chmod(
+                                        os.path.join(dirpath, fn),
+                                        stat.S_IWUSR | stat.S_IRUSR,
+                                    )
+                                except (FileNotFoundError, OSError):
+                                    pass
+                        shutil.rmtree(child)
+                    else:
+                        child.unlink()
+                    count += 1
+                results[vol] = {"status": "cleared", "deleted": count}
+            except Exception as e:
+                errors.append(f"{vol}: {str(e)}")
+                results[vol] = {"status": "error", "deleted": count}
+        return jsonify({"results": results, "errors": errors})
 
     # =========================================================================
     # K8s Job Management APIs

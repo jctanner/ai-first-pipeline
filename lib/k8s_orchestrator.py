@@ -63,9 +63,9 @@ class PipelineOrchestrator:
         Returns:
             List of K8s Job objects
         """
-        label_selector = "app=pipeline-agent"
+        label_selector = None
         if phase:
-            label_selector += f",phase={phase}"
+            label_selector = f"phase={phase}"
 
         jobs = self.batch_v1.list_namespaced_job(
             namespace=self.namespace,

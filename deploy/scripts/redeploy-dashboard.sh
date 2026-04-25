@@ -9,7 +9,7 @@ echo
 
 # Step 1: Build Docker image inside Vagrant VM
 echo "[1/5] Building Docker image inside Vagrant VM..."
-vagrant ssh -c "cd /vagrant && sudo docker build -t ai-first-pipeline:latest . -q" || {
+vagrant ssh -c "cd /vagrant && sudo docker build -f deploy/dashboard/Dockerfile -t pipeline-dashboard:latest . -q" || {
     echo "ERROR: Docker build failed"
     exit 1
 }
@@ -18,7 +18,7 @@ echo
 
 # Step 2: Import image into k3s
 echo "[2/5] Importing image into k3s..."
-vagrant ssh -c "sudo docker save ai-first-pipeline:latest | sudo k3s ctr images import -" > /dev/null
+vagrant ssh -c "sudo docker save pipeline-dashboard:latest | sudo k3s ctr images import -" > /dev/null
 echo "✓ Image imported to k3s"
 echo
 

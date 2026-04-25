@@ -153,15 +153,15 @@ skills:
     allowed_tools: [Read, Glob, Grep, Bash]
     mcp_servers: [atlassian]
 
-  strat-breakdown:
-    skill: strat-breakdown
+  epic-create:
+    skill: epic-create
     invoke: native
     runner: cli
     allowed_tools: [Read, Write, Bash]
     mcp_servers: [atlassian]
 
   strat-security-review:
-    skill: strat.security.review
+    skill: strat-security-review
     invoke: native
     runner: cli
     allowed_tools: [Read, Write, Glob, Grep, Bash, Skill]
