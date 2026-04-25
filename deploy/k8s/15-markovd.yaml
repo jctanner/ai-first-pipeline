@@ -256,6 +256,8 @@ spec:
           value: "markov:latest"
         - name: MARKOVD_JOB_IMAGE_PULL_POLICY
           value: "Never"
+        - name: MARKOVD_JOB_SECRETS
+          value: "pipeline-secrets"
         resources:
           requests:
             memory: "128Mi"

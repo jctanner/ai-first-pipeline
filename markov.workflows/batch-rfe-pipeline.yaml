@@ -1,0 +1,475 @@
+---
+# Batch RFE pipeline — fetch all open RHAIRFE tickets and process each
+#
+# Demonstrates nested for_each: batch → per-ticket → per-epic
+# For single-ticket runs, set jql to "key = RHAIRFE-XXXX"
+
+entrypoint: batch-rfe-pipeline
+
+namespace: ai-pipeline
+
+forks: 5
+
+vars:
+  model: opus
+  jql: "project = RHAIRFE AND statusCategory != Done"
+  max_results: 50
+
+rules:
+  - name: rfe_auto_approve
+    description: "Auto-approve reviews with perfect scores"
+    salience: 100
+    when: "review_passed and review_score >= 8"
+    action: continue
+    set_fact:
+      rfe_auto_approved: true
+
+  - name: rfe_needs_attention
+    description: "Flag reviews that need human attention"
+    salience: 50
+    when: "review_passed and review_score >= 4 and review_score < 8"
+    action: pause
+    set_fact:
+      rfe_needs_attention: true
+
+  - name: rfe_reject
+    description: "Reject reviews with low scores"
+    salience: 200
+    when: "review_score < 4"
+    action: skip
+    set_fact:
+      rfe_rejected: true
+      reject_reason: "Review score below threshold"
+
+  - name: strat_skip_if_security_reviewed
+    description: "Skip security review if already done"
+    salience: 100
+    when: "strat_already_security_reviewed"
+    action: skip
+
+step_types:
+  agent_job:
+    base: k8s_job
+    description: "Run a pipeline-agent skill as a K8s Job"
+    job:
+      image: pipeline-agent:latest
+      backoff_limit: 0
+      ttl_seconds: 86400
+      service_account: pipeline-dashboard
+      init_containers:
+        - name: update-ca-trust
+          image: alpine:3.19
+          command: ["/bin/sh", "-c"]
+          args:
+            - |
+              set -ex
+              apk add --no-cache ca-certificates
+              if [ -f /tmp/ca-cert/ca.crt ]; then
+                mkdir -p /usr/local/share/ca-certificates
+                cp /tmp/ca-cert/ca.crt /usr/local/share/ca-certificates/internal-ca.crt
+                update-ca-certificates
+                cp /etc/ssl/certs/ca-certificates.crt /shared/ca-certificates.crt
+                echo "CA trust store updated successfully"
+              else
+                echo "No CA cert found, skipping"
+                cp /etc/ssl/certs/ca-certificates.crt /shared/ca-certificates.crt || touch /shared/ca-certificates.crt
+              fi
+          volume_mounts:
+            - name: ca-cert
+              mount_path: /tmp/ca-cert
+            - name: shared-ca
+              mount_path: /shared
+      env:
+        GOOGLE_APPLICATION_CREDENTIALS: /home/pipelineagent/.config/gcloud/credentials.json
+        MLFLOW_TRACKING_URI: http://mlflow.ai-pipeline.svc.cluster.local:5000
+      secrets:
+        - pipeline-secrets
+      volumes:
+        - name: pipeline-issues
+          mount: /app/issues
+          pvc: pipeline-issues
+        - name: pipeline-workspace
+          mount: /app/workspace
+          pvc: pipeline-workspace
+        - name: pipeline-logs
+          mount: /app/logs
+          pvc: pipeline-logs
+        - name: pipeline-artifacts
+          mount: /app/artifacts
+          pvc: pipeline-artifacts
+        - name: pipeline-context
+          mount: /app/.context
+          pvc: pipeline-context
+        - name: gcp-credentials
+          mount: /home/pipelineagent/.config/gcloud
+          secret: gcp-credentials
+          read_only: true
+        - name: shared-ca
+          mount: /shared
+          type: emptyDir
+          read_only: true
+        - name: ca-cert
+          type: configMap
+          config_map: internal-ca-cert
+      resources:
+        requests:
+          memory: 2Gi
+          cpu: 500m
+        limits:
+          memory: 8Gi
+          cpu: 2000m
+      affinity:
+        pod_affinity:
+          required:
+            match_labels:
+              app: pipeline-dashboard
+            topology_key: kubernetes.io/hostname
+
+# ====================================================================
+# Workflows
+# ====================================================================
+workflows:
+
+  # ------------------------------------------------------------------
+  # Batch entrypoint: fetch tickets, fan out to per-ticket pipeline
+  # ------------------------------------------------------------------
+  - name: batch-rfe-pipeline
+    description: "Fetch all open RFEs and process each through the full pipeline"
+
+    steps:
+
+      - name: fetch_tickets
+        type: shell_exec
+        params:
+          command: |
+            python3 -c '
+            import json, os, sys, urllib.request, urllib.parse, base64
+
+            server = os.environ["JIRA_SERVER"]
+            user = os.environ["JIRA_USER"]
+            token = os.environ["JIRA_TOKEN"]
+            jql = sys.argv[1]
+            max_results = int(sys.argv[2])
+
+            creds = base64.b64encode(f"{user}:{token}".encode()).decode()
+            headers = {"Authorization": f"Basic {creds}", "Content-Type": "application/json"}
+
+            issues = []
+            start = 0
+            while len(issues) < max_results:
+                batch = min(50, max_results - len(issues))
+                params = urllib.parse.urlencode({"jql": jql, "startAt": start, "maxResults": batch, "fields": "key"})
+                url = f"{server}/rest/api/2/search?{params}"
+                req = urllib.request.Request(url, headers=headers)
+                with urllib.request.urlopen(req) as resp:
+                    data = json.loads(resp.read())
+                for issue in data.get("issues", []):
+                    issues.append({"key": issue["key"]})
+                if start + batch >= data.get("total", 0):
+                    break
+                start += batch
+
+            json.dump(issues, sys.stdout)
+            ' '{{ jql }}' '{{ max_results }}'
+
+      - name: parse_tickets
+        type: set_fact
+        vars:
+          tickets: "{{ fetch_tickets.stdout | fromjson }}"
+
+      - name: process_tickets
+        for_each: "tickets"
+        for_each_key: "key"
+        for_each_sort: "key"
+        as: ticket
+        concurrency: 3
+        workflow: per-ticket
+        vars:
+          issue: "{{ ticket.key }}"
+          model: "{{ model }}"
+
+  # ------------------------------------------------------------------
+  # Per-ticket pipeline: full RFE → strategy → epic flow
+  # ------------------------------------------------------------------
+  - name: per-ticket
+    description: "Full RFE pipeline for a single issue"
+
+    vars:
+      issue: null
+      model: opus
+
+    steps:
+
+      # ── Load phase ─────────────────────────────────────────
+
+      - name: check_existing
+        type: load_artifact
+        artifacts:
+          review:
+            path: "/app/artifacts/rfe-reviews/{{ issue }}-review.md"
+            format: markdown
+            source: local
+            optional: true
+
+      - name: rfe_speedrun
+        type: agent_job
+        when: "check_existing.artifacts.review == None"
+        params:
+          command: ["/bin/bash"]
+          args:
+            - /app/scripts/run_skill.sh
+            - --skill
+            - rfe-speedrun
+            - --issue
+            - "{{ issue }}"
+            - --model
+            - "{{ model }}"
+
+      - name: load_rfe_results
+        type: load_artifact
+        artifacts:
+          task:
+            path: "/app/artifacts/rfe-tasks/{{ issue }}.md"
+            format: markdown
+            source: local
+          review:
+            path: "/app/artifacts/rfe-reviews/{{ issue }}-review.md"
+            format: markdown
+            source: local
+
+      - name: check_strat_exists
+        type: load_artifact
+        artifacts:
+          strat_task:
+            path: "/app/artifacts/strat-tasks/{{ issue }}.md"
+            format: markdown
+            source: local
+            optional: true
+
+      # ── Compute facts for gate evaluation ───────────────────
+
+      - name: eval_conditions
+        type: set_fact
+        vars:
+          review_passed: "load_rfe_results.artifacts.review.frontmatter.pass == true and load_rfe_results.artifacts.review.frontmatter.recommendation != 'reject'"
+          review_score: "{{ load_rfe_results.artifacts.review.frontmatter.score }}"
+          already_submitted: "load_rfe_results.artifacts.task.frontmatter.status == 'Submitted'"
+          strat_exists: "check_strat_exists.artifacts.strat_task != None"
+          strat_key: "{{ check_strat_exists.artifacts.strat_task.frontmatter.strat_id }}"
+
+      - name: load_strat_artifacts
+        type: load_artifact
+        when: "strat_exists"
+        artifacts:
+          strat_review:
+            path: "/app/artifacts/strat-reviews/{{ strat_key }}-review.md"
+            format: markdown
+            source: local
+            optional: true
+          security_review:
+            path: "/app/artifacts/security-reviews/{{ strat_key }}-security-review.md"
+            format: markdown
+            source: local
+            optional: true
+
+      - name: eval_strat_status
+        type: set_fact
+        vars:
+          strat_already_refined: "check_strat_exists.artifacts.strat_task.frontmatter.status == 'Refined'"
+          strat_already_reviewed: "load_strat_artifacts.artifacts.strat_review != None"
+          strat_already_security_reviewed: "load_strat_artifacts.artifacts.security_review != None"
+
+      # ── Gates ───────────────────────────────────────────────
+
+      - name: review_quality_gate
+        type: gate
+        rules:
+          - rfe_auto_approve
+          - rfe_needs_attention
+          - rfe_reject
+        on_pause:
+          notify: "#rfe-review"
+          message: "{{ issue }} needs human review (score: {{ review_score }}/8)"
+          timeout: 4h
+          on_timeout: skip
+
+      # ── Action phase ────────────────────────────────────────
+
+      - name: rfe_submit
+        type: agent_job
+        when: "not already_submitted and not rfe_rejected"
+        params:
+          command: ["/bin/bash"]
+          args:
+            - /app/scripts/run_skill.sh
+            - --skill
+            - rfe-submit
+            - --issue
+            - "{{ issue }}"
+            - --model
+            - "{{ model }}"
+
+      - name: add_strat_label
+        type: agent_job
+        when: "not strat_exists and not rfe_rejected"
+        params:
+          command: ["/bin/sh", "-c"]
+          args:
+            - |
+              curl -sfk -X PUT \
+                -H "Content-Type: application/json" \
+                -u "$JIRA_USER:$JIRA_TOKEN" \
+                "$JIRA_SERVER/rest/api/2/issue/{{ issue }}" \
+                -d '{"update":{"labels":[{"add":"strat-creator-3.5"}]}}'
+
+      - name: strategy_create
+        type: agent_job
+        when: "not strat_exists and not rfe_rejected"
+        params:
+          command: ["/bin/bash"]
+          args:
+            - /app/scripts/run_skill.sh
+            - --skill
+            - strategy-create
+            - --issue
+            - "{{ issue }}"
+            - --model
+            - "{{ model }}"
+
+      - name: strategy_refine
+        type: agent_job
+        when: "not rfe_rejected and not strat_already_refined"
+        params:
+          command: ["/bin/bash"]
+          args:
+            - /app/scripts/run_skill.sh
+            - --skill
+            - strategy-refine
+            - --issue
+            - "{{ issue }}"
+            - --model
+            - "{{ model }}"
+
+      - name: strategy_review
+        type: agent_job
+        when: "not rfe_rejected and not strat_already_reviewed"
+        params:
+          command: ["/bin/bash"]
+          args:
+            - /app/scripts/run_skill.sh
+            - --skill
+            - strategy-review
+            - --issue
+            - "{{ issue }}"
+            - --model
+            - "{{ model }}"
+
+      - name: load_strat_review_result
+        type: load_artifact
+        when: "strat_exists and not rfe_rejected"
+        artifacts:
+          strat_review_final:
+            path: "/app/artifacts/strat-reviews/{{ strat_key }}-review.md"
+            format: markdown
+            source: local
+
+      - name: eval_review_result
+        type: set_fact
+        when: "strat_exists and not rfe_rejected"
+        vars:
+          strat_review_passed: "load_strat_review_result.artifacts.strat_review_final.frontmatter.recommendation == 'approve'"
+
+      - name: security_review_gate
+        type: gate
+        rules:
+          - strat_skip_if_security_reviewed
+
+      - name: strat_security_review
+        type: agent_job
+        when: "not rfe_rejected and strat_review_passed and not strat_already_security_reviewed"
+        params:
+          command: ["/bin/bash"]
+          args:
+            - /app/scripts/run_skill.sh
+            - --skill
+            - strat-security-review
+            - --issue
+            - "{{ strat_key }}"
+            - --model
+            - "{{ model }}"
+
+      - name: load_security_review_result
+        type: load_artifact
+        when: "not rfe_rejected and strat_review_passed"
+        artifacts:
+          security_review_final:
+            path: "/app/artifacts/security-reviews/{{ strat_key }}-security-review.md"
+            format: markdown
+            source: local
+
+      - name: eval_security_result
+        type: set_fact
+        when: "not rfe_rejected and strat_review_passed"
+        vars:
+          security_review_passed: "load_security_review_result.artifacts.security_review_final.frontmatter.verdict == 'PASS'"
+
+      - name: check_epics_exist
+        type: load_artifact
+        when: "not rfe_rejected and strat_review_passed and security_review_passed"
+        artifacts:
+          epic_receipt:
+            path: "/app/artifacts/epic-receipts/{{ strat_key }}.md"
+            format: markdown
+            source: local
+            optional: true
+
+      - name: epic_create
+        type: agent_job
+        when: "not rfe_rejected and strat_review_passed and security_review_passed and check_epics_exist.artifacts.epic_receipt == None"
+        params:
+          command: ["/bin/bash"]
+          args:
+            - /app/scripts/run_skill.sh
+            - --skill
+            - epic-create
+            - --issue
+            - "{{ strat_key }}"
+            - --model
+            - "{{ model }}"
+
+      # ── Fan-out: per-epic workflows ─────────────────────────
+
+      - name: load_epic_receipt
+        type: load_artifact
+        when: "not rfe_rejected and strat_review_passed and security_review_passed"
+        artifacts:
+          receipt:
+            path: "/app/artifacts/epic-receipts/{{ strat_key }}.md"
+            format: markdown
+            source: local
+            optional: true
+
+      - name: per_epic_work
+        when: "load_epic_receipt.artifacts.receipt != None"
+        for_each: "load_epic_receipt.artifacts.receipt.frontmatter.epics"
+        for_each_key: "key"
+        for_each_sort: "key"
+        as: epic
+        concurrency: 3
+        workflow: epic-breakdown
+        vars:
+          epic_key: "{{ epic.key }}"
+          epic_type: "{{ epic.type }}"
+          epic_title: "{{ epic.title }}"
+          strat_key: "{{ strat_key }}"
+          model: "{{ model }}"
+
+  # ------------------------------------------------------------------
+  # Epic breakdown sub-workflow
+  # ------------------------------------------------------------------
+  - name: epic-breakdown
+    steps:
+      - name: start
+        type: shell_exec
+        params:
+          command: "echo 'Epic breakdown workflow started for {{ epic_key }} ({{ epic_type }}): {{ epic_title }}'"
