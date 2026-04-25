@@ -294,7 +294,7 @@ workflows:
 
       - name: load_strat_review_result
         type: load_artifact
-        when: "not rfe_rejected"
+        when: "strat_exists and not rfe_rejected"
         artifacts:
           strat_review_final:
             path: "/app/artifacts/strat-reviews/{{ strat_key }}-review.md"
@@ -303,7 +303,7 @@ workflows:
 
       - name: eval_review_result
         type: set_fact
-        when: "not rfe_rejected"
+        when: "strat_exists and not rfe_rejected"
         vars:
           strat_review_passed: "load_strat_review_result.artifacts.strat_review_final.frontmatter.recommendation == 'approve'"
 
