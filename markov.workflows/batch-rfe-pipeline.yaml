@@ -142,7 +142,7 @@ workflows:
         type: shell_exec
         params:
           command: |
-            python3 -c '
+            python -c '
             import json, os, sys, urllib.request, urllib.parse, base64
 
             server = os.environ["JIRA_SERVER"]
