@@ -77,28 +77,77 @@ The skill prompt expects the model to execute a multi-step pipeline
 (fetch → assess → review → write artifacts), but the model treats the
 config initialization as task completion.
 
-## Possible mitigations
+## Mitigation implemented
 
-1. **Post-execution validation in `run_skill.sh`**: Check that expected
-   artifacts exist before returning exit 0. Exit non-zero if missing,
-   so markov can detect the failure and retry.
+We implemented a **recursive retry sub-workflow** using markov's gate
+rules engine and recursive workflow calls. The pattern replaces the
+direct `rfe_speedrun` → `load_rfe_results` sequence with a retry loop
+that tolerates noop failures.
 
-2. **Make `load_rfe_results` artifacts optional**: Add `optional: true`
-   and guard downstream steps with `when` checks, so one bad ticket
-   doesn't kill the batch.
+### Design
 
-3. **Switch to SDK runner**: The SDK runner (`lib/agent_runner.py`)
-   manages the conversation loop programmatically and may be less
-   susceptible to early termination. The dashboard already supports
-   both CLI and SDK runners.
+The `per-ticket` workflow now calls `rfe-speedrun-retry` (max 3
+attempts) instead of running `rfe_speedrun` directly:
 
-4. **Retry at the workflow level**: Add a retry mechanism for
-   `rfe_speedrun` or `load_rfe_results` failures, though markov's
-   current `for_each` only retries on resume, not automatically.
+```
+per-ticket
+  └─ ensure_rfe_artifacts → rfe-speedrun-retry (retries_remaining: 3)
+       ├─ check_artifacts    — load task + review (both optional)
+       ├─ eval_retry_state   — set artifacts_ready boolean
+       ├─ retry_gate         — rules engine decides:
+       │    • artifacts exist (salience 200) → skip, done
+       │    • missing + retries > 0 (salience 100) → continue
+       │    • missing + retries = 0 (salience 150) → skip, mark failed
+       ├─ run_speedrun       — agent_job (only if needed)
+       ├─ decrement_retries  — retries_remaining - 1
+       └─ recurse            — calls rfe-speedrun-retry again
+```
+
+Three gate rules control the loop:
+
+| Rule | Salience | Condition | Action |
+|------|----------|-----------|--------|
+| `retry_artifacts_ready` | 200 | `artifacts_ready` | skip (done) |
+| `retry_exhausted` | 150 | `not artifacts_ready and retries_remaining <= 0` | skip (give up) |
+| `retry_continue` | 100 | `not artifacts_ready and retries_remaining > 0` | continue (retry) |
+
+After the retry sub-workflow returns, `load_rfe_results` loads both
+artifacts as `optional: true`. A `check_rfe_artifacts` fact
+(`rfe_artifacts_ready`) gates all downstream steps, so a ticket that
+failed all 3 attempts is silently skipped instead of crashing the batch.
+
+### Initial observations (markov-run-19ab5533, 10 tickets)
+
+- Tickets with existing artifacts (RHAIRFE-1, 101, 1000, 1007, 1016)
+  hit the retry gate, `retry_artifacts_ready` fires at salience 200,
+  and the sub-workflow exits immediately — no agent job spawned.
+- Tickets needing work enter the speedrun agent job as expected.
+- All 10 tickets dispatched at concurrency 10 simultaneously.
+- The gate rules engine correctly evaluates all three rules and picks
+  the highest-salience match.
+- No batch-level failures from missing artifacts.
+
+### Remaining concerns
+
+1. **Post-execution validation**: `run_skill.sh` still returns exit 0
+   on noop runs. Adding artifact existence checks to the script would
+   let markov detect failures earlier (non-zero exit → step failure →
+   immediate retry) rather than waiting for the recursive check.
+
+2. **SDK runner**: The CLI `--print` mode may be inherently more
+   susceptible to early termination than the SDK runner. The dashboard
+   supports both; switching the workflow to SDK could reduce noop
+   frequency.
+
+3. **Root cause**: The noop behavior correlates with high prompt cache
+   hit rates (14471 cache_r on the failing run vs 0 on successful
+   re-run), suggesting shared prompt caching across concurrent agents
+   on the same node may confuse the model's sense of task completion.
 
 ## Related
 
-- markov-run-2c224dcd also failed on RHAIRFE-1017 (same pattern, same
-  missing task artifact)
-- Both failures occurred mid-batch when many concurrent agents were
-  running
+- markov-run-2c224dcd failed on RHAIRFE-1017 (same noop pattern)
+- markov-run-6effe0d7 failed on RHAIRFE-1040 (same noop pattern)
+- Both failures occurred mid-batch with high concurrency
+- Manual re-run of RHAIRFE-1040 succeeded on second attempt,
+  confirming the failure is non-deterministic

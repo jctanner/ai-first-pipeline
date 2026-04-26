@@ -1,13 +1,50 @@
 ---
-# Batch RFE pipeline — fetch all open RHAIRFE tickets and process each
+# ====================================================================
+# Batch RFE Pipeline
+# ====================================================================
 #
-# Demonstrates nested for_each: batch → per-ticket → per-epic
-# For single-ticket runs, set jql to "key = RHAIRFE-XXXX"
+# End-to-end pipeline for processing RHAIRFE tickets through the full
+# agentic SDLC lifecycle:
+#
+#   1. Fetch open RHAIRFE tickets from Jira via JQL
+#   2. Fan out to per-ticket sub-workflows (for_each with stable keys)
+#   3. Per ticket: RFE speedrun → quality gate → strategy creation →
+#      strategy refinement → strategy review → security review →
+#      epic creation → per-epic fan-out
+#
+# Architecture:
+#
+#   batch-rfe-pipeline (entrypoint)
+#     └─ per-ticket (for_each over fetched tickets)
+#          ├─ rfe-speedrun-retry (recursive retry, max 3 attempts)
+#          ├─ review_quality_gate (rules engine: approve/pause/reject)
+#          ├─ strategy pipeline (create → refine → review)
+#          ├─ security_review_gate (skip if already reviewed)
+#          ├─ epic_create (conditional on strat + security approval)
+#          └─ epic-breakdown (for_each over created epics, stub)
+#
+# Idempotency:
+#   Every step checks for existing artifacts before doing work.
+#   Symlinks in strat-tasks/ map RFE keys to RHAISTRAT keys.
+#   Receipt artifacts in epic-receipts/ prevent duplicate epic creation.
+#   The rfe-speedrun-retry sub-workflow uses recursive gated retries
+#   to handle non-deterministic agent failures gracefully.
+#
+# Usage:
+#   # Process first 10 open tickets (default)
+#   markov run batch-rfe-pipeline.yaml
+#
+#   # Process a specific ticket
+#   markov run batch-rfe-pipeline.yaml --var jql="key = RHAIRFE-1985"
+#
+#   # Override concurrency and ticket count
+#   markov run batch-rfe-pipeline.yaml --var max_tickets=100 --forks 20
 
 entrypoint: batch-rfe-pipeline
 
 namespace: ai-pipeline
 
+# Global concurrency limit for all for_each fan-outs
 forks: 10
 
 vars:
@@ -15,7 +52,20 @@ vars:
   jql: "project = RHAIRFE AND statusCategory != Done"
   max_tickets: 10
 
+# ====================================================================
+# Rules
+# ====================================================================
+# Rules are evaluated by the Grule forward-chaining engine inside gate
+# steps. Multiple rules can fire per gate; the highest-salience fired
+# rule's action (continue/skip/pause) determines the gate outcome.
+# Facts set by any fired rule persist in the workflow context.
+
 rules:
+
+  # ── RFE quality gate rules ──────────────────────────────────────
+  # Used by review_quality_gate to route tickets based on review score.
+  # Higher salience wins: reject (200) > approve (100) > attention (50).
+
   - name: rfe_auto_approve
     description: "Auto-approve reviews with perfect scores"
     salience: 100
@@ -41,13 +91,18 @@ rules:
       rfe_rejected: true
       reject_reason: "Review score below threshold"
 
+  # ── Security review gate rules ──────────────────────────────────
+
   - name: strat_skip_if_security_reviewed
     description: "Skip security review if already done"
     salience: 100
     when: "strat_already_security_reviewed"
     action: skip
 
-  # Retry loop rules
+  # ── Retry loop rules ────────────────────────────────────────────
+  # Used by rfe-speedrun-retry to control recursive retry behavior.
+  # Highest salience wins: ready (200) > exhausted (150) > continue (100).
+
   - name: retry_artifacts_ready
     description: "Artifacts exist, no retry needed"
     salience: 200
@@ -72,6 +127,13 @@ rules:
     set_fact:
       retry_done: true
       retry_failed: true
+
+# ====================================================================
+# Step Types
+# ====================================================================
+# Custom step types that extend markov's built-in types. agent_job
+# extends k8s_job with the full pipeline-agent container spec including
+# all PVC mounts, secrets, init containers, and pod affinity.
 
 step_types:
   agent_job:
@@ -157,13 +219,23 @@ step_types:
 workflows:
 
   # ------------------------------------------------------------------
-  # Batch entrypoint: fetch tickets, fan out to per-ticket pipeline
+  # batch-rfe-pipeline (entrypoint)
+  #
+  # Fetches open RHAIRFE tickets from Jira, parses the JSON response,
+  # and fans out to per-ticket sub-workflows. The for_each uses stable
+  # domain keys (for_each_key: "key") and sorted iteration order
+  # (for_each_sort: "key") so that resume after failure replays the
+  # correct tickets.
   # ------------------------------------------------------------------
   - name: batch-rfe-pipeline
     description: "Fetch all open RFEs and process each through the full pipeline"
 
     steps:
 
+      # Fetch ticket keys from Jira REST API. Runs as shell_exec inside
+      # the markov pod (which has JIRA_* env vars from pipeline-secrets).
+      # Paginates in batches of 50 up to max_tickets. Output is a JSON
+      # array of {key: "RHAIRFE-XXXX"} objects on stdout.
       - name: fetch_tickets
         type: shell_exec
         register: fetch_tickets
@@ -203,11 +275,18 @@ workflows:
             json.dump(issues, sys.stdout)
             ' '{{ jql }}' '{{ max_tickets }}'
 
+      # Parse the JSON stdout from fetch_tickets into a list of dicts.
+      # The register field on fetch_tickets stores output in runCtx;
+      # fromjson deserializes the string into a native list for for_each.
       - name: parse_tickets
         type: set_fact
         vars:
           tickets: "{{ fetch_tickets.stdout | fromjson }}"
 
+      # Fan out to per-ticket sub-workflows. Each ticket gets its own
+      # sub-run with a stable ForEachKey (the Jira key, e.g. "RHAIRFE-1")
+      # so resume after failure retries only failed tickets, not all.
+      # Sorted by key for deterministic execution order.
       - name: process_tickets
         for_each: "tickets"
         for_each_key: "key"
@@ -220,7 +299,19 @@ workflows:
           model: "{{ model }}"
 
   # ------------------------------------------------------------------
-  # Per-ticket pipeline: full RFE → strategy → epic flow
+  # per-ticket
+  #
+  # Full RFE lifecycle for a single RHAIRFE ticket:
+  #   Phase 1: Ensure RFE artifacts exist (with retry)
+  #   Phase 2: Evaluate review quality and gate progression
+  #   Phase 3: Strategy creation, refinement, and review
+  #   Phase 4: Security review
+  #   Phase 5: Epic creation and per-epic fan-out
+  #
+  # All steps are idempotent — they check for existing artifacts before
+  # launching agent jobs. If rfe_artifacts_ready is false (speedrun
+  # failed after 3 retries), downstream steps are silently skipped
+  # rather than crashing the batch.
   # ------------------------------------------------------------------
   - name: per-ticket
     description: "Full RFE pipeline for a single issue"
@@ -231,8 +322,11 @@ workflows:
 
     steps:
 
-      # ── RFE speedrun with retry ────────────────────────────
+      # ── Phase 1: RFE artifact generation ───────────────────────
 
+      # Delegate to rfe-speedrun-retry, which recursively attempts the
+      # rfe-speedrun skill up to 3 times until both task and review
+      # artifacts exist. See the rfe-speedrun-retry workflow below.
       - name: ensure_rfe_artifacts
         workflow: rfe-speedrun-retry
         vars:
@@ -240,6 +334,9 @@ workflows:
           model: "{{ model }}"
           retries_remaining: 3
 
+      # Load the artifacts that rfe-speedrun should have produced.
+      # Both are optional so a failed speedrun (after 3 retries) won't
+      # crash the workflow — we check rfe_artifacts_ready below instead.
       - name: load_rfe_results
         type: load_artifact
         artifacts:
@@ -254,11 +351,17 @@ workflows:
             source: local
             optional: true
 
+      # Gate flag: if either artifact is missing, all downstream steps
+      # are skipped for this ticket. This prevents one bad ticket from
+      # failing the entire batch.
       - name: check_rfe_artifacts
         type: set_fact
         vars:
           rfe_artifacts_ready: "load_rfe_results.artifacts.task != None and load_rfe_results.artifacts.review != None"
 
+      # Check if a strategy already exists for this RFE. The strat-create
+      # skill writes a symlink at /app/artifacts/strat-tasks/{RFE-KEY}.md
+      # pointing to the actual RHAISTRAT-*.md file.
       - name: check_strat_exists
         type: load_artifact
         when: "rfe_artifacts_ready"
@@ -269,8 +372,12 @@ workflows:
             source: local
             optional: true
 
-      # ── Compute facts for gate evaluation ───────────────────
+      # ── Phase 2: Evaluate review quality ───────────────────────
 
+      # Extract key facts from the RFE artifacts for gate evaluation.
+      # review_passed and review_score feed the quality gate rules.
+      # strat_key extracts the RHAISTRAT-* identifier from the symlinked
+      # strat task's frontmatter (strat_id field).
       - name: eval_conditions
         type: set_fact
         when: "rfe_artifacts_ready"
@@ -281,6 +388,8 @@ workflows:
           strat_exists: "check_strat_exists.artifacts.strat_task != None"
           strat_key: "{{ check_strat_exists.artifacts.strat_task.frontmatter.strat_id }}"
 
+      # Load existing strat review and security review artifacts to
+      # determine which strategy steps can be skipped (idempotency).
       - name: load_strat_artifacts
         type: load_artifact
         when: "rfe_artifacts_ready and strat_exists"
@@ -296,6 +405,8 @@ workflows:
             source: local
             optional: true
 
+      # Compute idempotency flags for strategy steps. Each flag
+      # prevents re-running a step whose output already exists.
       - name: eval_strat_status
         type: set_fact
         vars:
@@ -303,8 +414,12 @@ workflows:
           strat_already_reviewed: "load_strat_artifacts.artifacts.strat_review != None"
           strat_already_security_reviewed: "load_strat_artifacts.artifacts.security_review != None"
 
-      # ── Gates ───────────────────────────────────────────────
+      # ── Quality gate ───────────────────────────────────────────
 
+      # Rules engine evaluates review_score against thresholds.
+      # score >= 8 → auto-approve (continue), 4-7 → needs attention
+      # (pause, currently a no-op), < 4 → reject (skip, sets
+      # rfe_rejected which blocks all downstream steps).
       - name: review_quality_gate
         type: gate
         rules:
@@ -312,8 +427,9 @@ workflows:
           - rfe_needs_attention
           - rfe_reject
 
-      # ── Action phase ────────────────────────────────────────
+      # ── Phase 3: Strategy pipeline ─────────────────────────────
 
+      # Submit the RFE to the RHAIRFE Jira project if not already done.
       - name: rfe_submit
         type: agent_job
         when: "rfe_artifacts_ready and not already_submitted and not rfe_rejected"
@@ -328,6 +444,9 @@ workflows:
             - --model
             - "{{ model }}"
 
+      # Tag the RFE ticket with the strat-creator label so the
+      # strategy skill knows to process it. Uses curl directly since
+      # this is a simple REST call, not a full agent invocation.
       - name: add_strat_label
         type: agent_job
         when: "rfe_artifacts_ready and not strat_exists and not rfe_rejected"
@@ -341,6 +460,9 @@ workflows:
                 "$JIRA_SERVER/rest/api/2/issue/{{ issue }}" \
                 -d '{"update":{"labels":[{"add":"strat-creator-3.5"}]}}'
 
+      # Create a RHAISTRAT strategy from the approved RFE. Uses the
+      # -fix variant (concurrency_fixes branch) which handles parallel
+      # execution correctly. Writes to /app/artifacts/strat-tasks/.
       - name: strategy_create
         type: agent_job
         when: "rfe_artifacts_ready and not strat_exists and not rfe_rejected"
@@ -355,6 +477,9 @@ workflows:
             - --model
             - "{{ model }}"
 
+      # Refine the strategy: add HOW details, dependencies, NFRs,
+      # effort estimates. Skipped if already refined (frontmatter
+      # status == 'Refined'). Updates the strat task in-place.
       - name: strategy_refine
         type: agent_job
         when: "not rfe_rejected and not strat_already_refined"
@@ -369,6 +494,9 @@ workflows:
             - --model
             - "{{ model }}"
 
+      # Adversarial review of the strategy. Scores across multiple
+      # dimensions and writes a recommendation (approve/revise/reject)
+      # to /app/artifacts/strat-reviews/{STRAT-KEY}-review.md.
       - name: strategy_review
         type: agent_job
         when: "not rfe_rejected and not strat_already_reviewed"
@@ -383,6 +511,8 @@ workflows:
             - --model
             - "{{ model }}"
 
+      # Load the final strat review to extract the recommendation.
+      # Not optional — if we got this far, the review should exist.
       - name: load_strat_review_result
         type: load_artifact
         when: "strat_exists and not rfe_rejected"
@@ -392,17 +522,25 @@ workflows:
             format: markdown
             source: local
 
+      # Extract the review recommendation for downstream gating.
       - name: eval_review_result
         type: set_fact
         when: "strat_exists and not rfe_rejected"
         vars:
           strat_review_passed: "load_strat_review_result.artifacts.strat_review_final.frontmatter.recommendation == 'approve'"
 
+      # ── Phase 4: Security review ───────────────────────────────
+
+      # Gate: skip if security review artifact already exists.
       - name: security_review_gate
         type: gate
         rules:
           - strat_skip_if_security_reviewed
 
+      # Run a security-focused threat assessment of the strategy.
+      # Writes verdict (PASS/CONCERNS/FAIL) to
+      # /app/artifacts/security-reviews/{STRAT-KEY}-security-review.md.
+      # Uses strat_key (not issue) since security reviews are per-strategy.
       - name: strat_security_review
         type: agent_job
         when: "not rfe_rejected and strat_review_passed and not strat_already_security_reviewed"
@@ -417,6 +555,7 @@ workflows:
             - --model
             - "{{ model }}"
 
+      # Load the security review result to check the verdict.
       - name: load_security_review_result
         type: load_artifact
         when: "not rfe_rejected and strat_review_passed"
@@ -426,12 +565,18 @@ workflows:
             format: markdown
             source: local
 
+      # Extract security verdict for epic creation gating.
       - name: eval_security_result
         type: set_fact
         when: "not rfe_rejected and strat_review_passed"
         vars:
           security_review_passed: "load_security_review_result.artifacts.security_review_final.frontmatter.verdict == 'PASS'"
 
+      # ── Phase 5: Epic creation and fan-out ─────────────────────
+
+      # Check for an existing epic receipt artifact. The epic-create
+      # skill writes this after creating epics, so its presence means
+      # epics already exist and we can skip creation.
       - name: check_epics_exist
         type: load_artifact
         when: "not rfe_rejected and strat_review_passed and security_review_passed"
@@ -442,6 +587,9 @@ workflows:
             source: local
             optional: true
 
+      # Create RHOAIENG epics from the approved strategy. Only runs if
+      # no receipt artifact exists (idempotent). The skill creates [Eng]
+      # and [QE] epics and writes a receipt listing the created keys.
       - name: epic_create
         type: agent_job
         when: "not rfe_rejected and strat_review_passed and security_review_passed and check_epics_exist.artifacts.epic_receipt == None"
@@ -456,8 +604,8 @@ workflows:
             - --model
             - "{{ model }}"
 
-      # ── Fan-out: per-epic workflows ─────────────────────────
-
+      # Load the receipt to get the list of created epics for fan-out.
+      # Optional because epic_create may have been skipped or failed.
       - name: load_epic_receipt
         type: load_artifact
         when: "not rfe_rejected and strat_review_passed and security_review_passed"
@@ -468,6 +616,10 @@ workflows:
             source: local
             optional: true
 
+      # Fan out a sub-workflow per epic. Uses for_each_key for stable
+      # iteration keys (RHOAIENG-XXXXX) and for_each_sort for
+      # deterministic order. Currently a stub — the epic-breakdown
+      # workflow will eventually create child tasks/stories per epic.
       - name: per_epic_work
         when: "load_epic_receipt.artifacts.receipt != None"
         for_each: "load_epic_receipt.artifacts.receipt.frontmatter.epics"
@@ -484,8 +636,22 @@ workflows:
           model: "{{ model }}"
 
   # ------------------------------------------------------------------
-  # RFE speedrun with retry — recurses until artifacts exist or
-  # retries exhausted
+  # rfe-speedrun-retry
+  #
+  # Recursive retry loop for the rfe-speedrun skill. The CLI runner
+  # (claude --print) occasionally produces a noop — the agent exits
+  # after setup without writing artifacts (see bugs/rfe-speedrun-noop.md).
+  #
+  # This workflow checks for the expected artifacts, and if missing,
+  # runs the speedrun and recurses with a decremented retry counter.
+  # Three gate rules control the loop:
+  #
+  #   artifacts_ready (salience 200) → skip, we're done
+  #   retry_exhausted (salience 150) → skip, give up gracefully
+  #   retry_continue  (salience 100) → continue, run again
+  #
+  # On exhaustion, the parent workflow's rfe_artifacts_ready flag will
+  # be false, silently skipping all downstream steps for this ticket.
   # ------------------------------------------------------------------
   - name: rfe-speedrun-retry
     vars:
@@ -494,6 +660,8 @@ workflows:
       retries_remaining: 3
 
     steps:
+
+      # Check if both required artifacts already exist on the PVC.
       - name: check_artifacts
         type: load_artifact
         artifacts:
@@ -508,11 +676,13 @@ workflows:
             source: local
             optional: true
 
+      # Compute a single boolean: do we have everything we need?
       - name: eval_retry_state
         type: set_fact
         vars:
           artifacts_ready: "check_artifacts.artifacts.task != None and check_artifacts.artifacts.review != None"
 
+      # Rules engine decides: skip (done or exhausted) or continue (retry).
       - name: retry_gate
         type: gate
         rules:
@@ -520,6 +690,8 @@ workflows:
           - retry_continue
           - retry_exhausted
 
+      # Run the rfe-speedrun agent job. Only fires if artifacts are
+      # missing and retries remain.
       - name: run_speedrun
         type: agent_job
         when: "not artifacts_ready and retries_remaining > 0"
@@ -534,12 +706,17 @@ workflows:
             - --model
             - "{{ model }}"
 
+      # Decrement the retry counter before recursing.
       - name: decrement_retries
         type: set_fact
         when: "not artifacts_ready and retries_remaining > 0"
         vars:
           retries_remaining: "{{ retries_remaining - 1 }}"
 
+      # Recurse: re-enter this workflow with the decremented counter.
+      # On re-entry, check_artifacts runs again to see if the speedrun
+      # wrote the files. If yes, retry_artifacts_ready fires and we
+      # exit. If no, we try again until retries_remaining hits 0.
       - name: recurse
         when: "not artifacts_ready and retries_remaining > 0"
         workflow: rfe-speedrun-retry
@@ -549,7 +726,11 @@ workflows:
           retries_remaining: "{{ retries_remaining }}"
 
   # ------------------------------------------------------------------
-  # Epic breakdown sub-workflow
+  # epic-breakdown (stub)
+  #
+  # Placeholder for per-epic work (creating child tasks, stories, and
+  # spikes). Will be replaced with a real skill invocation once the
+  # epic-breakdown skill is implemented.
   # ------------------------------------------------------------------
   - name: epic-breakdown
     steps:
