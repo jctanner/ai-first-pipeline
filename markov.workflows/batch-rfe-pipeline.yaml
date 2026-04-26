@@ -13,7 +13,7 @@ forks: 10
 vars:
   model: opus
   jql: "project = RHAIRFE AND statusCategory != Done"
-  max_tickets: 100
+  max_tickets: 10
 
 rules:
   - name: rfe_auto_approve
@@ -46,6 +46,32 @@ rules:
     salience: 100
     when: "strat_already_security_reviewed"
     action: skip
+
+  # Retry loop rules
+  - name: retry_artifacts_ready
+    description: "Artifacts exist, no retry needed"
+    salience: 200
+    when: "artifacts_ready"
+    action: skip
+    set_fact:
+      retry_done: true
+
+  - name: retry_continue
+    description: "Artifacts missing, retries remaining"
+    salience: 100
+    when: "not artifacts_ready and retries_remaining > 0"
+    action: continue
+    set_fact:
+      retry_done: false
+
+  - name: retry_exhausted
+    description: "Artifacts missing, no retries left"
+    salience: 150
+    when: "not artifacts_ready and retries_remaining <= 0"
+    action: skip
+    set_fact:
+      retry_done: true
+      retry_failed: true
 
 step_types:
   agent_job:
@@ -205,36 +231,14 @@ workflows:
 
     steps:
 
-      # - name: debug_stop
-      #   type: assert
-      #   that:
-      #     - "false"
-      #   msg: "DEBUG: per-ticket reached for {{ issue }} — stopping here"
+      # ── RFE speedrun with retry ────────────────────────────
 
-      # ── Load phase ─────────────────────────────────────────
-
-      - name: check_existing
-        type: load_artifact
-        artifacts:
-          review:
-            path: "/app/artifacts/rfe-reviews/{{ issue }}-review.md"
-            format: markdown
-            source: local
-            optional: true
-
-      - name: rfe_speedrun
-        type: agent_job
-        when: "check_existing.artifacts.review == None"
-        params:
-          command: ["/bin/bash"]
-          args:
-            - /app/scripts/run_skill.sh
-            - --skill
-            - rfe-speedrun
-            - --issue
-            - "{{ issue }}"
-            - --model
-            - "{{ model }}"
+      - name: ensure_rfe_artifacts
+        workflow: rfe-speedrun-retry
+        vars:
+          issue: "{{ issue }}"
+          model: "{{ model }}"
+          retries_remaining: 3
 
       - name: load_rfe_results
         type: load_artifact
@@ -243,13 +247,21 @@ workflows:
             path: "/app/artifacts/rfe-tasks/{{ issue }}.md"
             format: markdown
             source: local
+            optional: true
           review:
             path: "/app/artifacts/rfe-reviews/{{ issue }}-review.md"
             format: markdown
             source: local
+            optional: true
+
+      - name: check_rfe_artifacts
+        type: set_fact
+        vars:
+          rfe_artifacts_ready: "load_rfe_results.artifacts.task != None and load_rfe_results.artifacts.review != None"
 
       - name: check_strat_exists
         type: load_artifact
+        when: "rfe_artifacts_ready"
         artifacts:
           strat_task:
             path: "/app/artifacts/strat-tasks/{{ issue }}.md"
@@ -261,6 +273,7 @@ workflows:
 
       - name: eval_conditions
         type: set_fact
+        when: "rfe_artifacts_ready"
         vars:
           review_passed: "load_rfe_results.artifacts.review.frontmatter.pass == true and load_rfe_results.artifacts.review.frontmatter.recommendation != 'reject'"
           review_score: "{{ load_rfe_results.artifacts.review.frontmatter.score }}"
@@ -270,7 +283,7 @@ workflows:
 
       - name: load_strat_artifacts
         type: load_artifact
-        when: "strat_exists"
+        when: "rfe_artifacts_ready and strat_exists"
         artifacts:
           strat_review:
             path: "/app/artifacts/strat-reviews/{{ strat_key }}-review.md"
@@ -308,7 +321,7 @@ workflows:
 
       - name: rfe_submit
         type: agent_job
-        when: "not already_submitted and not rfe_rejected"
+        when: "rfe_artifacts_ready and not already_submitted and not rfe_rejected"
         params:
           command: ["/bin/bash"]
           args:
@@ -322,7 +335,7 @@ workflows:
 
       - name: add_strat_label
         type: agent_job
-        when: "not strat_exists and not rfe_rejected"
+        when: "rfe_artifacts_ready and not strat_exists and not rfe_rejected"
         params:
           command: ["/bin/sh", "-c"]
           args:
@@ -335,7 +348,7 @@ workflows:
 
       - name: strategy_create
         type: agent_job
-        when: "not strat_exists and not rfe_rejected"
+        when: "rfe_artifacts_ready and not strat_exists and not rfe_rejected"
         params:
           command: ["/bin/bash"]
           args:
@@ -474,6 +487,71 @@ workflows:
           epic_title: "{{ epic.title }}"
           strat_key: "{{ strat_key }}"
           model: "{{ model }}"
+
+  # ------------------------------------------------------------------
+  # RFE speedrun with retry — recurses until artifacts exist or
+  # retries exhausted
+  # ------------------------------------------------------------------
+  - name: rfe-speedrun-retry
+    vars:
+      issue: null
+      model: opus
+      retries_remaining: 3
+
+    steps:
+      - name: check_artifacts
+        type: load_artifact
+        artifacts:
+          task:
+            path: "/app/artifacts/rfe-tasks/{{ issue }}.md"
+            format: markdown
+            source: local
+            optional: true
+          review:
+            path: "/app/artifacts/rfe-reviews/{{ issue }}-review.md"
+            format: markdown
+            source: local
+            optional: true
+
+      - name: eval_retry_state
+        type: set_fact
+        vars:
+          artifacts_ready: "check_artifacts.artifacts.task != None and check_artifacts.artifacts.review != None"
+
+      - name: retry_gate
+        type: gate
+        rules:
+          - retry_artifacts_ready
+          - retry_continue
+          - retry_exhausted
+
+      - name: run_speedrun
+        type: agent_job
+        when: "not artifacts_ready and retries_remaining > 0"
+        params:
+          command: ["/bin/bash"]
+          args:
+            - /app/scripts/run_skill.sh
+            - --skill
+            - rfe-speedrun
+            - --issue
+            - "{{ issue }}"
+            - --model
+            - "{{ model }}"
+
+      - name: decrement_retries
+        type: set_fact
+        when: "not artifacts_ready and retries_remaining > 0"
+        vars:
+          retries_remaining: "{{ retries_remaining - 1 }}"
+
+      - name: recurse
+        when: "not artifacts_ready and retries_remaining > 0"
+        workflow: rfe-speedrun-retry
+        vars:
+          issue: "{{ issue }}"
+          model: "{{ model }}"
+          retries_remaining: "{{ retries_remaining }}"
 
   # ------------------------------------------------------------------
   # Epic breakdown sub-workflow
