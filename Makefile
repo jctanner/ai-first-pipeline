@@ -136,6 +136,34 @@ vagrant-describe-job: ## Describe last job (set JOB_NAME=<name> to specify)
 		vagrant ssh -c "kubectl describe -n ai-pipeline job/$(JOB_NAME)"; \
 	fi
 
+##@ Vagrant: Markov Management
+
+vagrant-markov-kill: ## Kill all running markov jobs and pods
+	@echo "==> Deleting all markov jobs..."
+	vagrant ssh -c "kubectl delete jobs -n ai-pipeline -l app=markov --wait=false 2>/dev/null" || true
+	@echo "==> Deleting any orphaned markov pods..."
+	vagrant ssh -c "kubectl delete pods -n ai-pipeline -l app=markov --wait=false 2>/dev/null" || true
+	@echo "✓ All markov jobs and pods deleted"
+
+vagrant-markov-status: ## Show markov run status
+	vagrant ssh -c "kubectl get jobs -n ai-pipeline -l app=markov --sort-by=.metadata.creationTimestamp | tail -20"
+
+vagrant-markov-logs: ## Follow markovd logs
+	vagrant ssh -c "kubectl logs -n ai-pipeline -l app=markovd -f"
+
+vagrant-rebuild-markovd: ## Rebuild and redeploy markovd
+	@echo "==> Building markovd image..."
+	vagrant ssh -c "cd /vagrant && bash deploy/scripts/05c-build-markovd.sh"
+	@echo "==> Restarting markovd..."
+	vagrant ssh -c "kubectl rollout restart deployment/markovd -n ai-pipeline"
+	vagrant ssh -c "kubectl rollout status deployment/markovd -n ai-pipeline --timeout=60s"
+	@echo "✓ markovd rebuilt and redeployed"
+
+vagrant-rebuild-markov: ## Rebuild markov CLI binary
+	@echo "==> Building markov CLI..."
+	vagrant ssh -c "cd /vagrant && bash deploy/scripts/05d-build-markov.sh"
+	@echo "✓ markov CLI rebuilt"
+
 ##@ Vagrant: Cleanup
 
 vagrant-delete-jobs: ## Delete all completed/failed jobs
@@ -189,6 +217,8 @@ security: ## Run security scans (gitleaks)
 
 rebuild-dashboard: vagrant-rebuild-dashboard ## Shortcut
 rebuild-agent: vagrant-rebuild-agent ## Shortcut
+rebuild-markovd: vagrant-rebuild-markovd ## Shortcut
 rebuild-all: vagrant-rebuild-all ## Shortcut
+markov-kill: vagrant-markov-kill ## Shortcut
 status: vagrant-status ## Shortcut
 logs: vagrant-logs-dashboard ## Shortcut
