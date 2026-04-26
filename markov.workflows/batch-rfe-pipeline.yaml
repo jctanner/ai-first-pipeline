@@ -341,7 +341,7 @@ workflows:
           args:
             - /app/scripts/run_skill.sh
             - --skill
-            - strategy-create
+            - strategy-create-fix
             - --issue
             - "{{ issue }}"
             - --model
@@ -355,7 +355,7 @@ workflows:
           args:
             - /app/scripts/run_skill.sh
             - --skill
-            - strategy-refine
+            - strategy-refine-fix
             - --issue
             - "{{ issue }}"
             - --model
@@ -369,7 +369,7 @@ workflows:
           args:
             - /app/scripts/run_skill.sh
             - --skill
-            - strategy-review
+            - strategy-review-fix
             - --issue
             - "{{ issue }}"
             - --model
