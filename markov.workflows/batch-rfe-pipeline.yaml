@@ -575,6 +575,26 @@ workflows:
             - --model
             - "{{ model }}"
 
+      # After strategy_create, the strat_key is still empty because
+      # eval_conditions ran before the create. Re-load the symlinked
+      # strat task to pick up the newly-created RHAISTRAT key.
+      - name: reload_strat_after_create
+        type: load_artifact
+        when: "rfe_artifacts_ready and not rfe_rejected"
+        artifacts:
+          strat_task_new:
+            path: "/app/artifacts/strat-tasks/{{ issue }}.md"
+            format: markdown
+            source: local
+            optional: true
+
+      - name: refresh_strat_key
+        type: set_fact
+        when: "rfe_artifacts_ready and not rfe_rejected"
+        vars:
+          strat_exists: "reload_strat_after_create.artifacts.strat_task_new != None"
+          strat_key: "{{ reload_strat_after_create.artifacts.strat_task_new.frontmatter.strat_id }}"
+
       # Refine the strategy: add HOW details, dependencies, NFRs,
       # effort estimates. Skipped if already refined (frontmatter
       # status == 'Refined'). Updates the strat task in-place.
