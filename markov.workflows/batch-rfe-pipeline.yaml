@@ -13,7 +13,7 @@ forks: 5
 vars:
   model: opus
   jql: "project = RHAIRFE AND statusCategory != Done"
-  max_results: 50
+  max_tickets: 100
 
 rules:
   - name: rfe_auto_approve
@@ -150,7 +150,7 @@ workflows:
             user = os.environ["JIRA_USER"]
             token = os.environ["JIRA_TOKEN"]
             jql = sys.argv[1]
-            max_results = int(sys.argv[2])
+            max_tickets = int(sys.argv[2])
 
             ctx = ssl.create_default_context()
             ctx.check_hostname = False
@@ -161,8 +161,8 @@ workflows:
 
             issues = []
             start = 0
-            while len(issues) < max_results:
-                batch = min(50, max_results - len(issues))
+            while len(issues) < max_tickets:
+                batch = min(50, max_tickets - len(issues))
                 params = urllib.parse.urlencode({"jql": jql, "startAt": start, "maxResults": batch, "fields": "key"})
                 url = f"{server}/rest/api/2/search?{params}"
                 req = urllib.request.Request(url, headers=headers)
@@ -175,7 +175,7 @@ workflows:
                 start += batch
 
             json.dump(issues, sys.stdout)
-            ' '{{ jql }}' '{{ max_results }}'
+            ' '{{ jql }}' '{{ max_tickets }}'
 
       - name: parse_tickets
         type: set_fact
