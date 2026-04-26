@@ -578,6 +578,8 @@ workflows:
       # Refine the strategy: add HOW details, dependencies, NFRs,
       # effort estimates. Skipped if already refined (frontmatter
       # status == 'Refined'). Updates the strat task in-place.
+      # Uses strat_key since the refine skill operates on the RHAISTRAT
+      # task file, not the source RFE.
       - name: strategy_refine
         type: agent_job
         when: "not rfe_rejected and not strat_already_refined"
@@ -588,13 +590,15 @@ workflows:
             - --skill
             - strategy-refine-fix
             - --issue
-            - "{{ issue }}"
+            - "{{ strat_key }}"
             - --model
             - "{{ model }}"
 
       # Adversarial review of the strategy. Scores across multiple
       # dimensions and writes a recommendation (approve/revise/reject)
       # to /app/artifacts/strat-reviews/{STRAT-KEY}-review.md.
+      # Uses strat_key (not issue) since the review skill expects a
+      # RHAISTRAT key, not an RFE key.
       - name: strategy_review
         type: agent_job
         when: "not rfe_rejected and not strat_already_reviewed"
@@ -605,7 +609,7 @@ workflows:
             - --skill
             - strategy-review-fix
             - --issue
-            - "{{ issue }}"
+            - "{{ strat_key }}"
             - --model
             - "{{ model }}"
 

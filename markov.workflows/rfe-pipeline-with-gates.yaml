@@ -269,7 +269,7 @@ workflows:
             - --skill
             - strategy-refine-fix
             - --issue
-            - "{{ issue }}"
+            - "{{ strat_key }}"
             - --model
             - "{{ model }}"
 
@@ -283,7 +283,7 @@ workflows:
             - --skill
             - strategy-review-fix
             - --issue
-            - "{{ issue }}"
+            - "{{ strat_key }}"
             - --model
             - "{{ model }}"
 
