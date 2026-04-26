@@ -31,6 +31,15 @@ rules:
     set_fact:
       rfe_needs_attention: true
 
+  - name: rfe_not_passing
+    description: "Block RFEs that failed review regardless of score"
+    salience: 150
+    when: "not review_passed"
+    action: skip
+    set_fact:
+      rfe_rejected: true
+      reject_reason: "Review did not pass"
+
   - name: rfe_reject
     description: "Reject reviews with low scores"
     salience: 200
@@ -214,6 +223,7 @@ workflows:
         rules:
           - rfe_auto_approve
           - rfe_needs_attention
+          - rfe_not_passing
           - rfe_reject
 
       # ── Action phase ────────────────────────────────────────
