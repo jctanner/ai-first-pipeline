@@ -23,9 +23,12 @@
 #          │    └─ per-ticket
 #          │         ├─ rfe-speedrun-retry (recursive, max 3 attempts)
 #          │         ├─ review_quality_gate (rules: approve/pause/reject)
-#          │         ├─ strategy pipeline (create → refine → review)
+#          │         ├─ strategy-create-retry (recursive, max 3 attempts)
+#          │         ├─ strategy-refine-retry (recursive, max 3 attempts)
+#          │         ├─ strategy-review-retry (recursive, max 3 attempts)
 #          │         ├─ security_review_gate (skip if already reviewed)
-#          │         ├─ epic_create (conditional on strat + security)
+#          │         ├─ security-review-retry (recursive, max 3 attempts)
+#          │         ├─ epic-create-retry (recursive, max 3 attempts)
 #          │         └─ epic-breakdown (for_each over created epics, stub)
 #          ├─ pagination_gate (rules: has_more / done)
 #          └─ next_page (recurse with offset += batch_size)
@@ -568,22 +571,13 @@ workflows:
                 "$JIRA_SERVER/rest/api/2/issue/{{ issue }}" \
                 -d '{"update":{"labels":[{"add":"strat-creator-3.5"}]}}'
 
-      # Create a RHAISTRAT strategy from the approved RFE. Uses the
-      # -fix variant (concurrency_fixes branch) which handles parallel
-      # execution correctly. Writes to /app/artifacts/strat-tasks/.
-      - name: strategy_create
-        type: agent_job
+      - name: ensure_strategy_created
         when: "rfe_artifacts_ready and not strat_exists and not rfe_rejected"
-        params:
-          command: ["/bin/bash"]
-          args:
-            - /app/scripts/run_skill.sh
-            - --skill
-            - strategy-create-fix
-            - --issue
-            - "{{ issue }}"
-            - --model
-            - "{{ model }}"
+        workflow: strategy-create-retry
+        vars:
+          issue: "{{ issue }}"
+          model: "{{ model }}"
+          retries_remaining: 3
 
       # After strategy_create, the strat_key is still empty because
       # eval_conditions ran before the create. Re-load the symlinked
@@ -605,43 +599,21 @@ workflows:
           strat_exists: "reload_strat_after_create.artifacts.strat_task_new != None"
           strat_key: "{{ reload_strat_after_create.artifacts.strat_task_new.frontmatter.strat_id }}"
 
-      # Refine the strategy: add HOW details, dependencies, NFRs,
-      # effort estimates. Skipped if already refined (frontmatter
-      # status == 'Refined'). Updates the strat task in-place.
-      # Uses strat_key since the refine skill operates on the RHAISTRAT
-      # task file, not the source RFE.
-      - name: strategy_refine
-        type: agent_job
+      - name: ensure_strategy_refined
         when: "strat_exists and not rfe_rejected and not strat_already_refined"
-        params:
-          command: ["/bin/bash"]
-          args:
-            - /app/scripts/run_skill.sh
-            - --skill
-            - strategy-refine-fix
-            - --issue
-            - "{{ strat_key }}"
-            - --model
-            - "{{ model }}"
+        workflow: strategy-refine-retry
+        vars:
+          strat_key: "{{ strat_key }}"
+          model: "{{ model }}"
+          retries_remaining: 3
 
-      # Adversarial review of the strategy. Scores across multiple
-      # dimensions and writes a recommendation (approve/revise/reject)
-      # to /app/artifacts/strat-reviews/{STRAT-KEY}-review.md.
-      # Uses strat_key (not issue) since the review skill expects a
-      # RHAISTRAT key, not an RFE key.
-      - name: strategy_review
-        type: agent_job
+      - name: ensure_strategy_reviewed
         when: "strat_exists and not rfe_rejected and not strat_already_reviewed"
-        params:
-          command: ["/bin/bash"]
-          args:
-            - /app/scripts/run_skill.sh
-            - --skill
-            - strategy-review-fix
-            - --issue
-            - "{{ strat_key }}"
-            - --model
-            - "{{ model }}"
+        workflow: strategy-review-retry
+        vars:
+          strat_key: "{{ strat_key }}"
+          model: "{{ model }}"
+          retries_remaining: 3
 
       # Load the final strat review to extract the recommendation.
       # Not optional — if we got this far, the review should exist.
@@ -670,23 +642,13 @@ workflows:
         rules:
           - strat_skip_if_security_reviewed
 
-      # Run a security-focused threat assessment of the strategy.
-      # Writes verdict (PASS/CONCERNS/FAIL) to
-      # /app/artifacts/security-reviews/{STRAT-KEY}-security-review.md.
-      # Uses strat_key (not issue) since security reviews are per-strategy.
-      - name: strat_security_review
-        type: agent_job
+      - name: ensure_security_reviewed
         when: "not rfe_rejected and strat_review_passed and not strat_already_security_reviewed"
-        params:
-          command: ["/bin/bash"]
-          args:
-            - /app/scripts/run_skill.sh
-            - --skill
-            - strat-security-review
-            - --issue
-            - "{{ strat_key }}"
-            - --model
-            - "{{ model }}"
+        workflow: security-review-retry
+        vars:
+          strat_key: "{{ strat_key }}"
+          model: "{{ model }}"
+          retries_remaining: 3
 
       # Load the security review result to check the verdict.
       - name: load_security_review_result
@@ -721,22 +683,13 @@ workflows:
             source: local
             optional: true
 
-      # Create RHOAIENG epics from the approved strategy. Only runs if
-      # no receipt artifact exists (idempotent). The skill creates [Eng]
-      # and [QE] epics and writes a receipt listing the created keys.
-      - name: epic_create
-        type: agent_job
+      - name: ensure_epics_created
         when: "not rfe_rejected and strat_review_passed and security_review_passed and check_epics_exist.artifacts.epic_receipt == None"
-        params:
-          command: ["/bin/bash"]
-          args:
-            - /app/scripts/run_skill.sh
-            - --skill
-            - epic-create
-            - --issue
-            - "{{ strat_key }}"
-            - --model
-            - "{{ model }}"
+        workflow: epic-create-retry
+        vars:
+          strat_key: "{{ strat_key }}"
+          model: "{{ model }}"
+          retries_remaining: 3
 
       # Load the receipt to get the list of created epics for fan-out.
       # Optional because epic_create may have been skipped or failed.
@@ -860,11 +813,302 @@ workflows:
           retries_remaining: "{{ retries_remaining }}"
 
   # ------------------------------------------------------------------
+  # strategy-create-retry
+  # ------------------------------------------------------------------
+  - name: strategy-create-retry
+    vars:
+      issue: null
+      model: opus
+      retries_remaining: 3
+
+    steps:
+      - name: check_artifacts
+        type: load_artifact
+        artifacts:
+          strat_task:
+            path: "/app/artifacts/strat-tasks/{{ issue }}.md"
+            format: markdown
+            source: local
+            optional: true
+
+      - name: eval_retry_state
+        type: set_fact
+        vars:
+          artifacts_ready: "check_artifacts.artifacts.strat_task != None"
+
+      - name: retry_gate
+        type: gate
+        rules:
+          - retry_artifacts_ready
+          - retry_continue
+          - retry_exhausted
+
+      - name: run_skill
+        type: agent_job
+        when: "not artifacts_ready and retries_remaining > 0"
+        params:
+          command: ["/bin/bash"]
+          args:
+            - /app/scripts/run_skill.sh
+            - --skill
+            - strategy-create-fix
+            - --issue
+            - "{{ issue }}"
+            - --model
+            - "{{ model }}"
+
+      - name: decrement_retries
+        type: set_fact
+        when: "not artifacts_ready and retries_remaining > 0"
+        vars:
+          retries_remaining: "{{ retries_remaining - 1 }}"
+
+      - name: recurse
+        when: "not artifacts_ready and retries_remaining > 0"
+        workflow: strategy-create-retry
+        vars:
+          issue: "{{ issue }}"
+          model: "{{ model }}"
+          retries_remaining: "{{ retries_remaining }}"
+
+  # ------------------------------------------------------------------
+  # strategy-refine-retry
+  # ------------------------------------------------------------------
+  - name: strategy-refine-retry
+    vars:
+      strat_key: null
+      model: opus
+      retries_remaining: 3
+
+    steps:
+      - name: check_artifacts
+        type: load_artifact
+        artifacts:
+          strat_task:
+            path: "/app/artifacts/strat-tasks/{{ strat_key }}.md"
+            format: markdown
+            source: local
+            optional: true
+
+      - name: eval_retry_state
+        type: set_fact
+        vars:
+          artifacts_ready: "check_artifacts.artifacts.strat_task != None and check_artifacts.artifacts.strat_task.frontmatter.status == 'Refined'"
+
+      - name: retry_gate
+        type: gate
+        rules:
+          - retry_artifacts_ready
+          - retry_continue
+          - retry_exhausted
+
+      - name: run_skill
+        type: agent_job
+        when: "not artifacts_ready and retries_remaining > 0"
+        params:
+          command: ["/bin/bash"]
+          args:
+            - /app/scripts/run_skill.sh
+            - --skill
+            - strategy-refine-fix
+            - --issue
+            - "{{ strat_key }}"
+            - --model
+            - "{{ model }}"
+
+      - name: decrement_retries
+        type: set_fact
+        when: "not artifacts_ready and retries_remaining > 0"
+        vars:
+          retries_remaining: "{{ retries_remaining - 1 }}"
+
+      - name: recurse
+        when: "not artifacts_ready and retries_remaining > 0"
+        workflow: strategy-refine-retry
+        vars:
+          strat_key: "{{ strat_key }}"
+          model: "{{ model }}"
+          retries_remaining: "{{ retries_remaining }}"
+
+  # ------------------------------------------------------------------
+  # strategy-review-retry
+  # ------------------------------------------------------------------
+  - name: strategy-review-retry
+    vars:
+      strat_key: null
+      model: opus
+      retries_remaining: 3
+
+    steps:
+      - name: check_artifacts
+        type: load_artifact
+        artifacts:
+          strat_review:
+            path: "/app/artifacts/strat-reviews/{{ strat_key }}-review.md"
+            format: markdown
+            source: local
+            optional: true
+
+      - name: eval_retry_state
+        type: set_fact
+        vars:
+          artifacts_ready: "check_artifacts.artifacts.strat_review != None"
+
+      - name: retry_gate
+        type: gate
+        rules:
+          - retry_artifacts_ready
+          - retry_continue
+          - retry_exhausted
+
+      - name: run_skill
+        type: agent_job
+        when: "not artifacts_ready and retries_remaining > 0"
+        params:
+          command: ["/bin/bash"]
+          args:
+            - /app/scripts/run_skill.sh
+            - --skill
+            - strategy-review-fix
+            - --issue
+            - "{{ strat_key }}"
+            - --model
+            - "{{ model }}"
+
+      - name: decrement_retries
+        type: set_fact
+        when: "not artifacts_ready and retries_remaining > 0"
+        vars:
+          retries_remaining: "{{ retries_remaining - 1 }}"
+
+      - name: recurse
+        when: "not artifacts_ready and retries_remaining > 0"
+        workflow: strategy-review-retry
+        vars:
+          strat_key: "{{ strat_key }}"
+          model: "{{ model }}"
+          retries_remaining: "{{ retries_remaining }}"
+
+  # ------------------------------------------------------------------
+  # security-review-retry
+  # ------------------------------------------------------------------
+  - name: security-review-retry
+    vars:
+      strat_key: null
+      model: opus
+      retries_remaining: 3
+
+    steps:
+      - name: check_artifacts
+        type: load_artifact
+        artifacts:
+          security_review:
+            path: "/app/artifacts/security-reviews/{{ strat_key }}-security-review.md"
+            format: markdown
+            source: local
+            optional: true
+
+      - name: eval_retry_state
+        type: set_fact
+        vars:
+          artifacts_ready: "check_artifacts.artifacts.security_review != None"
+
+      - name: retry_gate
+        type: gate
+        rules:
+          - retry_artifacts_ready
+          - retry_continue
+          - retry_exhausted
+
+      - name: run_skill
+        type: agent_job
+        when: "not artifacts_ready and retries_remaining > 0"
+        params:
+          command: ["/bin/bash"]
+          args:
+            - /app/scripts/run_skill.sh
+            - --skill
+            - strat-security-review
+            - --issue
+            - "{{ strat_key }}"
+            - --model
+            - "{{ model }}"
+
+      - name: decrement_retries
+        type: set_fact
+        when: "not artifacts_ready and retries_remaining > 0"
+        vars:
+          retries_remaining: "{{ retries_remaining - 1 }}"
+
+      - name: recurse
+        when: "not artifacts_ready and retries_remaining > 0"
+        workflow: security-review-retry
+        vars:
+          strat_key: "{{ strat_key }}"
+          model: "{{ model }}"
+          retries_remaining: "{{ retries_remaining }}"
+
+  # ------------------------------------------------------------------
+  # epic-create-retry
+  # ------------------------------------------------------------------
+  - name: epic-create-retry
+    vars:
+      strat_key: null
+      model: opus
+      retries_remaining: 3
+
+    steps:
+      - name: check_artifacts
+        type: load_artifact
+        artifacts:
+          epic_receipt:
+            path: "/app/artifacts/epic-receipts/{{ strat_key }}.md"
+            format: markdown
+            source: local
+            optional: true
+
+      - name: eval_retry_state
+        type: set_fact
+        vars:
+          artifacts_ready: "check_artifacts.artifacts.epic_receipt != None"
+
+      - name: retry_gate
+        type: gate
+        rules:
+          - retry_artifacts_ready
+          - retry_continue
+          - retry_exhausted
+
+      - name: run_skill
+        type: agent_job
+        when: "not artifacts_ready and retries_remaining > 0"
+        params:
+          command: ["/bin/bash"]
+          args:
+            - /app/scripts/run_skill.sh
+            - --skill
+            - epic-create
+            - --issue
+            - "{{ strat_key }}"
+            - --model
+            - "{{ model }}"
+
+      - name: decrement_retries
+        type: set_fact
+        when: "not artifacts_ready and retries_remaining > 0"
+        vars:
+          retries_remaining: "{{ retries_remaining - 1 }}"
+
+      - name: recurse
+        when: "not artifacts_ready and retries_remaining > 0"
+        workflow: epic-create-retry
+        vars:
+          strat_key: "{{ strat_key }}"
+          model: "{{ model }}"
+          retries_remaining: "{{ retries_remaining }}"
+
+  # ------------------------------------------------------------------
   # epic-breakdown (stub)
-  #
-  # Placeholder for per-epic work (creating child tasks, stories, and
-  # spikes). Will be replaced with a real skill invocation once the
-  # epic-breakdown skill is implemented.
   # ------------------------------------------------------------------
   - name: epic-breakdown
     steps:
