@@ -6,22 +6,29 @@
 # End-to-end pipeline for processing RHAIRFE tickets through the full
 # agentic SDLC lifecycle:
 #
-#   1. Fetch open RHAIRFE tickets from Jira via JQL
-#   2. Fan out to per-ticket sub-workflows (for_each with stable keys)
+#   1. Recursively paginate through open RHAIRFE tickets from Jira
+#   2. Per page: fan out to per-ticket sub-workflows (for_each)
 #   3. Per ticket: RFE speedrun → quality gate → strategy creation →
 #      strategy refinement → strategy review → security review →
 #      epic creation → per-epic fan-out
+#   4. After each page completes, recurse to fetch the next page
+#      until the entire backlog is drained
 #
 # Architecture:
 #
 #   batch-rfe-pipeline (entrypoint)
-#     └─ per-ticket (for_each over fetched tickets)
-#          ├─ rfe-speedrun-retry (recursive retry, max 3 attempts)
-#          ├─ review_quality_gate (rules engine: approve/pause/reject)
-#          ├─ strategy pipeline (create → refine → review)
-#          ├─ security_review_gate (skip if already reviewed)
-#          ├─ epic_create (conditional on strat + security approval)
-#          └─ epic-breakdown (for_each over created epics, stub)
+#     └─ batch-loop (recursive pagination, batch_size per page)
+#          ├─ fetch_page (Jira REST with startAt offset)
+#          ├─ process_tickets (for_each over this page's tickets)
+#          │    └─ per-ticket
+#          │         ├─ rfe-speedrun-retry (recursive, max 3 attempts)
+#          │         ├─ review_quality_gate (rules: approve/pause/reject)
+#          │         ├─ strategy pipeline (create → refine → review)
+#          │         ├─ security_review_gate (skip if already reviewed)
+#          │         ├─ epic_create (conditional on strat + security)
+#          │         └─ epic-breakdown (for_each over created epics, stub)
+#          ├─ pagination_gate (rules: has_more / done)
+#          └─ next_page (recurse with offset += batch_size)
 #
 # Idempotency:
 #   Every step checks for existing artifacts before doing work.
@@ -31,14 +38,17 @@
 #   to handle non-deterministic agent failures gracefully.
 #
 # Usage:
-#   # Process first 10 open tickets (default)
+#   # Process entire backlog in pages of 10 (default)
 #   markov run batch-rfe-pipeline.yaml
+#
+#   # Larger pages (20 tickets per batch)
+#   markov run batch-rfe-pipeline.yaml --var max_tickets=20
 #
 #   # Process a specific ticket
 #   markov run batch-rfe-pipeline.yaml --var jql="key = RHAIRFE-1985"
 #
-#   # Override concurrency and ticket count
-#   markov run batch-rfe-pipeline.yaml --var max_tickets=100 --forks 20
+#   # Override concurrency
+#   markov run batch-rfe-pipeline.yaml --forks 20
 
 entrypoint: batch-rfe-pipeline
 
@@ -98,6 +108,24 @@ rules:
     salience: 100
     when: "strat_already_security_reviewed"
     action: skip
+
+  # ── Batch loop rules ─────────────────────────────────────────────
+  # Used by batch-loop to control pagination through the Jira backlog.
+  # After each batch, check if more tickets exist beyond the current offset.
+
+  - name: batch_has_more
+    description: "More tickets remain in the Jira backlog"
+    salience: 100
+    when: "batch_offset < batch_total"
+    action: continue
+
+  - name: batch_done
+    description: "All tickets have been processed"
+    salience: 200
+    when: "batch_offset >= batch_total"
+    action: skip
+    set_fact:
+      batch_complete: true
 
   # ── Retry loop rules ────────────────────────────────────────────
   # Used by rfe-speedrun-retry to control recursive retry behavior.
@@ -221,24 +249,53 @@ workflows:
   # ------------------------------------------------------------------
   # batch-rfe-pipeline (entrypoint)
   #
-  # Fetches open RHAIRFE tickets from Jira, parses the JSON response,
-  # and fans out to per-ticket sub-workflows. The for_each uses stable
-  # domain keys (for_each_key: "key") and sorted iteration order
-  # (for_each_sort: "key") so that resume after failure replays the
-  # correct tickets.
+  # Thin wrapper that kicks off the recursive batch-loop workflow.
+  # The loop fetches tickets in pages of batch_size, processes each
+  # page via for_each, then recurses with an incremented offset until
+  # the entire Jira backlog is exhausted.
   # ------------------------------------------------------------------
   - name: batch-rfe-pipeline
-    description: "Fetch all open RFEs and process each through the full pipeline"
+    description: "Process all open RFEs through the full pipeline in paginated batches"
+
+    steps:
+      - name: start_batch_loop
+        workflow: batch-loop
+        vars:
+          jql: "{{ jql }}"
+          model: "{{ model }}"
+          batch_size: "{{ max_tickets }}"
+          batch_offset: 0
+
+  # ------------------------------------------------------------------
+  # batch-loop (recursive pagination)
+  #
+  # Each iteration:
+  #   1. Fetch one page of tickets (batch_size at batch_offset)
+  #   2. The fetch script returns {issues: [...], total: N}
+  #   3. Fan out per-ticket sub-workflows for this page
+  #   4. Advance the offset by the number of tickets fetched
+  #   5. Gate check: if offset >= total, stop; otherwise recurse
+  #
+  # This drains the entire Jira backlog without needing to know the
+  # total count up front. The batch_done gate rule (salience 200) stops
+  # the loop when all tickets have been paged through.
+  # ------------------------------------------------------------------
+  - name: batch-loop
+    vars:
+      jql: null
+      model: opus
+      batch_size: 10
+      batch_offset: 0
 
     steps:
 
-      # Fetch ticket keys from Jira REST API. Runs as shell_exec inside
-      # the markov pod (which has JIRA_* env vars from pipeline-secrets).
-      # Paginates in batches of 50 up to max_tickets. Output is a JSON
-      # array of {key: "RHAIRFE-XXXX"} objects on stdout.
-      - name: fetch_tickets
+      # Fetch one page of ticket keys from Jira. The script returns a
+      # JSON object with "issues" (array of {key: ...}) and "total"
+      # (the full result count from the JQL query). startAt controls
+      # pagination offset; maxResults is capped at batch_size.
+      - name: fetch_page
         type: shell_exec
-        register: fetch_tickets
+        register: fetch_page
         params:
           command: |
             python3 -c '
@@ -248,7 +305,8 @@ workflows:
             user = os.environ["JIRA_USER"]
             token = os.environ["JIRA_TOKEN"]
             jql = sys.argv[1]
-            max_tickets = int(sys.argv[2])
+            max_results = int(sys.argv[2])
+            start_at = int(sys.argv[3])
 
             ctx = ssl.create_default_context()
             ctx.check_hostname = False
@@ -258,37 +316,50 @@ workflows:
             headers = {"Authorization": f"Basic {creds}", "Content-Type": "application/json"}
 
             issues = []
-            start = 0
-            while len(issues) < max_tickets:
-                batch = min(50, max_tickets - len(issues))
-                params = urllib.parse.urlencode({"jql": jql, "startAt": start, "maxResults": batch, "fields": "key"})
+            total = 0
+            remaining = max_results
+            offset = start_at
+
+            while remaining > 0:
+                batch = min(50, remaining)
+                params = urllib.parse.urlencode({"jql": jql, "startAt": offset, "maxResults": batch, "fields": "key"})
                 url = f"{server}/rest/api/2/search?{params}"
                 req = urllib.request.Request(url, headers=headers)
                 with urllib.request.urlopen(req, context=ctx) as resp:
                     data = json.loads(resp.read())
-                for issue in data.get("issues", []):
+                total = data.get("total", 0)
+                page_issues = data.get("issues", [])
+                for issue in page_issues:
                     issues.append({"key": issue["key"]})
-                if start + batch >= data.get("total", 0):
+                if not page_issues or offset + batch >= total:
                     break
-                start += batch
+                offset += len(page_issues)
+                remaining -= len(page_issues)
 
-            json.dump(issues, sys.stdout)
-            ' '{{ jql }}' '{{ max_tickets }}'
+            json.dump({"issues": issues, "total": total}, sys.stdout)
+            ' '{{ jql }}' '{{ batch_size }}' '{{ batch_offset }}'
 
-      # Parse the JSON stdout from fetch_tickets into a list of dicts.
-      # The register field on fetch_tickets stores output in runCtx;
-      # fromjson deserializes the string into a native list for for_each.
-      - name: parse_tickets
+      # Parse the fetch output into a native object. fromjson
+      # deserializes the JSON string into a map with "issues" (list)
+      # and "total" (int). page_data.issues is referenced directly
+      # by the for_each below via resolveContextPath.
+      - name: parse_page
         type: set_fact
         vars:
-          tickets: "{{ fetch_tickets.stdout | fromjson }}"
+          page_data: "{{ fetch_page.stdout | fromjson }}"
 
-      # Fan out to per-ticket sub-workflows. Each ticket gets its own
-      # sub-run with a stable ForEachKey (the Jira key, e.g. "RHAIRFE-1")
-      # so resume after failure retries only failed tickets, not all.
-      # Sorted by key for deterministic execution order.
+      # Extract the total result count for the pagination gate.
+      # batch_total is the full Jira backlog size, not just this page.
+      - name: extract_total
+        type: set_fact
+        vars:
+          batch_total: "{{ page_data.total }}"
+
+      # Fan out to per-ticket sub-workflows for this page.
+      # page_data.issues resolves to the native list via context path
+      # resolution — no template rendering needed.
       - name: process_tickets
-        for_each: "tickets"
+        for_each: "page_data.issues"
         for_each_key: "key"
         for_each_sort: "key"
         as: ticket
@@ -297,6 +368,33 @@ workflows:
         vars:
           issue: "{{ ticket.key }}"
           model: "{{ model }}"
+
+      # Advance the offset past this page for the next iteration.
+      # batch_size is the page size (how many we requested), which
+      # matches the number fetched unless we're on the last page.
+      - name: advance_offset
+        type: set_fact
+        vars:
+          batch_offset: "{{ batch_offset + batch_size }}"
+
+      # Gate: check if more tickets remain in the backlog.
+      # batch_done (salience 200) fires when offset >= total → skip (stop).
+      # batch_has_more (salience 100) fires when offset < total → continue.
+      - name: pagination_gate
+        type: gate
+        rules:
+          - batch_has_more
+          - batch_done
+
+      # Recurse with the advanced offset to fetch the next page.
+      - name: next_page
+        when: "batch_offset < batch_total"
+        workflow: batch-loop
+        vars:
+          jql: "{{ jql }}"
+          model: "{{ model }}"
+          batch_size: "{{ batch_size }}"
+          batch_offset: "{{ batch_offset }}"
 
   # ------------------------------------------------------------------
   # per-ticket
