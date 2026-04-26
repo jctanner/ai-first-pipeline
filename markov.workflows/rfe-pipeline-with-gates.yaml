@@ -261,7 +261,7 @@ workflows:
 
       - name: strategy_refine
         type: agent_job
-        when: "not rfe_rejected and not strat_already_refined"
+        when: "strat_exists and not rfe_rejected and not strat_already_refined"
         params:
           command: ["/bin/bash"]
           args:
@@ -275,7 +275,7 @@ workflows:
 
       - name: strategy_review
         type: agent_job
-        when: "not rfe_rejected and not strat_already_reviewed"
+        when: "strat_exists and not rfe_rejected and not strat_already_reviewed"
         params:
           command: ["/bin/bash"]
           args:
