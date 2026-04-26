@@ -36,7 +36,7 @@ Vagrant.configure("2") do |config|
   #end
 
   config.vm.provider "libvirt" do |lv|
-    lv.memory = 8192
+    lv.memory = 32768
     lv.cpus = 8
     lv.nested = true
     lv.machine_virtual_size = 100  # 100GB disk
