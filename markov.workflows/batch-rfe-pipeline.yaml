@@ -140,6 +140,7 @@ workflows:
 
       - name: fetch_tickets
         type: shell_exec
+        register: fetch_tickets
         params:
           command: |
             python3 -c '
