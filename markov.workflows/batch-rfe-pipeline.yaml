@@ -62,7 +62,7 @@ forks: 10
 
 vars:
   model: opus
-  jql: "project = RHAIRFE AND statusCategory != Done"
+  jql: "project = RHAIRFE AND statusCategory != Done ORDER BY created DESC"
   max_tickets: 10
 
 # ====================================================================
@@ -373,7 +373,6 @@ workflows:
       - name: process_tickets
         for_each: "page_data.issues"
         for_each_key: "key"
-        for_each_sort: "key"
         as: ticket
         concurrency: 10
         workflow: per-ticket
