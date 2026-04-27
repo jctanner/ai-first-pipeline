@@ -481,6 +481,11 @@ workflows:
             format: markdown
             source: local
             optional: true
+          strat_skipped:
+            path: "/app/artifacts/strat-skipped/{{ issue }}.md"
+            format: markdown
+            source: local
+            optional: true
 
       # ── Phase 2: Evaluate review quality ───────────────────────
 
@@ -496,6 +501,7 @@ workflows:
           review_score: "{{ load_rfe_results.artifacts.review.frontmatter.score }}"
           already_submitted: "load_rfe_results.artifacts.task.frontmatter.status == 'Submitted'"
           strat_exists: "check_strat_exists.artifacts.strat_task != None"
+          strat_skipped: "check_strat_exists.artifacts.strat_skipped != None"
           strat_key: "{{ check_strat_exists.artifacts.strat_task.frontmatter.strat_id }}"
 
       # Load existing strat review and security review artifacts to
@@ -560,7 +566,7 @@ workflows:
       # this is a simple REST call, not a full agent invocation.
       - name: add_strat_label
         type: agent_job
-        when: "rfe_artifacts_ready and not strat_exists and not rfe_rejected"
+        when: "rfe_artifacts_ready and not strat_exists and not strat_skipped and not rfe_rejected"
         params:
           command: ["/bin/sh", "-c"]
           args:
@@ -572,7 +578,7 @@ workflows:
                 -d '{"update":{"labels":[{"add":"strat-creator-3.5"}]}}'
 
       - name: ensure_strategy_created
-        when: "rfe_artifacts_ready and not strat_exists and not rfe_rejected"
+        when: "rfe_artifacts_ready and not strat_exists and not strat_skipped and not rfe_rejected"
         workflow: strategy-create-retry
         vars:
           issue: "{{ issue }}"
@@ -584,19 +590,25 @@ workflows:
       # strat task to pick up the newly-created RHAISTRAT key.
       - name: reload_strat_after_create
         type: load_artifact
-        when: "rfe_artifacts_ready and not rfe_rejected"
+        when: "rfe_artifacts_ready and not strat_skipped and not rfe_rejected"
         artifacts:
           strat_task_new:
             path: "/app/artifacts/strat-tasks/{{ issue }}.md"
             format: markdown
             source: local
             optional: true
+          strat_skipped_new:
+            path: "/app/artifacts/strat-skipped/{{ issue }}.md"
+            format: markdown
+            source: local
+            optional: true
 
       - name: refresh_strat_key
         type: set_fact
-        when: "rfe_artifacts_ready and not rfe_rejected"
+        when: "rfe_artifacts_ready and not strat_skipped and not rfe_rejected"
         vars:
           strat_exists: "reload_strat_after_create.artifacts.strat_task_new != None"
+          strat_skipped: "reload_strat_after_create.artifacts.strat_skipped_new != None"
           strat_key: "{{ reload_strat_after_create.artifacts.strat_task_new.frontmatter.strat_id }}"
 
       - name: ensure_strategy_refined
@@ -830,11 +842,16 @@ workflows:
             format: markdown
             source: local
             optional: true
+          strat_skipped:
+            path: "/app/artifacts/strat-skipped/{{ issue }}.md"
+            format: markdown
+            source: local
+            optional: true
 
       - name: eval_retry_state
         type: set_fact
         vars:
-          artifacts_ready: "check_artifacts.artifacts.strat_task != None"
+          artifacts_ready: "check_artifacts.artifacts.strat_task != None or check_artifacts.artifacts.strat_skipped != None"
 
       - name: retry_gate
         type: gate
