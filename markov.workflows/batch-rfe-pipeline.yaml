@@ -564,17 +564,15 @@ workflows:
       # strategy skill knows to process it. Uses curl directly since
       # this is a simple REST call, not a full agent invocation.
       - name: add_strat_label
-        type: agent_job
+        type: shell_exec
         when: "rfe_artifacts_ready and not strat_exists and not strat_skipped and not rfe_rejected"
         params:
-          command: ["/bin/sh", "-c"]
-          args:
-            - |
-              curl -sfk -X PUT \
-                -H "Content-Type: application/json" \
-                -u "$JIRA_USER:$JIRA_TOKEN" \
-                "$JIRA_SERVER/rest/api/2/issue/{{ issue }}" \
-                -d '{"update":{"labels":[{"add":"strat-creator-3.5"}]}}'
+          command: |
+            curl -sfk -X PUT \
+              -H "Content-Type: application/json" \
+              -u "$JIRA_USER:$JIRA_TOKEN" \
+              "$JIRA_SERVER/rest/api/2/issue/{{ issue }}" \
+              -d '{"update":{"labels":[{"add":"strat-creator-3.5"}]}}'
 
       - name: ensure_strategy_created
         when: "rfe_artifacts_ready and not strat_exists and not strat_skipped and not rfe_rejected"

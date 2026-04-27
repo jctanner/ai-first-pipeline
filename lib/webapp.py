@@ -18,7 +18,7 @@ from lib.report_data import (
     compute_summary_stats, compute_component_readiness,
 )
 from lib.paths import discover_models, model_workspace
-from lib.rfe_data import load_rfe_issues, load_single_rfe, load_strat_issues, load_single_strat
+from lib.rfe_data import load_rfe_issues, load_single_rfe, load_strat_issues, load_single_strat, load_epic_issues
 from lib.stats import compute_all_stats
 
 # K8s orchestration (imported lazily to avoid requiring K8s client when not needed)
@@ -360,6 +360,7 @@ DASHBOARD = """\
   <button class="active" onclick="switchTab('all')">All Issues ({{ all_issues|length }})</button>
   <button onclick="switchTab('rfes')">RFEs ({{ rfe_issues|length }})</button>
   <button onclick="switchTab('strategies')">Strategies ({{ strat_issues|length }})</button>
+  <button onclick="switchTab('epics')">Epics ({{ epic_issues|length }})</button>
   <button onclick="switchTab('bugs')">Bugs ({{ rows|length }})</button>
 </div>
 
@@ -371,6 +372,9 @@ DASHBOARD = """\
 </div>
 <div id="tab-strategies" class="tab-panel">
   {% include "tab_strategies.html" %}
+</div>
+<div id="tab-epics" class="tab-panel">
+  {% include "tab_epics.html" %}
 </div>
 <div id="tab-bugs" class="tab-panel">
   {% include "tab_bugs.html" %}
@@ -588,6 +592,7 @@ setupSorting('all-table', 1);
 setupSorting('issues-table', 1);
 setupSorting('rfe-table', 0);
 setupSorting('strat-table', 0);
+setupSorting('epic-table', 0);
 </script>
 {% endblock %}
 """
@@ -1515,6 +1520,63 @@ TAB_STRATEGIES = """\
       <td data-sort-value="{{ rc.medium|default(0) }}">
         <span class="{{ 'score-yellow' if rc.medium|default(0) > 0 else '' }}">{{ rc.medium|default(0) }}</span>
       </td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+</div>
+"""
+
+TAB_EPICS = """\
+<h2>Epics (<span id="epic-row-count">{{ epic_issues|length }}</span>)</h2>
+<div class="filter-bar" id="epic-filter-bar">
+  <label>
+    Type
+    <select data-attr="epictype" onchange="applyTabFilters('epic-table','epic-filter-bar','epic-row-count')">
+      <option value="">All</option>
+      {% for v in epic_types %}<option value="{{ v }}">{{ v }}</option>{% endfor %}
+    </select>
+  </label>
+  <label>
+    Strategy
+    <select data-attr="stratkey" onchange="applyTabFilters('epic-table','epic-filter-bar','epic-row-count')">
+      <option value="">All</option>
+      {% for v in epic_strat_keys %}<option value="{{ v }}">{{ v }}</option>{% endfor %}
+    </select>
+  </label>
+  <label>
+    Search
+    <input type="text" oninput="applyTabFilters('epic-table','epic-filter-bar','epic-row-count')" placeholder="text search&hellip;" style="margin-bottom:0; padding:0.4em 0.6em;">
+  </label>
+</div>
+<div style="overflow-x:auto;">
+<table role="grid" id="epic-table">
+  <thead>
+    <tr>
+      <th class="sortable" data-col="0">Key</th>
+      <th class="sortable" data-col="1">Title</th>
+      <th class="sortable" data-col="2">Type</th>
+      <th class="sortable" data-col="3">Parent Strategy</th>
+      <th class="sortable" data-col="4">Created</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for ep in epic_issues %}
+    <tr
+      data-epictype="{{ ep.type|default('') }}"
+      data-stratkey="{{ ep.strat_key|default('') }}"
+    >
+      <td><a href="https://issues.redhat.com/browse/{{ ep.key }}">{{ ep.key }}</a></td>
+      <td class="truncate" title="{{ ep.title|default('') }}">{{ ep.title|default('')|truncate(80) }}</td>
+      <td>
+        {% if ep.type == 'eng' %}<span class="badge badge-rec-approve">eng</span>
+        {% elif ep.type == 'qe' %}<span class="badge badge-sec-concerns">qe</span>
+        {% elif ep.type == 'integration' %}<span class="badge badge-tier-2">integration</span>
+        {% else %}<span class="badge">{{ ep.type }}</span>
+        {% endif %}
+      </td>
+      <td><a href="/strat/{{ ep.strat_key }}">{{ ep.strat_key }}</a></td>
+      <td>{{ ep.created_at|default('&mdash;'|safe) }}</td>
     </tr>
     {% endfor %}
   </tbody>
@@ -4716,6 +4778,7 @@ def create_app() -> Flask:
             "tab_rfes.html": TAB_RFES,
             "rfe_detail.html": RFE_DETAIL,
             "tab_strategies.html": TAB_STRATEGIES,
+            "tab_epics.html": TAB_EPICS,
             "settings.html": SETTINGS,
             "jobs.html": JOBS,
             "files.html": FILES,
@@ -4829,6 +4892,11 @@ def create_app() -> Flask:
             for s in strat_issues if s.get("review") and s["review"].get("recommendation")
         })
 
+        # --- Epic data ---
+        epic_issues = load_epic_issues()
+        epic_types = sorted({e.get("type", "") for e in epic_issues if e.get("type")})
+        epic_strat_keys = sorted({e.get("strat_key", "") for e in epic_issues if e.get("strat_key")})
+
         # --- Build unified all-issues list ---
         all_issues = []
 
@@ -4880,7 +4948,7 @@ def create_app() -> Flask:
                 "recommendation": rev.get("recommendation", "") if rev else "",
                 "security_verdict": "",
                 "attention": bool(rev and rev.get("needs_attention")),
-                "detail_url": f"/#rfes",
+                "detail_url": f"/rfe/{rfe['key']}",
             })
 
         # Strategies
@@ -4906,7 +4974,7 @@ def create_app() -> Flask:
                 "recommendation": rev.get("recommendation", "") if rev else "",
                 "security_verdict": verdict.upper() if verdict else "",
                 "attention": attention,
-                "detail_url": f"/#strategies",
+                "detail_url": f"/strat/{st['key']}",
             })
 
         all_statuses = sorted({i["status"] for i in all_issues if i["status"]})
@@ -4937,6 +5005,10 @@ def create_app() -> Flask:
             strat_statuses=strat_statuses,
             strat_priorities=strat_priorities,
             strat_recommendations=strat_recommendations,
+            # Epic tab data
+            epic_issues=epic_issues,
+            epic_types=epic_types,
+            epic_strat_keys=epic_strat_keys,
             # All-issues tab data
             all_issues=all_issues,
             all_statuses=all_statuses,

@@ -258,6 +258,37 @@ def load_strat_issues(
     return result
 
 
+def load_epic_issues(artifacts_dir: Path | None = None) -> list[dict]:
+    """Scan ``epic-receipts/`` under *artifacts_dir*.
+
+    Returns a flat list of individual epics across all receipts, each with:
+    - ``key`` = RHOAIENG epic key
+    - ``title`` = epic title
+    - ``type`` = eng, qe, integration, stakeholder-signoff
+    - ``strat_key`` = parent RHAISTRAT key
+    - ``created_at`` = receipt creation timestamp
+    """
+    base = artifacts_dir or _ARTIFACTS_DIR
+    receipts_dir = base / "epic-receipts"
+    result: list[dict] = []
+    if not receipts_dir.is_dir():
+        return result
+    for f in sorted(receipts_dir.glob("*.md")):
+        text = f.read_text(encoding="utf-8", errors="replace")
+        meta, _ = parse_frontmatter(text)
+        strat_key = meta.get("strat_key", "")
+        created_at = meta.get("created_at", "")
+        for epic in meta.get("epics", []):
+            result.append({
+                "key": epic.get("key", ""),
+                "title": epic.get("title", ""),
+                "type": epic.get("type", ""),
+                "strat_key": strat_key,
+                "created_at": created_at,
+            })
+    return result
+
+
 def load_single_strat(
     key: str,
     artifacts_dir: Path | None = None,
