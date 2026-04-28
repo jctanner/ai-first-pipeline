@@ -3,14 +3,16 @@ package main
 import (
 	"crypto/tls"
 	"log"
+	"net"
 	"net/http"
 	"net/http/httputil"
 	"net/url"
 	"os"
 	"strings"
+	"sync"
+	"time"
 )
 
-// Route configuration
 type Route struct {
 	Host    string
 	Backend string
@@ -59,18 +61,62 @@ var routes = []Route{
 	},
 }
 
+var (
+	proxyCache   map[string]*httputil.ReverseProxy
+	hostToBackend map[string]string
+	sharedTransport *http.Transport
+	initOnce     sync.Once
+)
+
+func initProxies() {
+	sharedTransport = &http.Transport{
+		TLSClientConfig:       &tls.Config{InsecureSkipVerify: true},
+		DialContext:           (&net.Dialer{Timeout: 5 * time.Second}).DialContext,
+		ResponseHeaderTimeout: 120 * time.Second,
+		MaxIdleConns:          100,
+		MaxIdleConnsPerHost:   10,
+		IdleConnTimeout:       90 * time.Second,
+	}
+
+	proxyCache = make(map[string]*httputil.ReverseProxy)
+	hostToBackend = make(map[string]string)
+
+	for _, route := range routes {
+		host := strings.ToLower(route.Host)
+		hostToBackend[host] = route.Backend
+
+		if _, exists := proxyCache[route.Backend]; exists {
+			continue
+		}
+
+		backendURL, err := url.Parse(route.Backend)
+		if err != nil {
+			log.Fatalf("Failed to parse backend URL %s: %v", route.Backend, err)
+		}
+
+		proxy := httputil.NewSingleHostReverseProxy(backendURL)
+		proxy.Transport = sharedTransport
+		proxy.ErrorHandler = func(w http.ResponseWriter, req *http.Request, err error) {
+			log.Printf("proxy error: %s -> %s: %v", req.Header.Get("X-Forwarded-Host"), req.URL.Host, err)
+			http.Error(w, "502 Bad Gateway", http.StatusBadGateway)
+		}
+
+		proxyCache[route.Backend] = proxy
+	}
+
+	log.Printf("Initialized %d cached reverse proxies for %d routes", len(proxyCache), len(routes))
+}
+
 func getBackend(host string) string {
-	// Strip port from host if present
 	if idx := strings.Index(host, ":"); idx != -1 {
 		host = host[:idx]
 	}
+	return hostToBackend[strings.ToLower(host)]
+}
 
-	for _, route := range routes {
-		if strings.EqualFold(route.Host, host) {
-			return route.Backend
-		}
-	}
-	return ""
+func healthHandler(w http.ResponseWriter, r *http.Request) {
+	w.WriteHeader(http.StatusOK)
+	w.Write([]byte("ok"))
 }
 
 func proxyHandler(w http.ResponseWriter, r *http.Request) {
@@ -81,54 +127,55 @@ func proxyHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	backendURL, err := url.Parse(backend)
-	if err != nil {
-		log.Printf("Failed to parse backend URL %s: %v", backend, err)
+	proxy, ok := proxyCache[backend]
+	if !ok {
+		log.Printf("No cached proxy for backend: %s", backend)
 		http.Error(w, "500 Internal Server Error", http.StatusInternalServerError)
 		return
 	}
 
-	proxy := httputil.NewSingleHostReverseProxy(backendURL)
+	backendURL, _ := url.Parse(backend)
 
-	// Configure transport to skip TLS verification for internal CA certs
-	proxy.Transport = &http.Transport{
-		TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
-	}
-
-	// Customize director to set proper headers
 	originalDirector := proxy.Director
-	proxy.Director = func(req *http.Request) {
+	director := func(req *http.Request) {
 		originalDirector(req)
-		// Save original host for X-Forwarded-Host
 		req.Header.Set("X-Forwarded-Host", r.Host)
-		req.Header.Set("X-Forwarded-Proto", r.URL.Scheme)
+		req.Header.Set("X-Forwarded-Proto", "http")
 		if r.TLS != nil {
 			req.Header.Set("X-Forwarded-Proto", "https")
 		}
-		// Override Host header to match backend service DNS name
-		// Caddy is configured to match on the full service DNS name
 		req.Host = backendURL.Hostname()
 	}
 
-	// Log the request
+	wrapped := *proxy
+	wrapped.Director = director
+
 	log.Printf("%s %s -> %s%s", r.Method, r.Host, backend, r.URL.Path)
 
-	proxy.ServeHTTP(w, r)
+	wrapped.ServeHTTP(w, r)
 }
 
 func main() {
-	// HTTP handler
-	http.HandleFunc("/", proxyHandler)
+	initOnce.Do(initProxies)
 
-	// Start HTTP server
+	mux := http.NewServeMux()
+	mux.HandleFunc("/healthz", healthHandler)
+	mux.HandleFunc("/", proxyHandler)
+
 	go func() {
+		server := &http.Server{
+			Addr:         ":80",
+			Handler:      mux,
+			ReadTimeout:  30 * time.Second,
+			WriteTimeout: 120 * time.Second,
+			IdleTimeout:  60 * time.Second,
+		}
 		log.Println("Starting HTTP server on :80")
-		if err := http.ListenAndServe(":80", nil); err != nil {
+		if err := server.ListenAndServe(); err != nil {
 			log.Fatalf("HTTP server failed: %v", err)
 		}
 	}()
 
-	// Start HTTPS server
 	certFile := os.Getenv("TLS_CERT_FILE")
 	keyFile := os.Getenv("TLS_KEY_FILE")
 
@@ -139,18 +186,19 @@ func main() {
 		keyFile = "/etc/tls/tls.key"
 	}
 
-	// Load multiple certificates for different hosts
 	tlsConfig := &tls.Config{
 		MinVersion: tls.VersionTLS12,
 	}
 
-	// Try to load cert files
 	if _, err := os.Stat(certFile); err == nil {
 		log.Printf("Starting HTTPS server on :443 with cert: %s", certFile)
 		server := &http.Server{
-			Addr:      ":443",
-			Handler:   http.DefaultServeMux,
-			TLSConfig: tlsConfig,
+			Addr:         ":443",
+			Handler:      mux,
+			TLSConfig:    tlsConfig,
+			ReadTimeout:  30 * time.Second,
+			WriteTimeout: 120 * time.Second,
+			IdleTimeout:  60 * time.Second,
 		}
 
 		if err := server.ListenAndServeTLS(certFile, keyFile); err != nil {
@@ -158,6 +206,6 @@ func main() {
 		}
 	} else {
 		log.Printf("TLS cert not found, running HTTP only")
-		select {} // Block forever
+		select {}
 	}
 }

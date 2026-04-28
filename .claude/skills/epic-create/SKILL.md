@@ -287,6 +287,32 @@ epics:
 Create the `/app/artifacts/epic-receipts/` directory if it does not exist.
 This receipt file is used by the workflow engine to skip re-runs.
 
+After writing the receipt, add the `strat-epics-created` label to the RHAISTRAT ticket. This label is used by the batch pipeline as an idempotency check to skip re-runs when the receipt artifact is missing but epics were already created.
+
+```bash
+python3 -c "
+import os, ssl, json, urllib.request, base64
+server = os.environ['JIRA_SERVER']
+user = os.environ['JIRA_USER']
+token = os.environ['JIRA_TOKEN']
+key = '{STRAT-KEY}'
+ctx = ssl.create_default_context()
+ctx.check_hostname = False
+ctx.verify_mode = ssl.CERT_NONE
+creds = base64.b64encode(f'{user}:{token}'.encode()).decode()
+data = json.dumps({'update': {'labels': [{'add': 'strat-epics-created'}]}}).encode()
+req = urllib.request.Request(
+    f'{server}/rest/api/2/issue/{key}',
+    data=data,
+    headers={'Authorization': f'Basic {creds}', 'Content-Type': 'application/json'},
+    method='PUT')
+urllib.request.urlopen(req, context=ctx)
+print(f'Added strat-epics-created label to {key}')
+"
+```
+
+If the label update fails, report the error but do not fail the epic creation.
+
 Also output the summary table to stdout:
 ```
 ## Created Epics

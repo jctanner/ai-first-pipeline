@@ -230,7 +230,45 @@ python3 ${CLAUDE_SKILL_DIR}/scripts/attach_to_jira.py <STRAT-KEY> artifacts/secu
 
 This requires `JIRA_SERVER`, `JIRA_USER`, and `JIRA_TOKEN` environment variables. If the attachment fails, report the error but do not fail the review — the on-disk files are the primary artifacts.
 
-### Step 4.4: Preserve Intermediate Files
+### Step 4.4: Add Idempotency Labels
+
+After writing artifacts and attaching to Jira, add verdict-specific labels to the RHAISTRAT ticket. These labels are used by the batch pipeline for idempotency (skip re-runs) and to gate downstream steps (epic creation requires PASS).
+
+Add exactly ONE of these labels based on the verdict:
+
+| Verdict | Label |
+|---------|-------|
+| PASS | `strat-security-pass` |
+| CONCERNS | `strat-security-concerns` |
+| FAIL | `strat-security-fail` |
+
+```bash
+python3 -c "
+import os, ssl, json, urllib.request, base64
+server = os.environ['JIRA_SERVER']
+user = os.environ['JIRA_USER']
+token = os.environ['JIRA_TOKEN']
+key = '<STRAT-KEY>'
+verdict = '<VERDICT>'  # PASS, CONCERNS, or FAIL
+label = 'strat-security-' + verdict.lower()
+ctx = ssl.create_default_context()
+ctx.check_hostname = False
+ctx.verify_mode = ssl.CERT_NONE
+creds = base64.b64encode(f'{user}:{token}'.encode()).decode()
+data = json.dumps({'update': {'labels': [{'add': label}]}}).encode()
+req = urllib.request.Request(
+    f'{server}/rest/api/2/issue/{key}',
+    data=data,
+    headers={'Authorization': f'Basic {creds}', 'Content-Type': 'application/json'},
+    method='PUT')
+urllib.request.urlopen(req, context=ctx)
+print(f'Added {label} label to {key}')
+"
+```
+
+If the label update fails, report the error but do not fail the review.
+
+### Step 4.5: Preserve Intermediate Files
 
 Do NOT delete the intermediate files. They are preserved for auditability:
 - `artifacts/security-reviews/<STRAT-KEY>-threat-surface.md` — the mechanical threat surface extraction

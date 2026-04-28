@@ -588,7 +588,7 @@ function highlightActiveRows(queueState) {
 })();
 
 // Init sorting on all tables (default sort by Key column)
-setupSorting('all-table', 1);
+setupSorting('all-table', 0);
 setupSorting('issues-table', 1);
 setupSorting('rfe-table', 0);
 setupSorting('strat-table', 0);
@@ -4785,6 +4785,10 @@ def create_app() -> Flask:
         }),
         app.jinja_loader,
     ])
+
+    @app.route("/healthz")
+    def healthz():
+        return "ok", 200
 
     @app.route("/")
     def dashboard():

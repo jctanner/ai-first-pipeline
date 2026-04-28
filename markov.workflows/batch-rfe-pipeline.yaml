@@ -468,6 +468,43 @@ workflows:
         vars:
           rfe_artifacts_ready: "load_rfe_results.artifacts.task != None and load_rfe_results.artifacts.review != None"
 
+      # Query the RHAIRFE ticket's Jira labels. Labels like
+      # rfe-creator-autofix-rubric-pass are set by the submit skill
+      # during the Jira API call — they persist even if the local
+      # artifact frontmatter was never updated to "Submitted".
+      - name: check_rfe_labels
+        type: shell_exec
+        when: "rfe_artifacts_ready"
+        register: rfe_labels_raw
+        params:
+          command: |
+            python3 -c '
+            import json, os, ssl, urllib.request, base64, sys
+            server = os.environ["JIRA_SERVER"]
+            user = os.environ["JIRA_USER"]
+            token = os.environ["JIRA_TOKEN"]
+            issue = sys.argv[1]
+            ctx = ssl.create_default_context()
+            ctx.check_hostname = False
+            ctx.verify_mode = ssl.CERT_NONE
+            creds = base64.b64encode(f"{user}:{token}".encode()).decode()
+            try:
+                req = urllib.request.Request(
+                    f"{server}/rest/api/2/issue/{issue}?fields=labels",
+                    headers={"Authorization": f"Basic {creds}"})
+                with urllib.request.urlopen(req, context=ctx) as resp:
+                    labels = json.loads(resp.read())["fields"]["labels"]
+            except Exception:
+                labels = []
+            print(json.dumps({"has_rubric_pass": "rfe-creator-autofix-rubric-pass" in labels}))
+            ' '{{ issue }}'
+
+      - name: parse_rfe_labels
+        type: set_fact
+        when: "rfe_artifacts_ready"
+        vars:
+          rfe_label_data: "{{ rfe_labels_raw.stdout | fromjson }}"
+
       # Check if a strategy already exists for this RFE. The strat-create
       # skill writes a symlink at /app/artifacts/strat-tasks/{RFE-KEY}.md
       # pointing to the actual RHAISTRAT-*.md file.
@@ -498,7 +535,7 @@ workflows:
         vars:
           review_passed: "load_rfe_results.artifacts.review.frontmatter.pass == true and load_rfe_results.artifacts.review.frontmatter.recommendation != 'reject'"
           review_score: "{{ load_rfe_results.artifacts.review.frontmatter.score }}"
-          already_submitted: "load_rfe_results.artifacts.task.frontmatter.status == 'Submitted'"
+          already_submitted: "load_rfe_results.artifacts.task.frontmatter.status == 'Submitted' or rfe_label_data.has_rubric_pass == true"
           strat_exists: "check_strat_exists.artifacts.strat_task != None"
           strat_skipped: "check_strat_exists.artifacts.strat_skipped != None"
           strat_key: "{{ check_strat_exists.artifacts.strat_task.frontmatter.strat_id }}"
@@ -528,6 +565,8 @@ workflows:
           strat_already_refined: "check_strat_exists.artifacts.strat_task.frontmatter.status == 'Refined'"
           strat_already_reviewed: "load_strat_artifacts.artifacts.strat_review != None"
           strat_already_security_reviewed: "load_strat_artifacts.artifacts.security_review != None"
+          strat_labels_epics_created: false
+          strat_security_passed_by_label: false
 
       # ── Quality gate ───────────────────────────────────────────
 
@@ -608,6 +647,62 @@ workflows:
           strat_skipped: "reload_strat_after_create.artifacts.strat_skipped_new != None"
           strat_key: "{{ reload_strat_after_create.artifacts.strat_task_new.frontmatter.strat_id }}"
 
+      # Query the RHAISTRAT ticket's labels for idempotency checks on
+      # downstream strategy phases. Each skill sets a label on success,
+      # so labels persist even when the local artifact wasn't written.
+      - name: check_strat_labels
+        type: shell_exec
+        when: "strat_exists and not rfe_rejected"
+        register: strat_labels_raw
+        params:
+          command: |
+            python3 -c '
+            import json, os, ssl, urllib.request, base64, sys
+            server = os.environ["JIRA_SERVER"]
+            user = os.environ["JIRA_USER"]
+            token = os.environ["JIRA_TOKEN"]
+            key = sys.argv[1]
+            ctx = ssl.create_default_context()
+            ctx.check_hostname = False
+            ctx.verify_mode = ssl.CERT_NONE
+            creds = base64.b64encode(f"{user}:{token}".encode()).decode()
+            try:
+                req = urllib.request.Request(
+                    f"{server}/rest/api/2/issue/{key}?fields=labels",
+                    headers={"Authorization": f"Basic {creds}"})
+                with urllib.request.urlopen(req, context=ctx) as resp:
+                    labels = json.loads(resp.read())["fields"]["labels"]
+            except Exception:
+                labels = []
+            print(json.dumps({
+                "refined": "strat-creator-auto-refined" in labels,
+                "reviewed": "strat-creator-rubric-pass" in labels,
+                "security_reviewed": any(l in labels for l in [
+                    "strat-security-pass", "strat-security-concerns", "strat-security-fail"]),
+                "security_passed": "strat-security-pass" in labels,
+                "epics_created": "strat-epics-created" in labels
+            }))
+            ' '{{ strat_key }}'
+
+      - name: parse_strat_labels
+        type: set_fact
+        when: "strat_exists and not rfe_rejected"
+        vars:
+          strat_label_data: "{{ strat_labels_raw.stdout | fromjson }}"
+
+      # Merge label-based idempotency with artifact-based checks.
+      # If either the artifact OR the Jira label indicates work was done,
+      # the downstream step is skipped.
+      - name: update_strat_flags
+        type: set_fact
+        when: "strat_exists and not rfe_rejected"
+        vars:
+          strat_already_refined: "strat_already_refined or strat_label_data.refined == true"
+          strat_already_reviewed: "strat_already_reviewed or strat_label_data.reviewed == true"
+          strat_already_security_reviewed: "strat_already_security_reviewed or strat_label_data.security_reviewed == true"
+          strat_security_passed_by_label: "strat_label_data.security_passed == true"
+          strat_labels_epics_created: "strat_label_data.epics_created == true"
+
       - name: ensure_strategy_refined
         when: "strat_exists and not rfe_rejected and not strat_already_refined"
         workflow: strategy-refine-retry
@@ -675,7 +770,7 @@ workflows:
         type: set_fact
         when: "not rfe_rejected and strat_review_passed"
         vars:
-          security_review_passed: "load_security_review_result.artifacts.security_review_final != None and load_security_review_result.artifacts.security_review_final.frontmatter.verdict == 'PASS'"
+          security_review_passed: "(load_security_review_result.artifacts.security_review_final != None and load_security_review_result.artifacts.security_review_final.frontmatter.verdict == 'PASS') or strat_security_passed_by_label"
 
       # ── Phase 5: Epic creation and fan-out ─────────────────────
 
@@ -693,7 +788,7 @@ workflows:
             optional: true
 
       - name: ensure_epics_created
-        when: "not rfe_rejected and strat_review_passed and security_review_passed and check_epics_exist.artifacts.epic_receipt == None"
+        when: "not rfe_rejected and strat_review_passed and security_review_passed and check_epics_exist.artifacts.epic_receipt == None and not strat_labels_epics_created"
         workflow: epic-create-retry
         vars:
           strat_key: "{{ strat_key }}"
