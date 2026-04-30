@@ -264,11 +264,96 @@ def assess_marketplace_compatibility(skill_dir: Path, frontmatter: Dict[str, Any
     return result
 
 
+CHECK_MANIFEST = {
+    1: "SKILL.md Structure",
+    2: "Naming Conventions",
+    3: "Frontmatter Field Validation",
+    4: "Description Quality",
+    5: "Size / Progressive Disclosure",
+    6: "Variable Substitution",
+    7: "File Reference Validation",
+    8: "External Script Detection",
+    9: "Runtime Dependencies",
+    10: "context: fork Impact",
+    11: "Script Path Portability",
+    12: "Shared Artifact Safety",
+    13: "Marketplace Compatibility",
+}
+
+VALID_VERDICTS = {"PASS", "WARN", "FAIL", "INFO"}
+
+
+def audit_report(report_path: Path) -> Dict[str, Any]:
+    """Audit a skill review report for completeness.
+
+    Checks that every canonical check (1-13) appears as a
+    '## Check N: <Name>' heading with a '**Verdict:** <V>' line.
+    """
+    if not report_path.exists():
+        return {"error": f"Report not found: {report_path}", "valid": False}
+
+    content = report_path.read_text(encoding="utf-8")
+    lines = content.split("\n")
+
+    found_checks: Dict[int, str] = {}
+    checks_without_verdict: List[int] = []
+
+    heading_re = re.compile(r"^## Check (\d+):")
+    verdict_re = re.compile(r"\*\*(?:Verdict|Severity):\*\*\s*(PASS|WARN|FAIL|INFO|WARNING)")
+
+    current_check = None
+    current_has_verdict = False
+
+    for line in lines:
+        hm = heading_re.match(line)
+        if hm:
+            if current_check is not None and not current_has_verdict:
+                checks_without_verdict.append(current_check)
+            current_check = int(hm.group(1))
+            current_has_verdict = False
+            found_checks[current_check] = line
+        elif current_check is not None:
+            vm = verdict_re.search(line)
+            if vm:
+                current_has_verdict = True
+
+    if current_check is not None and not current_has_verdict:
+        checks_without_verdict.append(current_check)
+
+    found_ids = sorted(found_checks.keys())
+    missing_ids = sorted(set(CHECK_MANIFEST.keys()) - set(found_ids))
+
+    result = {
+        "total_checks": len(CHECK_MANIFEST),
+        "found_checks": found_ids,
+        "missing_checks": missing_ids,
+        "checks_without_verdict": checks_without_verdict,
+        "valid": len(missing_ids) == 0 and len(checks_without_verdict) == 0,
+    }
+
+    if missing_ids:
+        result["missing_details"] = {
+            n: CHECK_MANIFEST[n] for n in missing_ids
+        }
+
+    return result
+
+
 def main():
     """Main entry point."""
     if len(sys.argv) < 2:
         print("Usage: validate.py <skill-directory>")
+        print("       validate.py --audit-report <report.md>")
         sys.exit(1)
+
+    if sys.argv[1] == "--audit-report":
+        if len(sys.argv) < 3:
+            print("Usage: validate.py --audit-report <report.md>")
+            sys.exit(1)
+        report_path = Path(sys.argv[2]).resolve()
+        result = audit_report(report_path)
+        print(json.dumps(result, indent=2))
+        sys.exit(0 if result["valid"] else 1)
 
     skill_dir = Path(sys.argv[1]).resolve()
     skill_md = skill_dir / "SKILL.md"

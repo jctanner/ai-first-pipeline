@@ -53,6 +53,32 @@ The script returns JSON output with validation results and exits with:
 
 You can use this script directly for quick validation, or follow the step-by-step bash instructions below for detailed interactive feedback.
 
+## Report Format
+
+When writing the review report to a file, use this exact structure so the audit script can verify completeness. Every one of the 13 checks must appear as a level-2 heading with a `**Verdict:**` line:
+
+```markdown
+## Check 1: SKILL.md Structure
+...analysis...
+**Verdict:** PASS
+
+## Check 2: Naming Conventions
+...analysis...
+**Verdict:** WARN
+
+...
+
+## Check 13: Marketplace Compatibility
+...analysis...
+**Verdict:** PASS
+```
+
+Valid verdicts: `PASS`, `WARN`, `FAIL`, `INFO`.
+
+The audit script also accepts `**Severity:**` as an alias for `**Verdict:**` (and `WARNING` as an alias for `WARN`).
+
+The rest of the report (title, summary table, priority fixes) is freeform — only the `## Check N:` headings and verdict lines are required.
+
 ## Instructions
 
 When the user invokes this skill:
@@ -298,72 +324,15 @@ When the user invokes this skill:
 
 12. **Generate summary report**
     
-    Create a comprehensive summary with proper severity assessment:
-    ```bash
-    echo ""
-    echo "============================================================"
-    echo "SKILL REVIEW SUMMARY"
-    echo "============================================================"
-    echo ""
+    Write the report to the output file using the required format from the **Report Format** section above. The report must contain all 13 checks as `## Check N: <Name>` headings, each with a `**Verdict:** PASS|WARN|FAIL|INFO` line.
     
-    skill_name=$(grep '^name:' /tmp/frontmatter.yaml 2>/dev/null | awk '{print $2}' | tr -d '"' | tr -d "'")
-    if [ -z "$skill_name" ]; then
-        skill_name="$(basename "$skill_dir")"
-    fi
-    echo "Skill: $skill_name"
-    echo "Location: $skill_dir"
-    echo ""
+    You may add a title, summary table, and priority fixes section around the check sections — only the 13 headings and verdicts are structurally required.
     
-    # Categorize issues by severity
-    critical=0
-    warnings=0
-    
-    # CRITICAL: Missing frontmatter or required fields
-    if ! grep -q '^name:' /tmp/frontmatter.yaml 2>/dev/null; then
-        critical=$((critical + 1))
-    fi
-    if ! grep -q '^description:' /tmp/frontmatter.yaml 2>/dev/null; then
-        critical=$((critical + 1))
-    fi
-    if [ ! -s /tmp/frontmatter.yaml ]; then
-        critical=$((critical + 1))
-    fi
-    
-    # Count other issues
-    warnings=$(grep -c "^⚠️" /tmp/report.txt 2>/dev/null || echo 0)
-    
-    # Overall status
-    echo "## Validation Status"
-    echo ""
-    if [ $critical -gt 0 ]; then
-        echo "❌ FAILED - Critical issues found"
-        echo ""
-        echo "This skill is BROKEN and will not function properly."
-        echo "Critical issues MUST be fixed before the skill can be used."
-    elif [ $warnings -gt 0 ]; then
-        echo "⚠️ PASSED WITH WARNINGS"
-        echo ""
-        echo "Skill is functional but has issues that should be addressed."
-    else
-        echo "✅ PASSED - No issues found"
-        echo ""
-        echo "This skill passes all validation checks."
-    fi
-    
-    echo ""
-    echo "## Issue Summary"
-    echo ""
-    echo "Critical (blocking): $critical"
-    echo "Warnings (non-blocking): $warnings"
-    
-    if [ $critical -gt 0 ] || [ $warnings -gt 0 ]; then
-        echo ""
-        echo "Review the detailed output above for specifics."
-    fi
-    
-    echo ""
-    echo "============================================================"
-    ```
+    Severity guidelines for verdicts:
+    - **FAIL** — skill is broken and will not work (missing frontmatter, missing required fields, invalid YAML)
+    - **WARN** — skill works but has issues that should be addressed
+    - **PASS** — no issues found for this check
+    - **INFO** — recommendations only, no action required
 
 13. **Categorize issues by severity**
     
@@ -420,6 +389,22 @@ When the user invokes this skill:
     - If marketplace incompatible but claimed → Recommend removing marketplace claim or fixing packaging
     
     **Important:** Do NOT say "good news: marketplace compatible" if there are critical frontmatter issues. Missing frontmatter means the skill is completely non-functional, regardless of file packaging.
+
+15. **Self-check: Audit report completeness**
+
+    After writing the report file, run the audit:
+    ```bash
+    python3 ${CLAUDE_SKILL_DIR}/scripts/validate.py --audit-report <report-file-path>
+    ```
+
+    The script returns JSON with `found_checks`, `missing_checks`, and `checks_without_verdict`.
+
+    If `missing_checks` or `checks_without_verdict` are non-empty:
+    - Go back and add the missing `## Check N: <Name>` sections
+    - Ensure each section has a `**Verdict:** PASS|WARN|FAIL|INFO` line
+    - Re-run the audit until it passes
+
+    Do NOT present the report to the user until the audit passes.
 
 ## Examples
 
