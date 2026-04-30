@@ -21,7 +21,24 @@ if [ ! -f deploy/pipeline-agent/Dockerfile ]; then
   exit 1
 fi
 
+# Extract internal CA cert from ConfigMap so it can be baked into the image
+echo "  Extracting CA certificate from ConfigMap..."
+CA_CERT=$(kubectl get configmap internal-ca-cert \
+  -n ai-pipeline \
+  -o jsonpath='{.data.ca\.crt}' 2>/dev/null || true)
+
+if [ -z "$CA_CERT" ]; then
+  echo "WARNING: Could not extract CA cert from ConfigMap, using empty placeholder"
+  echo "" > deploy/pipeline-agent/internal-ca.crt
+else
+  echo "$CA_CERT" > deploy/pipeline-agent/internal-ca.crt
+  echo "  CA certificate extracted successfully"
+fi
+
 ${CONTAINER_CMD} build -f deploy/pipeline-agent/Dockerfile -t pipeline-agent:latest .
+
+# Clean up extracted cert
+rm -f deploy/pipeline-agent/internal-ca.crt
 
 # Import into k3s
 echo "  Importing pipeline-agent image into k3s..."

@@ -37,37 +37,6 @@ spec:
     spec:
       serviceAccountName: pipeline-dashboard  # For K8s API access
 
-      # Init containers
-      initContainers:
-      # Update CA trust
-      - name: update-ca-trust
-        image: alpine:3.19
-        command:
-        - sh
-        - -c
-        - |
-          set -ex
-
-          # Install ca-certificates package
-          apk add --no-cache ca-certificates
-
-          if [ -f /tmp/ca-cert/ca.crt ]; then
-            mkdir -p /usr/local/share/ca-certificates
-            cp /tmp/ca-cert/ca.crt /usr/local/share/ca-certificates/internal-ca.crt
-            update-ca-certificates
-            cp /etc/ssl/certs/ca-certificates.crt /shared/ca-certificates.crt
-            echo "CA trust store updated successfully"
-          else
-            echo "No CA cert found, skipping"
-            cp /etc/ssl/certs/ca-certificates.crt /shared/ca-certificates.crt || touch /shared/ca-certificates.crt
-          fi
-        volumeMounts:
-        - name: ca-cert
-          mountPath: /tmp/ca-cert
-          readOnly: true
-        - name: shared-ca
-          mountPath: /shared
-
       containers:
       - name: dashboard
         image: pipeline-dashboard:latest
@@ -143,10 +112,6 @@ spec:
         - name: gcp-credentials
           mountPath: /home/pipelineagent/.config/gcloud
           readOnly: true
-        # Mount shared CA cert
-        - name: shared-ca
-          mountPath: /shared
-          readOnly: true
 
         resources:
           requests:
@@ -194,9 +159,3 @@ spec:
         secret:
           secretName: gcp-credentials
           optional: true
-      - name: ca-cert
-        configMap:
-          name: internal-ca-cert
-          optional: true
-      - name: shared-ca
-        emptyDir: {}

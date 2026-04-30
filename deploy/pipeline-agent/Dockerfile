@@ -12,6 +12,10 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 
 WORKDIR /app
 
+# Inject internal CA certificate (extracted at build time by 05b-build-agent.sh)
+COPY internal-ca.crt /usr/local/share/ca-certificates/internal-ca.crt
+RUN update-ca-certificates
+
 # Create non-root user early
 RUN useradd -m -s /bin/bash pipelineagent \
     && chown pipelineagent:pipelineagent /app

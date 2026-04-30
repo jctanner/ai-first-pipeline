@@ -12,27 +12,6 @@ spec:
     spec:
       restartPolicy: Never
 
-      # Init container to update CA trust
-      initContainers:
-      - name: update-ca-trust
-        image: alpine:3.19
-        command:
-        - sh
-        - -c
-        - |
-          set -ex
-          if [ -f /tmp/ca-cert/ca.crt ]; then
-            cp /tmp/ca-cert/ca.crt /usr/local/share/ca-certificates/internal-ca.crt
-            update-ca-certificates
-            cp /etc/ssl/certs/ca-certificates.crt /shared/ca-certificates.crt
-          fi
-        volumeMounts:
-        - name: ca-cert
-          mountPath: /tmp/ca-cert
-          readOnly: true
-        - name: shared-ca
-          mountPath: /shared
-
       containers:
       - name: pipeline
         image: ai-first-pipeline:latest
@@ -47,9 +26,6 @@ spec:
         - /bin/bash
         - -c
         - |
-          if [ -f /shared/ca-certificates.crt ]; then
-            cp /shared/ca-certificates.crt /etc/ssl/certs/ca-certificates.crt
-          fi
           uv run python main.py bug-fetch --limit 10
 
         env:
@@ -102,9 +78,6 @@ spec:
         - name: gcp-credentials
           mountPath: /secrets/gcp
           readOnly: true
-        - name: shared-ca
-          mountPath: /shared
-          readOnly: true
 
         resources:
           requests:
@@ -122,12 +95,5 @@ spec:
         secret:
           secretName: gcp-credentials
           optional: true
-      - name: ca-cert
-        configMap:
-          name: internal-ca-cert
-          optional: true
-      - name: shared-ca
-        emptyDir: {}
-
   backoffLimit: 2
   ttlSecondsAfterFinished: 86400  # Clean up after 24 hours
