@@ -55,6 +55,49 @@ def parse_frontmatter(skill_md_path: Path) -> Tuple[Dict[str, Any], str, List[st
     return frontmatter, markdown_content, errors
 
 
+KEBAB_CASE_RE = re.compile(r'^[a-z0-9]+(-[a-z0-9]+)*$')
+RESERVED_WORDS = {'claude', 'anthropic'}
+
+
+def validate_naming(folder_name: str, frontmatter: Dict[str, Any]) -> List[str]:
+    """Validate folder name and name field against naming conventions."""
+    errors = []
+
+    if not KEBAB_CASE_RE.match(folder_name):
+        suggestions = []
+        if '.' in folder_name:
+            suggestions.append("dots are not allowed")
+        if '_' in folder_name:
+            suggestions.append("underscores are not allowed")
+        if folder_name != folder_name.lower():
+            suggestions.append("must be lowercase")
+        if ' ' in folder_name:
+            suggestions.append("spaces are not allowed")
+        kebab = re.sub(r'[._\s]+', '-', folder_name).lower()
+        kebab = re.sub(r'[^a-z0-9-]', '', kebab)
+        kebab = re.sub(r'-+', '-', kebab).strip('-')
+        detail = f" ({', '.join(suggestions)})" if suggestions else ""
+        errors.append(
+            f"Folder name '{folder_name}' is not kebab-case{detail}; "
+            f"suggested: '{kebab}'"
+        )
+
+    name_field = frontmatter.get('name', '')
+    if isinstance(name_field, str) and name_field:
+        if len(name_field) > 64:
+            errors.append(f"Name field is {len(name_field)} chars (max 64)")
+        if any(w in name_field.lower() for w in RESERVED_WORDS):
+            errors.append(f"Name field contains reserved word (claude/anthropic)")
+        if '<' in name_field or '>' in name_field:
+            errors.append("Name field contains XML angle brackets")
+        if name_field != folder_name:
+            errors.append(
+                f"Name field '{name_field}' does not match folder name '{folder_name}'"
+            )
+
+    return errors
+
+
 def validate_frontmatter_fields(frontmatter: Dict[str, Any], skill_name: str) -> List[str]:
     """Validate frontmatter field types and values.
 
@@ -377,12 +420,15 @@ def main():
         'parse_errors': parse_errors,
         'frontmatter_valid': len(parse_errors) == 0,
         'frontmatter': frontmatter,
+        'naming_errors': [],
         'field_errors': [],
         'variable_errors': [],
         'file_references': {},
         'external_scripts': [],
         'marketplace_compatibility': {}
     }
+
+    results['naming_errors'] = validate_naming(skill_dir.name, frontmatter or {})
 
     if frontmatter:
         results['field_errors'] = validate_frontmatter_fields(frontmatter, skill_dir.name)
@@ -417,6 +463,9 @@ def main():
 
         # Other field errors are warnings
         warnings.extend(results['field_errors'])
+
+    # Naming errors are warnings
+    warnings.extend(results['naming_errors'])
 
     # Variable errors are warnings
     warnings.extend(results['variable_errors'])
