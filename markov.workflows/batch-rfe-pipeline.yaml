@@ -63,7 +63,7 @@ forks: 10
 vars:
   model: opus
   jql: "project = RHAIRFE AND statusCategory != Done ORDER BY created DESC"
-  max_tickets: 10
+  max_tickets: 50
 
 # ====================================================================
 # Rules
