@@ -1,10 +1,10 @@
 # ── Stage 1: Build arch-query from source ────────────────────────
-FROM golang:1.24-bookworm AS arch-query-builder
+FROM golang:1.25-bookworm AS arch-query-builder
 
 WORKDIR /build
 RUN git clone --depth 1 https://github.com/opendatahub-io/architecture-context.git && \
     cd architecture-context/src/arch-query && \
-    go build -o /build/arch-query .
+    GOTOOLCHAIN=auto go build -o /build/arch-query .
 
 
 # ── Stage 2: Pipeline agent ─────────────────────────────────────
