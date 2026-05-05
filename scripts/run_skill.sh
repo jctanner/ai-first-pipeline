@@ -106,7 +106,11 @@ echo
 if [ -n "${MLFLOW_TRACKING_URI:-}" ]; then
   echo "Configuring MLflow tracing for Claude CLI..."
   # Use home directory so hooks are written to ~/.claude/settings.json (not ~/.claude/.claude/settings.json)
-  /app/.venv/bin/mlflow autolog claude -u "$MLFLOW_TRACKING_URI" -d /home/pipelineagent
+  MLFLOW_AUTOLOG_ARGS=(-u "$MLFLOW_TRACKING_URI" -d /home/pipelineagent)
+  if [ -n "${MLFLOW_EXPERIMENT_NAME:-}" ]; then
+    MLFLOW_AUTOLOG_ARGS+=(-n "$MLFLOW_EXPERIMENT_NAME")
+  fi
+  /app/.venv/bin/mlflow autolog claude "${MLFLOW_AUTOLOG_ARGS[@]}"
   echo "✓ MLflow tracing configured"
 else
   echo "⚠ Warning: MLFLOW_TRACKING_URI not set, skipping MLflow tracing setup"

@@ -154,6 +154,10 @@ try:
     MLFLOW_AVAILABLE = bool(os.getenv("MLFLOW_TRACKING_URI"))
     if MLFLOW_AVAILABLE:
         mlflow.set_tracking_uri(os.getenv("MLFLOW_TRACKING_URI"))
+        exp_name = os.getenv("MLFLOW_EXPERIMENT_NAME", "").strip()
+        if exp_name:
+            mlflow.set_experiment(exp_name)
+            print("✓ MLflow experiment:", exp_name)
         print("✓ MLflow tracking configured:", os.getenv("MLFLOW_TRACKING_URI"))
     else:
         print("⚠ MLflow tracking URI not set")
