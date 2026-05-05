@@ -140,4 +140,4 @@ A Security Risk is when the STRAT actively proposes something insecure (e.g., st
 - Catalog coverage: 38/39 patterns mapped (97%). AUTH(6/6), DATA(4/4), CRYPTO(4/4), NET(3/3), SUPPLY(4/4), INFRA(3/3), TENANT(3/3), AGENT(5/5), MCP(4/4), UPSTREAM(4/4). Missing: none after v2 revision
 - Top recurring findings from Run 1 (before checklist existed): rate limiting (61), TLS (57), encryption-at-rest (46), audit logging (40), image provenance (25), FIPS (16)
 - Owner: Security Review Tiger Team (RHOAIENG-55489)
-- Last updated: 2026-04-27
+- Last updated: 2026-05-05
