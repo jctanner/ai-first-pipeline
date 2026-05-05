@@ -1,0 +1,670 @@
+version: "1.0"
+architecture_context_commit: "292cf67f7073da32a3040f09e6a3bb904df79a60"
+generated_date: "2026-05-05"
+target_version: "rhoai.next"
+source_reference: "deploy/repos/architecture-context"
+purpose: "Offline architecture-context access benchmark for comparing flat-file use with arch-query."
+
+questions:
+  - id: "t1-001"
+    tier: 1
+    category: "inventory-lookup"
+    question: "Is kserve documented in the target architecture version?"
+    expected_answer: "Yes. kserve is listed in the target architecture version component inventory and has a component document at architecture/rhoai.next/kserve.md."
+    expected_answerable: true
+    source_files:
+      - "architecture/rhoai.next/PLATFORM.md"
+      - "architecture/rhoai.next/kserve.md"
+    source_excerpt: "PLATFORM.md lists kserve in the component reference, and kserve.md defines the KServe component for the target architecture version."
+    expected_arch_query_commands:
+      - "arch-query exists kserve"
+      - "arch-query component kserve"
+    tags: ["positive", "component-inventory", "serving"]
+
+  - id: "t1-002"
+    tier: 1
+    category: "inventory-lookup"
+    question: "Is vllm-cpu documented in the target architecture version?"
+    expected_answer: "Yes. vllm-cpu has a component document in the target architecture version and is a CPU-optimized vLLM inference serving runtime."
+    expected_answerable: true
+    source_files:
+      - "architecture/rhoai.next/vllm-cpu.md"
+    source_excerpt: "vllm-cpu.md: CPU-optimized build of vLLM providing high-throughput LLM inference serving with OpenAI-compatible and gRPC APIs."
+    expected_arch_query_commands:
+      - "arch-query exists vllm-cpu"
+    tags: ["positive", "component-inventory", "inference"]
+
+  - id: "t1-003"
+    tier: 1
+    category: "inventory-lookup"
+    question: "Is EvalHub documented as part of the target architecture context?"
+    expected_answer: "Yes. eval-hub is documented in architecture/rhoai.next/eval-hub.md and is deployed via the TrustyAI Service Operator using an EvalHub CR."
+    expected_answerable: true
+    source_files:
+      - "architecture/rhoai.next/eval-hub.md"
+      - "architecture/rhoai.next/trustyai-service-operator.md"
+    source_excerpt: "eval-hub.md says EvalHub is deployed via the TrustyAI Service Operator using trustyai.opendatahub.io/v1alpha1 EvalHub."
+    expected_arch_query_commands:
+      - "arch-query exists eval-hub"
+    tags: ["positive", "evaluation", "trustyai"]
+
+  - id: "t1-004"
+    tier: 1
+    category: "inventory-lookup"
+    question: "Is CodeFlare SDK listed in the target architecture version component inventory?"
+    expected_answer: "Yes. In rhoai.next, codeflare-sdk is listed in PLATFORM.md and has its own component document at architecture/rhoai.next/codeflare-sdk.md. Older overlay 0004 records why this used to be a missing inventory item."
+    expected_answerable: true
+    source_files:
+      - "architecture/rhoai.next/PLATFORM.md"
+      - "architecture/rhoai.next/codeflare-sdk.md"
+      - "overlays/0004-codeflare-sdk-missing-from-component-inventory.md"
+    source_excerpt: "rhoai.next PLATFORM.md lists codeflare-sdk as a Python library for distributed computing on Ray/Kubernetes; codeflare-sdk.md documents it as a client SDK library."
+    expected_arch_query_commands:
+      - "arch-query exists codeflare-sdk"
+      - "arch-query component codeflare-sdk"
+      - "arch-query overlays"
+    tags: ["positive", "component-inventory", "overlay-regression"]
+
+  - id: "t1-005"
+    tier: 1
+    category: "inventory-lookup"
+    question: "Is InstructLab documented in the target architecture version?"
+    expected_answer: "No. There is no instructlab or ilab component document in architecture/rhoai.next, and it is not listed in the target architecture version component inventory."
+    expected_answerable: true
+    source_files:
+      - "architecture/rhoai.next/PLATFORM.md"
+    source_excerpt: "The rhoai.next component directory contains no instructlab or ilab component document; PLATFORM.md does not list InstructLab."
+    expected_arch_query_commands:
+      - "arch-query exists instructlab"
+      - "arch-query search instruct"
+    tags: ["negative", "product-scope"]
+
+  - id: "t1-006"
+    tier: 1
+    category: "inventory-lookup"
+    question: "Is model-registry documented in the target architecture version?"
+    expected_answer: "Yes. model-registry has a component document in the target architecture version and exposes model registry and model catalog APIs."
+    expected_answerable: true
+    source_files:
+      - "architecture/rhoai.next/model-registry.md"
+    source_excerpt: "model-registry.md documents Model Registry API v1alpha3 and Model Catalog API v1alpha1 endpoints."
+    expected_arch_query_commands:
+      - "arch-query exists model-registry"
+    tags: ["positive", "model-registry"]
+
+  - id: "t1-007"
+    tier: 1
+    category: "inventory-lookup"
+    question: "Is the RHDS Llama Stack Distribution documented in the target architecture version?"
+    expected_answer: "Yes. The RHDS Llama Stack Distribution has a component document at architecture/rhoai.next/rhds-llama-stack-distribution.md and provides a containerized Llama Stack server exposing REST APIs on port 8321."
+    expected_answerable: true
+    source_files:
+      - "architecture/rhoai.next/rhds-llama-stack-distribution.md"
+    source_excerpt: "rhds-llama-stack-distribution.md says the image exposes a single HTTP API on port 8321 implementing Llama Stack native and OpenAI-compatible APIs."
+    expected_arch_query_commands:
+      - "arch-query exists rhds-llama-stack-distribution"
+    tags: ["positive", "llama-stack"]
+
+  - id: "t1-008"
+    tier: 1
+    category: "inventory-lookup"
+    question: "Is the word 'integration' itself a RHOAI component?"
+    expected_answer: "No. 'integration' is a generic architecture concept, not a component name in the target architecture version inventory."
+    expected_answerable: true
+    source_files:
+      - "architecture/rhoai.next/PLATFORM.md"
+    source_excerpt: "PLATFORM.md uses integration in prose, but the component inventory lists named components such as rhods-operator, kserve, odh-dashboard, and vllm-cpu."
+    expected_arch_query_commands:
+      - "arch-query exists integration"
+    tags: ["negative", "junk-term-filter"]
+
+  - id: "t1-009"
+    tier: 1
+    category: "inventory-lookup"
+    question: "Is Monitoring a standalone component document in the target architecture version?"
+    expected_answer: "No. Monitoring appears as a DataScienceCluster component managed by rhods-operator, but there is no standalone monitoring.md component document in rhoai.next."
+    expected_answerable: true
+    source_files:
+      - "architecture/rhoai.next/PLATFORM.md"
+      - "architecture/rhoai.next/rhods-operator.md"
+    source_excerpt: "PLATFORM.md lists Monitoring among DataScienceCluster-managed component CRs under rhods-operator; the directory has no monitoring.md file."
+    expected_arch_query_commands:
+      - "arch-query exists monitoring"
+    tags: ["scope", "operator-managed"]
+
+  - id: "t1-010"
+    tier: 1
+    category: "inventory-lookup"
+    question: "Is NeMo-Guardrails documented in the target architecture context?"
+    expected_answer: "Yes. NeMo-Guardrails has a component document in the target architecture version and is also represented by the NemoGuardrails CRD managed by trustyai-service-operator."
+    expected_answerable: true
+    source_files:
+      - "architecture/rhoai.next/NeMo-Guardrails.md"
+      - "architecture/rhoai.next/trustyai-service-operator.md"
+    source_excerpt: "trustyai-service-operator.md lists trustyai.opendatahub.io/v1alpha1 NemoGuardrails as a namespaced CRD."
+    expected_arch_query_commands:
+      - "arch-query exists NeMo-Guardrails"
+    tags: ["positive", "guardrails"]
+
+  - id: "t1-011"
+    tier: 1
+    category: "inventory-lookup"
+    question: "Is RHAIIS deployment tooling covered by the target architecture version component inventory?"
+    expected_answer: "No. The target corpus is the target architecture context, and the component inventory is for Red Hat OpenShift AI components, not RHAIIS deployment tooling."
+    expected_answerable: true
+    source_files:
+      - "architecture/rhoai.next/PLATFORM.md"
+    source_excerpt: "PLATFORM.md identifies the target context as Red Hat OpenShift AI / RHOAI, with distribution rhoai.next."
+    expected_arch_query_commands:
+      - "arch-query search rhaiis"
+    tags: ["negative", "product-scope"]
+
+  - id: "t1-012"
+    tier: 1
+    category: "inventory-lookup"
+    question: "Is workload-variant-autoscaler documented in the target architecture context?"
+    expected_answer: "Yes. workload-variant-autoscaler has a component document in architecture/rhoai.next and is listed in the platform metrics table with a secured /metrics endpoint on port 8443."
+    expected_answerable: true
+    source_files:
+      - "architecture/rhoai.next/workload-variant-autoscaler.md"
+      - "architecture/rhoai.next/PLATFORM.md"
+    source_excerpt: "PLATFORM.md lists workload-variant-autoscaler metrics on 8443/TCP HTTPS at /metrics."
+    expected_arch_query_commands:
+      - "arch-query exists workload-variant-autoscaler"
+    tags: ["positive", "autoscaling"]
+
+  - id: "t2-001"
+    tier: 2
+    category: "fact-extraction"
+    question: "What CRDs does kserve expose in the target architecture version?"
+    expected_answer: "kserve exposes serving.kserve.io CRDs including InferenceService, InferenceGraph, TrainedModel, ServingRuntime, ClusterServingRuntime, ClusterStorageContainer, LLMInferenceService, LLMInferenceServiceConfig, LocalModelCache, LocalModelNamespaceCache, LocalModelNodeGroup, and LocalModelNode."
+    expected_answerable: true
+    source_files:
+      - "architecture/rhoai.next/kserve.md"
+    source_excerpt: "kserve.md Custom Resource Definitions table lists twelve serving.kserve.io CRDs including InferenceService, ServingRuntime, LLMInferenceService, and local model cache CRDs."
+    expected_arch_query_commands:
+      - "arch-query crds kserve"
+    tags: ["crd", "kserve"]
+
+  - id: "t2-002"
+    tier: 2
+    category: "fact-extraction"
+    question: "Which ports does kserve use for controller metrics and webhooks?"
+    expected_answer: "kserve exposes controller metrics on 8080/TCP for kserve-controller-manager and 8443/TCP HTTPS for llmisvc-controller-manager. Its webhook endpoints are served on 9443/TCP behind services exposed on 443/TCP."
+    expected_answerable: true
+    source_files:
+      - "architecture/rhoai.next/kserve.md"
+    source_excerpt: "kserve.md lists /metrics on 8080/TCP and 8443/TCP, and webhook endpoints on 9443/TCP."
+    expected_arch_query_commands:
+      - "arch-query ports kserve"
+    tags: ["ports", "metrics", "webhooks"]
+
+  - id: "t2-003"
+    tier: 2
+    category: "fact-extraction"
+    question: "What HTTP port does vllm-cpu use for its OpenAI-compatible API?"
+    expected_answer: "vllm-cpu exposes its OpenAI-compatible HTTP API on port 8000/TCP."
+    expected_answerable: true
+    source_files:
+      - "architecture/rhoai.next/vllm-cpu.md"
+    source_excerpt: "vllm-cpu.md lists /v1/chat/completions, /v1/completions, /v1/models, /health, and other HTTP endpoints on 8000/TCP."
+    expected_arch_query_commands:
+      - "arch-query ports vllm-cpu"
+    tags: ["ports", "vllm", "openai-api"]
+
+  - id: "t2-004"
+    tier: 2
+    category: "fact-extraction"
+    question: "Does vllm-cpu define Kubernetes CRDs?"
+    expected_answer: "No. vllm-cpu does not define CRDs; it is deployed as a container image and is managed externally by KServe or direct Kubernetes Deployments."
+    expected_answerable: true
+    source_files:
+      - "architecture/rhoai.next/vllm-cpu.md"
+    source_excerpt: "vllm-cpu.md: No CRDs are defined by this component. vLLM CPU is deployed as a container image and managed externally by KServe or direct Kubernetes Deployments."
+    expected_arch_query_commands:
+      - "arch-query crds vllm-cpu"
+    tags: ["crd", "negative", "vllm"]
+
+  - id: "t2-005"
+    tier: 2
+    category: "fact-extraction"
+    question: "What gRPC port does vllm-cpu expose?"
+    expected_answer: "vllm-cpu exposes the VllmEngine gRPC services on 50051/TCP."
+    expected_answerable: true
+    source_files:
+      - "architecture/rhoai.next/vllm-cpu.md"
+    source_excerpt: "vllm-cpu.md gRPC Services table lists VllmEngine.Generate, Embed, HealthCheck, Abort, GetModelInfo, and GetServerInfo on 50051/TCP."
+    expected_arch_query_commands:
+      - "arch-query ports vllm-cpu"
+    tags: ["ports", "grpc", "vllm"]
+
+  - id: "t2-006"
+    tier: 2
+    category: "fact-extraction"
+    question: "What CRDs does trustyai-service-operator manage?"
+    expected_answer: "trustyai-service-operator manages TrustyAIService, LMEvalJob, GuardrailsOrchestrator, NemoGuardrails, and EvalHub CRDs in the trustyai.opendatahub.io API group."
+    expected_answerable: true
+    source_files:
+      - "architecture/rhoai.next/trustyai-service-operator.md"
+    source_excerpt: "trustyai-service-operator.md lists TrustyAIService, LMEvalJob, GuardrailsOrchestrator, NemoGuardrails, and EvalHub CRDs."
+    expected_arch_query_commands:
+      - "arch-query crds trustyai-service-operator"
+    tags: ["crd", "trustyai"]
+
+  - id: "t2-007"
+    tier: 2
+    category: "fact-extraction"
+    question: "What endpoints does EvalHub expose for evaluation jobs?"
+    expected_answer: "EvalHub exposes /api/v1/evaluations/jobs for POST and GET, /api/v1/evaluations/jobs/{id} for GET and DELETE, and /api/v1/evaluations/jobs/{id}/events for POST, all on 8080/TCP."
+    expected_answerable: true
+    source_files:
+      - "architecture/rhoai.next/eval-hub.md"
+    source_excerpt: "eval-hub.md lists evaluation job endpoints on 8080/TCP: /api/v1/evaluations/jobs, /api/v1/evaluations/jobs/{id}, and /api/v1/evaluations/jobs/{id}/events."
+    expected_arch_query_commands:
+      - "arch-query component eval-hub"
+    tags: ["api", "eval-hub"]
+
+  - id: "t2-008"
+    tier: 2
+    category: "fact-extraction"
+    question: "What authentication does EvalHub use for its evaluation APIs?"
+    expected_answer: "EvalHub evaluation APIs use Bearer Token authentication with Kubernetes TokenReview plus SubjectAccessReview authorization."
+    expected_answerable: true
+    source_files:
+      - "architecture/rhoai.next/eval-hub.md"
+    source_excerpt: "eval-hub.md endpoint table lists Auth as Bearer Token (K8s TokenReview) + SAR for evaluation jobs, collections, and providers."
+    expected_arch_query_commands:
+      - "arch-query component eval-hub"
+    tags: ["auth", "eval-hub"]
+
+  - id: "t2-009"
+    tier: 2
+    category: "fact-extraction"
+    question: "Which port does MLflow use for its REST APIs in the target architecture version?"
+    expected_answer: "MLflow exposes its REST APIs on 5000/TCP, including /api/2.0/mlflow/* and /api/3.0/mlflow/*."
+    expected_answerable: true
+    source_files:
+      - "architecture/rhoai.next/mlflow.md"
+    source_excerpt: "mlflow.md lists /api/2.0/mlflow/* and /api/3.0/mlflow/* on 5000/TCP."
+    expected_arch_query_commands:
+      - "arch-query ports mlflow"
+    tags: ["ports", "mlflow", "api"]
+
+  - id: "t2-010"
+    tier: 2
+    category: "fact-extraction"
+    question: "What CRD does MLflow consume for per-namespace artifact storage configuration?"
+    expected_answer: "MLflow consumes the mlflow.kubeflow.org/v1 MLflowConfig namespaced CRD for optional per-namespace artifact storage configuration."
+    expected_answerable: true
+    source_files:
+      - "architecture/rhoai.next/mlflow.md"
+    source_excerpt: "mlflow.md lists mlflow.kubeflow.org v1 MLflowConfig, namespaced, for optional per-namespace artifact storage configuration."
+    expected_arch_query_commands:
+      - "arch-query crds mlflow"
+    tags: ["crd", "mlflow"]
+
+  - id: "t2-011"
+    tier: 2
+    category: "fact-extraction"
+    question: "What REST API families does model-registry expose?"
+    expected_answer: "model-registry exposes Model Registry API v1alpha3 endpoints under /api/model_registry/v1alpha3, Model Catalog API v1alpha1 endpoints under /api/model_catalog/v1alpha1, and MCP catalog endpoints under /api/mcp_catalog/v1alpha1, all on 8080/TCP."
+    expected_answerable: true
+    source_files:
+      - "architecture/rhoai.next/model-registry.md"
+    source_excerpt: "model-registry.md lists Model Registry API v1alpha3, Model Catalog API v1alpha1, and MCP catalog endpoints on 8080/TCP."
+    expected_arch_query_commands:
+      - "arch-query component model-registry"
+    tags: ["api", "model-registry"]
+
+  - id: "t2-012"
+    tier: 2
+    category: "fact-extraction"
+    question: "What databases does model-registry depend on?"
+    expected_answer: "model-registry depends on MySQL for the model registry metadata store and PostgreSQL for the model catalog metadata store and leader election."
+    expected_answerable: true
+    source_files:
+      - "architecture/rhoai.next/model-registry.md"
+    source_excerpt: "model-registry.md external dependencies list MySQL as primary metadata store for model registry and PostgreSQL as metadata store for model catalog plus pglock leader election."
+    expected_arch_query_commands:
+      - "arch-query deps model-registry"
+    tags: ["dependencies", "model-registry"]
+
+  - id: "t2-013"
+    tier: 2
+    category: "fact-extraction"
+    question: "What CRDs does data-science-pipelines expose?"
+    expected_answer: "data-science-pipelines exposes ScheduledWorkflow and Viewer in kubeflow.org/v1beta1, plus optional Pipeline and PipelineVersion in pipelines.kubeflow.org/v2beta1."
+    expected_answerable: true
+    source_files:
+      - "architecture/rhoai.next/data-science-pipelines.md"
+    source_excerpt: "data-science-pipelines.md lists ScheduledWorkflow, Viewer, Pipeline, and PipelineVersion CRDs."
+    expected_arch_query_commands:
+      - "arch-query crds data-science-pipelines"
+    tags: ["crd", "pipelines"]
+
+  - id: "t2-014"
+    tier: 2
+    category: "fact-extraction"
+    question: "Which ports does data-science-pipelines use for HTTP and gRPC APIs?"
+    expected_answer: "data-science-pipelines uses 8888/TCP for HTTP/REST APIs and 8887/TCP for gRPC services. It also serves the frontend UI on 3000/TCP and MLMD gRPC on 8080/TCP."
+    expected_answerable: true
+    source_files:
+      - "architecture/rhoai.next/data-science-pipelines.md"
+    source_excerpt: "data-science-pipelines.md lists HTTP/REST endpoints on 8888/TCP, gRPC services on 8887/TCP, UI on 3000/TCP, and metadata_store_server on 8080/TCP."
+    expected_arch_query_commands:
+      - "arch-query ports data-science-pipelines"
+    tags: ["ports", "pipelines"]
+
+  - id: "t2-015"
+    tier: 2
+    category: "fact-extraction"
+    question: "What CRDs does llm-d-inference-scheduler consume?"
+    expected_answer: "llm-d-inference-scheduler consumes Gateway API Inference Extension and Gateway API CRDs including InferencePool, InferenceObjective, InferenceModelRewrite, Gateway, and HTTPRoute. It does not define its own CRDs."
+    expected_answerable: true
+    source_files:
+      - "architecture/rhoai.next/llm-d-inference-scheduler.md"
+    source_excerpt: "llm-d-inference-scheduler.md says the scheduler does not define its own CRDs and consumes InferencePool, InferenceObjective, InferenceModelRewrite, Gateway, and HTTPRoute."
+    expected_arch_query_commands:
+      - "arch-query crds llm-d-inference-scheduler"
+    tags: ["crd", "llm-d"]
+
+  - id: "t2-016"
+    tier: 2
+    category: "fact-extraction"
+    question: "What ports does llm-d-inference-scheduler expose for EPP and metrics?"
+    expected_answer: "llm-d-inference-scheduler exposes the EPP ext-proc gRPC service on 9002/TCP, gRPC health check on 9003/TCP, and Prometheus /metrics on 9090/TCP."
+    expected_answerable: true
+    source_files:
+      - "architecture/rhoai.next/llm-d-inference-scheduler.md"
+    source_excerpt: "llm-d-inference-scheduler.md lists envoy.service.ext_proc.v3.ExternalProcessor on 9002/TCP, health check on 9003/TCP, and /metrics on 9090/TCP."
+    expected_arch_query_commands:
+      - "arch-query ports llm-d-inference-scheduler"
+    tags: ["ports", "llm-d", "metrics"]
+
+  - id: "t2-017"
+    tier: 2
+    category: "fact-extraction"
+    question: "What port does rhds-llama-stack-distribution expose?"
+    expected_answer: "rhds-llama-stack-distribution exposes its Llama Stack server container port on 8321/TCP for HTTP REST APIs."
+    expected_answerable: true
+    source_files:
+      - "architecture/rhoai.next/rhds-llama-stack-distribution.md"
+    source_excerpt: "rhds-llama-stack-distribution.md lists llama-stack container port 8321/TCP and REST endpoints on port 8321."
+    expected_arch_query_commands:
+      - "arch-query ports rhds-llama-stack-distribution"
+    tags: ["ports", "llama-stack"]
+
+  - id: "t2-018"
+    tier: 2
+    category: "fact-extraction"
+    question: "What provider configuration does EvalHub include?"
+    expected_answer: "EvalHub provider configs include lm_evaluation_harness with 167 benchmarks, GuideLLM with 7 benchmarks, and LightEval with 26 benchmarks."
+    expected_answerable: true
+    source_files:
+      - "architecture/rhoai.next/eval-hub.md"
+    source_excerpt: "eval-hub.md Provider Configs entry lists lm_evaluation_harness (167 benchmarks), GuideLLM (7 benchmarks), and LightEval (26 benchmarks)."
+    expected_arch_query_commands:
+      - "arch-query component eval-hub"
+    tags: ["configuration", "eval-hub"]
+
+  - id: "t3-001"
+    tier: 3
+    category: "cross-component-integration"
+    question: "How do odh-model-controller and model-registry interact for model deployment state?"
+    expected_answer: "odh-model-controller watches KServe InferenceService resources and can sync InferenceService metadata and deployment state to Model Registry through the Model Registry REST API. model-registry also documents an InferenceService controller that watches KServe InferenceService CRs."
+    expected_answerable: true
+    source_files:
+      - "architecture/rhoai.next/odh-model-controller.md"
+      - "architecture/rhoai.next/model-registry.md"
+    source_excerpt: "odh-model-controller.md lists Model Registry REST API sync for InferenceService metadata; model-registry.md lists an InferenceService controller that watches KServe InferenceService CRs."
+    expected_arch_query_commands:
+      - "arch-query deps odh-model-controller"
+      - "arch-query deps model-registry"
+    tags: ["integration", "model-registry", "kserve"]
+
+  - id: "t3-002"
+    tier: 3
+    category: "cross-component-integration"
+    question: "How do llm-d-inference-scheduler and vllm-cpu interact?"
+    expected_answer: "llm-d-inference-scheduler routes or proxies inference traffic to vLLM model servers. Its P/D sidecar exposes OpenAI-compatible endpoints on 8000/TCP and proxies requests to local decoder vLLM instances; vllm-cpu provides the OpenAI-compatible HTTP API on 8000/TCP and gRPC engine service on 50051/TCP."
+    expected_answerable: true
+    source_files:
+      - "architecture/rhoai.next/llm-d-inference-scheduler.md"
+      - "architecture/rhoai.next/vllm-cpu.md"
+    source_excerpt: "llm-d-inference-scheduler.md says the P/D sidecar proxies inference requests to vLLM instances; vllm-cpu.md documents OpenAI-compatible APIs on 8000/TCP."
+    expected_arch_query_commands:
+      - "arch-query deps llm-d-inference-scheduler"
+      - "arch-query component vllm-cpu"
+    tags: ["integration", "llm-d", "vllm"]
+
+  - id: "t3-003"
+    tier: 3
+    category: "cross-component-integration"
+    question: "How does EvalHub use MLflow?"
+    expected_answer: "EvalHub uses MLflow as an optional RHOAI-managed HTTP REST API integration for experiment tracking, run logging, and result storage."
+    expected_answerable: true
+    source_files:
+      - "architecture/rhoai.next/eval-hub.md"
+      - "architecture/rhoai.next/mlflow.md"
+    source_excerpt: "eval-hub.md internal dependencies list MLflow (RHOAI-managed) for experiment tracking, run logging, and result storage."
+    expected_arch_query_commands:
+      - "arch-query deps eval-hub"
+      - "arch-query component mlflow"
+    tags: ["integration", "eval-hub", "mlflow"]
+
+  - id: "t3-004"
+    tier: 3
+    category: "cross-component-integration"
+    question: "Which component deploys EvalHub and what CRD is used?"
+    expected_answer: "TrustyAI Service Operator deploys EvalHub via the trustyai.opendatahub.io/v1alpha1 EvalHub namespaced CRD."
+    expected_answerable: true
+    source_files:
+      - "architecture/rhoai.next/eval-hub.md"
+      - "architecture/rhoai.next/trustyai-service-operator.md"
+    source_excerpt: "eval-hub.md states EvalHub is deployed via the TrustyAI Service Operator using EvalHub CR; trustyai-service-operator.md lists EvalHub as a managed CRD."
+    expected_arch_query_commands:
+      - "arch-query deps eval-hub"
+      - "arch-query crds trustyai-service-operator"
+    tags: ["integration", "trustyai", "eval-hub"]
+
+  - id: "t3-005"
+    tier: 3
+    category: "cross-component-integration"
+    question: "Can KServe use KEDA-related resources for inference autoscaling in this architecture context?"
+    expected_answer: "Yes, but KEDA is optional. kserve lists KEDA as an optional dependency for event-driven autoscaling via ScaledObjects, and odh-model-controller lists KEDA as optional for TriggerAuthentication and related autoscaling resources."
+    expected_answerable: true
+    source_files:
+      - "architecture/rhoai.next/kserve.md"
+      - "architecture/rhoai.next/odh-model-controller.md"
+    source_excerpt: "kserve.md lists KEDA as optional for event-driven autoscaling; odh-model-controller.md lists KEDA v2.17.3 as optional for TriggerAuthentication CRD for autoscaling."
+    expected_arch_query_commands:
+      - "arch-query deps kserve"
+      - "arch-query deps odh-model-controller"
+    tags: ["integration", "autoscaling", "keda"]
+
+  - id: "t3-006"
+    tier: 3
+    category: "cross-component-integration"
+    question: "How does data-science-pipelines depend on Argo Workflows?"
+    expected_answer: "data-science-pipelines depends on Argo Workflows as its pipeline execution engine; Argo runs workflows as Kubernetes pods for pipeline execution."
+    expected_answerable: true
+    source_files:
+      - "architecture/rhoai.next/data-science-pipelines.md"
+      - "architecture/rhoai.next/argo-workflows.md"
+    source_excerpt: "data-science-pipelines.md external dependencies list Argo Workflows v3.5, v3.6, v3.7 as required pipeline execution engine."
+    expected_arch_query_commands:
+      - "arch-query deps data-science-pipelines"
+    tags: ["integration", "pipelines", "argo"]
+
+  - id: "t3-007"
+    tier: 3
+    category: "cross-component-integration"
+    question: "How does model-registry integrate with Dashboard?"
+    expected_answer: "Dashboard consumes the Model Registry REST API for model management views, while model-registry also includes a Model Registry UI backend-for-frontend service."
+    expected_answerable: true
+    source_files:
+      - "architecture/rhoai.next/model-registry.md"
+      - "architecture/rhoai.next/odh-dashboard.md"
+    source_excerpt: "model-registry.md lists Dashboard / UI as a REST API consumer for model management views and documents a Model Registry UI BFF."
+    expected_arch_query_commands:
+      - "arch-query deps model-registry"
+      - "arch-query component odh-dashboard"
+    tags: ["integration", "dashboard", "model-registry"]
+
+  - id: "t3-008"
+    tier: 3
+    category: "cross-component-integration"
+    question: "How does rhds-llama-stack-distribution interact with vLLM?"
+    expected_answer: "rhds-llama-stack-distribution can call vLLM endpoints as inference providers. Its data flow lists Llama Stack Server to vLLM Endpoint over configurable HTTP/HTTPS with API token authentication."
+    expected_answerable: true
+    source_files:
+      - "architecture/rhoai.next/rhds-llama-stack-distribution.md"
+      - "architecture/rhoai.next/vllm-cpu.md"
+    source_excerpt: "rhds-llama-stack-distribution.md data flows list Llama Stack Server to vLLM Endpoint using HTTP/HTTPS with API token."
+    expected_arch_query_commands:
+      - "arch-query deps rhds-llama-stack-distribution"
+      - "arch-query component vllm-cpu"
+    tags: ["integration", "llama-stack", "vllm"]
+
+  - id: "t3-009"
+    tier: 3
+    category: "cross-component-integration"
+    question: "What role does Gateway API play between KServe and llm-d-inference-scheduler?"
+    expected_answer: "KServe uses Gateway API resources such as HTTPRoute and Gateway for inference ingress, while llm-d-inference-scheduler consumes Gateway and HTTPRoute plus InferencePool resources so Envoy Gateway can call EPP for routing decisions."
+    expected_answerable: true
+    source_files:
+      - "architecture/rhoai.next/kserve.md"
+      - "architecture/rhoai.next/llm-d-inference-scheduler.md"
+    source_excerpt: "kserve.md lists gateway-api as required for HTTPRoute/Gateway CRDs; llm-d-inference-scheduler.md consumes Gateway, HTTPRoute, and InferencePool for inference gateway routing."
+    expected_arch_query_commands:
+      - "arch-query deps kserve"
+      - "arch-query deps llm-d-inference-scheduler"
+    tags: ["integration", "gateway-api", "serving"]
+
+  - id: "t3-010"
+    tier: 3
+    category: "cross-component-integration"
+    question: "How do TrustyAI Service Operator and KServe/ModelMesh interact?"
+    expected_answer: "TrustyAI Service Operator watches or patches KServe/ModelMesh InferenceService deployments for model monitoring and payload processor environment variables."
+    expected_answerable: true
+    source_files:
+      - "architecture/rhoai.next/trustyai-service-operator.md"
+    source_excerpt: "trustyai-service-operator.md internal dependencies list KServe / ModelMesh CRD Watch (InferenceService) for patching InferenceService deployments with payload processor env vars."
+    expected_arch_query_commands:
+      - "arch-query deps trustyai-service-operator"
+    tags: ["integration", "trustyai", "kserve", "modelmesh"]
+
+  - id: "t3-011"
+    tier: 3
+    category: "cross-component-integration"
+    question: "How does MLflow enforce OpenShift/Kubernetes authorization?"
+    expected_answer: "MLflow uses a Kubernetes workspace provider and Kubernetes auth plugin, enforcing Kubernetes RBAC through SubjectAccessReview and SelfSubjectAccessReview for API calls."
+    expected_answerable: true
+    source_files:
+      - "architecture/rhoai.next/mlflow.md"
+    source_excerpt: "mlflow.md architecture components include Kubernetes Workspace Provider and Kubernetes Auth Plugin enforcing Kubernetes RBAC via SAR/SSAR."
+    expected_arch_query_commands:
+      - "arch-query component mlflow"
+    tags: ["auth", "mlflow", "rbac"]
+
+  - id: "t3-012"
+    tier: 3
+    category: "cross-component-integration"
+    question: "How does CodeFlare SDK relate to KubeRay and Kueue?"
+    expected_answer: "CodeFlare SDK is a Python client SDK for requesting and managing Ray clusters and batch workloads. It creates RayCluster resources reconciled by KubeRay, wraps RayCluster resources in AppWrapper for CodeFlare Operator/Kueue integration, and queries Kueue LocalQueues for workload scheduling."
+    expected_answerable: true
+    source_files:
+      - "architecture/rhoai.next/codeflare-sdk.md"
+      - "architecture/rhoai.next/notebooks.md"
+    source_excerpt: "codeflare-sdk.md lists internal platform dependencies on KubeRay Operator, CodeFlare Operator, Kueue, Ray Dashboard, Kubernetes API Server, and OpenShift Router."
+    expected_arch_query_commands:
+      - "arch-query deps codeflare-sdk"
+      - "arch-query search codeflare"
+    tags: ["integration", "codeflare", "kuberay", "kueue"]
+
+  - id: "t4-001"
+    tier: 4
+    category: "navigation"
+    question: "What is the canonical path for the kserve component doc in the target architecture version?"
+    expected_answer: "The canonical path is architecture/rhoai.next/kserve.md."
+    expected_answerable: true
+    source_files:
+      - "architecture/rhoai.next/kserve.md"
+    source_excerpt: "The kserve component document exists at architecture/rhoai.next/kserve.md."
+    expected_arch_query_commands:
+      - "arch-query component kserve"
+    tags: ["navigation", "path"]
+
+  - id: "t4-002"
+    tier: 4
+    category: "navigation"
+    question: "Does architecture-context use an architecture/rhoai.next/components/ subdirectory for component docs?"
+    expected_answer: "No. Component docs are flat files directly under architecture/rhoai.next, such as kserve.md, vllm-cpu.md, and model-registry.md. There is no components/ subdirectory for this version."
+    expected_answerable: true
+    source_files:
+      - "architecture/rhoai.next/PLATFORM.md"
+    source_excerpt: "The rhoai.next directory contains flat component markdown files directly under the version directory, not under a components/ subdirectory."
+    expected_arch_query_commands:
+      - "arch-query list"
+    tags: ["navigation", "missing-components-dir"]
+
+  - id: "t4-003"
+    tier: 4
+    category: "navigation"
+    question: "What does the early-access architecture alias resolve to?"
+    expected_answer: "The architecture/early-access symlink resolves to rhoai-3.4-ea.2."
+    expected_answerable: true
+    source_files:
+      - "architecture/early-access"
+      - "architecture/rhoai-3.4-ea.2/PLATFORM.md"
+    source_excerpt: "architecture/early-access is a symlink to rhoai-3.4-ea.2 in the reference checkout."
+    expected_arch_query_commands:
+      - "arch-query versions"
+    tags: ["navigation", "version-alias", "symlink"]
+
+  - id: "t4-004"
+    tier: 4
+    category: "navigation"
+    question: "Where are active architecture context overlays stored?"
+    expected_answer: "Active overlays are stored under overlays/ at the repository root, for example overlays/0001-kfp-sdk-2.16-in-rhoai-3.4.md and overlays/0004-codeflare-sdk-missing-from-component-inventory.md."
+    expected_answerable: true
+    source_files:
+      - "overlays/README.md"
+      - "overlays/0001-kfp-sdk-2.16-in-rhoai-3.4.md"
+      - "overlays/0004-codeflare-sdk-missing-from-component-inventory.md"
+    source_excerpt: "The reference checkout has overlays/README.md and active overlay files 0001 through 0004 under overlays/."
+    expected_arch_query_commands:
+      - "arch-query overlays"
+    tags: ["navigation", "overlays"]
+
+  - id: "t4-005"
+    tier: 4
+    category: "navigation"
+    question: "What are the semantic architecture version aliases in the reference checkout?"
+    expected_answer: "The architecture directory has semantic aliases current-ga -> rhoai-3.3, early-access -> rhoai-3.4-ea.2, future-ga -> rhoai-3.4, latest-released -> rhoai-3.4-ea.1, and newest -> rhoai-3.4."
+    expected_answerable: true
+    source_files:
+      - "architecture/current-ga"
+      - "architecture/early-access"
+      - "architecture/future-ga"
+      - "architecture/latest-released"
+      - "architecture/newest"
+    source_excerpt: "The reference checkout includes symlinks: current-ga, early-access, future-ga, latest-released, and newest."
+    expected_arch_query_commands:
+      - "arch-query versions"
+    tags: ["navigation", "version-alias", "symlink"]
+
+  - id: "t4-006"
+    tier: 4
+    category: "navigation"
+    question: "Where is the historical CodeFlare SDK inventory correction documented?"
+    expected_answer: "The historical correction is documented in overlays/0004-codeflare-sdk-missing-from-component-inventory.md. In rhoai.next, CodeFlare SDK is also documented directly at architecture/rhoai.next/codeflare-sdk.md."
+    expected_answerable: true
+    source_files:
+      - "overlays/0004-codeflare-sdk-missing-from-component-inventory.md"
+      - "architecture/rhoai.next/codeflare-sdk.md"
+    source_excerpt: "Overlay 0004 is titled CodeFlare SDK missing from component inventory; rhoai.next adds codeflare-sdk.md as a direct component document."
+    expected_arch_query_commands:
+      - "arch-query overlays"
+      - "arch-query component codeflare-sdk"
+    tags: ["navigation", "overlay", "codeflare"]

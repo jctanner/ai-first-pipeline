@@ -1,0 +1,554 @@
+---
+# ====================================================================
+# Architecture-Context A/B Benchmark
+# ====================================================================
+#
+# Determines whether agents perform better consuming architecture
+# context as raw flat files (Read/Glob/Grep) or via the arch-query
+# CLI (Bash).
+#
+# Each corpus question runs twice — once per context_mode — with the
+# same model, prompt, judge, and architecture-context commit. Only the
+# access method differs.
+#
+# Workflow structure:
+#
+#   main (entrypoint)
+#     ├── load_corpus
+#     ├── record_versions
+#     ├── run_modes (for_each: context_modes, sequential)
+#     │     └── run-single-mode
+#     │           ├── answer_all (for_each: questions, concurrency 5)
+#     │           │     └── answer-question
+#     │           │           ├── check_existing_answer
+#     │           │           └── run_answer_agent
+#     │           └── judge_all (for_each: questions, concurrency 5)
+#     │                 └── judge-answer
+#     │                       ├── check_existing_judgment
+#     │                       ├── load_answer
+#     │                       └── run_judge_agent
+#     ├── aggregate_results
+#     ├── load_summary + set_scores
+#     ├── quality_gate
+#     └── mlflow_log (conditional)
+#
+# Output paths are keyed by context_mode:
+#   {results_dir}/answers/{context_mode}/{question_id}.json
+#   {results_dir}/judgments/{context_mode}/{question_id}.json
+#   {results_dir}/benchmark-summary.json
+#
+# Usage:
+#   # Full paired benchmark (both modes)
+#   markov run arch-context-benchmark.yaml
+#
+#   # Single mode
+#   markov run arch-context-benchmark.yaml \
+#     --var context_modes='["arch_query"]'
+#
+#   # Override model or concurrency
+#   markov run arch-context-benchmark.yaml \
+#     --var model=sonnet --forks 3
+#
+#   # Dry run (validate YAML only)
+#   markov run arch-context-benchmark.yaml --dry-run
+
+entrypoint: main
+
+namespace: ai-pipeline
+
+forks: 5
+
+vars:
+  corpus_path: "/app/artifacts/benchmarks/arch-context/corpus-AB-final.yaml"
+  arch_context_dir: "/app/.context/architecture-context"
+  arch_query_bin: "/usr/local/bin/arch-query"
+  arch_query_base_dir: "/app/.context/architecture-context/architecture"
+  results_dir: "/app/artifacts/benchmarks/arch-context/results"
+  model: opus
+  judge_model: sonnet
+  mlflow_enabled: false
+  mlflow_experiment: "arch-context-access-benchmark"
+  context_modes: ["flat_files", "arch_query"]
+
+# ====================================================================
+# Rules
+# ====================================================================
+# Quality gate rules evaluate per-tier score minimums after aggregation.
+# Tier 4 (navigation) gets special treatment: if agents can't find
+# files, Tiers 1-3 are unreliable (cascade concern from the design doc).
+
+rules:
+
+  # Tier 4 cascade: if navigation is broken, nothing else matters
+  - name: tier4_cascade_failure
+    description: "Navigation tier below 2.5 in either mode — other tiers unreliable"
+    salience: 200
+    when: "flat_files_tier4_avg < 2.5 or arch_query_tier4_avg < 2.5"
+    action: pause
+    set_fact:
+      benchmark_reliable: false
+      gate_failure: "Tier 4 (Navigation) below 2.5 — cascade concern"
+
+  # Any tier below floor
+  - name: any_tier_below_floor
+    description: "At least one tier scored below 2.0 in either mode"
+    salience: 150
+    when: "flat_files_tier1_avg < 2.0 or flat_files_tier2_avg < 2.0 or flat_files_tier3_avg < 2.0 or arch_query_tier1_avg < 2.0 or arch_query_tier2_avg < 2.0 or arch_query_tier3_avg < 2.0"
+    action: pause
+    set_fact:
+      benchmark_reliable: false
+      gate_failure: "One or more tiers below 2.0 floor"
+
+  # All clear
+  - name: all_tiers_pass
+    description: "All tiers meet minimum thresholds in both modes"
+    salience: 100
+    when: "flat_files_tier4_avg >= 2.5 and arch_query_tier4_avg >= 2.5 and flat_files_tier1_avg >= 2.0 and flat_files_tier2_avg >= 2.0 and flat_files_tier3_avg >= 2.0 and arch_query_tier1_avg >= 2.0 and arch_query_tier2_avg >= 2.0 and arch_query_tier3_avg >= 2.0"
+    action: continue
+    set_fact:
+      benchmark_reliable: true
+
+# ====================================================================
+# Step Types
+# ====================================================================
+
+step_types:
+  agent_job:
+    base: k8s_job
+    description: "Run a pipeline-agent skill as a K8s Job"
+    job:
+      image: pipeline-agent:latest
+      backoff_limit: 0
+      ttl_seconds: 86400
+      service_account: pipeline-dashboard
+      env:
+        GOOGLE_APPLICATION_CREDENTIALS: /home/pipelineagent/.config/gcloud/credentials.json
+        MLFLOW_TRACKING_URI: http://mlflow.ai-pipeline.svc.cluster.local:5000
+        MLFLOW_EXPERIMENT_NAME: "{{ mlflow_experiment }}"
+      secrets:
+        - pipeline-secrets
+      volumes:
+        - name: pipeline-artifacts
+          mount: /app/artifacts
+          pvc: pipeline-artifacts
+        - name: pipeline-context
+          mount: /app/.context
+          pvc: pipeline-context
+        - name: pipeline-logs
+          mount: /app/logs
+          pvc: pipeline-logs
+        - name: gcp-credentials
+          mount: /home/pipelineagent/.config/gcloud
+          secret: gcp-credentials
+          read_only: true
+      resources:
+        requests:
+          memory: 2Gi
+          cpu: 500m
+        limits:
+          memory: 8Gi
+          cpu: 2000m
+      affinity:
+        pod_affinity:
+          required:
+            match_labels:
+              app: pipeline-dashboard
+            topology_key: kubernetes.io/hostname
+
+# ====================================================================
+# Workflows
+# ====================================================================
+workflows:
+
+  # ------------------------------------------------------------------
+  # main (entrypoint)
+  #
+  # Loads the corpus, records version info, runs both context modes,
+  # aggregates results, gates on quality, and optionally logs to MLflow.
+  # ------------------------------------------------------------------
+  - name: main
+    description: "A/B benchmark: flat_files vs arch_query context access"
+
+    steps:
+
+      # ── Setup ──────────────────────────────────────────────────
+      #
+      # Ensure architecture-context is cloned and arch-query is
+      # available before any benchmark agents run. The arch-query
+      # binary is baked into the pipeline-agent image via multi-stage
+      # build. Architecture-context is sparse-cloned at runtime so
+      # we can pin/record the exact commit.
+
+      - name: setup_context
+        type: shell_exec
+        register: setup_result
+        params:
+          command: |
+            set -euo pipefail
+
+            CONTEXT_DIR="{{ arch_context_dir }}"
+
+            # Clone or update architecture-context (sparse checkout)
+            if [ -d "$CONTEXT_DIR/.git" ]; then
+              echo "Updating existing architecture-context clone..."
+              git -C "$CONTEXT_DIR" pull --quiet
+            else
+              echo "Cloning architecture-context (sparse)..."
+              mkdir -p "$(dirname "$CONTEXT_DIR")"
+              git clone --depth 1 --filter=blob:none --sparse \
+                https://github.com/opendatahub-io/architecture-context \
+                "$CONTEXT_DIR"
+            fi
+
+            # Detect latest version and set sparse-checkout
+            LATEST=$(ls "$CONTEXT_DIR/architecture/" 2>/dev/null \
+              | grep '^rhoai-' | sort -V | tail -1 || true)
+            if [ -z "$LATEST" ]; then
+              LATEST=$(curl -sL https://api.github.com/repos/opendatahub-io/architecture-context/contents/architecture \
+                | python3 -c "import sys,json; entries=json.load(sys.stdin); names=sorted(e['name'] for e in entries if e['name'].startswith('rhoai-')); print(names[-1] if names else '')")
+            fi
+            git -C "$CONTEXT_DIR" sparse-checkout set "architecture/$LATEST" "architecture/rhoai.next" || true
+
+            echo "Architecture context ready: $CONTEXT_DIR/architecture/$LATEST"
+
+            # Verify arch-query binary
+            if ! command -v {{ arch_query_bin }} >/dev/null 2>&1; then
+              echo "ERROR: arch-query binary not found at {{ arch_query_bin }}"
+              echo "Ensure the pipeline-agent image includes arch-query (multi-stage build)"
+              exit 1
+            fi
+            echo "arch-query version: $({{ arch_query_bin }} --base-dir {{ arch_query_base_dir }} --version 2>/dev/null || echo unknown)"
+
+      - name: load_corpus
+        type: load_artifact
+        artifacts:
+          corpus:
+            path: "{{ corpus_path }}"
+            format: yaml
+            source: local
+
+      - name: record_arch_context_commit
+        type: shell_exec
+        register: arch_context_version
+        params:
+          command: "git -C {{ arch_context_dir }} rev-parse HEAD 2>/dev/null || echo unknown"
+
+      - name: record_arch_query_version
+        type: shell_exec
+        register: arch_query_version
+        params:
+          command: "{{ arch_query_bin }} --base-dir {{ arch_query_base_dir }} --version 2>/dev/null || echo unknown"
+
+      # ── Paired benchmark runs ──────────────────────────────────
+      #
+      # Sequential over modes (flat_files first, then arch_query).
+      # Within each mode, questions fan out with concurrency 5.
+      # Sequential between modes so flat_files results are fully
+      # written before arch_query starts — avoids PVC contention
+      # and makes resume after partial failure cleaner.
+
+      - name: run_modes
+        for_each: "context_modes"
+        as: mode
+        concurrency: 1
+        workflow: run-single-mode
+        vars:
+          context_mode: "{{ mode }}"
+          corpus_path: "{{ corpus_path }}"
+          arch_context_dir: "{{ arch_context_dir }}"
+          arch_query_bin: "{{ arch_query_bin }}"
+          arch_query_base_dir: "{{ arch_query_base_dir }}"
+          results_dir: "{{ results_dir }}"
+          model: "{{ model }}"
+          judge_model: "{{ judge_model }}"
+          mlflow_experiment: "{{ mlflow_experiment }}"
+
+      # ── Aggregation ────────────────────────────────────────────
+
+      - name: aggregate_results
+        type: shell_exec
+        register: aggregation
+        params:
+          command: |
+            python3 /app/scripts/aggregate_benchmark.py \
+              --results-dir "{{ results_dir }}" \
+              --corpus "{{ corpus_path }}" \
+              --arch-context-commit "{{ arch_context_version.stdout }}" \
+              --arch-query-version "{{ arch_query_version.stdout }}" \
+              --agent-model "{{ model }}" \
+              --judge-model "{{ judge_model }}"
+
+      - name: load_summary
+        type: load_artifact
+        artifacts:
+          summary:
+            path: "{{ results_dir }}/benchmark-summary.yaml"
+            format: yaml
+            source: local
+
+      # Extract per-mode per-tier scores as facts for the gate.
+      # Naming: {mode}_tier{N}_avg
+      - name: set_scores
+        type: set_fact
+        vars:
+          flat_files_tier1_avg: "{{ load_summary.artifacts.summary.per_mode.flat_files.per_tier.tier_1.composite_avg }}"
+          flat_files_tier2_avg: "{{ load_summary.artifacts.summary.per_mode.flat_files.per_tier.tier_2.composite_avg }}"
+          flat_files_tier3_avg: "{{ load_summary.artifacts.summary.per_mode.flat_files.per_tier.tier_3.composite_avg }}"
+          flat_files_tier4_avg: "{{ load_summary.artifacts.summary.per_mode.flat_files.per_tier.tier_4.composite_avg }}"
+          arch_query_tier1_avg: "{{ load_summary.artifacts.summary.per_mode.arch_query.per_tier.tier_1.composite_avg }}"
+          arch_query_tier2_avg: "{{ load_summary.artifacts.summary.per_mode.arch_query.per_tier.tier_2.composite_avg }}"
+          arch_query_tier3_avg: "{{ load_summary.artifacts.summary.per_mode.arch_query.per_tier.tier_3.composite_avg }}"
+          arch_query_tier4_avg: "{{ load_summary.artifacts.summary.per_mode.arch_query.per_tier.tier_4.composite_avg }}"
+
+      # ── Quality gate ───────────────────────────────────────────
+
+      - name: quality_gate
+        type: gate
+        rules:
+          - tier4_cascade_failure
+          - any_tier_below_floor
+          - all_tiers_pass
+
+      # ── Optional MLflow logging ────────────────────────────────
+
+      - name: mlflow_log
+        type: shell_exec
+        when: "mlflow_enabled"
+        params:
+          command: |
+            python3 /app/scripts/log_benchmark_to_mlflow.py \
+              --results-dir "{{ results_dir }}" \
+              --experiment "{{ mlflow_experiment }}" \
+              --arch-context-commit "{{ arch_context_version.stdout }}" \
+              --arch-query-version "{{ arch_query_version.stdout }}"
+
+  # ------------------------------------------------------------------
+  # run-single-mode
+  #
+  # Runs all corpus questions through one context_mode (flat_files or
+  # arch_query), then judges every answer. The mode determines which
+  # skill is invoked and which output subdirectory is used.
+  # ------------------------------------------------------------------
+  - name: run-single-mode
+    description: "Run all questions in one context mode, then judge"
+
+    vars:
+      context_mode: null
+      corpus_path: null
+      arch_context_dir: null
+      arch_query_bin: null
+      arch_query_base_dir: null
+      results_dir: null
+      model: opus
+      judge_model: sonnet
+
+    steps:
+
+      - name: announce_mode
+        type: shell_exec
+        params:
+          command: "echo 'Starting benchmark mode: {{ context_mode }}'"
+
+      - name: load_corpus
+        type: load_artifact
+        artifacts:
+          corpus:
+            path: "{{ corpus_path }}"
+            format: yaml
+            source: local
+
+      # ── Answer phase ───────────────────────────────────────────
+      # Fan out: one agent job per question, concurrency 5.
+      # Skill selection based on context_mode.
+
+      - name: answer_all
+        for_each: "load_corpus.artifacts.corpus.questions"
+        for_each_key: "id"
+        for_each_sort: "id"
+        as: q
+        concurrency: 5
+        workflow: answer-question
+        vars:
+          question_id: "{{ q.id }}"
+          question_text: "{{ q.question }}"
+          tier: "{{ q.tier }}"
+          context_mode: "{{ context_mode }}"
+          arch_context_dir: "{{ arch_context_dir }}"
+          arch_query_bin: "{{ arch_query_bin }}"
+          arch_query_base_dir: "{{ arch_query_base_dir }}"
+          results_dir: "{{ results_dir }}"
+          model: "{{ model }}"
+
+      # ── Judge phase ────────────────────────────────────────────
+      # Fan out: one judge job per question, concurrency 5.
+      # Judge is mode-blind — receives answer + ground truth only.
+
+      - name: judge_all
+        for_each: "load_corpus.artifacts.corpus.questions"
+        for_each_key: "id"
+        for_each_sort: "id"
+        as: q
+        concurrency: 5
+        workflow: judge-answer
+        vars:
+          question_id: "{{ q.id }}"
+          question_text: "{{ q.question }}"
+          expected_answer: "{{ q.expected_answer }}"
+          expected_answerable: "{{ q.expected_answerable }}"
+          source_excerpt: "{{ q.source_excerpt }}"
+          context_mode: "{{ context_mode }}"
+          results_dir: "{{ results_dir }}"
+          judge_model: "{{ judge_model }}"
+
+      - name: mode_complete
+        type: shell_exec
+        params:
+          command: "echo 'Benchmark mode {{ context_mode }} complete'"
+
+  # ------------------------------------------------------------------
+  # answer-question
+  #
+  # Answers a single corpus question using the assigned context_mode.
+  # Idempotent: checks for existing answer before running.
+  #
+  # Skill routing:
+  #   flat_files  → bench-answer-flat  (Read/Glob/Grep, no Bash)
+  #   arch_query  → bench-answer-query (Bash only, no Read/Glob/Grep)
+  # ------------------------------------------------------------------
+  - name: answer-question
+    description: "Answer one question in one context mode"
+
+    vars:
+      question_id: null
+      question_text: null
+      tier: null
+      context_mode: null
+      arch_context_dir: null
+      arch_query_bin: null
+      arch_query_base_dir: null
+      results_dir: null
+      model: opus
+
+    steps:
+
+      - name: check_existing_answer
+        type: load_artifact
+        artifacts:
+          answer:
+            path: "{{ results_dir }}/answers/{{ context_mode }}/{{ question_id }}.json"
+            format: yaml
+            source: local
+            optional: true
+
+      # flat_files mode: agent uses Read/Glob/Grep on the architecture
+      # directory. No Bash access — cannot fall back to ls/grep/cat.
+      - name: run_flat_files
+        type: agent_job
+        when: "check_existing_answer.artifacts.answer == None and context_mode == 'flat_files'"
+        params:
+          command: ["/bin/bash"]
+          args:
+            - /app/scripts/run_skill.sh
+            - --skill
+            - bench-answer-flat
+            - --issue
+            - "{{ question_id }}"
+            - --model
+            - "{{ model }}"
+            - --extra-vars
+            - "QUESTION={{ question_text }}"
+            - --extra-vars
+            - "ARCH_CONTEXT_DIR={{ arch_context_dir }}"
+            - --extra-vars
+            - "OUTPUT_DIR={{ results_dir }}/answers/{{ context_mode }}"
+
+      # arch_query mode: agent uses Bash to call arch-query.
+      # Read/Glob/Grep blocked by skill allowed-tools.
+      - name: run_arch_query
+        type: agent_job
+        when: "check_existing_answer.artifacts.answer == None and context_mode == 'arch_query'"
+        params:
+          command: ["/bin/bash"]
+          args:
+            - /app/scripts/run_skill.sh
+            - --skill
+            - bench-answer-query
+            - --issue
+            - "{{ question_id }}"
+            - --model
+            - "{{ model }}"
+            - --extra-vars
+            - "QUESTION={{ question_text }}"
+            - --extra-vars
+            - "ARCH_QUERY_BIN={{ arch_query_bin }} --base-dir {{ arch_query_base_dir }}"
+            - --extra-vars
+            - "OUTPUT_DIR={{ results_dir }}/answers/{{ context_mode }}"
+
+  # ------------------------------------------------------------------
+  # judge-answer
+  #
+  # Judges a single answer against ground truth. Mode-blind — the judge
+  # does not know which context_mode produced the answer.
+  #
+  # Uses sonnet model (different from the opus answer agent) to avoid
+  # self-evaluation bias.
+  # ------------------------------------------------------------------
+  - name: judge-answer
+    description: "Judge one answer against ground truth"
+
+    vars:
+      question_id: null
+      question_text: null
+      expected_answer: null
+      expected_answerable: null
+      source_excerpt: null
+      context_mode: null
+      results_dir: null
+      judge_model: sonnet
+
+    steps:
+
+      - name: check_existing_judgment
+        type: load_artifact
+        artifacts:
+          judgment:
+            path: "{{ results_dir }}/judgments/{{ context_mode }}/{{ question_id }}.json"
+            format: yaml
+            source: local
+            optional: true
+
+      - name: load_answer
+        type: load_artifact
+        when: "check_existing_judgment.artifacts.judgment == None"
+        artifacts:
+          answer:
+            path: "{{ results_dir }}/answers/{{ context_mode }}/{{ question_id }}.json"
+            format: yaml
+            source: local
+            optional: true
+
+      - name: run_judge
+        type: agent_job
+        when: "check_existing_judgment.artifacts.judgment == None and load_answer.artifacts.answer != None"
+        params:
+          command: ["/bin/bash"]
+          args:
+            - /app/scripts/run_skill.sh
+            - --skill
+            - bench-judge
+            - --issue
+            - "{{ question_id }}"
+            - --model
+            - "{{ judge_model }}"
+            - --extra-vars
+            - "QUESTION={{ question_text }}"
+            - --extra-vars
+            - "EXPECTED_ANSWER={{ expected_answer }}"
+            - --extra-vars
+            - "EXPECTED_ANSWERABLE={{ expected_answerable }}"
+            - --extra-vars
+            - "SOURCE_EXCERPT={{ source_excerpt }}"
+            - --extra-vars
+            - "AGENT_ANSWER_PATH={{ results_dir }}/answers/{{ context_mode }}/{{ question_id }}.json"
+            - --extra-vars
+            - "OUTPUT_DIR={{ results_dir }}/judgments/{{ context_mode }}"

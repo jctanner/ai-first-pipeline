@@ -600,6 +600,108 @@ WRITE_TEST_SCHEMA = {
     "additionalProperties": False,
 }
 
+BENCH_ANSWER_SCHEMA = {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "type": "object",
+    "required": [
+        "question_id",
+        "question",
+        "answer",
+        "answerable",
+        "sources_cited",
+        "confidence",
+    ],
+    "properties": {
+        "question_id": {"type": "string"},
+        "question": {"type": "string"},
+        "answer": {"type": "string"},
+        "answerable": {"type": "boolean"},
+        "sources_cited": {
+            "type": "array",
+            "items": {
+                "type": "object",
+                "required": ["source", "excerpt"],
+                "properties": {
+                    "source": {"type": "string"},
+                    "excerpt": {"type": "string", "maxLength": 200},
+                },
+                "additionalProperties": False,
+            },
+        },
+        "confidence": {
+            "type": "string",
+            "enum": ["high", "medium", "low"],
+        },
+    },
+    "additionalProperties": False,
+}
+
+BENCH_JUDGE_SCHEMA = {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "type": "object",
+    "required": [
+        "question_id",
+        "scores",
+        "composite_score",
+        "pass",
+        "false_claims",
+        "missed_gaps",
+        "justifications",
+    ],
+    "properties": {
+        "question_id": {"type": "string"},
+        "scores": {
+            "type": "object",
+            "required": [
+                "accuracy",
+                "grounding",
+                "scope_awareness",
+                "gap_acknowledgment",
+            ],
+            "properties": {
+                "accuracy": {"type": "integer", "minimum": 1, "maximum": 5},
+                "grounding": {"type": "integer", "minimum": 1, "maximum": 5},
+                "scope_awareness": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 5,
+                },
+                "gap_acknowledgment": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 5,
+                },
+            },
+            "additionalProperties": False,
+        },
+        "composite_score": {
+            "type": "number",
+            "minimum": 1.0,
+            "maximum": 5.0,
+        },
+        "pass": {"type": "boolean"},
+        "false_claims": {"type": "integer", "minimum": 0},
+        "missed_gaps": {"type": "integer", "minimum": 0},
+        "justifications": {
+            "type": "object",
+            "required": [
+                "accuracy",
+                "grounding",
+                "scope_awareness",
+                "gap_acknowledgment",
+            ],
+            "properties": {
+                "accuracy": {"type": "string"},
+                "grounding": {"type": "string"},
+                "scope_awareness": {"type": "string"},
+                "gap_acknowledgment": {"type": "string"},
+            },
+            "additionalProperties": False,
+        },
+    },
+    "additionalProperties": False,
+}
+
 # Map phase names to their schemas for easy lookup
 PHASE_SCHEMAS = {
     "completeness": COMPLETENESS_SCHEMA,
@@ -607,4 +709,6 @@ PHASE_SCHEMAS = {
     "fix-attempt": FIX_ATTEMPT_SCHEMA,
     "test-plan": TEST_PLAN_SCHEMA,
     "write-test": WRITE_TEST_SCHEMA,
+    "bench-answer": BENCH_ANSWER_SCHEMA,
+    "bench-judge": BENCH_JUDGE_SCHEMA,
 }

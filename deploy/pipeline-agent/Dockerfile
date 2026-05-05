@@ -1,3 +1,13 @@
+# ── Stage 1: Build arch-query from source ────────────────────────
+FROM golang:1.24-bookworm AS arch-query-builder
+
+WORKDIR /build
+RUN git clone --depth 1 https://github.com/opendatahub-io/architecture-context.git && \
+    cd architecture-context/src/arch-query && \
+    go build -o /build/arch-query .
+
+
+# ── Stage 2: Pipeline agent ─────────────────────────────────────
 FROM python:3.13-slim
 
 # Install system dependencies
@@ -15,6 +25,9 @@ WORKDIR /app
 # Inject internal CA certificate (extracted at build time by 05b-build-agent.sh)
 COPY internal-ca.crt /usr/local/share/ca-certificates/internal-ca.crt
 RUN update-ca-certificates
+
+# Copy arch-query binary from builder stage
+COPY --from=arch-query-builder /build/arch-query /usr/local/bin/arch-query
 
 # Create non-root user early
 RUN useradd -m -s /bin/bash pipelineagent \

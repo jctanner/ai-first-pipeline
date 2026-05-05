@@ -1,0 +1,1309 @@
+version: '1.0'
+architecture_context_commit: 292cf67f7073da32a3040f09e6a3bb904df79a60
+generated_date: '2026-05-05'
+target_version: rhoai.next
+source_reference: deploy/repos/architecture-context
+purpose: Balanced 60-question A/B benchmark for comparing flat-file vs arch-query
+  access patterns.
+questions:
+- id: t1-001
+  tier: 1
+  category: inventory-lookup
+  question: Is kserve documented in the architecture context?
+  expected_answer: Yes. kserve has a component document at architecture/rhoai.next/kserve.md.
+  expected_answerable: true
+  source_files:
+  - architecture/rhoai.next/kserve.md
+  source_excerpt: KServe is the Kubernetes-native model serving platform that provides
+    CRD-driven lifecycle management for machine learning inference services, including
+    standard model serving, serverless deployments, inference graphs, local model
+    caching, and large language model (LLM) inference orchestration.
+  expected_arch_query_commands:
+  - arch-query exists kserve
+  tags:
+  - positive
+  - inventory
+- id: t1-002
+  tier: 1
+  category: inventory-lookup
+  question: Is vllm-cpu documented in the architecture context?
+  expected_answer: Yes. vllm-cpu has a component document at architecture/rhoai.next/vllm-cpu.md.
+  expected_answerable: true
+  source_files:
+  - architecture/rhoai.next/vllm-cpu.md
+  source_excerpt: CPU-only build of the vLLM high-throughput LLM inference and serving
+    engine, optimized for running model inference without GPU hardware on ppc64le
+    and s390x architectures.
+  expected_arch_query_commands:
+  - arch-query exists vllm-cpu
+  tags:
+  - positive
+  - inventory
+- id: t1-003
+  tier: 1
+  category: inventory-lookup
+  question: Is InstructLab a RHOAI component?
+  expected_answer: No. InstructLab is not a RHOAI component — RHEL AI component, not
+    shipped in RHOAI.
+  expected_answerable: true
+  source_files:
+  - architecture/rhoai.next/PLATFORM.md
+  source_excerpt: InstructLab is not listed in the RHOAI component inventory.
+  expected_arch_query_commands:
+  - arch-query exists instructlab
+  - arch-query search instructlab
+  tags:
+  - negative
+  - product-scope
+- id: t1-004
+  tier: 1
+  category: inventory-lookup
+  question: Is model-registry documented in the architecture context?
+  expected_answer: Yes. model-registry has a component document at architecture/rhoai.next/model-registry.md.
+  expected_answerable: true
+  source_files:
+  - architecture/rhoai.next/model-registry.md
+  source_excerpt: A central repository for ML model developers to store and manage
+    models, versions, artifacts, and serving metadata.
+  expected_arch_query_commands:
+  - arch-query exists model-registry
+  tags:
+  - positive
+  - inventory
+- id: t1-005
+  tier: 1
+  category: inventory-lookup
+  question: Is mlflow documented in the architecture context?
+  expected_answer: Yes. mlflow has a component document at architecture/rhoai.next/mlflow.md.
+  expected_answerable: true
+  source_files:
+  - architecture/rhoai.next/mlflow.md
+  source_excerpt: MLflow is a machine learning lifecycle platform providing experiment
+    tracking, model versioning, model registry, artifact management, and LLM observability
+    with Kubernetes-native workspace and authentication integration for RHOAI.
+  expected_arch_query_commands:
+  - arch-query exists mlflow
+  tags:
+  - positive
+  - inventory
+- id: t1-006
+  tier: 1
+  category: inventory-lookup
+  question: Is RHAIIS a RHOAI component?
+  expected_answer: No. RHAIIS is not a RHOAI component — separate product (RHEL AI
+    Inference Service), not part of RHOAI.
+  expected_answerable: true
+  source_files:
+  - architecture/rhoai.next/PLATFORM.md
+  source_excerpt: RHAIIS is not listed in the RHOAI component inventory.
+  expected_arch_query_commands:
+  - arch-query exists rhaiis
+  - arch-query search rhaiis
+  tags:
+  - negative
+  - product-scope
+- id: t1-007
+  tier: 1
+  category: inventory-lookup
+  question: Is data-science-pipelines documented in the architecture context?
+  expected_answer: Yes. data-science-pipelines has a component document at architecture/rhoai.next/data-science-pipelines.md.
+  expected_answerable: true
+  source_files:
+  - architecture/rhoai.next/data-science-pipelines.md
+  source_excerpt: Kubeflow Pipelines backend providing ML pipeline definition, scheduling,
+    execution, caching, and artifact management on Kubernetes via Argo Workflows.
+  expected_arch_query_commands:
+  - arch-query exists data-science-pipelines
+  tags:
+  - positive
+  - inventory
+- id: t1-008
+  tier: 1
+  category: inventory-lookup
+  question: Is eval-hub documented in the architecture context?
+  expected_answer: Yes. eval-hub has a component document at architecture/rhoai.next/eval-hub.md.
+  expected_answerable: true
+  source_files:
+  - architecture/rhoai.next/eval-hub.md
+  source_excerpt: REST API service for orchestrating LLM evaluation jobs, managing
+    evaluation providers, benchmark collections, and tracking results via MLflow integration.
+  expected_arch_query_commands:
+  - arch-query exists eval-hub
+  tags:
+  - positive
+  - inventory
+- id: t1-009
+  tier: 1
+  category: inventory-lookup
+  question: Is BentoML a RHOAI component?
+  expected_answer: No. BentoML is not a RHOAI component — upstream project, not shipped
+    in RHOAI.
+  expected_answerable: true
+  source_files:
+  - architecture/rhoai.next/PLATFORM.md
+  source_excerpt: BentoML is not listed in the RHOAI component inventory.
+  expected_arch_query_commands:
+  - arch-query exists bentoml
+  - arch-query search bentoml
+  tags:
+  - negative
+  - product-scope
+- id: t1-010
+  tier: 1
+  category: inventory-lookup
+  question: Is rhods-operator documented in the architecture context?
+  expected_answer: Yes. rhods-operator has a component document at architecture/rhoai.next/rhods-operator.md.
+  expected_answerable: true
+  source_files:
+  - architecture/rhoai.next/rhods-operator.md
+  source_excerpt: The RHOAI Operator is the central platform operator that manages
+    the complete lifecycle of Red Hat OpenShift AI, including component deployment,
+    ingress infrastructure, authentication, monitoring, and RBAC across the entire
+    platform.
+  expected_arch_query_commands:
+  - arch-query exists rhods-operator
+  tags:
+  - positive
+  - inventory
+- id: t1-011
+  tier: 1
+  category: inventory-lookup
+  question: Is llm-d-inference-scheduler documented in the architecture context?
+  expected_answer: Yes. llm-d-inference-scheduler has a component document at architecture/rhoai.next/llm-d-inference-scheduler.md.
+  expected_answerable: true
+  source_files:
+  - architecture/rhoai.next/llm-d-inference-scheduler.md
+  source_excerpt: An inference request scheduler that makes optimized routing decisions
+    for LLM inference workloads through the Kubernetes Gateway API Inference Extension
+    (GIE) framework using Envoy ext_proc.
+  expected_arch_query_commands:
+  - arch-query exists llm-d-inference-scheduler
+  tags:
+  - positive
+  - inventory
+- id: t1-012
+  tier: 1
+  category: inventory-lookup
+  question: Is Kubeflow Pipelines v1 a RHOAI component?
+  expected_answer: No. Kubeflow Pipelines v1 is not a RHOAI component — replaced by
+    Data Science Pipelines (Argo-based) in RHOAI.
+  expected_answerable: true
+  source_files:
+  - architecture/rhoai.next/PLATFORM.md
+  source_excerpt: Kubeflow Pipelines v1 is not listed in the RHOAI component inventory.
+  expected_arch_query_commands:
+  - arch-query exists kubeflow-pipelines-v1
+  - arch-query search kubeflow
+  tags:
+  - negative
+  - product-scope
+- id: t2-001
+  tier: 2
+  category: fact-extraction
+  question: What ports does kserve use?
+  expected_answer: 'kserve uses ports: 6443, 8000, 8080, 8081, 8443, 9081, 9443.'
+  expected_answerable: true
+  source_files:
+  - architecture/rhoai.next/kserve.md
+  source_excerpt: '**Port**: 8080/TCP (metrics), 9443/TCP (webhook), 8081/TCP (health)
+
+
+    #### Upstream Dependencies
+
+
+    | Service | Protocol | Port | Auth | Purpose |
+
+    |---------|----------|------|------|---------|
+
+    | Kubernetes API | HTTPS | 6443/TCP | ServiceAccount Token | CRUD for Deployments,
+    Services, HPAs, ConfigMaps, Secrets, Pods |
+
+    | Knative Serving API | HTTPS | 6443/TCP | ServiceAccount Token | Create/manage
+    Kn'
+  expected_arch_query_commands:
+  - arch-query ports kserve
+  tags:
+  - port
+- id: t2-002
+  tier: 2
+  category: fact-extraction
+  question: What ports does vllm-cpu use?
+  expected_answer: 'vllm-cpu uses ports: 50051, 6379, 8000.'
+  expected_answerable: true
+  source_files:
+  - architecture/rhoai.next/vllm-cpu.md
+  source_excerpt: '| `/health` | GET | 8000/TCP | HTTP | Configurable TLS | None |
+    Liveness/readiness health check |
+
+    | `/version` | GET | 8000/TCP | HTTP | Configurable TLS | None | Return vLLM version
+    |
+
+    | `/load` | GET | 8000/TCP | HTTP | Configurable TLS | None | Server load metrics
+    for autoscaling |
+
+    | `/v1/models` | GET | 8000/TCP | HTTP | Configurable TLS | Bearer (API key) |
+    List available models |
+
+    | `/v1/chat/'
+  expected_arch_query_commands:
+  - arch-query ports vllm-cpu
+  tags:
+  - port
+- id: t2-003
+  tier: 2
+  category: fact-extraction
+  question: What ports does trustyai-service-operator use?
+  expected_answer: 'trustyai-service-operator uses ports: 18080, 5432, 6443, 8000,
+    8032, 8080, 8081, 8432, 8443, 8480, 8490, 9443.'
+  expected_answerable: true
+  source_files:
+  - architecture/rhoai.next/trustyai-service-operator.md
+  source_excerpt: '**Port**: 8080/TCP (metrics), 8081/TCP (health probes)
+
+
+    #### Upstream Dependencies
+
+
+    | Service | Protocol | Port | Auth | Purpose |
+
+    |---------|----------|------|------|---------|
+
+    | Kubernetes API | HTTPS | 6443/TCP | ServiceAccount token | CRD management, resource
+    reconciliation |
+
+    | KServe InferenceService API | HTTPS | 6443/TCP (via API) | ServiceAccount token
+    | Patch InferenceService specs for pa'
+  expected_arch_query_commands:
+  - arch-query ports trustyai-service-operator
+  tags:
+  - port
+- id: t2-004
+  tier: 2
+  category: fact-extraction
+  question: What ports does eval-hub use?
+  expected_answer: 'eval-hub uses ports: 3001, 4317, 4318, 5432, 8080.'
+  expected_answerable: true
+  source_files:
+  - architecture/rhoai.next/eval-hub.md
+  source_excerpt: '**Port**: 8080/TCP
+
+
+    #### API Routes
+
+
+    | Path | Method | Upstream Service | Auth | Purpose |
+
+    |------|--------|-----------------|------|---------|
+
+    | `/api/v1/health` | GET | None | none | Health check with build info |
+
+    | `/api/v1/evaluations/jobs` | POST | Runtime (K8s/Local) | K8s TokenReview +
+    SAR | Create evaluation job |'
+  expected_arch_query_commands:
+  - arch-query ports eval-hub
+  tags:
+  - port
+- id: t2-005
+  tier: 2
+  category: fact-extraction
+  question: What ports does mlflow use?
+  expected_answer: 'mlflow uses ports: 3306, 5000, 5432.'
+  expected_answerable: true
+  source_files:
+  - architecture/rhoai.next/mlflow.md
+  source_excerpt: The server is built as a single container image from a 3-stage Dockerfile
+    (Node.js UI build, Python wheel build, UBI9-minimal runtime) and exposes port
+    5000/TCP. It supports PostgreSQL and MySQL for backend metadata storage, and pluggable
+    artifact storage backends including S3, GCS, Azure Blob, and HDFS. The project
+    also produces three Python sub-packages (`mlflow`, `mlflow-skinny`, `mlflow-tracin
+  expected_arch_query_commands:
+  - arch-query ports mlflow
+  tags:
+  - port
+- id: t2-006
+  tier: 2
+  category: fact-extraction
+  question: What CRDs does kserve manage?
+  expected_answer: 'kserve manages: InferenceService (serving.kserve.io), InferenceGraph
+    (serving.kserve.io), TrainedModel (serving.kserve.io), ServingRuntime (serving.kserve.io),
+    ClusterServingRuntime (serving.kserve.io) and 7 more.'
+  expected_answerable: true
+  source_files:
+  - architecture/rhoai.next/kserve.md
+  source_excerpt: '**Short**: KServe is the Kubernetes-native model serving platform
+    that provides CRD-driven lifecycle management for machine learning inference services,
+    including standard model serving, serverless deployments, inference graphs, local
+    model caching, and large language model (LLM) inference orchestration.
+
+
+    **Detailed**: KServe provides a declarative API for deploying, scaling, and managing
+    ML/AI mo'
+  expected_arch_query_commands:
+  - arch-query crds kserve
+  tags:
+  - crd
+- id: t2-007
+  tier: 2
+  category: fact-extraction
+  question: What CRDs does trustyai-service-operator manage?
+  expected_answer: 'trustyai-service-operator manages: TrustyAIService (trustyai.opendatahub.io),
+    TrustyAIService (trustyai.opendatahub.io), LMEvalJob (trustyai.opendatahub.io),
+    GuardrailsOrchestrator (trustyai.opendatahub.io), NemoGuardrails (trustyai.opendatahub.io)
+    and 1 more.'
+  expected_answerable: true
+  source_files:
+  - architecture/rhoai.next/trustyai-service-operator.md
+  source_excerpt: '**Detailed**: The TrustyAI Service Operator is a multi-controller
+    Kubernetes operator built with kubebuilder v4 and controller-runtime. It manages
+    five distinct CRDs under the `trustyai.opendatahub.io` API group, each addressing
+    a different aspect of AI/ML trustworthiness:
+
+
+    1. **TrustyAIService (TAS)** — Deploys the TrustyAI explainability and fairness
+    service alongside KServe/ModelMesh inference '
+  expected_arch_query_commands:
+  - arch-query crds trustyai-service-operator
+  tags:
+  - crd
+- id: t2-008
+  tier: 2
+  category: fact-extraction
+  question: What CRDs does mlflow manage?
+  expected_answer: 'mlflow manages: MLflowConfig (mlflow.kubeflow.org).'
+  expected_answerable: true
+  source_files:
+  - architecture/rhoai.next/mlflow.md
+  source_excerpt: 'The RHOAI-specific integration centers on two Kubernetes-aware
+    extensions: a workspace provider that maps Kubernetes namespaces to MLflow workspaces
+    (providing multi-tenant isolation without separate MLflow instances per namespace),
+    and a `kubernetes-auth` application plugin that enforces Kubernetes RBAC for each
+    API request using SelfSubjectAccessReview delegation. An optional namespace-scoped
+    `M'
+  expected_arch_query_commands:
+  - arch-query crds mlflow
+  tags:
+  - crd
+- id: t2-009
+  tier: 2
+  category: fact-extraction
+  question: What CRDs does rhods-operator manage?
+  expected_answer: 'rhods-operator manages: DataScienceCluster (datasciencecluster.opendatahub.io),
+    DataScienceCluster (datasciencecluster.opendatahub.io), DSCInitialization (dscinitialization.opendatahub.io),
+    DSCInitialization (dscinitialization.opendatahub.io), Dashboard (components.platform.opendatahub.io)
+    and 23 more.'
+  expected_answerable: true
+  source_files:
+  - architecture/rhoai.next/rhods-operator.md
+  source_excerpt: '**Detailed**: The rhods-operator (also known as opendatahub-operator)
+    is the top-level Kubernetes operator for the Red Hat OpenShift AI (RHOAI) platform.
+    It uses two primary CRDs — `DSCInitialization` (DSCI) for platform-level initialization
+    (namespaces, networking, monitoring, auth, gateway) and `DataScienceCluster` (DSC)
+    for managing individual AI/ML components (Dashboard, KServe, Kueue, Ray, Tr'
+  expected_arch_query_commands:
+  - arch-query crds rhods-operator
+  tags:
+  - crd
+- id: t2-010
+  tier: 2
+  category: fact-extraction
+  question: What CRDs does codeflare-sdk manage?
+  expected_answer: 'codeflare-sdk manages: RayCluster (ray.io), AppWrapper (workload.codeflare.dev),
+    LocalQueue (kueue.x-k8s.io), Route (route.openshift.io).'
+  expected_answerable: true
+  source_files:
+  - architecture/rhoai.next/codeflare-sdk.md
+  source_excerpt: '### Custom Resource Definitions (CRDs)
+
+
+    _The SDK does not define CRDs itself. It consumes (creates/reads/deletes) the
+    following CRDs owned by other components:_
+
+
+    | Group | Version | Kind | Scope | Purpose |
+
+    |-------|---------|------|-------|---------|
+
+    | ray.io | v1 | RayCluster | Namespaced | Created/deleted by SDK to provision
+    Ray clusters |
+
+    | workload.codeflare.dev | v1beta2 | AppWrapper | Names'
+  expected_arch_query_commands:
+  - arch-query crds codeflare-sdk
+  tags:
+  - crd
+- id: t2-011
+  tier: 2
+  category: fact-extraction
+  question: What are the dependencies of kserve?
+  expected_answer: 'kserve depends on: Kubernetes, controller-runtime, Knative Serving,
+    Istio, Gateway API, KEDA, OpenTelemetry Operator, Prometheus Operator and 12 more.'
+  expected_answerable: true
+  source_files:
+  - architecture/rhoai.next/kserve.md
+  source_excerpt: '#### Upstream Dependencies
+
+
+    | Service | Protocol | Port | Auth | Purpose |
+
+    |---------|----------|------|------|---------|
+
+    | Kubernetes API | HTTPS | 6443/TCP | ServiceAccount Token | CRUD for Deployments,
+    Services, HPAs, ConfigMaps, Secrets, Pods |
+
+    | Knative Serving API | HTTPS | 6443/TCP | ServiceAccount Token | Create/manage
+    Knative Services for serverless mode |
+
+    | Istio API | HTTPS | 6443/TCP |'
+  expected_arch_query_commands:
+  - arch-query deps kserve
+  tags:
+  - dependency
+- id: t2-012
+  tier: 2
+  category: fact-extraction
+  question: What are the dependencies of vllm-cpu?
+  expected_answer: 'vllm-cpu depends on: PyTorch, transformers, FastAPI, uvicorn,
+    uvloop, Pydantic, prometheus-client, OpenAI SDK and 20 more.'
+  expected_answerable: true
+  source_files:
+  - architecture/rhoai.next/vllm-cpu.md
+  source_excerpt: 'The Konflux-based build pipeline produces multi-architecture container
+    images (ppc64le and s390x) using architecture-specific build scripts that handle
+    dependencies like Apache Arrow (built from source on s390x) and IBM''s DevPI wheel
+    index for ppc64le-specific PyTorch wheels.
+
+
+    ## Architecture Components
+
+
+    | Component | Type | Purpose |
+
+    |-----------|------|---------|
+
+    | vllm-openai (CPU) | Python Ser'
+  expected_arch_query_commands:
+  - arch-query deps vllm-cpu
+  tags:
+  - dependency
+- id: t2-013
+  tier: 2
+  category: fact-extraction
+  question: What are the dependencies of trustyai-service-operator?
+  expected_answer: 'trustyai-service-operator depends on: controller-runtime, KServe,
+    Kueue, Prometheus Operator, OpenShift API (Route), Istio/Service Mesh, KServe
+    / ModelMesh, OpenShift Service CA and 3 more.'
+  expected_answerable: true
+  source_files:
+  - architecture/rhoai.next/trustyai-service-operator.md
+  source_excerpt: '#### Upstream Dependencies
+
+
+    | Service | Protocol | Port | Auth | Purpose |
+
+    |---------|----------|------|------|---------|
+
+    | Kubernetes API | HTTPS | 6443/TCP | ServiceAccount token | CRD management, resource
+    reconciliation |
+
+    | KServe InferenceService API | HTTPS | 6443/TCP (via API) | ServiceAccount token
+    | Patch InferenceService specs for payload processing |
+
+    | Kueue API | HTTPS | 6443/TCP (via A'
+  expected_arch_query_commands:
+  - arch-query deps trustyai-service-operator
+  tags:
+  - dependency
+- id: t2-014
+  tier: 2
+  category: fact-extraction
+  question: What are the dependencies of eval-hub?
+  expected_answer: 'eval-hub depends on: PostgreSQL, MLflow Tracking Server, S3-compatible
+    Object Storage, OCI Registry, OpenTelemetry Collector, Kueue, Kubernetes API Server,
+    OpenShift Service CA and 1 more.'
+  expected_answerable: true
+  source_files:
+  - architecture/rhoai.next/eval-hub.md
+  source_excerpt: '#### Upstream Dependencies
+
+
+    | Service | Protocol | Port | Auth | Purpose |
+
+    |---------|----------|------|------|---------|
+
+    | MLflow Tracking Server | HTTP/HTTPS | configurable | Bearer Token (file-based,
+    rotated) | Experiment creation and tracking |
+
+    | Kubernetes API Server | HTTPS | 443/TCP | ServiceAccount Token | TokenReview,
+    SubjectAccessReview, Job/ConfigMap CRUD |
+
+    | PostgreSQL | TCP | 5432/TCP'
+  expected_arch_query_commands:
+  - arch-query deps eval-hub
+  tags:
+  - dependency
+- id: t2-015
+  tier: 2
+  category: fact-extraction
+  question: What are the dependencies of mlflow?
+  expected_answer: 'mlflow depends on: Python, PostgreSQL, Node.js, SQLAlchemy, Flask,
+    FastAPI, Gunicorn, Uvicorn and 18 more.'
+  expected_answerable: true
+  source_files:
+  - architecture/rhoai.next/mlflow.md
+  source_excerpt: '## Dependencies
+
+
+    ### External Dependencies
+
+
+    | Component | Version | Required | Purpose |
+
+    |-----------|---------|----------|---------|
+
+    | Python | 3.12 | Yes | Runtime interpreter |
+
+    | PostgreSQL | 13+ | Yes (production) | Backend metadata store and model registry
+    persistence |'
+  expected_arch_query_commands:
+  - arch-query deps mlflow
+  tags:
+  - dependency
+- id: t2-016
+  tier: 2
+  category: fact-extraction
+  question: What is the purpose of kserve?
+  expected_answer: KServe is the Kubernetes-native model serving platform that provides
+    CRD-driven lifecycle management for machine learning inference services, including
+    standard model serving, serverless deployments, inference graphs, local model
+    caching, and large language model (LLM) inference orchestration.
+  expected_answerable: true
+  source_files:
+  - architecture/rhoai.next/kserve.md
+  source_excerpt: KServe is the Kubernetes-native model serving platform that provides
+    CRD-driven lifecycle management for machine learning inference services, including
+    standard model serving, serverless deployments, inference graphs, local model
+    caching, and large language model (LLM) inference orchestration.
+  expected_arch_query_commands:
+  - arch-query component kserve
+  tags:
+  - purpose
+- id: t2-017
+  tier: 2
+  category: fact-extraction
+  question: What is the purpose of vllm-cpu?
+  expected_answer: CPU-only build of the vLLM high-throughput LLM inference and serving
+    engine, optimized for running model inference without GPU hardware on ppc64le
+    and s390x architectures.
+  expected_answerable: true
+  source_files:
+  - architecture/rhoai.next/vllm-cpu.md
+  source_excerpt: CPU-only build of the vLLM high-throughput LLM inference and serving
+    engine, optimized for running model inference without GPU hardware on ppc64le
+    and s390x architectures.
+  expected_arch_query_commands:
+  - arch-query component vllm-cpu
+  tags:
+  - purpose
+- id: t2-018
+  tier: 2
+  category: fact-extraction
+  question: What is the purpose of trustyai-service-operator?
+  expected_answer: Kubernetes operator that manages AI trustworthiness, model evaluation,
+    and guardrails infrastructure for Red Hat OpenShift AI.
+  expected_answerable: true
+  source_files:
+  - architecture/rhoai.next/trustyai-service-operator.md
+  source_excerpt: Kubernetes operator that manages AI trustworthiness, model evaluation,
+    and guardrails infrastructure for Red Hat OpenShift AI.
+  expected_arch_query_commands:
+  - arch-query component trustyai-service-operator
+  tags:
+  - purpose
+- id: t2-019
+  tier: 2
+  category: fact-extraction
+  question: What is the purpose of eval-hub?
+  expected_answer: REST API service for orchestrating LLM evaluation jobs, managing
+    evaluation providers, benchmark collections, and tracking results via MLflow integration.
+  expected_answerable: true
+  source_files:
+  - architecture/rhoai.next/eval-hub.md
+  source_excerpt: REST API service for orchestrating LLM evaluation jobs, managing
+    evaluation providers, benchmark collections, and tracking results via MLflow integration.
+  expected_arch_query_commands:
+  - arch-query component eval-hub
+  tags:
+  - purpose
+- id: t2-020
+  tier: 2
+  category: fact-extraction
+  question: What is the purpose of mlflow?
+  expected_answer: MLflow is a machine learning lifecycle platform providing experiment
+    tracking, model versioning, model registry, artifact management, and LLM observability
+    with Kubernetes-native workspace and authentication integration for RHOAI.
+  expected_answerable: true
+  source_files:
+  - architecture/rhoai.next/mlflow.md
+  source_excerpt: MLflow is a machine learning lifecycle platform providing experiment
+    tracking, model versioning, model registry, artifact management, and LLM observability
+    with Kubernetes-native workspace and authentication integration for RHOAI.
+  expected_arch_query_commands:
+  - arch-query component mlflow
+  tags:
+  - purpose
+- id: t3-001
+  tier: 3
+  category: cross-component-integration
+  question: How does codeflare-operator interact with kuberay?
+  expected_answer: 'codeflare-operator interacts with kuberay: Watches RayCluster
+    CRs to reconcile security/networking resources'
+  expected_answerable: true
+  source_files:
+  - architecture/rhoai.next/codeflare-operator.md
+  - architecture/rhoai.next/kuberay.md
+  source_excerpt: '**Detailed**: The CodeFlare operator is a Kubernetes operator built
+    with controller-runtime that reconciles RayCluster resources (from the KubeRay
+    project) and optionally manages AppWrapper resources (from the project-codeflare/appwrapper
+    project). Its primary responsibility is enhancing RayCluster deployments with
+    enterprise security features that are not part of upstream KubeRay.
+
+
+    On OpenShift, '
+  expected_arch_query_commands:
+  - arch-query deps codeflare-operator
+  - arch-query deps kuberay
+  tags:
+  - integration
+  - codeflare-operator
+  - kuberay
+- id: t3-002
+  tier: 3
+  category: cross-component-integration
+  question: How does codeflare-sdk interact with kuberay?
+  expected_answer: 'codeflare-sdk interacts with kuberay: Provision and tear down
+    Ray clusters'
+  expected_answerable: true
+  source_files:
+  - architecture/rhoai.next/codeflare-sdk.md
+  - architecture/rhoai.next/kuberay.md
+  source_excerpt: 'The library integrates with the broader RHOAI/ODH platform by leveraging
+    KubeRay for Ray cluster orchestration, CodeFlare AppWrappers (v1beta2) for workload
+    wrapping, and Kueue for fair-share scheduling. It supports both OpenShift (Route-based)
+    and vanilla Kubernetes (Ingress-based) cluster topologies for Ray Dashboard access.
+
+
+    ## Architecture Components
+
+
+    | Component | Type | Purpose |
+
+    |----------'
+  expected_arch_query_commands:
+  - arch-query deps codeflare-sdk
+  - arch-query deps kuberay
+  tags:
+  - integration
+  - codeflare-sdk
+  - kuberay
+- id: t3-003
+  tier: 3
+  category: cross-component-integration
+  question: How does codeflare-sdk interact with kueue?
+  expected_answer: 'codeflare-sdk interacts with kueue: Discover default queue, validate
+    queue existence, add queue labels'
+  expected_answerable: true
+  source_files:
+  - architecture/rhoai.next/codeflare-sdk.md
+  - architecture/rhoai.next/kueue.md
+  source_excerpt: '**Detailed**: The CodeFlare SDK is a Python client library that
+    abstracts the complexity of creating and managing distributed compute resources
+    (Ray clusters) on Kubernetes and OpenShift platforms. It provides a programmatic
+    interface for data scientists and ML engineers to request GPU/CPU resources, submit
+    Ray jobs, monitor cluster status, and manage workload queuing via Kueue integration.
+
+
+    The S'
+  expected_arch_query_commands:
+  - arch-query deps codeflare-sdk
+  - arch-query deps kueue
+  tags:
+  - integration
+  - codeflare-sdk
+  - kueue
+- id: t3-004
+  tier: 3
+  category: cross-component-integration
+  question: How does data-science-pipelines-operator interact with rhods-operator?
+  expected_answer: 'data-science-pipelines-operator interacts with rhods-operator:
+    Deploys DSPO operator and injects image/config via dspo-parameters ConfigMap'
+  expected_answerable: true
+  source_files:
+  - architecture/rhoai.next/data-science-pipelines-operator.md
+  - architecture/rhoai.next/rhods-operator.md
+  source_excerpt: 'The operator is deployed by the platform operator (rhods-operator
+    / opendatahub-operator) via kustomize overlays that inject image references and
+    configuration through a `dspo-parameters` ConfigMap. Each DSPA instance creates
+    a complete, isolated pipeline stack within its namespace, supporting multi-tenancy
+    through namespace-scoped resources and RBAC.
+
+
+    ## Architecture Components
+
+
+    | Component | Typ'
+  expected_arch_query_commands:
+  - arch-query deps data-science-pipelines-operator
+  - arch-query deps rhods-operator
+  tags:
+  - integration
+  - data-science-pipelines-operator
+  - rhods-operator
+- id: t3-005
+  tier: 3
+  category: cross-component-integration
+  question: How does fms-hf-tuning interact with kueue?
+  expected_answer: 'fms-hf-tuning interacts with kueue: Queue-based scheduling for
+    training jobs; prevents GPU resource contention'
+  expected_answerable: true
+  source_files:
+  - architecture/rhoai.next/fms-hf-tuning.md
+  - architecture/rhoai.next/kueue.md
+  source_excerpt: '| Kueue | Queue Label | Queue management for training job scheduling
+    (optional, via `kueue.x-k8s.io/queue-name` label) |
+
+    | HuggingFace Hub | HTTPS API | Downloads pre-trained models and tokenizers from
+    HuggingFace model registry |
+
+    | PersistentVolumeClaim | Volume Mount | Stores input data (`/data/input`), output
+    models (`/data/output`), and cached models (`/data/models`) |
+
+
+    ## Network Architecture'
+  expected_arch_query_commands:
+  - arch-query deps fms-hf-tuning
+  - arch-query deps kueue
+  tags:
+  - integration
+  - fms-hf-tuning
+  - kueue
+- id: t3-006
+  tier: 3
+  category: cross-component-integration
+  question: How does guardrails-detectors interact with kserve?
+  expected_answer: 'guardrails-detectors interacts with kserve: HuggingFace and LLM
+    Judge detectors deployed as InferenceServices with ServingRuntimes'
+  expected_answerable: true
+  source_files:
+  - architecture/rhoai.next/guardrails-detectors.md
+  - architecture/rhoai.next/kserve.md
+  source_excerpt: All three detectors share a common library (`detectors/common/`)
+    providing the FastAPI base application class, Pydantic request/response schemas,
+    Prometheus instrumentation, and structured logging. The HuggingFace and LLM Judge
+    detectors are designed to be deployed as KServe InferenceServices with associated
+    ServingRuntimes, while the built-in detector runs as a standalone deployment alongside
+    the
+  expected_arch_query_commands:
+  - arch-query deps guardrails-detectors
+  - arch-query deps kserve
+  tags:
+  - integration
+  - guardrails-detectors
+  - kserve
+- id: t3-007
+  tier: 3
+  category: cross-component-integration
+  question: How does guardrails-detectors interact with vllm?
+  expected_answer: 'guardrails-detectors interacts with vllm: LLM Judge sends evaluation
+    requests to external LLM inference server'
+  expected_answerable: true
+  source_files:
+  - architecture/rhoai.next/guardrails-detectors.md
+  - architecture/rhoai.next/vllm.md
+  source_excerpt: The **built-in detector** bundles lightweight, heuristic detection
+    functions (regex-based PII detection, file-type validation, and user-defined custom
+    Python detectors) into a single FastAPI service. The **HuggingFace detector**
+    loads a pre-trained model (supporting `AutoModelForSequenceClassification`, `AutoModelForTokenClassification`,
+    and `GraniteForCausalLM` architectures) and runs inference o
+  expected_arch_query_commands:
+  - arch-query deps guardrails-detectors
+  - arch-query deps vllm
+  tags:
+  - integration
+  - guardrails-detectors
+  - vllm
+- id: t3-008
+  tier: 3
+  category: cross-component-integration
+  question: How does kserve-autogluon-server interact with kserve?
+  expected_answer: 'kserve-autogluon-server interacts with kserve: Controller manages
+    InferenceService pods running this image'
+  expected_answerable: true
+  source_files:
+  - architecture/rhoai.next/kserve-autogluon-server.md
+  - architecture/rhoai.next/kserve.md
+  source_excerpt: '# Component: kserve-autogluon-server
+
+
+    ## Metadata
+
+
+    - **Repository**: https://github.com/red-hat-data-services/kserve-autogluon-server.git
+
+    - **Version**: c82d4dd57 (main)
+
+    - **Distribution**: RHOAI
+
+    - **Languages**: Python'
+  expected_arch_query_commands:
+  - arch-query deps kserve-autogluon-server
+  - arch-query deps kserve
+  tags:
+  - integration
+  - kserve-autogluon-server
+  - kserve
+- id: t3-009
+  tier: 3
+  category: cross-component-integration
+  question: How does kube-auth-proxy interact with rhods-operator?
+  expected_answer: 'kube-auth-proxy interacts with rhods-operator: Platform operator
+    deploys kube-auth-proxy as sidecar in component pods'
+  expected_answerable: true
+  source_files:
+  - architecture/rhoai.next/kube-auth-proxy.md
+  - architecture/rhoai.next/rhods-operator.md
+  source_excerpt: '| rhods-operator | Deployment (sidecar injection) | Platform operator
+    deploys kube-auth-proxy as sidecar containers in component pods |
+
+    | Kubernetes API Server | REST API | TokenReview (authentication) and SubjectAccessReview
+    (authorization) |
+
+    | OpenShift OAuth Server | REST API (OIDC/OAuth2) | User authentication via OpenShift''s
+    built-in OAuth |
+
+    | External OIDC Provider | REST API (OIDC) | User a'
+  expected_arch_query_commands:
+  - arch-query deps kube-auth-proxy
+  - arch-query deps rhods-operator
+  tags:
+  - integration
+  - kube-auth-proxy
+  - rhods-operator
+- id: t3-010
+  tier: 3
+  category: cross-component-integration
+  question: How does kube-rbac-proxy interact with rhods-operator?
+  expected_answer: 'kube-rbac-proxy interacts with rhods-operator: Platform operator
+    deploys kube-rbac-proxy as sidecar in component pods'
+  expected_answerable: true
+  source_files:
+  - architecture/rhoai.next/kube-rbac-proxy.md
+  - architecture/rhoai.next/rhods-operator.md
+  source_excerpt: In the RHOAI platform (3.x), kube-rbac-proxy is deployed as a sidecar
+    container alongside component pods to replace the older oauth-proxy pattern. The
+    platform operator (rhods-operator) injects kube-rbac-proxy sidecars into component
+    deployments, typically listening on port 8443/TCP with TLS, and proxying authenticated/authorized
+    requests to the application container on its localhost port. This pr
+  expected_arch_query_commands:
+  - arch-query deps kube-rbac-proxy
+  - arch-query deps rhods-operator
+  tags:
+  - integration
+  - kube-rbac-proxy
+  - rhods-operator
+- id: t3-011
+  tier: 3
+  category: cross-component-integration
+  question: How does kubeflow interact with mlflow?
+  expected_answer: 'kubeflow interacts with mlflow: Creates RoleBinding to `mlflow-operator-mlflow-integration`
+    ClusterRole per notebook'
+  expected_answerable: true
+  source_files:
+  - architecture/rhoai.next/kubeflow.md
+  - architecture/rhoai.next/mlflow.md
+  source_excerpt: '**Detailed**: This repository contains two cooperating Kubernetes
+    controllers that manage Jupyter notebook instances (workbenches) within the RHOAI
+    platform. The upstream **notebook-controller** (from Kubeflow) handles core notebook
+    lifecycle — creating StatefulSets, Services, and optional Istio VirtualServices,
+    plus idle notebook culling. The downstream **odh-notebook-controller** (Open Data
+    Hub '
+  expected_arch_query_commands:
+  - arch-query deps kubeflow
+  - arch-query deps mlflow
+  tags:
+  - integration
+  - kubeflow
+  - mlflow
+- id: t3-012
+  tier: 3
+  category: cross-component-integration
+  question: How does llama-stack-provider-trustyai-garak interact with eval-hub?
+  expected_answer: 'llama-stack-provider-trustyai-garak interacts with eval-hub: Reads
+    `JobSpec` from `/meta/job.json`'
+  expected_answerable: true
+  source_files:
+  - architecture/rhoai.next/llama-stack-provider-trustyai-garak.md
+  - architecture/rhoai.next/eval-hub.md
+  source_excerpt: '- **Deployment Type**: Library / Provider Plugin / Container Image
+    (KFP component + eval-hub adapter)
+
+    - **Generated By**: Claude Opus 4.6 on 2026-05-04
+
+
+    ## Purpose
+
+
+    **Short**: Out-of-tree Llama Stack evaluation provider and eval-hub adapter that
+    uses NVIDIA Garak for automated LLM red-teaming, vulnerability scanning, and compliance
+    benchmarking.
+
+
+    **Detailed**: This component implements two complet'
+  expected_arch_query_commands:
+  - arch-query deps llama-stack-provider-trustyai-garak
+  - arch-query deps eval-hub
+  tags:
+  - integration
+  - llama-stack-provider-trustyai-garak
+  - eval-hub
+- id: t3-013
+  tier: 3
+  category: cross-component-integration
+  question: How does llama-stack interact with vllm-cpu?
+  expected_answer: 'llama-stack interacts with vllm-cpu: Primary LLM inference backend
+    for RHOAI'
+  expected_answerable: true
+  source_files:
+  - architecture/rhoai.next/llama-stack.md
+  - architecture/rhoai.next/vllm-cpu.md
+  source_excerpt: '# Component: Llama Stack
+
+
+    ## Metadata
+
+
+    - **Repository**: https://github.com/red-hat-data-services/llama-stack.git
+
+    - **Version**: 0.2.10 (commit 5d65c017 on branch main)
+
+    - **Distribution**: RHOAI
+
+    - **Languages**: Python, TypeScript (UI)
+
+    - **Deployment Type**: Service
+
+    - **Generated By**: Claude Opus 4.6 on 2026-05-04
+
+
+    ## Purpose
+
+
+    **Short**: Llama Stack is a standardized API server for building and d'
+  expected_arch_query_commands:
+  - arch-query deps llama-stack
+  - arch-query deps vllm-cpu
+  tags:
+  - integration
+  - llama-stack
+  - vllm-cpu
+- id: t3-014
+  tier: 3
+  category: cross-component-integration
+  question: How does llm-d-inference-scheduler interact with vllm?
+  expected_answer: 'llm-d-inference-scheduler interacts with vllm: Collect Prometheus
+    metrics: queue size, running requests, KV cache %, LoRA adapter info, cache block
+    info'
+  expected_answerable: true
+  source_files:
+  - architecture/rhoai.next/llm-d-inference-scheduler.md
+  - architecture/rhoai.next/vllm.md
+  source_excerpt: '| Model Server Pods (vLLM) | HTTP/HTTPS | configurable/TCP | None
+    | Scrape Prometheus metrics (queue size, running requests, KV cache utilization,
+    LoRA info) |
+
+    | Model Server Pods (vLLM) | ZMQ (TCP) | 5556/TCP | None | Subscribe to KV cache
+    events for precise prefix cache scoring |
+
+    | UDS Tokenizer | gRPC over UDS | /tmp/tokenizer/tokenizer-uds.socket | None |
+    Tokenize prompts for prefix cache and '
+  expected_arch_query_commands:
+  - arch-query deps llm-d-inference-scheduler
+  - arch-query deps vllm
+  tags:
+  - integration
+  - llm-d-inference-scheduler
+  - vllm
+- id: t3-015
+  tier: 3
+  category: cross-component-integration
+  question: How does notebooks interact with rhods-operator?
+  expected_answer: 'notebooks interacts with rhods-operator: Applies `manifests/rhoai/`
+    kustomize to create/update ImageStreams on cluster'
+  expected_answerable: true
+  source_files:
+  - architecture/rhoai.next/notebooks.md
+  - architecture/rhoai.next/rhods-operator.md
+  source_excerpt: 'The images are deployed to OpenShift clusters as ImageStream resources
+    managed by kustomize manifests. The platform operator (rhods-operator for RHOAI,
+    opendatahub-operator for ODH) applies these manifests to create ImageStreams that
+    the ODH Dashboard presents to users for workbench creation. The ODH Notebook Controller
+    then creates StatefulSets from the selected image.
+
+
+    ## Architecture Components'
+  expected_arch_query_commands:
+  - arch-query deps notebooks
+  - arch-query deps rhods-operator
+  tags:
+  - integration
+  - notebooks
+  - rhods-operator
+- id: t3-016
+  tier: 3
+  category: cross-component-integration
+  question: How does vllm-cpu interact with kserve-autogluon-server?
+  expected_answer: 'vllm-cpu interacts with kserve-autogluon-server: vLLM runs as
+    InferenceService runtime container'
+  expected_answerable: true
+  source_files:
+  - architecture/rhoai.next/vllm-cpu.md
+  - architecture/rhoai.next/kserve-autogluon-server.md
+  source_excerpt: '# Component: vLLM CPU
+
+
+    ## Metadata
+
+
+    - **Repository**: https://github.com/red-hat-data-services/vllm-cpu
+
+    - **Version**: v0.10.0.2-7535-g9981f11f1 (branch: main, vLLM v0.18.0)
+
+    - **Distribution**: RHOAI
+
+    - **Languages**: Python, C/C++ (native extensions via CMake), Rust (build-time
+    dependency for s390x)
+
+    - **Deployment Type**: Service (LLM inference serving runtime)
+
+    - **Generated By**: Claude Opus 4.6 '
+  expected_arch_query_commands:
+  - arch-query deps vllm-cpu
+  - arch-query deps kserve-autogluon-server
+  tags:
+  - integration
+  - vllm-cpu
+  - kserve-autogluon-server
+- id: t3-017
+  tier: 3
+  category: cross-component-integration
+  question: How does lm-evaluation-harness interact with trustyai-service-operator?
+  expected_answer: 'lm-evaluation-harness interacts with trustyai-service-operator:
+    Operator creates the Kubernetes Job that runs this container; mounts ConfigMap
+    with job spec at /meta/job.json'
+  expected_answerable: true
+  source_files:
+  - architecture/rhoai.next/lm-evaluation-harness.md
+  - architecture/rhoai.next/trustyai-service-operator.md
+  source_excerpt: '_None — this component is a batch job container, not an operator.
+    It does not define or manage CRDs. The LMEvalJob CRD is managed by the trustyai-service-operator._
+
+
+    ### HTTP Endpoints
+
+
+    _None — this component does not expose HTTP endpoints. It acts as an HTTP client
+    connecting to model inference endpoints and the EvalHub callback API._
+
+
+    ### gRPC Services
+
+    '
+  expected_arch_query_commands:
+  - arch-query deps lm-evaluation-harness
+  - arch-query deps trustyai-service-operator
+  tags:
+  - integration
+  - lm-evaluation-harness
+  - trustyai-service-operator
+- id: t3-018
+  tier: 3
+  category: cross-component-integration
+  question: How does modelmesh interact with modelmesh-serving?
+  expected_answer: 'modelmesh interacts with modelmesh-serving: Receives model register/unregister/ensureLoaded
+    commands from controller'
+  expected_answerable: true
+  source_files:
+  - architecture/rhoai.next/modelmesh.md
+  - architecture/rhoai.next/modelmesh-serving.md
+  source_excerpt: 'In the RHOAI/KServe ecosystem, ModelMesh is deployed by the `modelmesh-serving`
+    controller as a sidecar in `ServingRuntime` pods. The controller manages the Kubernetes-level
+    orchestration (CRDs, storage, scaling) while ModelMesh handles the internal model
+    cache management, inter-instance communication, and inference routing.
+
+
+    ## Architecture Components
+
+
+    | Component | Type | Purpose |
+
+    |-----------|'
+  expected_arch_query_commands:
+  - arch-query deps modelmesh
+  - arch-query deps modelmesh-serving
+  tags:
+  - integration
+  - modelmesh
+  - modelmesh-serving
+- id: t4-001
+  tier: 4
+  category: navigation
+  question: What architecture directories are available (including non-release)?
+  expected_answer: 'Available directories: rhoai-2.10, rhoai-2.11, rhoai-2.12, rhoai-2.13,
+    rhoai-2.14, rhoai-2.15, rhoai-2.16, rhoai-2.17, rhoai-2.19, rhoai-2.24, rhoai-2.25,
+    rhoai-2.6, rhoai-2.7, rhoai-2.8, rhoai-2.9, rhoai-3.0, rhoai-3.2, rhoai-3.3, rhoai-3.3.0,
+    rhoai-3.4, rhoai-3.4-ea.1, rhoai-3.4-ea.2, rhoai-3.5-ea.1, rhoai.next.'
+  expected_answerable: true
+  source_files:
+  - architecture/rhoai.next/PLATFORM.md
+  source_excerpt: 'Directories: rhoai-2.10, rhoai-2.11, rhoai-2.12, rhoai-2.13, rhoai-2.14,
+    rhoai-2.15, rhoai-2.16, rhoai-2.17, rhoai-2.19, rhoai-2.24, rhoai-2.25, rhoai-2.6,
+    rhoai-2.7, rhoai-2.8, rhoai-2.9, rhoai-3.0, rhoai-3.2, rhoai-3.3, rhoai-3.3.0,
+    rhoai-3.4, rhoai-3.4-ea.1, rhoai-3.4-ea.2, rhoai-3.5-ea.1, rhoai.next'
+  expected_arch_query_commands:
+  - arch-query versions
+  tags:
+  - versions
+- id: t4-002
+  tier: 4
+  category: navigation
+  question: How many component docs are in rhoai.next?
+  expected_answer: There are 70 component docs in rhoai.next.
+  expected_answerable: true
+  source_files:
+  - architecture/rhoai.next/PLATFORM.md
+  source_excerpt: 'Component Count: 70'
+  expected_arch_query_commands:
+  - arch-query list
+  tags:
+  - count
+- id: t4-003
+  tier: 4
+  category: navigation
+  question: Does architecture/rhoai.next/ have a components/ subdirectory?
+  expected_answer: No. Component docs are stored directly in architecture/rhoai.next/
+    as {component-name}.md files. There is no components/ subdirectory.
+  expected_answerable: true
+  source_files:
+  - architecture/rhoai.next/PLATFORM.md
+  source_excerpt: Component docs are at architecture/rhoai.next/{name}.md, not in
+    a components/ subdirectory.
+  expected_arch_query_commands:
+  - arch-query list
+  tags:
+  - negative
+  - structure
+- id: t4-004
+  tier: 4
+  category: navigation
+  question: What overlays modify the base architecture?
+  expected_answer: 'There are 4 overlays: 0001-kfp-sdk-2.16-in-rhoai-3.4.md: 0001-kfp-sdk-2.16-in-rhoai-3.4;
+    0002-mlflow-go-sdk.md: 0002-mlflow-go-sdk; 0003-llama-stack-renamed-to-ogx.md:
+    0003-llama-stack-renamed-to-ogx; 0004-codeflare-sdk-missing-from-component-inventory.md:
+    0004-codeflare-sdk-missing-from-component-inventory.'
+  expected_answerable: true
+  source_files:
+  - overlays/0001-kfp-sdk-2.16-in-rhoai-3.4.md
+  - overlays/0002-mlflow-go-sdk.md
+  - overlays/0003-llama-stack-renamed-to-ogx.md
+  - overlays/0004-codeflare-sdk-missing-from-component-inventory.md
+  source_excerpt: '0001-kfp-sdk-2.16-in-rhoai-3.4.md: 0001-kfp-sdk-2.16-in-rhoai-3.4;
+    0002-mlflow-go-sdk.md: 0002-mlflow-go-sdk; 0003-llama-stack-renamed-to-ogx.md:
+    0003-llama-stack-renamed-to-ogx; 0004-codeflare-sdk-missing-from-component-inventory.md:
+    0004-codeflare-sdk-missing-from-component-inventory'
+  expected_arch_query_commands:
+  - arch-query overlays
+  tags:
+  - overlays
+- id: t4-005
+  tier: 4
+  category: navigation
+  question: Where is the platform summary for rhoai.next?
+  expected_answer: architecture/rhoai.next/PLATFORM.md
+  expected_answerable: true
+  source_files:
+  - architecture/rhoai.next/PLATFORM.md
+  source_excerpt: Platform summary at architecture/rhoai.next/PLATFORM.md
+  expected_arch_query_commands:
+  - arch-query platform
+  tags:
+  - platform
+- id: t4-006
+  tier: 4
+  category: navigation
+  question: Where is the kserve component doc in the architecture directory?
+  expected_answer: architecture/rhoai.next/kserve.md
+  expected_answerable: true
+  source_files:
+  - architecture/rhoai.next/kserve.md
+  source_excerpt: 'File: architecture/rhoai.next/kserve.md'
+  expected_arch_query_commands:
+  - arch-query component kserve
+  tags:
+  - path
+  - kserve
+- id: t4-007
+  tier: 4
+  category: navigation
+  question: Where is the vllm-cpu component doc in the architecture directory?
+  expected_answer: architecture/rhoai.next/vllm-cpu.md
+  expected_answerable: true
+  source_files:
+  - architecture/rhoai.next/vllm-cpu.md
+  source_excerpt: 'File: architecture/rhoai.next/vllm-cpu.md'
+  expected_arch_query_commands:
+  - arch-query component vllm-cpu
+  tags:
+  - path
+  - vllm-cpu
+- id: t4-008
+  tier: 4
+  category: navigation
+  question: Where is the data-science-pipelines component doc in the architecture
+    directory?
+  expected_answer: architecture/rhoai.next/data-science-pipelines.md
+  expected_answerable: true
+  source_files:
+  - architecture/rhoai.next/data-science-pipelines.md
+  source_excerpt: 'File: architecture/rhoai.next/data-science-pipelines.md'
+  expected_arch_query_commands:
+  - arch-query component data-science-pipelines
+  tags:
+  - path
+  - data-science-pipelines
+- id: t4-009
+  tier: 4
+  category: navigation
+  question: Where is the mlflow component doc in the architecture directory?
+  expected_answer: architecture/rhoai.next/mlflow.md
+  expected_answerable: true
+  source_files:
+  - architecture/rhoai.next/mlflow.md
+  source_excerpt: 'File: architecture/rhoai.next/mlflow.md'
+  expected_arch_query_commands:
+  - arch-query component mlflow
+  tags:
+  - path
+  - mlflow
+- id: t4-010
+  tier: 4
+  category: navigation
+  question: Where is the model-registry component doc in the architecture directory?
+  expected_answer: architecture/rhoai.next/model-registry.md
+  expected_answerable: true
+  source_files:
+  - architecture/rhoai.next/model-registry.md
+  source_excerpt: 'File: architecture/rhoai.next/model-registry.md'
+  expected_arch_query_commands:
+  - arch-query component model-registry
+  tags:
+  - path
+  - model-registry

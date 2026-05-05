@@ -235,3 +235,16 @@ skills:
     invoke: native
     runner: cli
     allowed_tools: [Read, Write, Edit, Glob, Grep, Bash, Skill]
+
+  # === Benchmark skills (local, templated) ===
+  bench-answer-flat:
+    skill: bench-answer-flat
+    allowed_tools: [Read, Write, Glob, Grep]
+
+  bench-answer-query:
+    skill: bench-answer-query
+    allowed_tools: [Bash, Write]
+
+  bench-judge:
+    skill: bench-judge
+    allowed_tools: [Read, Write]
