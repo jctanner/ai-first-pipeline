@@ -117,6 +117,37 @@ tier_rationale: "<which criteria triggered this tier>"
   - STRAT ref: <quote or section heading>
 ```
 
+### Step 1.3b: Identify Applicable NFR Checklist Categories
+
+Using the threat surface inventory from Step 1.3, determine which sections of the [NFR checklist](references/nfr-checklist.md) apply to this STRAT. This is a mechanical mapping, not a judgment call.
+
+| Threat Surface Category | NFR Checklist Sections |
+|------------------------|----------------------|
+| New Endpoints / APIs | 1 (Auth), 4 (Network & API), 8 (Operational) |
+| New Services / Containers / Images | 5 (Supply Chain), 6 (Infrastructure) |
+| New Data Flows | 2 (Data Protection), 3 (Crypto) |
+| New Credentials / Secrets | 2 (Data Protection), 3 (Crypto) |
+| New CRDs / Kubernetes Resources | 6 (Infrastructure) |
+| New Trust Boundary Crossings | 4 (Network & API), 3 (Crypto) |
+| New RBAC / ServiceAccounts | 1 (Auth) |
+| External Dependencies Introduced | 5 (Supply Chain) |
+| Agent / MCP Surfaces | 9 (Agent & MCP) |
+| Multi-tenant indicators | 7 (Tenant Isolation) |
+
+Sections 8 (Operational Security), 10 (Upstream Component Risk), and 11 (Governance) always apply.
+
+Append the list of applicable checklist sections to the threat surface file as a new section:
+
+```markdown
+## Applicable NFR Checklist Sections
+- Section 1: Authentication & Authorization (triggered by: New Endpoints, New RBAC)
+- Section 2: Data Protection (triggered by: New Data Flows)
+- ...
+- Section 8: Operational Security (always applies)
+- Section 10: Upstream Component Risk (always applies)
+- Section 11: Governance (always applies)
+```
+
 ### Step 1.4: Light Tier Short-Circuit
 
 If the review tier is **Light** AND the threat surface inventory contains ZERO items across ALL categories (every category says "None identified"), skip Phase 2 entirely.
@@ -193,7 +224,13 @@ For each cluster, produce the synthesized finding using:
 
 ### Step 3.5: Handle NFR Gaps
 
-NFR Gaps follow the same matching and confidence logic. NFR Gaps found by 2+ reviewers are higher confidence. Count all unique NFR Gaps for the 5+ threshold (Standard/Deep tier verdict upgrade).
+NFR Gaps follow the same matching and confidence logic. NFR Gaps found by 2+ reviewers are higher confidence.
+
+After synthesizing reviewer-identified NFR Gaps, cross-reference against the applicable NFR checklist sections (from Step 1.3b). Read [references/nfr-checklist.md](references/nfr-checklist.md) and for each applicable section, check whether the STRAT addresses the items in that section. If a checklist item applies (based on the threat surface) and the STRAT does not address it, add it as an NFR Gap with confidence tag "CHECKLIST" to distinguish it from reviewer-discovered gaps.
+
+Do NOT duplicate: if a reviewer already flagged the same gap, keep the reviewer finding with its consensus confidence and skip the checklist entry.
+
+Count all unique NFR Gaps (both reviewer-identified and checklist-identified) for the 5+ threshold (Standard/Deep tier verdict upgrade).
 
 ### Step 3.6: Resolve Verdict
 
