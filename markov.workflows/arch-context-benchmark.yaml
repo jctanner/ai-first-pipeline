@@ -188,6 +188,9 @@ workflows:
 
             CONTEXT_DIR="{{ arch_context_dir }}"
 
+            # Allow git operations on PVC-mounted directory (may be owned by root)
+            git config --global --add safe.directory "$CONTEXT_DIR"
+
             # Clone or update architecture-context (sparse checkout)
             if [ -d "$CONTEXT_DIR/.git" ]; then
               echo "Updating existing architecture-context clone..."
