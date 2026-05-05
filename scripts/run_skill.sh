@@ -8,6 +8,7 @@ SKILL=""
 ISSUE_KEY=""
 MODEL="opus"
 FORCE=""
+declare -a EXTRA_VARS=()
 
 while [[ $# -gt 0 ]]; do
   case $1 in
@@ -26,6 +27,10 @@ while [[ $# -gt 0 ]]; do
     --force)
       FORCE="--force"
       shift
+      ;;
+    --extra-vars)
+      EXTRA_VARS+=("$2")
+      shift 2
       ;;
     *)
       echo "Unknown argument: $1"
@@ -199,11 +204,29 @@ fi
 
 echo
 
+# Export extra variables as environment variables
+for VAR in "${EXTRA_VARS[@]}"; do
+  KEY="${VAR%%=*}"
+  VALUE="${VAR#*=}"
+  export "$KEY"="$VALUE"
+  echo "  $KEY=$VALUE"
+done
+
 # Build the skill invocation prompt
 # Skills accept issue keys as positional arguments, not flags
 # Example: /rfe.review --headless RHAIRFE-953
 # --headless flag suppresses interactive prompts and end-of-run summary
 PROMPT="/$SKILL_NAME --headless${ISSUE_KEY:+ $ISSUE_KEY}"
+
+# Append extra vars as prompt context
+if [ ${#EXTRA_VARS[@]} -gt 0 ]; then
+  PROMPT="$PROMPT"$'\n\n## Inputs'
+  for VAR in "${EXTRA_VARS[@]}"; do
+    KEY="${VAR%%=*}"
+    VALUE="${VAR#*=}"
+    PROMPT="$PROMPT"$'\n'"- $KEY: $VALUE"
+  done
+fi
 
 # Resolve which plugin source this skill needs
 SKILL_SOURCE=$(python3 -c "
