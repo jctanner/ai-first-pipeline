@@ -194,8 +194,12 @@ workflows:
             # Clone or update architecture-context (sparse checkout)
             if [ -d "$CONTEXT_DIR/.git" ]; then
               echo "Updating existing architecture-context clone..."
-              git -C "$CONTEXT_DIR" pull --quiet
-            else
+              if ! git -C "$CONTEXT_DIR" pull --quiet 2>&1; then
+                echo "Pull failed, removing stale clone and re-cloning..."
+                rm -rf "$CONTEXT_DIR"
+              fi
+            fi
+            if [ ! -d "$CONTEXT_DIR/.git" ]; then
               echo "Cloning architecture-context (sparse)..."
               mkdir -p "$(dirname "$CONTEXT_DIR")"
               git clone --depth 1 --filter=blob:none --sparse \
@@ -208,7 +212,11 @@ workflows:
               | grep '^rhoai-' | sort -V | tail -1 || true)
             if [ -z "$LATEST" ]; then
               LATEST=$(curl -sL https://api.github.com/repos/opendatahub-io/architecture-context/contents/architecture \
-                | python3 -c "import sys,json; entries=json.load(sys.stdin); names=sorted(e['name'] for e in entries if e['name'].startswith('rhoai-')); print(names[-1] if names else '')")
+                | python3 -c "import sys,json; entries=json.load(sys.stdin); names=sorted(e['name'] for e in entries if e['name'].startswith('rhoai-')); print(names[-1] if names else '')" || true)
+            fi
+            if [ -z "$LATEST" ]; then
+              echo "ERROR: could not determine latest RHOAI version"
+              exit 1
             fi
             git -C "$CONTEXT_DIR" sparse-checkout set "architecture/$LATEST" "architecture/rhoai.next" || true
 
