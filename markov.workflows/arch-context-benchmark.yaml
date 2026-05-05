@@ -243,8 +243,8 @@ workflows:
             done
             echo "Scripts ready: $(ls "$SCRIPTS_DIR")"
 
-            # Install pyyaml (needed by aggregate script)
-            pip install pyyaml 2>&1 | tail -1
+            # Verify pyyaml is available (installed in markov runner image)
+            python3 -c "import yaml; print('pyyaml OK')"
 
       - name: load_corpus
         type: load_artifact
@@ -345,7 +345,6 @@ workflows:
         params:
           command: |
             exec 1>&2
-            pip install pyyaml mlflow 2>&1 | tail -1
             python3 "{{ results_dir }}/.scripts/log_benchmark_to_mlflow.py" \
               --results-dir "{{ results_dir }}" \
               --experiment "{{ mlflow_experiment }}" \
