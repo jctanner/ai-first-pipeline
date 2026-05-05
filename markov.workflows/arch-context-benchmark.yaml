@@ -231,6 +231,21 @@ workflows:
             fi
             echo "Corpus ready: $(grep -c 'id:' "$CORPUS") questions"
 
+            # Download benchmark scripts (not available in markov runner)
+            SCRIPTS_DIR="{{ results_dir }}/.scripts"
+            mkdir -p "$SCRIPTS_DIR"
+            GITHUB_RAW="https://raw.githubusercontent.com/jctanner/ai-first-pipeline/main/scripts"
+            for SCRIPT in aggregate_benchmark.py log_benchmark_to_mlflow.py; do
+              if [ ! -f "$SCRIPTS_DIR/$SCRIPT" ]; then
+                echo "Downloading $SCRIPT ..."
+                curl -sfL "$GITHUB_RAW/$SCRIPT" -o "$SCRIPTS_DIR/$SCRIPT"
+              fi
+            done
+            echo "Scripts ready: $(ls "$SCRIPTS_DIR")"
+
+            # Install pyyaml (needed by aggregate script)
+            pip install pyyaml 2>&1 | tail -1
+
       - name: load_corpus
         type: load_artifact
         artifacts:
@@ -282,7 +297,8 @@ workflows:
         register: aggregation
         params:
           command: |
-            python3 /app/scripts/aggregate_benchmark.py \
+            exec 1>&2
+            python3 "{{ results_dir }}/.scripts/aggregate_benchmark.py" \
               --results-dir "{{ results_dir }}" \
               --corpus "{{ corpus_path }}" \
               --arch-context-commit "{{ arch_context_version.stdout }}" \
@@ -328,7 +344,9 @@ workflows:
         when: "mlflow_enabled"
         params:
           command: |
-            python3 /app/scripts/log_benchmark_to_mlflow.py \
+            exec 1>&2
+            pip install pyyaml mlflow 2>&1 | tail -1
+            python3 "{{ results_dir }}/.scripts/log_benchmark_to_mlflow.py" \
               --results-dir "{{ results_dir }}" \
               --experiment "{{ mlflow_experiment }}" \
               --arch-context-commit "{{ arch_context_version.stdout }}" \
