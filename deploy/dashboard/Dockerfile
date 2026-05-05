@@ -28,6 +28,8 @@ RUN uv sync --frozen || uv sync
 # Copy only necessary application files
 COPY --chown=dashboarduser:dashboarduser main.py ./
 COPY --chown=dashboarduser:dashboarduser lib/ ./lib/
+COPY --chown=dashboarduser:dashboarduser src/ ./src/
+COPY --chown=dashboarduser:dashboarduser scripts/ ./scripts/
 COPY --chown=dashboarduser:dashboarduser pipeline-skills.yaml ./
 
 # Set up Python path to find installed packages

@@ -136,6 +136,23 @@ vagrant-describe-job: ## Describe last job (set JOB_NAME=<name> to specify)
 		vagrant ssh -c "kubectl describe -n ai-pipeline job/$(JOB_NAME)"; \
 	fi
 
+##@ Vagrant: Elasticsearch & Trace Sync
+
+vagrant-deploy-elasticsearch: ## Deploy Elasticsearch to the cluster
+	@echo "==> Deploying Elasticsearch..."
+	vagrant ssh -c "cd /vagrant/deploy/scripts && sudo bash 11-deploy-elasticsearch.sh"
+
+vagrant-sync-traces: ## Sync MLflow traces to Elasticsearch (incremental)
+	@echo "==> Syncing MLflow traces to Elasticsearch..."
+	vagrant ssh -c "kubectl exec -n ai-pipeline deploy/pipeline-dashboard -c dashboard -- uv run python /app/scripts/sync_mlflow_to_elastic.py"
+
+vagrant-sync-traces-full: ## Full resync of all MLflow traces to Elasticsearch
+	@echo "==> Full resync of MLflow traces to Elasticsearch..."
+	vagrant ssh -c "kubectl exec -n ai-pipeline deploy/pipeline-dashboard -c dashboard -- uv run python /app/scripts/sync_mlflow_to_elastic.py --full"
+
+vagrant-logs-elasticsearch: ## Follow Elasticsearch logs
+	vagrant ssh -c "kubectl logs -n ai-pipeline -l app=elasticsearch -f"
+
 ##@ Vagrant: Markov Management
 
 vagrant-markov-kill: ## Kill all running markov jobs and pods
@@ -163,6 +180,25 @@ vagrant-rebuild-markov: ## Rebuild markov CLI binary
 	@echo "==> Building markov CLI..."
 	vagrant ssh -c "cd /vagrant && bash deploy/scripts/05d-build-markov.sh"
 	@echo "✓ markov CLI rebuilt"
+
+##@ Vagrant: Backup & Restore
+
+vagrant-backup: ## Backup all service data to ./backups/<timestamp>/
+	vagrant ssh -c "sudo bash /vagrant/deploy/scripts/backup.sh"
+
+vagrant-backup-full: ## Backup all data including workspace and context PVCs
+	vagrant ssh -c "sudo bash /vagrant/deploy/scripts/backup.sh --include-workspace --include-context"
+
+vagrant-restore: ## Restore from backup (set BACKUP=<path>, e.g. BACKUP=/vagrant/backups/2026-05-01_143028)
+	@if [ -z "$(BACKUP)" ]; then \
+		echo "ERROR: Set BACKUP=<path> (e.g. make vagrant-restore BACKUP=/vagrant/backups/2026-05-01_143028)"; \
+		echo "Run 'make vagrant-list-backups' to see available backups."; \
+		exit 1; \
+	fi
+	vagrant ssh -c "sudo bash /vagrant/deploy/scripts/restore.sh $(BACKUP)"
+
+vagrant-list-backups: ## List available backups
+	vagrant ssh -c "bash /vagrant/deploy/scripts/list-backups.sh"
 
 ##@ Vagrant: Cleanup
 
@@ -222,3 +258,7 @@ rebuild-all: vagrant-rebuild-all ## Shortcut
 markov-kill: vagrant-markov-kill ## Shortcut
 status: vagrant-status ## Shortcut
 logs: vagrant-logs-dashboard ## Shortcut
+backup: vagrant-backup ## Shortcut
+backup-full: vagrant-backup-full ## Shortcut
+restore: vagrant-restore ## Shortcut
+list-backups: vagrant-list-backups ## Shortcut

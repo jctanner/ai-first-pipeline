@@ -1,0 +1,167 @@
+{% extends "layout.html" %}
+{% block title %}Settings{% endblock %}
+{% block content %}
+<div class="container">
+  <h2>Configuration Settings</h2>
+
+  <section style="margin-top: 2rem;">
+    <h3>Environment Variables</h3>
+    <table>
+      <thead>
+        <tr>
+          <th>Variable</th>
+          <th>Value</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for key, value in config.items() %}
+        <tr>
+          <td><code>{{ key }}</code></td>
+          <td>
+            {% if value %}
+              {% if 'TOKEN' in key or 'PASSWORD' in key or 'SECRET' in key %}
+                <code>{{ '***' + value[-4:] if value and value|length > 4 else '***' }}</code>
+              {% else %}
+                <code>{{ value }}</code>
+              {% endif %}
+            {% else %}
+              <em style="color: #999;">not set</em>
+            {% endif %}
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </section>
+
+  <section style="margin-top: 2rem;">
+    <h3>Cluster Information</h3>
+    <table>
+      <thead>
+        <tr>
+          <th>Property</th>
+          <th>Value</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>Namespace</td>
+          <td><code>{{ cluster.namespace }}</code></td>
+        </tr>
+        <tr>
+          <td>Platform</td>
+          <td><code>{{ cluster.platform }}</code></td>
+        </tr>
+        <tr>
+          <td>Storage Class</td>
+          <td><code>{{ cluster.storage_class }}</code></td>
+        </tr>
+      </tbody>
+    </table>
+  </section>
+
+  <section style="margin-top: 2rem;">
+    <h3>Service Endpoints</h3>
+    <table>
+      <thead>
+        <tr>
+          <th>Service</th>
+          <th>URL</th>
+          <th>Status</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for service in services %}
+        <tr>
+          <td>{{ service.name }}</td>
+          <td><code>{{ service.url }}</code></td>
+          <td>
+            {% if service.status == 'available' %}
+              <span style="color: green;">●</span> Available
+            {% elif service.status == 'unknown' %}
+              <span style="color: #999;">●</span> Unknown
+            {% else %}
+              <span style="color: red;">●</span> Unavailable
+            {% endif %}
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </section>
+
+  <section style="margin-top: 2rem;">
+    <h3>Data Volumes</h3>
+    <p style="color: #666; font-size: 0.9em;">Clear analysis data from shared volumes. This cannot be undone.</p>
+    <table>
+      <thead>
+        <tr>
+          <th style="width: 2em;"><input type="checkbox" id="vol-select-all" onchange="toggleVolSelectAll(this)"></th>
+          <th>Volume</th>
+          <th>Path</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><input type="checkbox" class="vol-select" value="issues"></td>
+          <td>Issues</td>
+          <td><code>/app/issues</code></td>
+        </tr>
+        <tr>
+          <td><input type="checkbox" class="vol-select" value="workspace"></td>
+          <td>Workspace</td>
+          <td><code>/app/workspace</code></td>
+        </tr>
+        <tr>
+          <td><input type="checkbox" class="vol-select" value="logs"></td>
+          <td>Logs</td>
+          <td><code>/app/logs</code></td>
+        </tr>
+        <tr>
+          <td><input type="checkbox" class="vol-select" value="artifacts"></td>
+          <td>Artifacts</td>
+          <td><code>/app/artifacts</code></td>
+        </tr>
+        <tr>
+          <td><input type="checkbox" class="vol-select" value="context"></td>
+          <td>Context</td>
+          <td><code>/app/.context</code></td>
+        </tr>
+      </tbody>
+    </table>
+    <button style="background:#c0392b; color:white; border:none; padding:0.4em 1.2em; border-radius:4px; cursor:pointer; margin-top:0.5rem;"
+            onclick="confirmClearVolumes()">Clear Selected</button>
+  </section>
+
+  <dialog id="clear-volumes-modal">
+    <article>
+      <h3>Clear Data Volumes</h3>
+      <p>This will <strong>permanently delete</strong> all contents from the following volumes:</p>
+      <p id="clear-volumes-list" style="max-height:200px; overflow-y:auto; font-size:0.85em;"></p>
+      <footer>
+        <button class="secondary" onclick="document.getElementById('clear-volumes-modal').close()">Cancel</button>
+        <button style="background:#c0392b; color:white; border:none;" onclick="executeClearVolumes()">Confirm &amp; Clear</button>
+      </footer>
+    </article>
+  </dialog>
+
+  <section style="margin-top: 2rem;">
+    <details>
+      <summary>About These Settings</summary>
+      <div style="max-width: 800px; line-height: 1.6; padding: 1em 0;">
+        <p>This page displays the configuration used by the AI-First Pipeline system.</p>
+        <p><strong>Environment Variables</strong> are loaded from the <code>.env</code> file or
+        Kubernetes secrets and control how the pipeline connects to external services.</p>
+        <p><strong>Cluster Information</strong> describes the Kubernetes environment where the
+        pipeline is running.</p>
+        <p><strong>Service Endpoints</strong> lists the URLs for Jira, GitHub emulators, and
+        other services used by the pipeline.</p>
+        <p><em>Note:</em> Sensitive values like tokens and passwords are partially masked for security.</p>
+      </div>
+    </details>
+  </section>
+</div>
+{% endblock %}
+{% block scripts %}
+<script src="/static/js/settings.js"></script>
+{% endblock %}

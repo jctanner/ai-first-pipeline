@@ -1,0 +1,74 @@
+<h2>All Issues (<span id="all-row-count">{{ all_issues|length }}</span>)</h2>
+<div class="filter-bar" id="all-filter-bar">
+  <label>
+    Type
+    <select data-attr="type" onchange="applyTabFilters('all-table','all-filter-bar','all-row-count')">
+      <option value="">All</option>
+      <option value="bug">Bug</option>
+      <option value="rfe">RFE</option>
+      <option value="strategy">Strategy</option>
+    </select>
+  </label>
+  <label>
+    Status
+    <select data-attr="status" onchange="applyTabFilters('all-table','all-filter-bar','all-row-count')">
+      <option value="">All</option>
+      {% for v in all_statuses %}<option value="{{ v }}">{{ v }}</option>{% endfor %}
+    </select>
+  </label>
+  <label>
+    Priority
+    <select data-attr="priority" onchange="applyTabFilters('all-table','all-filter-bar','all-row-count')">
+      <option value="">All</option>
+      {% for v in all_priorities %}<option value="{{ v }}">{{ v }}</option>{% endfor %}
+    </select>
+  </label>
+  <label>
+    Search
+    <input type="text" oninput="applyTabFilters('all-table','all-filter-bar','all-row-count')" placeholder="text search&hellip;" style="margin-bottom:0; padding:0.4em 0.6em;">
+  </label>
+</div>
+<div style="overflow-x:auto;">
+<table role="grid" id="all-table">
+  <thead>
+    <tr>
+      <th class="sortable" data-col="0">Type</th>
+      <th class="sortable" data-col="1">Key</th>
+      <th class="sortable" data-col="2">Summary</th>
+      <th class="sortable" data-col="3">Status</th>
+      <th class="sortable" data-col="4">Priority</th>
+      <th class="sortable" data-col="5" data-type="number">Quality</th>
+      <th class="sortable" data-col="6">Recommendation</th>
+      <th class="sortable" data-col="7">Security</th>
+      <th class="sortable" data-col="8">Attention</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for item in all_issues %}
+    <tr data-type="{{ item.type }}" data-status="{{ item.status }}" data-priority="{{ item.priority }}">
+      <td><span class="badge badge-type-{{ item.type }}">{{ item.type }}</span></td>
+      <td><a href="{{ item.detail_url }}">{{ item.key }}</a></td>
+      <td class="truncate" title="{{ item.title }}">{{ item.title[:80] }}{% if item.title|length > 80 %}&hellip;{% endif %}</td>
+      <td>{{ item.status }}</td>
+      <td>{{ item.priority }}</td>
+      <td data-sort-value="{{ item.quality_score }}">
+        <span class="{{ item.quality_class }}">{{ item.quality_display }}</span>
+      </td>
+      <td>
+        {% if item.recommendation %}
+          <span class="badge badge-rec-{{ item.recommendation }}">{{ item.recommendation }}</span>
+        {% else %}&mdash;{% endif %}
+      </td>
+      <td>
+        {% if item.security_verdict %}
+          <span class="badge badge-sec-{{ item.security_verdict|lower }}">{{ item.security_verdict }}</span>
+        {% else %}&mdash;{% endif %}
+      </td>
+      <td>
+        {% if item.attention %}<span class="attention-flag">&#9888;</span>{% else %}&mdash;{% endif %}
+      </td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+</div>

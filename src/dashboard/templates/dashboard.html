@@ -1,0 +1,39 @@
+{% extends "layout.html" %}
+{% block title %}Pipeline Dashboard{% endblock %}
+{% block content %}
+<style>
+  #issues-table tr.pipeline-pending td { background: rgba(0, 0, 0, 0.05); }
+  #issues-table tr.pipeline-pending td:first-child { box-shadow: inset 3px 0 0 #bbb; }
+  #issues-table tr.pipeline-active td { background: rgba(39, 174, 96, 0.12); animation: pulse-green 2s ease-in-out infinite; }
+  #issues-table tr.pipeline-active td:first-child { box-shadow: inset 3px 0 0 #27ae60; }
+  @keyframes pulse-green { 0%,100% { background: rgba(39,174,96,0.06); } 50% { background: rgba(39,174,96,0.18); } }
+</style>
+
+<div class="tab-nav">
+  <button class="active" onclick="switchTab('all')">All Issues ({{ all_issues|length }})</button>
+  <button onclick="switchTab('rfes')">RFEs ({{ rfe_issues|length }})</button>
+  <button onclick="switchTab('strategies')">Strategies ({{ strat_issues|length }})</button>
+  <button onclick="switchTab('epics')">Epics ({{ epic_issues|length }})</button>
+  <button onclick="switchTab('bugs')">Bugs ({{ rows|length }})</button>
+</div>
+
+<div id="tab-all" class="tab-panel active">
+  {% include "tab_all.html" %}
+</div>
+<div id="tab-rfes" class="tab-panel">
+  {% include "tab_rfes.html" %}
+</div>
+<div id="tab-strategies" class="tab-panel">
+  {% include "tab_strategies.html" %}
+</div>
+<div id="tab-epics" class="tab-panel">
+  {% include "tab_epics.html" %}
+</div>
+<div id="tab-bugs" class="tab-panel">
+  {% include "tab_bugs.html" %}
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="/static/js/dashboard.js"></script>
+{% endblock %}

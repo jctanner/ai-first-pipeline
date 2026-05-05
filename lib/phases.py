@@ -3323,7 +3323,7 @@ async def run_strat_all_phases(args) -> None:
 
 async def run_dashboard_phase(args) -> None:
     """Launch the reporting dashboard web app."""
-    from lib.webapp import create_app
+    from src.dashboard.webapp import create_app
 
     app = create_app()
     app.run(host=args.host, port=args.port, debug=True, threaded=True)

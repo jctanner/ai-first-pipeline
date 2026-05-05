@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Test K8s orchestrator."""
 
-from lib.k8s_orchestrator import PipelineOrchestrator
+from src.dashboard.k8s_orchestrator import PipelineOrchestrator
 
 # Initialize orchestrator
 print("Initializing orchestrator...")

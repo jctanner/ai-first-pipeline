@@ -1,0 +1,218 @@
+<h2>Bugs (<span id="bug-row-count">{{ rows|length }}</span>)</h2>
+
+<div class="filter-bar">
+  <label>
+    Model
+    <select id="filter-model" onchange="applyBugFilters()">
+      <option value="">All</option>
+      {% for v in model_names %}<option value="{{ v }}">{{ v }}</option>{% endfor %}
+    </select>
+  </label>
+  <label>
+    Status
+    <select id="filter-status" onchange="applyBugFilters()">
+      <option value="">All</option>
+      {% for v in statuses %}<option value="{{ v }}">{{ v }}</option>{% endfor %}
+    </select>
+  </label>
+  <label>
+    Triage
+    <select id="filter-triage" onchange="applyBugFilters()">
+      <option value="">All</option>
+      {% for v in triages %}<option value="{{ v }}">{{ v }}</option>{% endfor %}
+    </select>
+  </label>
+  <label>
+    Issue Type
+    <select id="filter-issuetype" onchange="applyBugFilters()">
+      <option value="">All</option>
+      {% for v in issue_types %}<option value="{{ v }}">{{ v }}</option>{% endfor %}
+    </select>
+  </label>
+  <label>
+    Component
+    <select id="filter-component" onchange="applyBugFilters()">
+      <option value="">All</option>
+      {% for v in components %}<option value="{{ v }}">{{ v }}</option>{% endfor %}
+    </select>
+  </label>
+  <label>
+    Arch Context
+    <select id="filter-context" onchange="applyBugFilters()">
+      <option value="">All</option>
+      {% for v in context_ratings %}<option value="{{ v }}">{{ v }}</option>{% endfor %}
+    </select>
+  </label>
+  <label>
+    Arch Docs
+    <select id="filter-archdocs" onchange="applyBugFilters()">
+      <option value="">All</option>
+      {% for v in arch_docs_values %}<option value="{{ v }}">{{ v }}</option>{% endfor %}
+    </select>
+  </label>
+  <label>
+    Src Code
+    <select id="filter-srccode" onchange="applyBugFilters()">
+      <option value="">All</option>
+      {% for v in src_code_values %}<option value="{{ v }}">{{ v }}</option>{% endfor %}
+    </select>
+  </label>
+  <label>
+    Fix
+    <select id="filter-fix" onchange="applyBugFilters()">
+      <option value="">All</option>
+      {% for v in fix_recommendations %}<option value="{{ v }}">{{ v }}</option>{% endfor %}
+    </select>
+  </label>
+  <label>
+    Test Context
+    <select id="filter-testctx" onchange="applyBugFilters()">
+      <option value="">All</option>
+      {% for v in test_context_ratings %}<option value="{{ v }}">{{ v }}</option>{% endfor %}
+    </select>
+  </label>
+  <label>
+    Write Test
+    <select id="filter-writetest" onchange="applyBugFilters()">
+      <option value="">All</option>
+      {% for v in write_test_decisions %}<option value="{{ v }}">{{ v }}</option>{% endfor %}
+    </select>
+  </label>
+  <label>
+    AI Eligible
+    <select id="filter-eligible" onchange="applyBugFilters()">
+      <option value="">All</option>
+      <option value="yes">Eligible for fix</option>
+      <option value="no">Excluded from fix</option>
+    </select>
+  </label>
+  <label>
+    Search
+    <input type="text" id="filter-text" oninput="applyBugFilters()" placeholder="text search&hellip;" style="margin-bottom:0; padding:0.4em 0.6em;">
+  </label>
+</div>
+
+<div class="action-bar" id="action-bar" style="display:none;">
+  <span id="selected-count">0</span> selected &mdash;
+  <button class="btn-reset" onclick="confirmReset()">Reset Selected</button>
+</div>
+
+<dialog id="reset-modal">
+  <article>
+    <h3>Reset Workspace</h3>
+    <p>This will delete all analysis results (completeness, context-map,
+    fix-attempt, test-plan, write-test) for <strong id="reset-count">0</strong>
+    issue&times;model pairs. They will be re-processed on the next pipeline run.</p>
+    <p id="reset-list" style="max-height:200px; overflow-y:auto; font-size:0.85em;"></p>
+    <footer>
+      <button class="secondary" onclick="document.getElementById('reset-modal').close()">Cancel</button>
+      <button onclick="executeReset()">Confirm Reset</button>
+    </footer>
+  </article>
+</dialog>
+
+<div style="overflow-x:auto;">
+<table role="grid" id="issues-table">
+  <thead>
+    <tr>
+      <th><input type="checkbox" id="select-all" onchange="toggleSelectAll(this)"></th>
+      <th class="sortable" data-col="1">Key</th>
+      <th class="sortable" data-col="2">Model</th>
+      <th class="sortable" data-col="3">Summary</th>
+      <th class="sortable" data-col="4">Status</th>
+      <th class="sortable" data-col="5">Priority</th>
+      <th class="sortable" data-col="6">Components</th>
+      <th class="sortable" data-col="7">Issue<br>Type</th>
+      <th class="sortable" data-col="8" data-type="number">Bug<br>Quality</th>
+      <th class="sortable" data-col="9">AI<br>Type</th>
+      <th class="sortable" data-col="10">Triage</th>
+      <th class="sortable" data-col="11">Arch<br>Context</th>
+      <th class="sortable" data-col="12" data-type="number">Arch<br>Quality</th>
+      <th class="sortable" data-col="13">Arch<br>Docs</th>
+      <th class="sortable" data-col="14">Src<br>Code</th>
+      <th class="sortable" data-col="15">Test<br>Context</th>
+      <th class="sortable" data-col="16">Fix</th>
+      <th class="sortable" data-col="17">Confidence</th>
+      <th class="sortable" data-col="18">Test<br>Effort</th>
+      <th class="sortable" data-col="19">Write<br>Test</th>
+      <th class="sortable" data-col="20">Processed</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for row in rows %}
+    <tr
+      data-key="{{ row.key }}"
+      data-model="{{ row.model }}"
+      data-status="{{ row.status }}"
+      data-triage="{{ row.completeness.triage_recommendation if row.completeness else '' }}"
+      data-issuetype="{{ row.completeness.issue_type_assessment.classified_type if row.completeness and row.completeness.issue_type_assessment else '' }}"
+      data-components="{{ row.components|join('||') }}"
+      data-context="{{ row.context_map.overall_rating if row.context_map and row.context_map.overall_rating is defined else '' }}"
+      data-fix="{{ row.fix_attempt.recommendation if row.fix_attempt and row.fix_attempt.recommendation is defined else '' }}"
+      data-testctx="{{ row.test_context_rating }}"
+      data-archdocs="{{ row.arch_docs }}"
+      data-srccode="{{ row.src_code }}"
+      data-writetest="{{ row.write_test.decision if row.write_test and row.write_test.decision is defined else '' }}"
+      data-eligible="{% if row.status in ['In Progress', 'Review', 'Testing', 'Closed', 'Done'] %}no{% elif row.completeness and row.completeness.overall_score is defined and row.completeness.overall_score < 5 %}no{% elif row.context_map and row.context_map.overall_rating == 'no-context' %}no{% else %}yes{% endif %}"
+    >
+      <td><input type="checkbox" class="row-select" data-key="{{ row.key }}" data-model="{{ row.model }}"></td>
+      <td><a href="/issue/{{ row.key }}{% if row.model %}?model={{ row.model }}{% endif %}">{{ row.key }}</a></td>
+      <td>{{ row.model or '&mdash;'|safe }}</td>
+      <td class="truncate" title="{{ row.summary }}">{{ row.summary[:80] }}{% if row.summary|length > 80 %}&hellip;{% endif %}</td>
+      <td>{{ row.status }}</td>
+      <td>{{ row.priority }}</td>
+      <td>{{ row.components|join(', ') }}</td>
+      <td>{{ row.issue_type }}</td>
+      <td data-sort-value="{{ row.completeness.overall_score if row.completeness and row.completeness.overall_score is defined else -1 }}">
+        {% if row.completeness and row.completeness.overall_score is defined %}
+          {% set score = row.completeness.overall_score %}
+          <span class="{{ 'score-red' if score < 40 else ('score-yellow' if score < 80 else 'score-green') }}">{{ score }}</span>
+        {% else %}&mdash;{% endif %}
+      </td>
+      <td>
+        {% if row.completeness and row.completeness.issue_type_assessment %}
+          {% set itype = row.completeness.issue_type_assessment.classified_type %}
+          <span class="badge badge-{{ itype if itype in ('bug','enhancement','feature-request','task') else 'default' }}">{{ itype }}</span>
+        {% else %}&mdash;{% endif %}
+      </td>
+      <td>{{ row.completeness.triage_recommendation if row.completeness and row.completeness.triage_recommendation is defined else '&mdash;'|safe }}</td>
+      <td>{{ row.context_map.overall_rating if row.context_map and row.context_map.overall_rating is defined else '&mdash;'|safe }}</td>
+      <td data-sort-value="{{ row.context_map.context_helpfulness.overall_score if row.context_map and row.context_map.context_helpfulness else -1 }}">
+        {% if row.context_map and row.context_map.context_helpfulness %}
+          {% set hs = row.context_map.context_helpfulness.overall_score %}
+          <span class="{{ 'score-red' if hs < 40 else ('score-yellow' if hs < 80 else 'score-green') }}">{{ hs }}</span>
+        {% else %}&mdash;{% endif %}
+      </td>
+      <td>
+        {% if row.arch_docs %}
+          <span class="badge {{ 'badge-val-pass' if row.arch_docs == 'all' else ('badge-default' if row.arch_docs == 'partial' else 'badge-val-fail') }}">{{ row.arch_docs }}</span>
+        {% else %}&mdash;{% endif %}
+      </td>
+      <td>
+        {% if row.src_code %}
+          <span class="badge {{ 'badge-val-pass' if row.src_code == 'all' else ('badge-default' if row.src_code == 'partial' else 'badge-val-fail') }}">{{ row.src_code }}</span>
+        {% else %}&mdash;{% endif %}
+      </td>
+      <td>
+        {% if row.test_context_rating %}
+          <span class="badge {{ 'badge-val-pass' if row.test_context_rating == 'high' else ('badge-default' if row.test_context_rating == 'medium' else 'badge-val-fail') }}">{{ row.test_context_rating }}</span>
+        {% else %}&mdash;{% endif %}
+      </td>
+      <td>
+        {% if row.fix_attempt %}
+          <span class="badge badge-fix-{{ row.fix_attempt.recommendation }}">{{ row.fix_attempt.recommendation }}</span>
+        {% else %}&mdash;{% endif %}
+      </td>
+      <td>{{ row.fix_attempt.confidence if row.fix_attempt and row.fix_attempt.confidence is defined else '&mdash;'|safe }}</td>
+      <td>{{ row.test_plan.effort_estimate if row.test_plan and row.test_plan.effort_estimate is defined else '&mdash;'|safe }}</td>
+      <td>
+        {% if row.write_test %}
+          <span class="badge {{ 'badge-val-pass' if row.write_test.decision == 'write-test' else 'badge-default' }}">{{ row.write_test.decision }}</span>
+        {% else %}&mdash;{% endif %}
+      </td>
+      <td>{{ row.last_processed or '&mdash;'|safe }}</td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+</div>

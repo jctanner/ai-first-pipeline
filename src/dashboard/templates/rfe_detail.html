@@ -1,0 +1,125 @@
+{% extends "layout.html" %}
+{% block title %}{{ rfe.key }} - RFE Detail{% endblock %}
+{% block content %}
+{% set rev = rfe.review %}
+<hgroup>
+  <h2>{{ rfe.key }}: {{ rfe.title|default('Untitled RFE') }}</h2>
+</hgroup>
+<p><a href="/">&larr; Back to dashboard</a></p>
+
+{# --- Issue metadata --- #}
+<div style="display:flex; gap:1.5rem; flex-wrap:wrap; margin-bottom:1rem; font-size:0.95em;">
+  <span><strong>Priority:</strong> {{ rfe.priority|default('—') }}</span>
+  <span><strong>Size:</strong> {% if rfe.size %}<span class="badge badge-size-{{ rfe.size|lower }}">{{ rfe.size }}</span>{% else %}—{% endif %}</span>
+  <span><strong>Status:</strong> {{ rfe.status|default('—') }}</span>
+</div>
+
+{# =============== Score Summary (always visible) =============== #}
+{% if rev %}
+<div style="background:#f8f9fa; border-radius:6px; padding:1rem; margin-bottom:1.5rem;">
+  <div style="display:flex; gap:2rem; flex-wrap:wrap; align-items:start;">
+
+    {# -- Score bar + rubric -- #}
+    <div style="flex:1; min-width:250px;">
+      {% if rev.score is not none %}
+      {% set sc = rev.score %}
+      {% set pct = (sc * 10)|int %}
+      {% set bar_color = '#c0392b' if sc < 5 else ('#d4a017' if sc < 8 else '#27ae60') %}
+      <div style="margin-bottom:0.8em;">
+        <strong>Overall: </strong>
+        <span class="{{ 'score-red' if sc < 5 else ('score-yellow' if sc < 8 else 'score-green') }}">{{ sc }}/10</span>
+        <div class="score-bar" style="margin-top:0.3em;">
+          <div class="score-bar-fill" style="width:{{ pct }}%; background:{{ bar_color }};">{{ sc }}/10</div>
+        </div>
+      </div>
+      {% endif %}
+      <div style="display:flex; gap:0.8rem; flex-wrap:wrap; font-size:0.9em;">
+        {% for dim_key, dim_label in [('what','WHAT'),('why','WHY'),('open_to_how','HOW'),('not_a_task','Not Task'),('right_sized','Right-Sized')] %}
+        <span>
+          {{ dim_label }}:
+          {% if rev.scores and rev.scores[dim_key] is defined %}
+            <span class="rubric-dot rubric-{{ rev.scores[dim_key] }}" title="{{ rev.scores[dim_key] }}/2"></span>
+            {{ rev.scores[dim_key] }}/2
+            {% if rev.auto_revised and rev.before_scores and rev.before_scores[dim_key] is defined %}
+              <span style="opacity:0.5;" title="before">(was {{ rev.before_scores[dim_key] }}/2)</span>
+            {% endif %}
+          {% else %}—{% endif %}
+        </span>
+        {% endfor %}
+      </div>
+    </div>
+
+    {# -- Verdict badges -- #}
+    <div style="display:flex; gap:0.6rem; flex-wrap:wrap; align-items:center; font-size:0.9em;">
+      {% if rev.pass is defined %}
+        {% if rev.pass %}<span class="badge badge-val-pass">PASS</span>
+        {% else %}<span class="badge badge-val-fail">FAIL</span>{% endif %}
+      {% endif %}
+      {% if rev.recommendation %}
+        <span class="badge badge-rec-{{ rev.recommendation }}">{{ rev.recommendation }}</span>
+      {% endif %}
+      {% if rev.feasibility %}
+        <span class="badge badge-feas-{{ rev.feasibility }}">{{ rev.feasibility }}</span>
+      {% endif %}
+      {% if rev.auto_revised %}
+        <span class="badge badge-rec-split">auto-revised</span>
+        {% if rev.before_score is not none %}
+          <span style="font-size:0.85em; opacity:0.7;">(was {{ rev.before_score }}/10)</span>
+        {% endif %}
+      {% endif %}
+    </div>
+
+  </div>
+</div>
+{% else %}
+<p><em>No review data available for this RFE.</em></p>
+{% endif %}
+
+{# =============== Content Tabs =============== #}
+<div class="tab-nav" id="rfe-tab-nav">
+  <button class="active" onclick="switchRfeTab('feedback')">Assessor Feedback</button>
+  <button onclick="switchRfeTab('feasibility')">Feasibility</button>
+  <button onclick="switchRfeTab('original')">Original Description</button>
+  <button onclick="switchRfeTab('revised')">New Description</button>
+  {% if rfe.comments_body %}<button onclick="switchRfeTab('comments')">Comments</button>{% endif %}
+</div>
+
+<div id="rfe-tab-feedback" class="tab-panel active">
+{% if rev and rev._body %}
+  <div class="issue-text md-content">{{ rev._body|e }}</div>
+{% else %}
+  <p><em>No assessor feedback available.</em></p>
+{% endif %}
+</div>
+
+<div id="rfe-tab-feasibility" class="tab-panel">
+{% if rfe.feasibility_body %}
+  <div class="issue-text md-content">{{ rfe.feasibility_body|e }}</div>
+{% else %}
+  <p><em>No feasibility analysis available.</em></p>
+{% endif %}
+</div>
+
+<div id="rfe-tab-original" class="tab-panel">
+{% if rfe.original_body %}
+  <div class="issue-text md-content">{{ rfe.original_body|e }}</div>
+{% else %}
+  <p><em>No original description available.</em></p>
+{% endif %}
+</div>
+
+<div id="rfe-tab-revised" class="tab-panel">
+  <div class="issue-text md-content">{{ rfe._body|default('No content available.')|e }}</div>
+</div>
+
+{% if rfe.comments_body %}
+<div id="rfe-tab-comments" class="tab-panel">
+  <div class="issue-text md-content">{{ rfe.comments_body|e }}</div>
+</div>
+{% endif %}
+
+{% endblock %}
+
+{% block scripts %}
+<script src="/static/js/rfe_detail.js"></script>
+{% endblock %}

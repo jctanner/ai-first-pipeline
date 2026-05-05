@@ -1,0 +1,54 @@
+<h2>Epics (<span id="epic-row-count">{{ epic_issues|length }}</span>)</h2>
+<div class="filter-bar" id="epic-filter-bar">
+  <label>
+    Type
+    <select data-attr="epictype" onchange="applyTabFilters('epic-table','epic-filter-bar','epic-row-count')">
+      <option value="">All</option>
+      {% for v in epic_types %}<option value="{{ v }}">{{ v }}</option>{% endfor %}
+    </select>
+  </label>
+  <label>
+    Strategy
+    <select data-attr="stratkey" onchange="applyTabFilters('epic-table','epic-filter-bar','epic-row-count')">
+      <option value="">All</option>
+      {% for v in epic_strat_keys %}<option value="{{ v }}">{{ v }}</option>{% endfor %}
+    </select>
+  </label>
+  <label>
+    Search
+    <input type="text" oninput="applyTabFilters('epic-table','epic-filter-bar','epic-row-count')" placeholder="text search&hellip;" style="margin-bottom:0; padding:0.4em 0.6em;">
+  </label>
+</div>
+<div style="overflow-x:auto;">
+<table role="grid" id="epic-table">
+  <thead>
+    <tr>
+      <th class="sortable" data-col="0">Key</th>
+      <th class="sortable" data-col="1">Title</th>
+      <th class="sortable" data-col="2">Type</th>
+      <th class="sortable" data-col="3">Parent Strategy</th>
+      <th class="sortable" data-col="4">Created</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for ep in epic_issues %}
+    <tr
+      data-epictype="{{ ep.type|default('') }}"
+      data-stratkey="{{ ep.strat_key|default('') }}"
+    >
+      <td><a href="https://issues.redhat.com/browse/{{ ep.key }}">{{ ep.key }}</a></td>
+      <td class="truncate" title="{{ ep.title|default('') }}">{{ ep.title|default('')|truncate(80) }}</td>
+      <td>
+        {% if ep.type == 'eng' %}<span class="badge badge-rec-approve">eng</span>
+        {% elif ep.type == 'qe' %}<span class="badge badge-sec-concerns">qe</span>
+        {% elif ep.type == 'integration' %}<span class="badge badge-tier-2">integration</span>
+        {% else %}<span class="badge">{{ ep.type }}</span>
+        {% endif %}
+      </td>
+      <td><a href="/strat/{{ ep.strat_key }}">{{ ep.strat_key }}</a></td>
+      <td>{{ ep.created_at|default('&mdash;'|safe) }}</td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+</div>

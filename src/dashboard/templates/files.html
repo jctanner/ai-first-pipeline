@@ -1,0 +1,151 @@
+{% extends "layout.html" %}
+{% block title %}File Browser{% endblock %}
+{% block content %}
+<style>
+  .file-browser {
+    display: grid;
+    grid-template-columns: 300px 1fr;
+    gap: 1rem;
+    height: calc(100vh - 200px);
+  }
+  @media (max-width: 900px) {
+    .file-browser { grid-template-columns: 1fr; height: auto; }
+  }
+  .file-tree {
+    background: #f8f9fa;
+    padding: 1rem;
+    border-radius: 8px;
+    overflow-y: auto;
+  }
+  .file-viewer {
+    background: #f8f9fa;
+    padding: 1rem;
+    border-radius: 8px;
+    overflow-y: auto;
+  }
+  .breadcrumb {
+    background: #fff;
+    padding: 0.5rem 1rem;
+    border-radius: 6px;
+    margin-bottom: 1rem;
+    font-size: 0.9em;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    flex-wrap: wrap;
+  }
+  .breadcrumb a {
+    color: #3498db;
+    text-decoration: none;
+  }
+  .breadcrumb a:hover { text-decoration: underline; }
+  .breadcrumb span { color: #95a5a6; }
+  .dir-list {
+    list-style: none;
+    padding-left: 1rem;
+    margin: 0;
+  }
+  .dir-list li {
+    padding: 0.3rem 0;
+    cursor: pointer;
+  }
+  .dir-entry {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.2rem 0.5rem;
+    border-radius: 4px;
+  }
+  .dir-entry:hover {
+    background: #e9ecef;
+  }
+  .dir-entry.selected {
+    background: #3498db;
+    color: white;
+  }
+  .icon-dir::before { content: '📁 '; }
+  .icon-file::before { content: '📄 '; }
+  .file-content {
+    background: #1e1e1e;
+    color: #d4d4d4;
+    padding: 1rem;
+    border-radius: 6px;
+    font-family: monospace;
+    font-size: 0.85em;
+    white-space: pre-wrap;
+    word-wrap: break-word;
+    overflow-x: auto;
+    max-height: calc(100vh - 300px);
+  }
+  .file-info {
+    background: #fff;
+    padding: 0.5rem 1rem;
+    border-radius: 6px;
+    margin-bottom: 1rem;
+    font-size: 0.9em;
+    display: flex;
+    justify-content: space-between;
+  }
+  .empty-state {
+    text-align: center;
+    color: #95a5a6;
+    padding: 3rem 1rem;
+  }
+  .error-state {
+    background: #fdedec;
+    border: 1px solid #e74c3c;
+    color: #c0392b;
+    padding: 1rem;
+    border-radius: 6px;
+  }
+  .base-dir-links {
+    margin-bottom: 1rem;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+  }
+  .base-dir-btn {
+    background: #3498db;
+    color: white;
+    border: none;
+    padding: 0.4rem 0.8rem;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 0.85em;
+  }
+  .base-dir-btn:hover { background: #2980b9; }
+  .base-dir-btn.active { background: #27ae60; }
+</style>
+
+<h1>File Browser</h1>
+
+<div class="base-dir-links">
+  <button class="base-dir-btn" onclick="navigateTo('/app/artifacts')">artifacts/</button>
+  <button class="base-dir-btn" onclick="navigateTo('/app/issues')">issues/</button>
+  <button class="base-dir-btn" onclick="navigateTo('/app/workspace')">workspace/</button>
+  <button class="base-dir-btn" onclick="navigateTo('/app/logs')">logs/</button>
+  <button class="base-dir-btn" onclick="navigateTo('/app/.context')">.context/</button>
+</div>
+
+<div class="file-browser">
+  <div class="file-tree">
+    <h3 style="margin-top: 0;">Directory</h3>
+    <div class="breadcrumb" id="breadcrumb"></div>
+    <ul class="dir-list" id="dir-list">
+      <li class="empty-state">Select a base directory above</li>
+    </ul>
+  </div>
+
+  <div class="file-viewer">
+    <h3 style="margin-top: 0;">File Viewer</h3>
+    <div id="file-display">
+      <div class="empty-state">Select a file to view its contents</div>
+    </div>
+  </div>
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<script src="/static/js/files.js"></script>
+{% endblock %}
