@@ -219,14 +219,7 @@ workflows:
             git $SAFE -C "$CONTEXT_DIR" sparse-checkout set "architecture/$LATEST" "architecture/rhoai.next" || true
 
             echo "Architecture context ready: $CONTEXT_DIR/architecture/$LATEST"
-
-            # Verify arch-query binary
-            if ! command -v {{ arch_query_bin }} >/dev/null 2>&1; then
-              echo "ERROR: arch-query binary not found at {{ arch_query_bin }}"
-              echo "Ensure the pipeline-agent image includes arch-query (multi-stage build)"
-              exit 1
-            fi
-            echo "arch-query version: $({{ arch_query_bin }} --base-dir {{ arch_query_base_dir }} --version 2>/dev/null || echo unknown)"
+            ls "$CONTEXT_DIR/architecture/$LATEST/" | head -5
 
       - name: load_corpus
         type: load_artifact
