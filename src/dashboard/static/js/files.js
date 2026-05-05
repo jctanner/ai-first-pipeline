@@ -43,13 +43,13 @@ function renderBreadcrumb(path) {
   const parts = path.split('/').filter(p => p);
   const breadcrumb = document.getElementById('breadcrumb');
 
-  let html = '<a href="#" onclick="navigateTo(\\'/\\'); return false;">/</a>';
+  let html = `<a href="#" onclick="navigateTo('/'); return false;">/</a>`;
   let accumulated = '';
 
   for (let i = 0; i < parts.length; i++) {
     accumulated += '/' + parts[i];
     if (i < parts.length - 1) {
-      html += '<span>/</span><a href="#" onclick="navigateTo(\\'' + accumulated + '\\'); return false;">' + parts[i] + '</a>';
+      html += `<span>/</span><a href="#" onclick="navigateTo('${accumulated}'); return false;">${parts[i]}</a>`;
     } else {
       html += '<span>/</span><strong>' + parts[i] + '</strong>';
     }
@@ -79,7 +79,7 @@ function renderDirectoryList(entries) {
   // Add parent directory link if not at root
   if (currentPath && currentPath !== '/') {
     const parentPath = currentPath.substring(0, currentPath.lastIndexOf('/')) || '/';
-    html += '<li><div class="dir-entry" onclick="navigateTo(\\'' + parentPath + '\\')"><span class="icon-dir"></span>.. (parent)</div></li>';
+    html += `<li><div class="dir-entry" onclick="navigateTo('${parentPath}')"><span class="icon-dir"></span>.. (parent)</div></li>`;
   }
 
   for (const entry of sorted) {
