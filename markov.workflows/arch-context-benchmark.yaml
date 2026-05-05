@@ -185,21 +185,19 @@ workflows:
         params:
           command: |
             set -euo pipefail
+            exec 1>&2
 
             CONTEXT_DIR="{{ arch_context_dir }}"
+            SAFE="-c safe.directory=$CONTEXT_DIR"
 
-            # Allow git operations on PVC-mounted directory (may be owned by root)
-            git config --global --add safe.directory "$CONTEXT_DIR"
+            echo "Setting up architecture-context at $CONTEXT_DIR ..."
 
             # Clone or update architecture-context (sparse checkout)
             if [ -d "$CONTEXT_DIR/.git" ]; then
-              echo "Updating existing architecture-context clone..."
-              if ! git -C "$CONTEXT_DIR" pull --quiet 2>&1; then
-                echo "Pull failed, removing stale clone and re-cloning..."
-                rm -rf "$CONTEXT_DIR"
-              fi
-            fi
-            if [ ! -d "$CONTEXT_DIR/.git" ]; then
+              echo "Existing clone found, fetching latest..."
+              git $SAFE -C "$CONTEXT_DIR" fetch --depth 1 origin || true
+              git $SAFE -C "$CONTEXT_DIR" reset --hard origin/HEAD || true
+            else
               echo "Cloning architecture-context (sparse)..."
               mkdir -p "$(dirname "$CONTEXT_DIR")"
               git clone --depth 1 --filter=blob:none --sparse \
@@ -218,7 +216,7 @@ workflows:
               echo "ERROR: could not determine latest RHOAI version"
               exit 1
             fi
-            git -C "$CONTEXT_DIR" sparse-checkout set "architecture/$LATEST" "architecture/rhoai.next" || true
+            git $SAFE -C "$CONTEXT_DIR" sparse-checkout set "architecture/$LATEST" "architecture/rhoai.next" || true
 
             echo "Architecture context ready: $CONTEXT_DIR/architecture/$LATEST"
 
