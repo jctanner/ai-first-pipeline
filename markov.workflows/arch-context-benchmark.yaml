@@ -221,6 +221,16 @@ workflows:
             echo "Architecture context ready: $CONTEXT_DIR/architecture/$LATEST"
             ls "$CONTEXT_DIR/architecture/$LATEST/" | head -5
 
+            # Download corpus file (not on PVC — fetch from repo)
+            CORPUS="{{ corpus_path }}"
+            if [ ! -f "$CORPUS" ]; then
+              echo "Downloading corpus to $CORPUS ..."
+              mkdir -p "$(dirname "$CORPUS")"
+              curl -sfL "https://raw.githubusercontent.com/jctanner/ai-first-pipeline/main/benchmarks/arch-context/corpus-AB-final.yaml" \
+                -o "$CORPUS"
+            fi
+            echo "Corpus ready: $(grep -c 'id:' "$CORPUS") questions"
+
       - name: load_corpus
         type: load_artifact
         artifacts:
