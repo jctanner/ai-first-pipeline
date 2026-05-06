@@ -25,11 +25,10 @@ if [ -f "${PROJECT_ROOT}/.env" ] && [ "${PROJECT_ROOT}" = "/vagrant" ]; then
     exit 1
   fi
 else
-  # Running on host - need to copy credentials to shared location
+  # Running on host - use credentials directly
   echo "Running on host machine..."
   echo
 
-  # Check if user has authenticated
   CREDS_FILE="${HOME}/.config/gcloud/application_default_credentials.json"
 
   if [ ! -f "$CREDS_FILE" ]; then
@@ -41,17 +40,7 @@ else
     exit 1
   fi
 
-  # Copy credentials to project directory (will be gitignored)
-  echo "Copying credentials to .gcloud/ directory..."
-  mkdir -p .gcloud
-  cp "$CREDS_FILE" .gcloud/application_default_credentials.json
-  chmod 600 .gcloud/application_default_credentials.json
-
-  echo "✓ Credentials copied to .gcloud/"
-  echo
-  echo "Now run this script inside the Vagrant VM:"
-  echo "  vagrant ssh -c 'cd /vagrant/deploy/scripts && sudo bash 11-create-gcp-credentials-secret.sh'"
-  exit 0
+  CREDS_SOURCE="$CREDS_FILE"
 fi
 
 # Create the secret
