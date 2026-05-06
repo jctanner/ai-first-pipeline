@@ -65,7 +65,7 @@ vars:
   results_dir: "/app/artifacts/benchmarks/arch-context/results"
   model: opus
   judge_model: sonnet
-  mlflow_enabled: false
+  mlflow_enabled: true
   mlflow_experiment: "arch-context-access-benchmark"
   context_modes: ["flat_files", "arch_query"]
 
@@ -244,6 +244,15 @@ workflows:
 
             # Fix ownership — markov runner is root but agent jobs run as uid 1000
             chown -R 1000:1000 "{{ results_dir }}" "$(dirname '{{ corpus_path }}')"
+
+      - name: create_mlflow_experiment
+        type: shell_exec
+        params:
+          command: |
+            curl -sf http://mlflow.ai-pipeline.svc.cluster.local:5000/api/2.0/mlflow/experiments/create \
+              -X POST -H 'Content-Type: application/json' \
+              -d '{"name":"{{ mlflow_experiment }}"}' 2>/dev/null \
+              || echo "Experiment '{{ mlflow_experiment }}' already exists"
 
       - name: load_corpus
         type: load_artifact
