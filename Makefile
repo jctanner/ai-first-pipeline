@@ -362,6 +362,12 @@ host-markov-status: ## Show markov run status on host
 host-markov-logs: ## Follow markovd logs on host
 	kubectl logs -n ai-pipeline -l app=markovd -f
 
+host-deploy-markovd: ## Deploy markovd (first time) on host
+	@echo "==> Deploying markovd..."
+	PROJECT_ROOT=$(HOST_PROJECT_ROOT) bash deploy/scripts/05c-build-markovd.sh
+	PROJECT_ROOT=$(HOST_PROJECT_ROOT) bash deploy/scripts/12-deploy-markovd.sh
+	@echo "✓ markovd deployed"
+
 host-rebuild-markovd: ## Rebuild and redeploy markovd on host
 	@echo "==> Building markovd image..."
 	PROJECT_ROOT=$(HOST_PROJECT_ROOT) bash deploy/scripts/05c-build-markovd.sh
