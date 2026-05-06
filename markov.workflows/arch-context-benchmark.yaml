@@ -56,7 +56,7 @@ entrypoint: main
 
 namespace: ai-pipeline
 
-forks: 5
+forks: 10
 
 vars:
   corpus_path: "/app/artifacts/benchmarks/arch-context/corpus-AB-final.yaml"
@@ -142,11 +142,8 @@ step_types:
           read_only: true
       resources:
         requests:
-          memory: 2Gi
-          cpu: 500m
-        limits:
-          memory: 8Gi
-          cpu: 2000m
+          memory: 256Mi
+          cpu: 100m
       affinity:
         pod_affinity:
           required:
