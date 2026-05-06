@@ -2,8 +2,9 @@
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+PROJECT_ROOT="${PROJECT_ROOT:-/vagrant}"
 NAMESPACE="ai-pipeline"
-BACKUP_ROOT="/vagrant/backups"
+BACKUP_ROOT="${PROJECT_ROOT}/backups"
 TIMESTAMP=$(date +%Y-%m-%d_%H%M%S)
 BACKUP_DIR="${BACKUP_ROOT}/${TIMESTAMP}"
 INCLUDE_WORKSPACE=false
@@ -18,7 +19,7 @@ while [[ $# -gt 0 ]]; do
     -h|--help)
       echo "Usage: backup.sh [--include-workspace] [--include-context]"
       echo ""
-      echo "Backs up all ai-pipeline service data to /vagrant/backups/<timestamp>/"
+      echo "Backs up all ai-pipeline service data to backups/<timestamp>/"
       echo ""
       echo "Flags:"
       echo "  --include-workspace  Include pipeline-workspace PVC (50Gi, slow)"

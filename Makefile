@@ -8,11 +8,13 @@ help: ## Show this help message
 	@echo ""
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "}; {printf "  \033[36m%-30s\033[0m %s\n", $$1, $$2}'
 	@echo ""
-	@echo "Common workflows:"
-	@echo "  make vagrant-rebuild-dashboard    # Rebuild dashboard after code changes"
-	@echo "  make vagrant-rebuild-agent         # Rebuild agent after adding Claude CLI"
-	@echo "  make vagrant-rebuild-all           # Rebuild all images"
-	@echo "  make vagrant-status                # Check cluster status"
+	@echo "Common workflows (host mode):"
+	@echo "  make rebuild-dashboard             # Rebuild dashboard after code changes"
+	@echo "  make rebuild-agent                 # Rebuild agent image"
+	@echo "  make rebuild-all                   # Rebuild all images"
+	@echo "  make status                        # Check cluster status"
+	@echo ""
+	@echo "Vagrant mode: use vagrant-* prefixed targets (e.g. make vagrant-status)"
 
 ##@ Vagrant: Dashboard Management
 
@@ -214,6 +216,194 @@ vagrant-reset: ## Delete namespace and reinstall (WARNING: destructive)
 	vagrant ssh -c "kubectl delete namespace ai-pipeline || true"
 	vagrant ssh -c "cd /vagrant/deploy/scripts && sudo bash deploy-all.sh"
 
+##@ Host: K3s on Host (no Vagrant)
+#
+# These targets run k3s directly on the host machine.
+# Deploy scripts use PROJECT_ROOT to find project files.
+
+HOST_PROJECT_ROOT := $(shell pwd)
+
+host-install-k3s: ## Install K3s on host with /data auto-detection
+	sudo bash deploy/scripts/01-install-k3s-host.sh
+
+host-deploy-all: ## Run full deployment from scratch on host
+	sudo PROJECT_ROOT=$(HOST_PROJECT_ROOT) bash deploy/scripts/deploy-all.sh
+
+host-build-dashboard: ## Build dashboard image on host
+	sudo PROJECT_ROOT=$(HOST_PROJECT_ROOT) bash deploy/scripts/05a-build-dashboard.sh
+
+host-rebuild-dashboard: ## Rebuild and redeploy dashboard on host
+	@echo "==> Rebuilding dashboard image..."
+	sudo PROJECT_ROOT=$(HOST_PROJECT_ROOT) bash deploy/scripts/05a-build-dashboard.sh
+	kubectl delete pod -n ai-pipeline -l app=pipeline-dashboard --wait=false
+	@echo "==> Waiting for dashboard pod to be ready..."
+	kubectl wait --for=condition=ready pod -n ai-pipeline -l app=pipeline-dashboard --timeout=60s || true
+	@echo "✓ Dashboard rebuilt and redeployed"
+
+host-build-agent: ## Build agent image on host
+	sudo PROJECT_ROOT=$(HOST_PROJECT_ROOT) bash deploy/scripts/05b-build-agent.sh
+
+host-rebuild-agent: ## Rebuild agent image on host
+	@echo "==> Building pipeline-agent image..."
+	sudo PROJECT_ROOT=$(HOST_PROJECT_ROOT) bash deploy/scripts/05b-build-agent.sh
+	@echo "✓ Agent image rebuilt and imported to k3s"
+
+host-agent-test: ## Run a test job with the agent image on host
+	@echo "==> Testing agent image..."
+	kubectl run test-agent --rm -i --restart=Never --image=pipeline-agent:latest -n ai-pipeline -- claude --version || true
+
+host-rebuild-jira: ## Rebuild and redeploy Jira emulator on host
+	@echo "==> Rebuilding Jira emulator..."
+	sudo PROJECT_ROOT=$(HOST_PROJECT_ROOT) bash deploy/scripts/05b-build-jira-emulator.sh
+	kubectl rollout restart deployment/jira-emulator -n ai-pipeline
+	kubectl rollout status deployment/jira-emulator -n ai-pipeline --timeout=60s
+	@echo "✓ Jira emulator rebuilt and redeployed"
+
+host-rebuild-github: ## Rebuild and redeploy GitHub emulator on host
+	@echo "==> Rebuilding GitHub emulator..."
+	sudo PROJECT_ROOT=$(HOST_PROJECT_ROOT) bash deploy/scripts/05a-build-github-emulator.sh
+	kubectl rollout restart deployment/github-emulator -n ai-pipeline
+	kubectl rollout status deployment/github-emulator -n ai-pipeline --timeout=60s
+	@echo "✓ GitHub emulator rebuilt and redeployed"
+
+host-build-all: ## Build dashboard and agent images on host
+	@echo "==> Building dashboard and agent images..."
+	@$(MAKE) host-build-dashboard
+	@$(MAKE) host-build-agent
+	@echo "✓ Dashboard and agent images built"
+
+host-rebuild-all: ## Rebuild and redeploy dashboard, rebuild agent on host
+	@echo "==> Rebuilding dashboard and agent images..."
+	@$(MAKE) host-rebuild-dashboard
+	@$(MAKE) host-build-agent
+	@echo "✓ Dashboard redeployed, agent image rebuilt"
+
+host-rebuild-all-with-emulators: ## Rebuild all images including emulators on host
+	@echo "==> Rebuilding all images..."
+	sudo PROJECT_ROOT=$(HOST_PROJECT_ROOT) bash deploy/scripts/05-build-images.sh
+	@echo "✓ All images rebuilt"
+
+host-restart-all: ## Restart all pipeline pods on host
+	kubectl rollout restart deployment -n ai-pipeline
+	@echo "==> Waiting for rollouts to complete..."
+	kubectl rollout status deployment --all -n ai-pipeline --timeout=120s
+
+host-status: ## Check cluster and pod status on host
+	@echo "==> Cluster Status:"
+	kubectl get nodes
+	@echo ""
+	@echo "==> Pipeline Pods:"
+	kubectl get pods -n ai-pipeline -o wide
+	@echo ""
+	@echo "==> Pipeline Services:"
+	kubectl get svc -n ai-pipeline
+	@echo ""
+	@echo "==> Recent Jobs:"
+	kubectl get jobs -n ai-pipeline --sort-by=.metadata.creationTimestamp | tail -10
+
+host-images: ## List imported k3s images on host
+	sudo k3s ctr images ls | grep -E 'pipeline-agent|pipeline-dashboard|github-emulator|jira-emulator|ingress-proxy|markov'
+
+host-logs-dashboard: ## Follow dashboard logs on host
+	kubectl logs -n ai-pipeline -l app=pipeline-dashboard -f
+
+host-logs-jira: ## Follow Jira emulator logs on host
+	kubectl logs -n ai-pipeline -l app=jira-emulator -f
+
+host-logs-github: ## Follow GitHub emulator logs on host
+	kubectl logs -n ai-pipeline -l app=github-emulator -f
+
+host-logs-mlflow: ## Follow MLflow logs on host
+	kubectl logs -n ai-pipeline -l app=mlflow -f
+
+host-logs-job: ## Follow last job logs on host (set JOB_NAME=<name> to specify)
+	@if [ -z "$(JOB_NAME)" ]; then \
+		echo "Finding most recent job..."; \
+		JOB=$$(kubectl get jobs -n ai-pipeline --sort-by=.metadata.creationTimestamp -o name | tail -1); \
+		echo "Following logs for $$JOB"; \
+		kubectl logs -n ai-pipeline $$JOB -f; \
+	else \
+		kubectl logs -n ai-pipeline job/$(JOB_NAME) -f; \
+	fi
+
+host-describe-job: ## Describe last job on host (set JOB_NAME=<name> to specify)
+	@if [ -z "$(JOB_NAME)" ]; then \
+		JOB=$$(kubectl get jobs -n ai-pipeline --sort-by=.metadata.creationTimestamp -o name | tail -1); \
+		kubectl describe -n ai-pipeline $$JOB; \
+	else \
+		kubectl describe -n ai-pipeline job/$(JOB_NAME); \
+	fi
+
+host-deploy-elasticsearch: ## Deploy Elasticsearch on host
+	@echo "==> Deploying Elasticsearch..."
+	sudo PROJECT_ROOT=$(HOST_PROJECT_ROOT) bash deploy/scripts/11-deploy-elasticsearch.sh
+
+host-sync-traces: ## Sync MLflow traces to Elasticsearch on host (incremental)
+	@echo "==> Syncing MLflow traces to Elasticsearch..."
+	kubectl exec -n ai-pipeline deploy/pipeline-dashboard -c dashboard -- uv run python /app/scripts/sync_mlflow_to_elastic.py
+
+host-sync-traces-full: ## Full resync of MLflow traces on host
+	@echo "==> Full resync of MLflow traces to Elasticsearch..."
+	kubectl exec -n ai-pipeline deploy/pipeline-dashboard -c dashboard -- uv run python /app/scripts/sync_mlflow_to_elastic.py --full
+
+host-logs-elasticsearch: ## Follow Elasticsearch logs on host
+	kubectl logs -n ai-pipeline -l app=elasticsearch -f
+
+host-markov-kill: ## Kill all running markov jobs and pods on host
+	@echo "==> Deleting all markov jobs..."
+	kubectl delete jobs -n ai-pipeline -l app=markov --wait=false 2>/dev/null || true
+	@echo "==> Deleting any orphaned markov pods..."
+	kubectl delete pods -n ai-pipeline -l app=markov --wait=false 2>/dev/null || true
+	@echo "✓ All markov jobs and pods deleted"
+
+host-markov-status: ## Show markov run status on host
+	kubectl get jobs -n ai-pipeline -l app=markov --sort-by=.metadata.creationTimestamp | tail -20
+
+host-markov-logs: ## Follow markovd logs on host
+	kubectl logs -n ai-pipeline -l app=markovd -f
+
+host-rebuild-markovd: ## Rebuild and redeploy markovd on host
+	@echo "==> Building markovd image..."
+	sudo PROJECT_ROOT=$(HOST_PROJECT_ROOT) bash deploy/scripts/05c-build-markovd.sh
+	@echo "==> Restarting markovd..."
+	kubectl rollout restart deployment/markovd -n ai-pipeline
+	kubectl rollout status deployment/markovd -n ai-pipeline --timeout=60s
+	@echo "✓ markovd rebuilt and redeployed"
+
+host-rebuild-markov: ## Rebuild markov CLI binary on host
+	@echo "==> Building markov CLI..."
+	sudo PROJECT_ROOT=$(HOST_PROJECT_ROOT) bash deploy/scripts/05d-build-markov.sh
+	@echo "✓ markov CLI rebuilt"
+
+host-backup: ## Backup all service data on host
+	sudo PROJECT_ROOT=$(HOST_PROJECT_ROOT) bash deploy/scripts/backup.sh
+
+host-backup-full: ## Backup all data including workspace and context on host
+	sudo PROJECT_ROOT=$(HOST_PROJECT_ROOT) bash deploy/scripts/backup.sh --include-workspace --include-context
+
+host-restore: ## Restore from backup on host (set BACKUP=<path>)
+	@if [ -z "$(BACKUP)" ]; then \
+		echo "ERROR: Set BACKUP=<path> (e.g. make host-restore BACKUP=backups/2026-05-01_143028)"; \
+		echo "Run 'make host-list-backups' to see available backups."; \
+		exit 1; \
+	fi
+	sudo bash deploy/scripts/restore.sh $(BACKUP)
+
+host-list-backups: ## List available backups on host
+	PROJECT_ROOT=$(HOST_PROJECT_ROOT) bash deploy/scripts/list-backups.sh
+
+host-delete-jobs: ## Delete all completed/failed jobs on host
+	kubectl delete jobs -n ai-pipeline --all
+
+host-clean-images: ## Remove all local docker images on host (frees space)
+	sudo docker system prune -af
+
+host-reset: ## Delete namespace and reinstall on host (WARNING: destructive)
+	@echo "WARNING: This will delete the ai-pipeline namespace and all resources!"
+	@read -p "Are you sure? (yes/no): " confirm && [ "$$confirm" = "yes" ]
+	kubectl delete namespace ai-pipeline || true
+	sudo PROJECT_ROOT=$(HOST_PROJECT_ROOT) bash deploy/scripts/deploy-all.sh
+
 ##@ Local Development (no Vagrant)
 
 test: ## Run Python tests locally
@@ -249,16 +439,16 @@ security: ## Run security scans (gitleaks)
 	fi
 	@echo "✓ No secrets detected"
 
-##@ Shortcuts
+##@ Shortcuts (point to host-* targets; change to vagrant-* if using VM)
 
-rebuild-dashboard: vagrant-rebuild-dashboard ## Shortcut
-rebuild-agent: vagrant-rebuild-agent ## Shortcut
-rebuild-markovd: vagrant-rebuild-markovd ## Shortcut
-rebuild-all: vagrant-rebuild-all ## Shortcut
-markov-kill: vagrant-markov-kill ## Shortcut
-status: vagrant-status ## Shortcut
-logs: vagrant-logs-dashboard ## Shortcut
-backup: vagrant-backup ## Shortcut
-backup-full: vagrant-backup-full ## Shortcut
-restore: vagrant-restore ## Shortcut
-list-backups: vagrant-list-backups ## Shortcut
+rebuild-dashboard: host-rebuild-dashboard ## Shortcut
+rebuild-agent: host-rebuild-agent ## Shortcut
+rebuild-markovd: host-rebuild-markovd ## Shortcut
+rebuild-all: host-rebuild-all ## Shortcut
+markov-kill: host-markov-kill ## Shortcut
+status: host-status ## Shortcut
+logs: host-logs-dashboard ## Shortcut
+backup: host-backup ## Shortcut
+backup-full: host-backup-full ## Shortcut
+restore: host-restore ## Shortcut
+list-backups: host-list-backups ## Shortcut

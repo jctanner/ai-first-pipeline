@@ -3,11 +3,13 @@
 
 set -euo pipefail
 
+PROJECT_ROOT="${PROJECT_ROOT:-/vagrant}"
+
 echo "==> Setting up certificate infrastructure..."
 
 # Apply manifests in order
-kubectl apply -f /vagrant/deploy/k8s/00-namespace.yaml
-kubectl apply -f /vagrant/deploy/k8s/01-ca-issuer.yaml
+kubectl apply -f "${PROJECT_ROOT}/deploy/k8s/00-namespace.yaml"
+kubectl apply -f "${PROJECT_ROOT}/deploy/k8s/01-ca-issuer.yaml"
 
 echo "==> Waiting for CA certificate to be ready..."
 # Wait for the internal-ca certificate to be issued first
@@ -28,7 +30,7 @@ kubectl wait --for=condition=Ready --timeout=60s \
 }
 
 # Apply service certificates
-kubectl apply -f /vagrant/deploy/k8s/02-certificates.yaml
+kubectl apply -f "${PROJECT_ROOT}/deploy/k8s/02-certificates.yaml"
 
 echo "==> Waiting for certificates to be issued..."
 sleep 10

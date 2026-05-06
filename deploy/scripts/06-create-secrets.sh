@@ -3,16 +3,18 @@
 
 set -euo pipefail
 
+PROJECT_ROOT="${PROJECT_ROOT:-/vagrant}"
+
 echo "==> Creating secrets from .env file..."
 
-if [ ! -f /vagrant/.env ]; then
-  echo "ERROR: .env file not found at /vagrant/.env"
+if [ ! -f "${PROJECT_ROOT}/.env" ]; then
+  echo "ERROR: .env file not found at ${PROJECT_ROOT}/.env"
   echo "Please create it with required credentials before running this script"
   exit 1
 fi
 
 # Source the .env file
-source /vagrant/.env
+source "${PROJECT_ROOT}/.env"
 
 # Create the main pipeline secrets
 kubectl create secret generic pipeline-secrets \

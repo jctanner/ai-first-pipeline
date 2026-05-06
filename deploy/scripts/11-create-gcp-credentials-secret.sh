@@ -3,13 +3,15 @@
 
 set -euo pipefail
 
+PROJECT_ROOT="${PROJECT_ROOT:-/vagrant}"
+
 echo "==> Creating GCP credentials secret for Vertex AI..."
 echo
 
 # Check if running inside Vagrant VM or on host
-if [ -f /vagrant/.env ]; then
+if [ -f "${PROJECT_ROOT}/.env" ] && [ "${PROJECT_ROOT}" = "/vagrant" ]; then
   # Running inside VM - check if credentials file is accessible
-  CREDS_SOURCE="/vagrant/.gcloud/application_default_credentials.json"
+  CREDS_SOURCE="${PROJECT_ROOT}/.gcloud/application_default_credentials.json"
 
   if [ ! -f "$CREDS_SOURCE" ]; then
     echo "ERROR: GCP credentials not found at $CREDS_SOURCE"

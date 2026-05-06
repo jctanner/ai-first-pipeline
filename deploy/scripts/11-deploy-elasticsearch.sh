@@ -3,9 +3,11 @@
 
 set -euo pipefail
 
+PROJECT_ROOT="${PROJECT_ROOT:-/vagrant}"
+
 echo "==> Deploying Elasticsearch..."
 
-kubectl apply -f /vagrant/deploy/k8s/17-elasticsearch.yaml
+kubectl apply -f "${PROJECT_ROOT}/deploy/k8s/17-elasticsearch.yaml"
 
 echo "  Waiting for Elasticsearch to be ready..."
 kubectl wait --for=condition=Available --timeout=180s \

@@ -3,10 +3,12 @@
 
 set -euo pipefail
 
+PROJECT_ROOT="${PROJECT_ROOT:-/vagrant}"
+
 echo "==> Deploying Jira Emulator to k3s..."
 
 # Ensure we're in the right directory
-cd /vagrant/deploy/k8s
+cd "${PROJECT_ROOT}/deploy/k8s"
 
 # Apply resources in order
 echo "--- Creating namespace ---"

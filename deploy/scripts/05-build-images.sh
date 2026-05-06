@@ -3,7 +3,9 @@
 
 set -euo pipefail
 
-# Use docker or podman (docker should be installed by Vagrantfile)
+PROJECT_ROOT="${PROJECT_ROOT:-${PROJECT_ROOT}}"
+
+# Use docker or podman
 if command -v docker &> /dev/null; then
   CONTAINER_CMD="docker"
 elif command -v podman &> /dev/null; then
@@ -18,7 +20,7 @@ echo "==> Building container images with ${CONTAINER_CMD}..."
 
 # Build the pipeline dashboard image (Flask web UI)
 echo "--- Building pipeline-dashboard image (web UI) ---"
-cd /vagrant
+cd ${PROJECT_ROOT}
 
 if [ -f deploy/dashboard/Dockerfile ]; then
   ${CONTAINER_CMD} build -f deploy/dashboard/Dockerfile -t pipeline-dashboard:latest .
@@ -34,7 +36,7 @@ echo ""
 
 # Build the pipeline agent image (job runner with Claude CLI)
 echo "--- Building pipeline-agent image (job runner with Claude CLI) ---"
-cd /vagrant
+cd ${PROJECT_ROOT}
 
 if [ -f deploy/pipeline-agent/Dockerfile ]; then
   ${CONTAINER_CMD} build -f deploy/pipeline-agent/Dockerfile -t pipeline-agent:latest .
@@ -90,9 +92,9 @@ fi
 echo ""
 
 # Build github-emulator if the repo exists
-if [ -d /vagrant/deploy/repos/github-emulator ]; then
+if [ -d ${PROJECT_ROOT}/deploy/repos/github-emulator ]; then
   echo "--- Building github-emulator image for k3s ---"
-  cd /vagrant/deploy/repos/github-emulator
+  cd ${PROJECT_ROOT}/deploy/repos/github-emulator
 
   if [ -f Dockerfile.k3s ]; then
     ${CONTAINER_CMD} build -f Dockerfile.k3s -t github-emulator:k3s .
@@ -102,14 +104,14 @@ if [ -d /vagrant/deploy/repos/github-emulator ]; then
     echo "WARNING: github-emulator Dockerfile.k3s not found, skipping"
   fi
 else
-  echo "WARNING: github-emulator repo not found at /vagrant/deploy/repos/github-emulator"
+  echo "WARNING: github-emulator repo not found at ${PROJECT_ROOT}/deploy/repos/github-emulator"
   echo "The deployment will fail"
 fi
 
 # Build jira-emulator if the repo exists
-if [ -d /vagrant/deploy/repos/jira-emulator ]; then
+if [ -d ${PROJECT_ROOT}/deploy/repos/jira-emulator ]; then
   echo "--- Building jira-emulator image for k3s ---"
-  cd /vagrant/deploy/repos/jira-emulator
+  cd ${PROJECT_ROOT}/deploy/repos/jira-emulator
 
   if [ -f Dockerfile.k3s ]; then
     ${CONTAINER_CMD} build -f Dockerfile.k3s -t jira-emulator:k3s .
@@ -119,7 +121,7 @@ if [ -d /vagrant/deploy/repos/jira-emulator ]; then
     echo "WARNING: jira-emulator Dockerfile.k3s not found, skipping"
   fi
 else
-  echo "WARNING: jira-emulator repo not found at /vagrant/deploy/repos/jira-emulator"
+  echo "WARNING: jira-emulator repo not found at ${PROJECT_ROOT}/deploy/repos/jira-emulator"
   echo "The deployment will fail"
 fi
 

@@ -3,6 +3,8 @@
 
 set -euo pipefail
 
+PROJECT_ROOT="${PROJECT_ROOT:-/vagrant}"
+
 # Use docker or podman
 if command -v docker &> /dev/null; then
   CONTAINER_CMD="docker"
@@ -14,7 +16,7 @@ else
 fi
 
 echo "==> Building pipeline-agent image..."
-cd /vagrant
+cd "${PROJECT_ROOT}"
 
 if [ ! -f deploy/pipeline-agent/Dockerfile ]; then
   echo "ERROR: deploy/pipeline-agent/Dockerfile not found"

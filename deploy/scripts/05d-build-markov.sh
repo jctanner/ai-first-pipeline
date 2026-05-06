@@ -3,6 +3,8 @@
 
 set -euo pipefail
 
+PROJECT_ROOT="${PROJECT_ROOT:-${PROJECT_ROOT}}"
+
 if command -v docker &> /dev/null; then
   CONTAINER_CMD="docker"
 elif command -v podman &> /dev/null; then
@@ -14,12 +16,12 @@ fi
 
 echo "==> Building markov image..."
 
-if [ ! -d /vagrant/deploy/repos/markov ]; then
-  echo "ERROR: markov repo not found at /vagrant/deploy/repos/markov"
+if [ ! -d ${PROJECT_ROOT}/deploy/repos/markov ]; then
+  echo "ERROR: markov repo not found at ${PROJECT_ROOT}/deploy/repos/markov"
   exit 1
 fi
 
-cd /vagrant/deploy/repos/markov
+cd ${PROJECT_ROOT}/deploy/repos/markov
 
 ${CONTAINER_CMD} build -t markov:latest .
 

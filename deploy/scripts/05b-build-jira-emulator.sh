@@ -3,7 +3,9 @@
 
 set -euo pipefail
 
-# Use docker or podman (docker should be installed by Vagrantfile)
+PROJECT_ROOT="${PROJECT_ROOT:-${PROJECT_ROOT}}"
+
+# Use docker or podman
 if command -v docker &> /dev/null; then
   CONTAINER_CMD="docker"
 elif command -v podman &> /dev/null; then
@@ -17,9 +19,9 @@ fi
 echo "==> Building jira-emulator image with ${CONTAINER_CMD}..."
 
 # Build jira-emulator if the repo exists
-if [ -d /vagrant/deploy/repos/jira-emulator ]; then
+if [ -d ${PROJECT_ROOT}/deploy/repos/jira-emulator ]; then
   echo "--- Building jira-emulator image for k3s ---"
-  cd /vagrant/deploy/repos/jira-emulator
+  cd ${PROJECT_ROOT}/deploy/repos/jira-emulator
 
   if [ -f Dockerfile.k3s ]; then
     ${CONTAINER_CMD} build -f Dockerfile.k3s -t jira-emulator:k3s .
@@ -30,7 +32,7 @@ if [ -d /vagrant/deploy/repos/jira-emulator ]; then
     exit 1
   fi
 else
-  echo "ERROR: jira-emulator repo not found at /vagrant/deploy/repos/jira-emulator"
+  echo "ERROR: jira-emulator repo not found at ${PROJECT_ROOT}/deploy/repos/jira-emulator"
   exit 1
 fi
 

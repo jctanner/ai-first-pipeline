@@ -1,7 +1,8 @@
 #!/bin/bash
 set -euo pipefail
 
-BACKUP_ROOT="/vagrant/backups"
+PROJECT_ROOT="${PROJECT_ROOT:-/vagrant}"
+BACKUP_ROOT="${PROJECT_ROOT}/backups"
 
 if [[ ! -d "${BACKUP_ROOT}" ]]; then
   echo "No backups directory found at ${BACKUP_ROOT}"

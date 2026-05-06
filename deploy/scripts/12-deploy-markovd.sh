@@ -3,9 +3,11 @@
 
 set -euo pipefail
 
+PROJECT_ROOT="${PROJECT_ROOT:-/vagrant}"
+
 echo "==> Deploying markovd..."
 
-cd /vagrant/deploy/k8s
+cd "${PROJECT_ROOT}/deploy/k8s"
 
 echo "--- Ensuring namespace and cert infrastructure ---"
 kubectl apply -f 00-namespace.yaml

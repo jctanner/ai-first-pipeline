@@ -5,6 +5,7 @@
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+PROJECT_ROOT="${PROJECT_ROOT:-/vagrant}"
 
 echo "=========================================="
 echo "AI-First Pipeline K3s Deployment"
@@ -18,8 +19,8 @@ if [ "$EUID" -ne 0 ]; then
 fi
 
 # Check if .env exists
-if [ ! -f /vagrant/.env ]; then
-  echo "ERROR: /vagrant/.env file not found"
+if [ ! -f ${PROJECT_ROOT}/.env ]; then
+  echo "ERROR: ${PROJECT_ROOT}/.env file not found"
   echo "Please create it with required credentials before running this script"
   echo ""
   echo "Required variables:"
@@ -64,19 +65,19 @@ echo ""
 
 # Step 7: Deploy storage
 echo "Step 7/15: Deploying storage..."
-kubectl apply -f /vagrant/deploy/k8s/03-storage.yaml
-kubectl apply -f /vagrant/deploy/k8s/14-pipeline-storage.yaml
+kubectl apply -f ${PROJECT_ROOT}/deploy/k8s/03-storage.yaml
+kubectl apply -f ${PROJECT_ROOT}/deploy/k8s/14-pipeline-storage.yaml
 echo ""
 
 # Step 8: Deploy RBAC
 echo "Step 8/15: Deploying RBAC..."
-kubectl apply -f /vagrant/deploy/k8s/16-pipeline-rbac.yaml
+kubectl apply -f ${PROJECT_ROOT}/deploy/k8s/16-pipeline-rbac.yaml
 echo ""
 
 # Step 9: Deploy emulator ConfigMaps
 echo "Step 9/15: Deploying emulator configurations..."
-kubectl apply -f /vagrant/deploy/k8s/09-github-emulator-config.yaml
-kubectl apply -f /vagrant/deploy/k8s/11-jira-emulator-config.yaml
+kubectl apply -f ${PROJECT_ROOT}/deploy/k8s/09-github-emulator-config.yaml
+kubectl apply -f ${PROJECT_ROOT}/deploy/k8s/11-jira-emulator-config.yaml
 echo ""
 
 # Step 10: Deploy GitHub emulator
@@ -91,7 +92,7 @@ echo ""
 
 # Step 12: Deploy pipeline dashboard
 echo "Step 12/15: Deploying pipeline dashboard..."
-kubectl apply -f /vagrant/deploy/k8s/20-pipeline-dashboard.yaml
+kubectl apply -f ${PROJECT_ROOT}/deploy/k8s/20-pipeline-dashboard.yaml
 echo ""
 
 # Step 13: Deploy MLflow
@@ -124,7 +125,7 @@ echo "Running validations..."
 echo "=========================================="
 echo ""
 
-cd /vagrant/deploy/validation
+cd ${PROJECT_ROOT}/deploy/validation
 bash test-cluster.sh
 echo ""
 bash test-certificates.sh
@@ -192,7 +193,7 @@ echo "3. View logs:"
 echo "   kubectl logs -f deployment/pipeline-dashboard -n ai-pipeline"
 echo ""
 echo "4. Run a Job:"
-echo "   kubectl create -f /vagrant/deploy/k8s/30-pipeline-job-template.yaml"
+echo "   kubectl create -f ${PROJECT_ROOT}/deploy/k8s/30-pipeline-job-template.yaml"
 echo ""
-echo "See /vagrant/deploy/README.md for more information"
+echo "See ${PROJECT_ROOT}/deploy/README.md for more information"
 echo "=========================================="

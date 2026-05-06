@@ -3,10 +3,12 @@
 
 set -euo pipefail
 
+PROJECT_ROOT="${PROJECT_ROOT:-/vagrant}"
+
 echo "==> Deploying MLflow..."
 
 # Deploy MLflow
-kubectl apply -f /vagrant/deploy/k8s/13-mlflow.yaml
+kubectl apply -f "${PROJECT_ROOT}/deploy/k8s/13-mlflow.yaml"
 
 # Wait for deployment
 echo "  Waiting for MLflow to be ready..."
