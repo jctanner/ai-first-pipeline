@@ -242,6 +242,9 @@ workflows:
             # Verify pyyaml is available (installed in markov runner image)
             python3 -c "import yaml; print('pyyaml OK')"
 
+            # Fix ownership — markov runner is root but agent jobs run as uid 1000
+            chown -R 1000:1000 "{{ results_dir }}" "$(dirname '{{ corpus_path }}')"
+
       - name: load_corpus
         type: load_artifact
         artifacts:
