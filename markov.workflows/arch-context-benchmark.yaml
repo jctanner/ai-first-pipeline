@@ -249,10 +249,17 @@ workflows:
         type: shell_exec
         params:
           command: |
-            curl -sf http://mlflow.ai-pipeline.svc.cluster.local:5000/api/2.0/mlflow/experiments/create \
-              -X POST -H 'Content-Type: application/json' \
-              -d '{"name":"{{ mlflow_experiment }}"}' 2>/dev/null \
-              || echo "Experiment '{{ mlflow_experiment }}' already exists"
+            MLFLOW=http://mlflow.ai-pipeline.svc.cluster.local:5000
+            EXISTING=$(curl -sf "$MLFLOW/api/2.0/mlflow/experiments/get-by-name?experiment_name={{ mlflow_experiment }}" 2>/dev/null \
+              | python3 -c "import sys,json; print(json.load(sys.stdin)['experiment']['experiment_id'])" 2>/dev/null || true)
+            if [ -n "$EXISTING" ]; then
+              echo "MLflow experiment '{{ mlflow_experiment }}' exists (id=$EXISTING)"
+            else
+              curl -sf "$MLFLOW/api/2.0/mlflow/experiments/create" \
+                -X POST -H 'Content-Type: application/json' \
+                -d '{"name":"{{ mlflow_experiment }}"}'
+              echo "Created MLflow experiment '{{ mlflow_experiment }}'"
+            fi
 
       - name: load_corpus
         type: load_artifact
