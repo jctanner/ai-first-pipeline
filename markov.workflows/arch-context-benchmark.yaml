@@ -389,7 +389,7 @@ workflows:
         for_each_key: "id"
         for_each_sort: "id"
         as: q
-        concurrency: 5
+        concurrency: 10
         workflow: answer-question
         vars:
           question_id: "{{ q.id }}"
@@ -410,7 +410,7 @@ workflows:
         for_each_key: "id"
         for_each_sort: "id"
         as: q
-        concurrency: 5
+        concurrency: 10
         workflow: judge-answer
         vars:
           question_id: "{{ q.id }}"
