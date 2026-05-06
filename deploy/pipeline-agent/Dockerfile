@@ -1,10 +1,13 @@
-# ── Stage 1: Build arch-query from source ────────────────────────
+# ── Stage 1: Build arch-query with embedded architecture data ────
 FROM golang:1.25-bookworm AS arch-query-builder
+
+RUN apt-get update && apt-get install -y --no-install-recommends python3 && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /build
 RUN git clone --depth 1 https://github.com/opendatahub-io/architecture-context.git && \
     cd architecture-context/src/arch-query && \
-    GOTOOLCHAIN=auto go build -o /build/arch-query .
+    GOTOOLCHAIN=auto make build-embedded && \
+    cp ../../bin/arch-query /build/arch-query
 
 
 # ── Stage 2: Pipeline agent ─────────────────────────────────────

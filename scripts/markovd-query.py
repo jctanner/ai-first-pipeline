@@ -223,12 +223,17 @@ def cmd_status(client: MarkovClient, args: argparse.Namespace):
         return phase, mode
 
     buckets: dict[tuple[str, str], dict[str, int]] = {}
+    phase_durations: dict[tuple[str, str], list[float]] = {}
     for s in jobs:
         key = _classify(s)
         counts = buckets.setdefault(key, {"completed": 0, "running": 0, "failed": 0})
         st = s.get("status", "")
         if st in counts:
             counts[st] += 1
+        if st == "completed":
+            d = _duration_secs(s.get("started_at"), s.get("completed_at"))
+            if d is not None:
+                phase_durations.setdefault(key, []).append(d)
 
     # Compute durations from completed jobs
     durations = []
@@ -257,19 +262,23 @@ def cmd_status(client: MarkovClient, args: argparse.Namespace):
                 continue
             c = buckets[key]
             total = c["completed"] + c["running"] + c["failed"]
+            ds = phase_durations.get(key, [])
+            avg_s = f"{sum(ds)/len(ds):.0f}s" if ds else "-"
+            min_s = f"{min(ds):.0f}s" if ds else "-"
+            max_s = f"{max(ds):.0f}s" if ds else "-"
             rows.append([
                 f"{key[0]}/{key[1]}",
                 str(c["completed"]),
                 str(c["running"]),
                 str(c["failed"]),
                 str(total),
+                avg_s,
+                min_s,
+                max_s,
             ])
         if rows:
-            print(_table(rows, ["PHASE", "DONE", "RUNNING", "FAILED", "TOTAL"]))
+            print(_table(rows, ["PHASE", "DONE", "RUN", "FAIL", "TOTAL", "AVG", "MIN", "MAX"]))
             print()
-
-    if durations:
-        print(f"Avg job: {avg:.0f}s  (min {min(durations):.0f}s, max {max(durations):.0f}s)")
 
     # ETA: estimate remaining work
     # Heuristic: count questions from the corpus path or from step fan-out

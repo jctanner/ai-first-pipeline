@@ -16,7 +16,7 @@ You will receive the following in the prompt:
 
 - `QUESTION` — the architecture question to answer
 - `QUESTION_ID` — the corpus question ID (e.g., `t1-001`)
-- `ARCH_QUERY_BIN` — arch-query invocation prefix (includes `--base-dir` flag, e.g., `/usr/local/bin/arch-query --base-dir /path/to/architecture`). Use this as-is before each subcommand.
+- `ARCH_QUERY_BIN` — path to the arch-query binary (e.g., `/usr/local/bin/arch-query`). Architecture data is embedded in the binary — no `--base-dir` needed.
 - `OUTPUT_DIR` — directory to write your output files
 
 ### Constraints

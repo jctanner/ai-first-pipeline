@@ -62,7 +62,6 @@ vars:
   corpus_path: "/app/artifacts/benchmarks/arch-context/corpus-AB-final.yaml"
   arch_context_dir: "/app/.context/architecture-context"
   arch_query_bin: "/usr/local/bin/arch-query"
-  arch_query_base_dir: "/app/.context/architecture-context/architecture"
   results_dir: "/app/artifacts/benchmarks/arch-context/results"
   model: opus
   judge_model: sonnet
@@ -264,7 +263,7 @@ workflows:
         type: shell_exec
         register: arch_query_version
         params:
-          command: "{{ arch_query_bin }} --base-dir {{ arch_query_base_dir }} --version 2>/dev/null || echo unknown"
+          command: "{{ arch_query_bin }} --version 2>/dev/null || echo unknown"
 
       # ── Paired benchmark runs ──────────────────────────────────
       #
@@ -284,7 +283,6 @@ workflows:
           corpus_path: "{{ corpus_path }}"
           arch_context_dir: "{{ arch_context_dir }}"
           arch_query_bin: "{{ arch_query_bin }}"
-          arch_query_base_dir: "{{ arch_query_base_dir }}"
           results_dir: "{{ results_dir }}"
           model: "{{ model }}"
           judge_model: "{{ judge_model }}"
@@ -366,7 +364,6 @@ workflows:
       corpus_path: null
       arch_context_dir: null
       arch_query_bin: null
-      arch_query_base_dir: null
       results_dir: null
       model: opus
       judge_model: sonnet
@@ -404,7 +401,6 @@ workflows:
           context_mode: "{{ context_mode }}"
           arch_context_dir: "{{ arch_context_dir }}"
           arch_query_bin: "{{ arch_query_bin }}"
-          arch_query_base_dir: "{{ arch_query_base_dir }}"
           results_dir: "{{ results_dir }}"
           model: "{{ model }}"
 
@@ -454,7 +450,6 @@ workflows:
       context_mode: null
       arch_context_dir: null
       arch_query_bin: null
-      arch_query_base_dir: null
       results_dir: null
       model: opus
 
@@ -509,7 +504,7 @@ workflows:
             - --extra-vars
             - "QUESTION={{ question_text }}"
             - --extra-vars
-            - "ARCH_QUERY_BIN={{ arch_query_bin }} --base-dir {{ arch_query_base_dir }}"
+            - "ARCH_QUERY_BIN={{ arch_query_bin }}"
             - --extra-vars
             - "OUTPUT_DIR={{ results_dir }}/answers/{{ context_mode }}"
 

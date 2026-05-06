@@ -865,8 +865,13 @@ questions:
   tier: 3
   category: cross-component-integration
   question: How does kube-auth-proxy interact with rhods-operator?
-  expected_answer: 'kube-auth-proxy interacts with rhods-operator: Platform operator
-    deploys kube-auth-proxy as sidecar in component pods'
+  # FIXME: ground truth is misleading — kube-auth-proxy is deployed as a Deployment,
+  # not a sidecar. It is used by EnvoyFilter+ext_authz for authn. The source doc
+  # says "Deployment (sidecar injection)" which refers to the deployment method,
+  # not pod injection. Both benchmark modes were penalized for giving correct answers.
+  expected_answer: 'kube-auth-proxy interacts with rhods-operator: rhods-operator
+    Gateway Controller deploys kube-auth-proxy as a Deployment, used via EnvoyFilter
+    ext_authz for authentication in the platform ingress stack'
   expected_answerable: true
   source_files:
   - architecture/rhoai.next/kube-auth-proxy.md
