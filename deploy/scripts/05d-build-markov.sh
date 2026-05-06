@@ -27,5 +27,6 @@ ${CONTAINER_CMD} build -t markov:latest .
 
 echo "  Importing markov image into k3s..."
 ${CONTAINER_CMD} save markov:latest | sudo k3s ctr images import -
+sudo k3s ctr images tag localhost/markov:latest docker.io/library/markov:latest 2>/dev/null || true
 
 echo "Successfully built and imported markov:latest"

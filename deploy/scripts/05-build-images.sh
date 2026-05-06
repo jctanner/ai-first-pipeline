@@ -27,6 +27,7 @@ if [ -f deploy/dashboard/Dockerfile ]; then
   # Import into k3s
   echo "  Importing pipeline-dashboard image into k3s..."
   ${CONTAINER_CMD} save pipeline-dashboard:latest | sudo k3s ctr images import -
+  sudo k3s ctr images tag localhost/pipeline-dashboard:latest docker.io/library/pipeline-dashboard:latest 2>/dev/null || true
   echo "  Successfully built and imported pipeline-dashboard:latest"
 else
   echo "  ERROR: deploy/dashboard/Dockerfile not found"
@@ -39,10 +40,26 @@ echo "--- Building pipeline-agent image (job runner with Claude CLI) ---"
 cd ${PROJECT_ROOT}
 
 if [ -f deploy/pipeline-agent/Dockerfile ]; then
+  # Extract internal CA cert from ConfigMap so it can be baked into the image
+  echo "  Extracting CA certificate from ConfigMap..."
+  CA_CERT=$(kubectl get configmap internal-ca-cert \
+    -n ai-pipeline \
+    -o jsonpath='{.data.ca\.crt}' 2>/dev/null || true)
+  if [ -z "$CA_CERT" ]; then
+    echo "  WARNING: Could not extract CA cert from ConfigMap, using empty placeholder"
+    echo "" > internal-ca.crt
+  else
+    echo "$CA_CERT" > internal-ca.crt
+    echo "  CA certificate extracted successfully"
+  fi
+
   ${CONTAINER_CMD} build -f deploy/pipeline-agent/Dockerfile -t pipeline-agent:latest .
+  rm -f internal-ca.crt
+
   # Import into k3s
   echo "  Importing pipeline-agent image into k3s..."
   ${CONTAINER_CMD} save pipeline-agent:latest | sudo k3s ctr images import -
+  sudo k3s ctr images tag localhost/pipeline-agent:latest docker.io/library/pipeline-agent:latest 2>/dev/null || true
   echo "  Successfully built and imported pipeline-agent:latest"
 else
   echo "  ERROR: deploy/pipeline-agent/Dockerfile not found"
@@ -99,6 +116,7 @@ if [ -d ${PROJECT_ROOT}/deploy/repos/github-emulator ]; then
   if [ -f Dockerfile.k3s ]; then
     ${CONTAINER_CMD} build -f Dockerfile.k3s -t github-emulator:k3s .
     ${CONTAINER_CMD} save github-emulator:k3s | sudo k3s ctr images import -
+    sudo k3s ctr images tag localhost/github-emulator:k3s docker.io/library/github-emulator:k3s 2>/dev/null || true
     echo "Successfully built and imported github-emulator:k3s"
   else
     echo "WARNING: github-emulator Dockerfile.k3s not found, skipping"
@@ -116,6 +134,7 @@ if [ -d ${PROJECT_ROOT}/deploy/repos/jira-emulator ]; then
   if [ -f Dockerfile.k3s ]; then
     ${CONTAINER_CMD} build -f Dockerfile.k3s -t jira-emulator:k3s .
     ${CONTAINER_CMD} save jira-emulator:k3s | sudo k3s ctr images import -
+    sudo k3s ctr images tag localhost/jira-emulator:k3s docker.io/library/jira-emulator:k3s 2>/dev/null || true
     echo "Successfully built and imported jira-emulator:k3s"
   else
     echo "WARNING: jira-emulator Dockerfile.k3s not found, skipping"

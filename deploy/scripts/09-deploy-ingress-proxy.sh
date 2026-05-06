@@ -8,14 +8,25 @@ PROJECT_ROOT="${SCRIPT_DIR}/../.."
 
 echo "==> Deploying Go Reverse Proxy (Ingress Controller)..."
 
+# Use docker or podman
+if command -v docker &> /dev/null; then
+  CONTAINER_CMD="docker"
+elif command -v podman &> /dev/null; then
+  CONTAINER_CMD="podman"
+else
+  echo "ERROR: Neither docker nor podman found"
+  exit 1
+fi
+
 # Build the proxy image
 cd "${PROJECT_ROOT}/deploy/golang-reverse-proxy"
-echo "  Building Docker image..."
-sudo docker build -t ingress-proxy:latest . -q
+echo "  Building container image..."
+${CONTAINER_CMD} build -t ingress-proxy:latest . -q
 
 # Import to k3s
 echo "  Importing image to k3s..."
-sudo docker save ingress-proxy:latest | sudo k3s ctr images import - > /dev/null
+${CONTAINER_CMD} save ingress-proxy:latest | sudo k3s ctr images import - > /dev/null
+sudo k3s ctr images tag localhost/ingress-proxy:latest docker.io/library/ingress-proxy:latest 2>/dev/null || true
 
 # Deploy to cluster
 echo "  Deploying to Kubernetes..."

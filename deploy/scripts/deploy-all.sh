@@ -33,9 +33,15 @@ if [ ! -f ${PROJECT_ROOT}/.env ]; then
   exit 1
 fi
 
-# Step 1: Install K3s
+# Step 1: Install K3s (skip if already running)
 echo "Step 1/15: Installing K3s..."
-bash "${SCRIPT_DIR}/01-install-k3s.sh"
+if kubectl get nodes &>/dev/null; then
+  echo "  K3s already running, skipping install"
+elif [ "${PROJECT_ROOT}" != "/vagrant" ] && [ -f "${SCRIPT_DIR}/01-install-k3s-host.sh" ]; then
+  bash "${SCRIPT_DIR}/01-install-k3s-host.sh"
+else
+  bash "${SCRIPT_DIR}/01-install-k3s.sh"
+fi
 echo ""
 
 # Step 2: Install cert-manager

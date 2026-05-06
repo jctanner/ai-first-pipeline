@@ -230,22 +230,22 @@ host-deploy-all: ## Run full deployment from scratch on host
 	sudo PROJECT_ROOT=$(HOST_PROJECT_ROOT) bash deploy/scripts/deploy-all.sh
 
 host-build-dashboard: ## Build dashboard image on host
-	sudo PROJECT_ROOT=$(HOST_PROJECT_ROOT) bash deploy/scripts/05a-build-dashboard.sh
+	PROJECT_ROOT=$(HOST_PROJECT_ROOT) bash deploy/scripts/05a-build-dashboard.sh
 
 host-rebuild-dashboard: ## Rebuild and redeploy dashboard on host
 	@echo "==> Rebuilding dashboard image..."
-	sudo PROJECT_ROOT=$(HOST_PROJECT_ROOT) bash deploy/scripts/05a-build-dashboard.sh
+	PROJECT_ROOT=$(HOST_PROJECT_ROOT) bash deploy/scripts/05a-build-dashboard.sh
 	kubectl delete pod -n ai-pipeline -l app=pipeline-dashboard --wait=false
 	@echo "==> Waiting for dashboard pod to be ready..."
 	kubectl wait --for=condition=ready pod -n ai-pipeline -l app=pipeline-dashboard --timeout=60s || true
 	@echo "✓ Dashboard rebuilt and redeployed"
 
 host-build-agent: ## Build agent image on host
-	sudo PROJECT_ROOT=$(HOST_PROJECT_ROOT) bash deploy/scripts/05b-build-agent.sh
+	PROJECT_ROOT=$(HOST_PROJECT_ROOT) bash deploy/scripts/05b-build-agent.sh
 
 host-rebuild-agent: ## Rebuild agent image on host
 	@echo "==> Building pipeline-agent image..."
-	sudo PROJECT_ROOT=$(HOST_PROJECT_ROOT) bash deploy/scripts/05b-build-agent.sh
+	PROJECT_ROOT=$(HOST_PROJECT_ROOT) bash deploy/scripts/05b-build-agent.sh
 	@echo "✓ Agent image rebuilt and imported to k3s"
 
 host-agent-test: ## Run a test job with the agent image on host
@@ -254,14 +254,14 @@ host-agent-test: ## Run a test job with the agent image on host
 
 host-rebuild-jira: ## Rebuild and redeploy Jira emulator on host
 	@echo "==> Rebuilding Jira emulator..."
-	sudo PROJECT_ROOT=$(HOST_PROJECT_ROOT) bash deploy/scripts/05b-build-jira-emulator.sh
+	PROJECT_ROOT=$(HOST_PROJECT_ROOT) bash deploy/scripts/05b-build-jira-emulator.sh
 	kubectl rollout restart deployment/jira-emulator -n ai-pipeline
 	kubectl rollout status deployment/jira-emulator -n ai-pipeline --timeout=60s
 	@echo "✓ Jira emulator rebuilt and redeployed"
 
 host-rebuild-github: ## Rebuild and redeploy GitHub emulator on host
 	@echo "==> Rebuilding GitHub emulator..."
-	sudo PROJECT_ROOT=$(HOST_PROJECT_ROOT) bash deploy/scripts/05a-build-github-emulator.sh
+	PROJECT_ROOT=$(HOST_PROJECT_ROOT) bash deploy/scripts/05a-build-github-emulator.sh
 	kubectl rollout restart deployment/github-emulator -n ai-pipeline
 	kubectl rollout status deployment/github-emulator -n ai-pipeline --timeout=60s
 	@echo "✓ GitHub emulator rebuilt and redeployed"
@@ -280,7 +280,7 @@ host-rebuild-all: ## Rebuild and redeploy dashboard, rebuild agent on host
 
 host-rebuild-all-with-emulators: ## Rebuild all images including emulators on host
 	@echo "==> Rebuilding all images..."
-	sudo PROJECT_ROOT=$(HOST_PROJECT_ROOT) bash deploy/scripts/05-build-images.sh
+	PROJECT_ROOT=$(HOST_PROJECT_ROOT) bash deploy/scripts/05-build-images.sh
 	@echo "✓ All images rebuilt"
 
 host-restart-all: ## Restart all pipeline pods on host
@@ -302,7 +302,7 @@ host-status: ## Check cluster and pod status on host
 	kubectl get jobs -n ai-pipeline --sort-by=.metadata.creationTimestamp | tail -10
 
 host-images: ## List imported k3s images on host
-	sudo k3s ctr images ls | grep -E 'pipeline-agent|pipeline-dashboard|github-emulator|jira-emulator|ingress-proxy|markov'
+	sudo k3s ctr images ls | grep -E 'pipeline-agent|pipeline-dashboard|github-emulator|jira-emulator|ingress-proxy|markov' || true
 
 host-logs-dashboard: ## Follow dashboard logs on host
 	kubectl logs -n ai-pipeline -l app=pipeline-dashboard -f
@@ -336,7 +336,7 @@ host-describe-job: ## Describe last job on host (set JOB_NAME=<name> to specify)
 
 host-deploy-elasticsearch: ## Deploy Elasticsearch on host
 	@echo "==> Deploying Elasticsearch..."
-	sudo PROJECT_ROOT=$(HOST_PROJECT_ROOT) bash deploy/scripts/11-deploy-elasticsearch.sh
+	PROJECT_ROOT=$(HOST_PROJECT_ROOT) bash deploy/scripts/11-deploy-elasticsearch.sh
 
 host-sync-traces: ## Sync MLflow traces to Elasticsearch on host (incremental)
 	@echo "==> Syncing MLflow traces to Elasticsearch..."
@@ -364,7 +364,7 @@ host-markov-logs: ## Follow markovd logs on host
 
 host-rebuild-markovd: ## Rebuild and redeploy markovd on host
 	@echo "==> Building markovd image..."
-	sudo PROJECT_ROOT=$(HOST_PROJECT_ROOT) bash deploy/scripts/05c-build-markovd.sh
+	PROJECT_ROOT=$(HOST_PROJECT_ROOT) bash deploy/scripts/05c-build-markovd.sh
 	@echo "==> Restarting markovd..."
 	kubectl rollout restart deployment/markovd -n ai-pipeline
 	kubectl rollout status deployment/markovd -n ai-pipeline --timeout=60s
@@ -372,14 +372,14 @@ host-rebuild-markovd: ## Rebuild and redeploy markovd on host
 
 host-rebuild-markov: ## Rebuild markov CLI binary on host
 	@echo "==> Building markov CLI..."
-	sudo PROJECT_ROOT=$(HOST_PROJECT_ROOT) bash deploy/scripts/05d-build-markov.sh
+	PROJECT_ROOT=$(HOST_PROJECT_ROOT) bash deploy/scripts/05d-build-markov.sh
 	@echo "✓ markov CLI rebuilt"
 
 host-backup: ## Backup all service data on host
-	sudo PROJECT_ROOT=$(HOST_PROJECT_ROOT) bash deploy/scripts/backup.sh
+	PROJECT_ROOT=$(HOST_PROJECT_ROOT) bash deploy/scripts/backup.sh
 
 host-backup-full: ## Backup all data including workspace and context on host
-	sudo PROJECT_ROOT=$(HOST_PROJECT_ROOT) bash deploy/scripts/backup.sh --include-workspace --include-context
+	PROJECT_ROOT=$(HOST_PROJECT_ROOT) bash deploy/scripts/backup.sh --include-workspace --include-context
 
 host-restore: ## Restore from backup on host (set BACKUP=<path>)
 	@if [ -z "$(BACKUP)" ]; then \
@@ -387,7 +387,7 @@ host-restore: ## Restore from backup on host (set BACKUP=<path>)
 		echo "Run 'make host-list-backups' to see available backups."; \
 		exit 1; \
 	fi
-	sudo bash deploy/scripts/restore.sh $(BACKUP)
+	bash deploy/scripts/restore.sh $(BACKUP)
 
 host-list-backups: ## List available backups on host
 	PROJECT_ROOT=$(HOST_PROJECT_ROOT) bash deploy/scripts/list-backups.sh
@@ -396,7 +396,7 @@ host-delete-jobs: ## Delete all completed/failed jobs on host
 	kubectl delete jobs -n ai-pipeline --all
 
 host-clean-images: ## Remove all local docker images on host (frees space)
-	sudo docker system prune -af
+	docker system prune -af
 
 host-reset: ## Delete namespace and reinstall on host (WARNING: destructive)
 	@echo "WARNING: This will delete the ai-pipeline namespace and all resources!"

@@ -26,6 +26,7 @@ if [ -d ${PROJECT_ROOT}/deploy/repos/github-emulator ]; then
   if [ -f Dockerfile.k3s ]; then
     ${CONTAINER_CMD} build -f Dockerfile.k3s -t github-emulator:k3s .
     ${CONTAINER_CMD} save github-emulator:k3s | sudo k3s ctr images import -
+    sudo k3s ctr images tag localhost/github-emulator:k3s docker.io/library/github-emulator:k3s 2>/dev/null || true
     echo "Successfully built and imported github-emulator:k3s"
   else
     echo "ERROR: github-emulator Dockerfile.k3s not found"

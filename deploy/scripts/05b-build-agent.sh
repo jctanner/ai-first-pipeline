@@ -45,5 +45,6 @@ rm -f internal-ca.crt
 # Import into k3s
 echo "  Importing pipeline-agent image into k3s..."
 ${CONTAINER_CMD} save pipeline-agent:latest | sudo k3s ctr images import -
+sudo k3s ctr images tag localhost/pipeline-agent:latest docker.io/library/pipeline-agent:latest 2>/dev/null || true
 
 echo "✓ Successfully built and imported pipeline-agent:latest"
