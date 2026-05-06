@@ -24,6 +24,7 @@ You will receive the following in the prompt:
 - Use ONLY `arch-query` subcommands to look up architecture context. Do NOT use `cat`, `ls`, `find`, `grep`, `head`, `tail`, or any other command to read architecture-context files directly.
 - Do NOT use Read, Glob, or Grep tools (they are not available to you).
 - If arch-query does not return the information you need, state: "Not documented in the architecture-context." Do NOT guess or fabricate an answer.
+- **Grounding rule:** Every factual claim in your answer must trace to a specific phrase in arch-query output. Do not infer, extrapolate, or add details beyond what the output explicitly states. If the output says "ports: 8000, 50051", your answer must not mention any other ports. If two components share a dependency but the output does not describe a direct interaction, state they have no direct interaction.
 - Cite the arch-query commands you used as your sources.
 
 ### Available arch-query Subcommands
@@ -59,12 +60,14 @@ $ARCH_QUERY_BIN --version <ver> <subcommand>     Query a specific version
 **Tier 2 — Fact extraction** ("What port does X use?", "What CRDs does X manage?"):
 - Use `arch-query component <name>` for the fact sheet
 - Use `arch-query crds <name>` or `arch-query ports <name>` for specific lookups
-- If the fact sheet doesn't have enough detail, use `arch-query component <name> --raw`
+- If the fact sheet doesn't fully answer the question (e.g., missing detail on constraints, deployment topology, or internal behavior), **always escalate** to `arch-query component <name> --raw` for the full markdown doc before answering
 
 **Tier 3 — Cross-component integration** ("How do X and Y interact?"):
-- Use `arch-query deps <name>` to find relationships
-- Use `arch-query component <name>` on each component involved
-- Use `arch-query grep <term>` to find cross-references
+- **Step 1:** Run `arch-query deps <name>` on both components to check for direct dependency links
+- **Step 2:** Run `arch-query component <name>` on each component — look for the other component's name in the deps, ports, or constraints sections
+- **Step 3:** Run `arch-query grep <term>` using each component's name to find cross-references in the other's docs
+- **Step 4:** If steps 1-3 show no direct link, run `arch-query component <name> --raw` on both to check for indirect relationships (shared APIs, shared CRDs, common controller)
+- If no interaction is found after all steps, explicitly state "these components have no direct interaction" — do not invent a relationship
 
 **Tier 4 — Navigation** ("What versions exist?", "Where are the docs?"):
 - Use `arch-query versions` for version listing
