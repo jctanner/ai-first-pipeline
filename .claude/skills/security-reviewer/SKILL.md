@@ -233,7 +233,7 @@ These are RHOAI/ODH-specific constraints that MUST be checked. Violations are Hi
 | Upstream-first | Changes should land in opendatahub-io repos, not red-hat-data-services directly | Open source development model |
 | AuthN/AuthZ | Use an established platform auth pattern; don't roll custom auth. Approved patterns: (1) kube-auth-proxy at the Gateway API layer via ext_authz, (2) kube-rbac-proxy sidecar for per-service Kubernetes RBAC via SubjectAccessReview, (3) Kuadrant (Authorino + Limitador) AuthPolicy/TokenRateLimitPolicy for API-level auth and rate limiting | RHOAI 3.x supports multiple auth patterns |
 | Secrets | Use OpenShift Secrets or external secret stores; no env var credentials | Secret management policy |
-| ServiceAccount RBAC | New ServiceAccounts and RBAC MUST be namespace-scoped. Cluster-wide permissions are a known systemic vulnerability — 9 out of 10 RHOAI components have excessive ServiceAccount permissions. Only notebook-controller follows least-privilege correctly. Flag any new cluster-wide RBAC request as High severity. | Systemic RBAC vulnerability |
+| ServiceAccount RBAC | New ServiceAccounts and RBAC MUST be namespace-scoped. Cluster-wide permissions are a known systemic vulnerability — 9 out of 10 RHOAI components have excessive ServiceAccount permissions. Only notebook-controller follows least-privilege as expected. Flag any new cluster-wide RBAC request as High severity. | Systemic RBAC vulnerability |
 
 ---
 

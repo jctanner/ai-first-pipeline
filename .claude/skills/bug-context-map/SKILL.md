@@ -146,7 +146,7 @@ When producing the context map:
 
 1. **`repos_and_files_used`**: List every repository (or architecture doc set) and the specific files within it that you actually read and found relevant. Use the paths as they appear in the architecture-context directory (e.g. `architecture-context/checkouts/red-hat-data-services.rhoai-3.4-ea.2/odh-dashboard`).
 
-2. **`repos_and_files_needed`**: List only repos whose component does NOT appear in any `architecture-context/architecture/rhoai-*/` doc or `architecture-context/checkouts/red-hat-data-services.rhoai-*/` folder. If you found and used a component's checkout or doc, it is available — do not list it here. If you wish a specific file existed within an available checkout, note that in `missing_context` instead. Include a `reason` for each truly missing repo.
+2. **`repos_and_files_needed`**: List only repos whose component does NOT appear in any `architecture-context/architecture/rhoai-*/` doc or `architecture-context/checkouts/red-hat-data-services.rhoai-*/` folder. If you found and used a component's checkout or doc, it is available — do not list it here. If you wish a specific file existed within an available checkout, record it in `missing_context` instead. Include a `reason` for each truly missing repo.
 
 ### Steps
 

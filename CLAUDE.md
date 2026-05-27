@@ -145,7 +145,7 @@ Invalid outputs are renamed to `*.invalid` and don't block re-runs.
 ### Repo Mapping
 
 Three-tier contribution model: upstream -> midstream (opendatahub-io) -> downstream (Red Hat).
-Fixes always target midstream. `lib/repo_mapping.py` resolves names across tiers.
+Fixes always target midstream. `[lib/repo_mapping.py](lib/repo_mapping.py)` resolves names across tiers.
 
 ### Validation Loop
 
@@ -161,7 +161,7 @@ Phases run agents in parallel via asyncio semaphore. Default 5 concurrent agents
 
 ## Key Conventions
 
-- All phase outputs are validated against JSON Schema (draft 2020-12) defined in `lib/schemas.py`
+- All phase outputs are validated against JSON Schema (draft 2020-12) defined in `[lib/schemas.py](lib/schemas.py)`
 - RFE/strategy artifacts use YAML frontmatter for structured metadata
 - The `--model` flag determines the workspace subdirectory path for bug phases
 - MCP servers (e.g., Atlassian) are configured per-phase in `pipeline-skills.yaml`
@@ -169,7 +169,7 @@ Phases run agents in parallel via asyncio semaphore. Default 5 concurrent agents
 
 ## Development Notes
 
-- `lib/phases.py` is the largest module (~3,300 lines) containing all phase orchestration logic
+- `[lib/phases.py](lib/phases.py)` is the largest module (~3,300 lines) containing all phase orchestration logic
 - `lib/webapp.py` (~180KB) contains inline Jinja2 templates via DictLoader
 - The `.context/` directory holds git-cloned architecture docs; these are not checked in
 - `remote_skills/rfe-creator/` is a separate git repo cloned into place; it has its own `CLAUDE.md`

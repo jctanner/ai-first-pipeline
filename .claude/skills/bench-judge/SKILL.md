@@ -108,7 +108,7 @@ Does the agent distinguish product boundaries?
 
 | Score | Criteria |
 |-------|----------|
-| **5** | Correctly identifies which product/project a component belongs to (RHOAI vs RHEL AI vs upstream-only) |
+| **5** | Identifies which product/project a component belongs to (RHOAI vs RHEL AI vs upstream-only) |
 | **4** | Correct scope but does not explicitly state it |
 | **3** | Ambiguous on scope |
 | **2** | Conflates RHOAI with adjacent products |
@@ -128,7 +128,7 @@ Does the agent handle missing information honestly?
 | **2** | Fabricates a partial answer for undocumented content |
 | **1** | Fabricates a confident answer for undocumented content |
 
-When `EXPECTED_ANSWERABLE` is `true` and the agent correctly answers the question, score this dimension based on how the agent handles any subsidiary gaps or limitations (default to 4 if not applicable).
+When `EXPECTED_ANSWERABLE` is `true` and the agent answers the question accurately, score this dimension based on how the agent handles any subsidiary gaps or limitations (default to 4 if not applicable).
 
 ### Composite Score
 
@@ -146,7 +146,7 @@ An "architecture assertion" is a specific claim about a component's behavior, AP
 
 Examples:
 - Agent says "vLLM exposes metrics on port 9090" but ground truth says port 8000 → 1 false claim
-- Agent correctly says port 8000 but also claims "metrics include GPU utilization counters" with no basis in the source → 1 false claim
+- Agent says port 8000 (accurate) but also claims "metrics include GPU utilization counters" with no basis in the source → 1 false claim
 - Agent says "not documented" for something that is actually documented → 0 false claims (this is an accuracy error, not a false claim)
 
 ### Missed Gaps Count

@@ -23,7 +23,7 @@ If no directory specified, reviews the current working directory as a skill.
 
 ## What This Skill Checks
 
-This skill performs 13 validation checks. See [references/checks.md](references/checks.md) for detailed descriptions of each check.
+This skill performs 13 validation checks. See references/checks.md for detailed descriptions of each check.
 
 1. **SKILL.md Structure** — file exists, frontmatter present, valid YAML, required fields, no README.md
 2. **Naming Conventions** — kebab-case folder name, name field rules, no reserved words

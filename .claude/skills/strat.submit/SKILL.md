@@ -86,6 +86,6 @@ For each successfully updated ticket, include the direct Jira link.
 - **Do not modify the local artifact files.** The strat-task frontmatter schema does not include a "Submitted" status, so local status remains unchanged. The `strat-refined` Jira label serves as the submission marker.
 - **Preserve the Business Need section.** When updating the Jira description, include both the Business Need (from RFE) and the Strategy sections — the full artifact body.
 - **Do not create new tickets.** This skill only updates existing RHAISTRAT tickets. If a strategy has no `jira_key`, skip it.
-- **Handle errors gracefully.** If a Jira update fails, report the error and continue with remaining strategies.
+- **Handle errors without stopping.** If a Jira update fails, report the error and continue with remaining strategies.
 
 $ARGUMENTS
