@@ -410,12 +410,33 @@ host-reset: ## Delete namespace and reinstall on host (WARNING: destructive)
 	kubectl delete namespace ai-pipeline || true
 	sudo PROJECT_ROOT=$(HOST_PROJECT_ROOT) bash deploy/scripts/deploy-all.sh
 
+##@ Linting
+
+.PHONY: skillsaw
+skillsaw: ## Run skillsaw linter on skills and plugins
+	@echo "Running skillsaw..."
+	@if [ -n "$${SKILLSAW_BIN:-}" ]; then \
+		"$${SKILLSAW_BIN}"; \
+	else \
+		uvx skillsaw; \
+	fi
+
+.PHONY: skillsaw-fix
+skillsaw-fix: ## Auto-fix fixable skillsaw issues
+	@echo "Fixing skillsaw issues..."
+	@if [ -n "$${SKILLSAW_BIN:-}" ]; then \
+		"$${SKILLSAW_BIN}" fix; \
+	else \
+		uvx skillsaw fix; \
+	fi
+
 ##@ Local Development (no Vagrant)
 
 test: ## Run Python tests locally
 	uv run pytest tests/ -v
 
 lint: ## Run linters locally
+	@$(MAKE) skillsaw
 	uv run ruff check lib/ scripts/
 	uv run mypy lib/
 
