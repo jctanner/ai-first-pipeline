@@ -215,9 +215,9 @@ For comprehensive documentation, see:
 
 ## Architecture Summary
 
-- **VM**: Ubuntu 22.04, 8GB RAM, 4 CPUs
+- **VM**: Ubuntu 24.04, 32GB RAM, 8 CPUs (libvirt)
 - **K3s**: Single-node Kubernetes cluster
-- **Networking**: Private network at `192.168.56.10`
+- **Networking**: Libvirt default network (VM reachable at its IP; add `*.local` entries to host `/etc/hosts`)
 - **Certificates**: Self-signed CA via cert-manager
 - **Storage**: Local-path provisioner with persistent volumes
 - **Components**:

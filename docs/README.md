@@ -1,39 +1,64 @@
 # AI-First Pipeline Documentation
 
-This directory contains architecture diagrams and documentation for the AI-First Pipeline project.
+## Architecture
 
-## Architecture Diagrams
+System design, component docs, and diagrams.
 
-### Overview
-- **[architecture-overview.mmd](architecture-overview.mmd)** - High-level system architecture showing major components and their relationships
+- [agent-parallelism.md](architecture/agent-parallelism.md) — Two-layer parallelism: orchestrator + agent self-parallelism
+- [agent-runner.md](architecture/agent-runner.md) — Pipeline job lifecycle from dashboard to K8s execution
+- [cli-runner.md](architecture/cli-runner.md) — CLI runner mode proposal (SDK limitations workaround)
 
-### Detailed Views
-- **[architecture-infrastructure.mmd](architecture-infrastructure.mmd)** - Infrastructure details: VM, K3s cluster, persistent storage, services, and secrets
-- **[architecture-jobs-runners.mmd](architecture-jobs-runners.mmd)** - Job execution: K8s Jobs, agent runners (SDK vs CLI), and skill configuration
-- **[architecture-data-flow.mmd](architecture-data-flow.mmd)** - Data pipeline flow: from bug fetch through execution to dashboard visualization
+### Diagrams
 
-### Sequence Diagrams
-- **[pipeline-execution-flow.mmd](pipeline-execution-flow.mmd)** - Complete execution sequence showing interactions between all components
+Mermaid `.mmd` files — render on GitHub or paste into [Mermaid Live Editor](https://mermaid.live/).
 
-### Legacy
-- **[architecture.mmd](architecture.mmd)** - Comprehensive single-diagram view (replaced by modular diagrams above)
+- [architecture-overview.mmd](architecture/diagrams/architecture-overview.mmd) — High-level system architecture
+- [architecture-infrastructure.mmd](architecture/diagrams/architecture-infrastructure.mmd) — K3s cluster, storage, services, secrets
+- [architecture-jobs-runners.mmd](architecture/diagrams/architecture-jobs-runners.mmd) — K8s Jobs, agent runners, skill config
+- [architecture-data-flow.mmd](architecture/diagrams/architecture-data-flow.mmd) — Data pipeline from bug fetch to dashboard
+- [pipeline-execution-flow.mmd](architecture/diagrams/pipeline-execution-flow.mmd) — End-to-end execution sequence
+- [architecture.mmd](architecture/diagrams/architecture.mmd) — Legacy single-diagram view (replaced by above)
 
-## Viewing the Diagrams
+## Deployment
 
-These diagrams use Mermaid syntax and render automatically on GitHub. To view them:
+- [README.md](deployment/README.md) — K3s deployment quick start, .env setup, troubleshooting
 
-1. **On GitHub**: Click any `.mmd` file to see the rendered diagram
-2. **Locally**: Use a Mermaid preview extension for your editor, or paste the content into [Mermaid Live Editor](https://mermaid.live/)
+## Plans
 
-## Diagram Conventions
+Planning and strategy documents.
 
-- **Colors**:
-  - Blue: Storage/PVCs
-  - Orange: Services/Infrastructure
-  - Purple: Jobs/Execution
-  - Green: External Services
-  - Pink: Runners/Agents
-  - Yellow: Skills/Configuration
-  - Red: Security/Secrets
+- [local-cluster-plan.md](plans/local-cluster-plan.md) — Move k3s from Vagrant VM to host at /data
+- [new-frontend-plan.md](plans/new-frontend-plan.md) — Dashboard redesign for bugs/RFEs/strategies
+- [arch-context-testing-plan.md](plans/arch-context-testing-plan.md) — A/B benchmark: flat_files vs arch_query
 
-- **Layout**: All diagrams use vertical (top-to-bottom) orientation for better GitHub rendering
+## Reference
+
+Stable reference material.
+
+- [CONVENTIONS.md](reference/CONVENTIONS.md) — Agent skill analysis: parallelism, idempotency, consistency
+- [arch-query-design.md](reference/arch-query-design.md) — arch-query CLI design document
+- [arch-context-testing.md](reference/arch-context-testing.md) — Benchmark corpus tiers, judge rubric, MLflow structure
+- [data-sources-and-access.md](reference/data-sources-and-access.md) — Pipeline data sources, field mappings, access methods
+- [mlflow-basics.md](reference/mlflow-basics.md) — MLflow evaluations with Claude via Vertex API
+- [mlflow-claude.md](reference/mlflow-claude.md) — Claude Code tracing via MLflow autolog
+
+## Notes
+
+Research, investigations, and dated analysis reports.
+
+- [arch-context-bugs-2026-05-03.md](notes/arch-context-bugs-2026-05-03.md) — Broken symlinks blocking ~26.6% of RHAISTRAT issues
+- [arch-context-consumption-problem.md](notes/arch-context-consumption-problem.md) — Agents waste 54% of tool calls on navigation
+- [arch-context-consumption-problem-chatgpt.md](notes/arch-context-consumption-problem-chatgpt.md) — YAML index layer recommendation
+- [arch-context-consumption-problem-chatgpt-2.md](notes/arch-context-consumption-problem-chatgpt-2.md) — arch-query validation
+- [arch-context-corpus-generation.md](notes/arch-context-corpus-generation.md) — Extracting benchmark questions from Elasticsearch
+- [arch-context-gaps-2026-05-03.md](notes/arch-context-gaps-2026-05-03.md) — Missing components causing RFE validation failures
+- [arch-context-gaps.md](notes/arch-context-gaps.md) — Missing component docs and infrastructure blockers
+- [benchmark-arch-context-2026-05-05.md](notes/benchmark-arch-context-2026-05-05.md) — Benchmark results: flat_files vs arch_query
+- [benchmark-arch-context-2026-05-06.md](notes/benchmark-arch-context-2026-05-06.md) — Follow-up benchmark with instruction fixes
+- [claude-mcp-behavior.md](notes/claude-mcp-behavior.md) — MCP tools not exposed via `claude --print`
+- [claude-sdk-mlflow-integration.md](notes/claude-sdk-mlflow-integration.md) — SDK has no built-in MLflow; hooks available
+- [token-usage-report-2026-05-03.md](notes/token-usage-report-2026-05-03.md) — Cost analysis: median $0.86/issue, $2.16K total
+
+## Ledger
+
+- [agentic_work_ledger.md](ledger/agentic_work_ledger.md) — Filesystem-native project management methodology for AI agents
