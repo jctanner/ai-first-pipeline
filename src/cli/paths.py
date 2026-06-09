@@ -8,7 +8,7 @@ is the full model ID string returned by ``get_model_id()`` (e.g.
 
 from pathlib import Path
 
-BASE_DIR = Path(__file__).resolve().parent.parent
+BASE_DIR = Path(__file__).resolve().parent.parent.parent
 ISSUES_DIR = BASE_DIR / "issues"
 WORKSPACE_DIR = BASE_DIR / "workspace"
 

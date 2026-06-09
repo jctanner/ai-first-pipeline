@@ -29,7 +29,7 @@ RUN uv sync --frozen || uv sync
 COPY --chown=dashboarduser:dashboarduser main.py ./
 COPY --chown=dashboarduser:dashboarduser src/ ./src/
 COPY --chown=dashboarduser:dashboarduser scripts/ ./scripts/
-COPY --chown=dashboarduser:dashboarduser pipeline-skills.yaml ./
+COPY --chown=dashboarduser:dashboarduser var/ ./var/
 
 # Set up Python path to find installed packages
 ENV PYTHONPATH=/app

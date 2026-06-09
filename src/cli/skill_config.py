@@ -14,8 +14,8 @@ from typing import Literal
 
 import yaml
 
-BASE_DIR = Path(__file__).resolve().parent.parent
-_CONFIG_PATH = BASE_DIR / "pipeline-skills.yaml"
+BASE_DIR = Path(__file__).resolve().parent.parent.parent
+_CONFIG_PATH = BASE_DIR / "var" / "pipeline-skills.yaml"
 
 # Module-level cache so the YAML is parsed at most once per process.
 _config: dict | None = None

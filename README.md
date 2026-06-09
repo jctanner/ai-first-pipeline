@@ -208,7 +208,7 @@ Each phase is driven by a Claude agent loaded with a **skill** — instructions 
 - **Templated** — SKILL.md content is extracted and injected into the agent prompt. Used for bug analysis phases. Deterministic and batch-friendly.
 - **Native** — Agent discovers skills via SDK `Skill` tool. Used for RFE/strategy phases where the agent needs full repo context (CLAUDE.md, scripts, sub-skills).
 
-Skill-to-phase mapping is configured in `pipeline-skills.yaml`.
+Skill-to-phase mapping is configured in `var/pipeline-skills.yaml`.
 
 | Skill | Source | Invoke | Agent tools | Purpose |
 |-------|--------|--------|-------------|---------|
@@ -295,7 +295,10 @@ Opens a Flask web app at `http://localhost:5000` with:
 ai-first-pipeline/
 ├── main.py                  # Entry point (CLI dispatcher)
 ├── pyproject.toml           # Dependencies and project metadata
-├── pipeline-skills.yaml     # Phase-to-skill mapping and invocation config
+├── var/
+│   ├── pipeline-skills.yaml # Phase-to-skill mapping and invocation config
+│   ├── skills-registry.yaml # Staging registry for external skill plugins
+│   └── markov-workflows/    # Markov workflow definitions
 ├── .env                     # Vertex AI and Jira credentials (gitignored)
 ├── CLAUDE.md                # Claude Code project context
 ├── src/

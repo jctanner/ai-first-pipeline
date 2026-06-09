@@ -126,12 +126,12 @@ echo
 # Register skill marketplaces
 echo "Registering skill marketplaces..."
 claude plugin marketplace add opendatahub-io/skills-registry || true
-claude plugin marketplace add /app/skills-registry || true
+claude plugin marketplace add /app/var/skills-registry.yaml || true
 
 # Discover and install plugins from pipeline-skills.yaml
 REGISTRIES=$(python3 -c "
 import yaml
-with open('/app/pipeline-skills.yaml') as f:
+with open('/app/var/pipeline-skills.yaml') as f:
     cfg = yaml.safe_load(f)
 for repo in (cfg.get('skill_repos') or {}).values():
     reg = repo.get('registry', '')
@@ -175,7 +175,7 @@ echo
 # Resolve skill name from pipeline-skills.yaml (falls back to dash-to-dot conversion)
 SKILL_NAME=$(python3 -c "
 import yaml
-with open('/app/pipeline-skills.yaml') as f:
+with open('/app/var/pipeline-skills.yaml') as f:
     cfg = yaml.safe_load(f)
 skills = cfg.get('skills') or cfg.get('phases') or {}
 if '${SKILL}' in skills:
@@ -231,7 +231,7 @@ fi
 # Resolve which plugin source this skill needs
 SKILL_SOURCE=$(python3 -c "
 import yaml
-with open('/app/pipeline-skills.yaml') as f:
+with open('/app/var/pipeline-skills.yaml') as f:
     cfg = yaml.safe_load(f)
 skills = cfg.get('skills') or cfg.get('phases') or {}
 sc = skills.get('${SKILL}', {})

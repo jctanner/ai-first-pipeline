@@ -65,7 +65,7 @@ claude plugin marketplace add /app/skills-registry || true
 # Discover and install plugins from pipeline-skills.yaml
 REGISTRIES=$(python3 -c "
 import yaml
-with open('/app/pipeline-skills.yaml') as f:
+with open('/app/var/pipeline-skills.yaml') as f:
     cfg = yaml.safe_load(f)
 for repo in (cfg.get('skill_repos') or {}).values():
     reg = repo.get('registry', '')
@@ -110,7 +110,7 @@ mkdir -p /app/artifacts/rfe-tasks /app/artifacts/strat-tasks /app/tmp /app/.cont
 # Resolve skill name from pipeline-skills.yaml (falls back to dash-to-dot conversion)
 SKILL_NAME=$(python3 -c "
 import yaml
-with open('/app/pipeline-skills.yaml') as f:
+with open('/app/var/pipeline-skills.yaml') as f:
     cfg = yaml.safe_load(f)
 skills = cfg.get('skills') or cfg.get('phases') or {}
 if '${SKILL}' in skills:

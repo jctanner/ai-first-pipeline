@@ -77,7 +77,10 @@ ATLASSIAN_MCP_URL=http://127.0.0.1:8081/sse   # optional MCP server
 ```
 main.py                     # Entry point (CLI dispatcher)
 pyproject.toml              # Dependencies (uv)
-pipeline-skills.yaml        # Phase-to-skill mapping and invocation config
+var/
+  pipeline-skills.yaml      # Phase-to-skill mapping and invocation config
+  skills-registry.yaml      # Staging registry for external skill plugins
+  markov-workflows/          # Markov workflow definitions
 .env                        # Credentials (gitignored)
 
 src/
@@ -136,7 +139,7 @@ Skills are defined as `SKILL.md` files containing agent instructions. Two invoca
 - **Templated** - SKILL.md content injected directly into agent prompt (bug analysis phases). Deterministic and batch-friendly.
 - **Native** - Agent uses SDK skill discovery via `Skill` tool. Used for RFE/strategy phases where agents need the full external repo context (CLAUDE.md, scripts, sub-skills).
 
-Configuration lives in `pipeline-skills.yaml`, which maps each phase to its skill, source repo, invocation method, and allowed tools.
+Configuration lives in `var/pipeline-skills.yaml`, which maps each phase to its skill, source repo, invocation method, and allowed tools.
 
 ### Workspace Model
 
@@ -170,7 +173,7 @@ Phases run agents in parallel via asyncio semaphore. Default 5 concurrent agents
 - All phase outputs are validated against JSON Schema (draft 2020-12) defined in `src/cli/schemas.py`
 - RFE/strategy artifacts use YAML frontmatter for structured metadata
 - The `--model` flag determines the workspace subdirectory path for bug phases
-- MCP servers (e.g., Atlassian) are configured per-phase in `pipeline-skills.yaml`
+- MCP servers (e.g., Atlassian) are configured per-phase in `var/pipeline-skills.yaml`
 - Jira projects: `RHOAIENG` (bugs), `RHAIRFE` (RFEs), `RHAISTRAT` (strategies)
 
 ## Development Notes

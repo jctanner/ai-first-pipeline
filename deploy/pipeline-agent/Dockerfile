@@ -50,11 +50,10 @@ RUN uv sync --frozen || uv sync
 
 # Copy only necessary application files
 COPY --chown=pipelineagent:pipelineagent main.py ./
-COPY --chown=pipelineagent:pipelineagent lib/ ./lib/
+COPY --chown=pipelineagent:pipelineagent src/ ./src/
 COPY --chown=pipelineagent:pipelineagent scripts/ ./scripts/
 COPY --chown=pipelineagent:pipelineagent .claude/ ./.claude/
-COPY --chown=pipelineagent:pipelineagent pipeline-skills.yaml ./
-COPY --chown=pipelineagent:pipelineagent skills-registry/ ./skills-registry/
+COPY --chown=pipelineagent:pipelineagent var/ ./var/
 
 # Set up Python path to find installed packages
 ENV PYTHONPATH=/app
