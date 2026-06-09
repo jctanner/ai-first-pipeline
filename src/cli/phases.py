@@ -16,10 +16,10 @@ import requests
 from dotenv import load_dotenv
 from jsonschema import validate, ValidationError
 
-from lib.agent_runner import run_agent, format_duration, get_model_id
-from lib.prompts import build_phase_prompt
-from lib.schemas import PHASE_SCHEMAS
-from lib.skill_config import (
+from src.cli.agent_runner import run_agent, format_duration, get_model_id
+from src.cli.prompts import build_phase_prompt
+from src.cli.schemas import PHASE_SCHEMAS
+from src.cli.skill_config import (
     get_skill_name,
     get_allowed_tools,
     get_mcp_servers,
@@ -27,16 +27,16 @@ from lib.skill_config import (
     resolve_cwd,
     should_enable_skills,
 )
-from lib.paths import (
+from src.cli.paths import (
     BASE_DIR, ISSUES_DIR, WORKSPACE_DIR,
     model_workspace, phase_json, phase_md, phase_log,
     src_dir, patch_diff, test_patch_diff, memory_md, issue_copy,
 )
-from lib.repo_mapping import (
+from src.cli.repo_mapping import (
     get_midstream, get_upstream, clone_midstream_repo,
     normalize_component_name, DOWNSTREAM_ONLY,
 )
-from lib.validation import (
+from src.cli.validation import (
     load_test_context,
     load_test_context_markdown,
     is_validation_eligible,
@@ -1193,8 +1193,8 @@ def _load_test_context_for_components(component_names: list[str]) -> str:
 
 def _resolve_test_context_md_path(repo_name: str) -> str | None:
     """Return the absolute path to the test context .md file, or None."""
-    from lib.validation import TESTS_CONTEXT_DIR
-    from lib.repo_mapping import get_midstream
+    from src.cli.validation import TESTS_CONTEXT_DIR
+    from src.cli.repo_mapping import get_midstream
 
     # Try downstream name first
     md_path = TESTS_CONTEXT_DIR / f"{repo_name}.md"

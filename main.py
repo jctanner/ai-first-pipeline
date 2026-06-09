@@ -7,8 +7,8 @@ from pathlib import Path
 
 from dotenv import load_dotenv
 
-from lib.cli import parse_args
-from lib.phases import main
+from src.cli.cli import parse_args
+from src.cli.phases import main
 
 # Load environment variables from .env file (optional in K8s)
 env_path = Path(__file__).parent / ".env"

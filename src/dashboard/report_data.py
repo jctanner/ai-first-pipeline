@@ -11,8 +11,8 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Generator
 
-from lib.phases import _parse_issue
-from lib.paths import ISSUES_DIR, WORKSPACE_DIR, phase_json, test_patch_diff, discover_models
+from src.cli.phases import _parse_issue
+from src.cli.paths import ISSUES_DIR, WORKSPACE_DIR, phase_json, test_patch_diff, discover_models
 
 PHASE_SUFFIXES = ["completeness", "context-map", "fix-attempt", "test-plan", "write-test"]
 

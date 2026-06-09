@@ -38,8 +38,8 @@ import yaml
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from lib.agent_runner import run_agent
-from lib.prompts import extract_skill_prompt
+from src.cli.agent_runner import run_agent
+from src.cli.prompts import extract_skill_prompt
 
 
 CONTEXT_MODES = ["flat_files", "arch_query"]

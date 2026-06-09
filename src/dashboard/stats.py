@@ -7,7 +7,7 @@ from pathlib import Path
 import numpy as np
 from scipy import stats as sp_stats
 
-from lib.phases import ISSUES_DIR
+from src.cli.phases import ISSUES_DIR
 
 PHASE_SUFFIXES = ["completeness", "context-map", "fix-attempt", "test-plan", "write-test"]
 

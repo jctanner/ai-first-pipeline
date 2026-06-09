@@ -21,7 +21,7 @@ help: ## Show this help message
 vagrant-build-dashboard: ## Build dashboard image only (no redeploy)
 	vagrant ssh -c "cd /vagrant/deploy/scripts && sudo bash 05a-build-dashboard.sh"
 
-vagrant-rebuild-dashboard: ## Rebuild and redeploy dashboard (for dashboard/lib code changes)
+vagrant-rebuild-dashboard: ## Rebuild and redeploy dashboard (for src code changes)
 	@echo "==> Rebuilding dashboard image..."
 	vagrant ssh -c "cd /vagrant/deploy/scripts && sudo bash 05a-build-dashboard.sh"
 	vagrant ssh -c "kubectl delete pod -n ai-pipeline -l app=pipeline-dashboard --wait=false"
@@ -416,11 +416,11 @@ test: ## Run Python tests locally
 	uv run pytest tests/ -v
 
 lint: ## Run linters locally
-	uv run ruff check lib/ scripts/
-	uv run mypy lib/
+	uv run ruff check src/ scripts/
+	uv run mypy src/
 
 format: ## Format code locally
-	uv run ruff format lib/ scripts/
+	uv run ruff format src/ scripts/
 
 sync: ## Sync Python dependencies
 	uv sync

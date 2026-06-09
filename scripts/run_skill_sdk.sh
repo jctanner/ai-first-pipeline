@@ -135,8 +135,8 @@ from pathlib import Path
 # Add /app to path so we can import our modules
 sys.path.insert(0, '/app')
 
-from lib.skill_config import get_phase_config, get_mcp_servers, get_allowed_tools
-from lib.agent_runner import get_model_id
+from src.cli.skill_config import get_phase_config, get_mcp_servers, get_allowed_tools
+from src.cli.agent_runner import get_model_id
 
 # Import SDK
 from claude_agent_sdk import ClaudeSDKClient, ClaudeAgentOptions

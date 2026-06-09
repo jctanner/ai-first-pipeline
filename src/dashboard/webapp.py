@@ -16,7 +16,7 @@ from src.dashboard.report_data import (
     load_all_issues, load_single_issue,
     load_pipeline_status,
 )
-from lib.paths import discover_models, model_workspace
+from src.cli.paths import discover_models, model_workspace
 from src.dashboard.rfe_data import load_rfe_issues, load_single_rfe, load_strat_issues, load_single_strat, load_epic_issues
 
 # K8s orchestration (imported lazily to avoid requiring K8s client when not needed)
@@ -495,7 +495,7 @@ def create_app() -> Flask:
 
     @app.route("/jobs")
     def jobs():
-        from lib.skill_config import list_skills
+        from src.cli.skill_config import list_skills
         return render_template(
             "jobs.html", k8s_available=K8S_AVAILABLE, skills=list_skills()
         )

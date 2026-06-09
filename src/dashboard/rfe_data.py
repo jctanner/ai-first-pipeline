@@ -8,7 +8,7 @@ from pathlib import Path
 
 import yaml
 
-from lib.paths import BASE_DIR
+from src.cli.paths import BASE_DIR
 
 # Default artifact directories
 # RFE/strat artifacts are now stored in the persistent /app/artifacts volume

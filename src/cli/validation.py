@@ -13,7 +13,7 @@ import subprocess
 import time
 from pathlib import Path
 
-from lib.repo_mapping import get_midstream
+from src.cli.repo_mapping import get_midstream
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 TESTS_CONTEXT_DIR = BASE_DIR / "odh-tests-context" / "tests"
@@ -255,7 +255,7 @@ async def run_validation_agent(
         The parsed result dict, or None if the agent failed or produced
         no valid output.
     """
-    from lib.agent_runner import run_agent
+    from src.cli.agent_runner import run_agent
 
     # Build a short prompt with runtime context only.  The full
     # validation methodology lives in .claude/skills/patch-validation/

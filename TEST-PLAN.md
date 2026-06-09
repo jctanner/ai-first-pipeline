@@ -2,7 +2,7 @@
 
 ## Context
 
-The bug-bash pipeline's fix-attempt phase spawns Claude agents that edit code in cloned midstream repos, but never validates the patches. The agent only has Read/Write/Glob/Grep tools -- no Bash -- so it can't run linters or tests. The orchestrator (`lib/phases.py`) captures `git diff` after the agent finishes but does nothing else. Patches are suggestions, not validated changes.
+The bug-bash pipeline's fix-attempt phase spawns Claude agents that edit code in cloned midstream repos, but never validates the patches. The agent only has Read/Write/Glob/Grep tools -- no Bash -- so it can't run linters or tests. The orchestrator (`src/cli/phases.py`) captures `git diff` after the agent finishes but does nothing else. Patches are suggestions, not validated changes.
 
 The `odh-tests-context` project (symlinked at `./odh-tests-context/`) already solved the discovery problem: it has pre-validated container recipes with lint/test commands for 162 opendatahub-io repos (31% high readiness, 38% medium). The data is sitting there unused.
 
@@ -18,7 +18,7 @@ This avoids escalating the agent's permissions (these run with `bypassPermission
 
 ## Implementation
 
-### Step 1: Create `lib/validation.py`
+### Step 1: Create `src/cli/validation.py`
 
 New module with these functions:
 
@@ -60,7 +60,7 @@ class ValidationResult:
     duration_seconds: float
 ```
 
-### Step 2: Update `lib/schemas.py`
+### Step 2: Update `src/cli/schemas.py`
 
 Add optional `validation` property to `FIX_ATTEMPT_SCHEMA`. The agent doesn't produce this -- the orchestrator injects it post-hoc. Structure:
 
@@ -81,13 +81,13 @@ Add optional `validation` property to `FIX_ATTEMPT_SCHEMA`. The agent doesn't pr
 
 Not added to `required` array -- existing fix-attempt outputs without it remain valid.
 
-### Step 3: Update `lib/cli.py`
+### Step 3: Update `src/cli/cli.py`
 
 Add to `fix-attempt` and `all` subcommands:
 - `--validation-retries N` (default: 2, 0 disables validation)
 - `--skip-validation` (flag to skip entirely)
 
-### Step 4: Update `lib/phases.py`
+### Step 4: Update `src/cli/phases.py`
 
 **4a. Add helper functions:**
 - `_run_validation_loop()` -- async function that validates the patch, and on failure launches a new agent session with the original prompt plus a `## Validation Feedback` section containing the error output. Repeats up to `max_iterations` times.
@@ -151,10 +151,10 @@ Add after the "Self-review" step:
 
 | File | Change |
 |------|--------|
-| `lib/validation.py` | **New file** -- container validation logic |
-| `lib/schemas.py` | Add optional `validation` property to `FIX_ATTEMPT_SCHEMA` |
-| `lib/cli.py` | Add `--validation-retries` and `--skip-validation` flags |
-| `lib/phases.py` | Add `_run_validation_loop()`, inject test context into prompt, insert validation after git diff capture in both `_maybe_run_fix_attempt()` and `run_fix_attempt_phase()` |
+| `src/cli/validation.py` | **New file** -- container validation logic |
+| `src/cli/schemas.py` | Add optional `validation` property to `FIX_ATTEMPT_SCHEMA` |
+| `src/cli/cli.py` | Add `--validation-retries` and `--skip-validation` flags |
+| `src/cli/phases.py` | Add `_run_validation_loop()`, inject test context into prompt, insert validation after git diff capture in both `_maybe_run_fix_attempt()` and `run_fix_attempt_phase()` |
 | `.claude/skills/bug-fix-attempt/SKILL.md` | Add "Anticipate validation" step |
 
 ## Verification

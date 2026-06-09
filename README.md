@@ -235,7 +235,7 @@ Skill-to-phase mapping is configured in `pipeline-skills.yaml`.
 
 ### Repo mapping
 
-RHOAI uses a three-tier contribution flow: **upstream** (e.g., `kserve/kserve`) -> **midstream** (e.g., `opendatahub-io/kserve`) -> **downstream** (e.g., `red-hat-data-services/kserve`). Fixes target midstream. The `lib/repo_mapping.py` module handles name resolution between tiers and shallow-clones repos into workspaces.
+RHOAI uses a three-tier contribution flow: **upstream** (e.g., `kserve/kserve`) -> **midstream** (e.g., `opendatahub-io/kserve`) -> **downstream** (e.g., `red-hat-data-services/kserve`). Fixes target midstream. The `src/cli/repo_mapping.py` module handles name resolution between tiers and shallow-clones repos into workspaces.
 
 ## Output Files
 
@@ -298,20 +298,26 @@ ai-first-pipeline/
 ├── pipeline-skills.yaml     # Phase-to-skill mapping and invocation config
 ├── .env                     # Vertex AI and Jira credentials (gitignored)
 ├── CLAUDE.md                # Claude Code project context
-├── lib/
-│   ├── agent_runner.py      # Claude Agent SDK launcher
-│   ├── cli.py               # Argument parsing
-│   ├── paths.py             # Workspace path utilities
-│   ├── phases.py            # Phase orchestrators, batch runner, validation loop
-│   ├── prompts.py           # Skill prompt extraction and injection
-│   ├── repo_mapping.py      # Upstream/midstream/downstream name mapping
-│   ├── report_data.py       # Dashboard data loading (bugs)
-│   ├── rfe_data.py          # Dashboard data loading (RFEs)
-│   ├── schemas.py           # JSON Schema validation for phase outputs
-│   ├── skill_config.py      # pipeline-skills.yaml parser
-│   ├── stats.py             # Aggregate statistics
-│   ├── validation.py        # Container lifecycle and validation agent runner
-│   └── webapp.py            # Flask dashboard (PicoCSS, SSE activity feed)
+├── src/
+│   ├── cli/
+│   │   ├── agent_runner.py  # Claude Agent SDK launcher
+│   │   ├── cli.py           # Argument parsing
+│   │   ├── paths.py         # Workspace path utilities
+│   │   ├── phases.py        # Phase orchestrators, batch runner, validation loop
+│   │   ├── prompts.py       # Skill prompt extraction and injection
+│   │   ├── repo_mapping.py  # Upstream/midstream/downstream name mapping
+│   │   ├── schemas.py       # JSON Schema validation for phase outputs
+│   │   ├── skill_config.py  # pipeline-skills.yaml parser
+│   │   └── validation.py    # Container lifecycle and validation agent runner
+│   └── dashboard/
+│       ├── webapp.py        # Flask dashboard (PicoCSS, SSE activity feed)
+│       ├── report_data.py   # Dashboard data loading (bugs)
+│       ├── rfe_data.py      # Dashboard data loading (RFEs)
+│       ├── stats.py         # Aggregate statistics
+│       ├── k8s_orchestrator.py # K8s job management
+│       ├── mlflow_client.py # MLflow API client
+│       ├── templates/       # Jinja2 HTML templates
+│       └── static/js/       # Frontend JavaScript
 ├── .claude/skills/          # Local agent skill definitions
 │   ├── bug-completeness/
 │   ├── bug-context-map/

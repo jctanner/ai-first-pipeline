@@ -80,20 +80,26 @@ pyproject.toml              # Dependencies (uv)
 pipeline-skills.yaml        # Phase-to-skill mapping and invocation config
 .env                        # Credentials (gitignored)
 
-lib/
-  cli.py                    # Argument parsing
-  phases.py                 # Phase orchestrators, agent launcher, batch runner
-  agent_runner.py            # Claude Agent SDK wrapper
-  prompts.py                # Skill prompt extraction and injection
-  skill_config.py           # pipeline-skills.yaml parser
-  schemas.py                # JSON Schema definitions for phase outputs
-  paths.py                  # Workspace path utilities
-  repo_mapping.py            # Upstream/midstream/downstream repo name resolution
-  validation.py             # Podman container patch validation
-  webapp.py                 # Flask dashboard (SSE activity feed)
-  report_data.py            # Dashboard data loading
-  rfe_data.py               # RFE artifact loading
-  stats.py                  # Aggregate statistics
+src/
+  cli/
+    cli.py                  # Argument parsing
+    phases.py               # Phase orchestrators, agent launcher, batch runner
+    agent_runner.py          # Claude Agent SDK wrapper
+    prompts.py              # Skill prompt extraction and injection
+    skill_config.py         # pipeline-skills.yaml parser
+    schemas.py              # JSON Schema definitions for phase outputs
+    paths.py                # Workspace path utilities
+    repo_mapping.py          # Upstream/midstream/downstream repo name resolution
+    validation.py           # Podman container patch validation
+  dashboard/
+    webapp.py               # Flask dashboard (SSE activity feed)
+    report_data.py          # Dashboard data loading
+    rfe_data.py             # RFE artifact loading
+    stats.py                # Aggregate statistics
+    k8s_orchestrator.py     # K8s job management
+    mlflow_client.py        # MLflow API client
+    templates/              # Jinja2 HTML templates
+    static/js/              # Frontend JavaScript
 
 scripts/
   fetch_bugs.py             # Standalone Jira fetch
@@ -145,7 +151,7 @@ Invalid outputs are renamed to `*.invalid` and don't block re-runs.
 ### Repo Mapping
 
 Three-tier contribution model: upstream -> midstream (opendatahub-io) -> downstream (Red Hat).
-Fixes always target midstream. `lib/repo_mapping.py` resolves names across tiers.
+Fixes always target midstream. `src/cli/repo_mapping.py` resolves names across tiers.
 
 ### Validation Loop
 
@@ -161,7 +167,7 @@ Phases run agents in parallel via asyncio semaphore. Default 5 concurrent agents
 
 ## Key Conventions
 
-- All phase outputs are validated against JSON Schema (draft 2020-12) defined in `lib/schemas.py`
+- All phase outputs are validated against JSON Schema (draft 2020-12) defined in `src/cli/schemas.py`
 - RFE/strategy artifacts use YAML frontmatter for structured metadata
 - The `--model` flag determines the workspace subdirectory path for bug phases
 - MCP servers (e.g., Atlassian) are configured per-phase in `pipeline-skills.yaml`
@@ -169,7 +175,7 @@ Phases run agents in parallel via asyncio semaphore. Default 5 concurrent agents
 
 ## Development Notes
 
-- `lib/phases.py` is the largest module (~3,300 lines) containing all phase orchestration logic
-- `lib/webapp.py` (~180KB) contains inline Jinja2 templates via DictLoader
+- `src/cli/phases.py` is the largest module (~3,300 lines) containing all phase orchestration logic
+- `src/dashboard/webapp.py` contains the Flask dashboard with Jinja2 templates
 - The `.context/` directory holds git-cloned architecture docs; these are not checked in
 - `remote_skills/rfe-creator/` is a separate git repo cloned into place; it has its own `CLAUDE.md`
