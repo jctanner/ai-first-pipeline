@@ -3,7 +3,7 @@
 
 set -euo pipefail
 
-PROJECT_ROOT="${PROJECT_ROOT:-${PROJECT_ROOT}}"
+PROJECT_ROOT="${PROJECT_ROOT:-/vagrant}"
 
 if command -v docker &> /dev/null; then
   CONTAINER_CMD="docker"

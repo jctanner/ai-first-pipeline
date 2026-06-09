@@ -3,7 +3,7 @@
 
 set -euo pipefail
 
-PROJECT_ROOT="${PROJECT_ROOT:-${PROJECT_ROOT}}"
+PROJECT_ROOT="${PROJECT_ROOT:-/vagrant}"
 
 # Use docker or podman
 if command -v docker &> /dev/null; then

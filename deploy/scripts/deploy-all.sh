@@ -5,7 +5,7 @@
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-PROJECT_ROOT="${PROJECT_ROOT:-/vagrant}"
+export PROJECT_ROOT="${PROJECT_ROOT:-/vagrant}"
 
 echo "=========================================="
 echo "AI-First Pipeline K3s Deployment"
