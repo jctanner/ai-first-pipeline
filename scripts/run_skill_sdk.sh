@@ -124,8 +124,18 @@ echo "Working directory: /app"
 echo "Starting execution at: $(date)"
 echo
 
+# Optional strace wrapper
+STRACE_CMD=""
+if [ "${ENABLE_STRACE:-}" = "1" ]; then
+  JOB_TAG="${PIPELINE_JOB_NAME:-$(hostname)}"
+  STRACE_DIR="/app/artifacts/strace/${JOB_TAG}"
+  mkdir -p "$STRACE_DIR"
+  STRACE_CMD="strace -ffttv -s 100000 -o ${STRACE_DIR}/${JOB_TAG}"
+  echo "strace enabled: output → $STRACE_DIR"
+fi
+
 # Run via Python SDK with MLflow integration
-python3 -u << PYEOF
+$STRACE_CMD python3 -u << PYEOF
 import asyncio
 import json
 import os

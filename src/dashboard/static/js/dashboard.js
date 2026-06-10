@@ -1,11 +1,17 @@
 // --- Tab switching ---
 function switchTab(name) {
   document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
-  document.querySelectorAll('.tab-nav button').forEach(b => b.classList.remove('active'));
-  document.getElementById('tab-' + name).classList.add('active');
-  // Find the clicked button by matching tab name in onclick
-  document.querySelectorAll('.tab-nav button').forEach(b => {
-    if (b.getAttribute('onclick') === "switchTab('" + name + "')") b.classList.add('active');
+  document.querySelectorAll('.tab-btn').forEach(b => {
+    b.classList.remove('active', 'text-gray-900', 'dark:text-white', 'border-primary-600');
+    b.classList.add('text-gray-500', 'dark:text-gray-400', 'border-transparent');
+  });
+  var panel = document.getElementById('tab-' + name);
+  if (panel) panel.classList.add('active');
+  document.querySelectorAll('.tab-btn').forEach(b => {
+    if (b.getAttribute('onclick') === "switchTab('" + name + "')") {
+      b.classList.add('active', 'text-gray-900', 'dark:text-white', 'border-primary-600');
+      b.classList.remove('text-gray-500', 'dark:text-gray-400', 'border-transparent');
+    }
   });
   window.location.hash = name;
 }

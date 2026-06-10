@@ -126,7 +126,7 @@ echo
 # Register skill marketplaces
 echo "Registering skill marketplaces..."
 claude plugin marketplace add opendatahub-io/skills-registry || true
-claude plugin marketplace add /app/var/skills-registry.yaml || true
+claude plugin marketplace add /app/var/pipeline-staging || true
 
 # Discover and install plugins from pipeline-skills.yaml
 REGISTRIES=$(python3 -c "
@@ -268,13 +268,23 @@ claude_fifo="/tmp/claude-stream.fifo"
 rm -f "$claude_fifo"
 mkfifo "$claude_fifo"
 
+# Optional strace wrapper
+STRACE_CMD=""
+if [ "${ENABLE_STRACE:-}" = "1" ]; then
+  JOB_TAG="${PIPELINE_JOB_NAME:-$(hostname)}"
+  STRACE_DIR="/app/artifacts/strace/${JOB_TAG}"
+  mkdir -p "$STRACE_DIR"
+  STRACE_CMD="strace -ffttv -s 100000 -o ${STRACE_DIR}/${JOB_TAG}"
+  echo "strace enabled: output → $STRACE_DIR"
+fi
+
 # Run Claude in background, streaming to FIFO
 # --dangerously-skip-permissions: Auto-allow file writes (safe in sandboxed K8s container)
 # --output-format stream-json: Stream events in real-time
 # --include-partial-messages: Show progress as it happens
 # --include-hook-events: Show hook events
 # --verbose: Required for stream-json with --print
-claude --model "$MODEL" --print --dangerously-skip-permissions \
+$STRACE_CMD claude --model "$MODEL" --print --dangerously-skip-permissions \
   --output-format stream-json --include-partial-messages \
   --include-hook-events --verbose "$PROMPT" 2>/tmp/claude-stderr.log > "$claude_fifo" &
 claude_pid=$!

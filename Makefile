@@ -64,6 +64,21 @@ vagrant-rebuild-github: ## Rebuild and redeploy GitHub emulator
 	vagrant ssh -c "kubectl rollout status deployment/github-emulator -n ai-pipeline --timeout=60s"
 	@echo "✓ GitHub emulator rebuilt and redeployed"
 
+##@ Vagrant: Secrets Management
+
+GCP_CREDS ?= $(HOME)/.config/gcloud/application_default_credentials.json
+
+vagrant-push-gcp-creds: ## Create/update gcp-credentials secret from local ADC (~/.config/gcloud/application_default_credentials.json)
+	@test -f "$(GCP_CREDS)" || { echo "ERROR: $(GCP_CREDS) not found. Run 'gcloud auth application-default login' first."; exit 1; }
+	@echo "==> Pushing GCP credentials to ai-pipeline namespace..."
+	cat "$(GCP_CREDS)" | vagrant ssh -c '\
+		cat > /tmp/gcp-creds.json && \
+		kubectl -n ai-pipeline create secret generic gcp-credentials \
+			--from-file=credentials.json=/tmp/gcp-creds.json \
+			--dry-run=client -o yaml | kubectl apply -f - && \
+		rm -f /tmp/gcp-creds.json'
+	@echo "✓ gcp-credentials secret created/updated in ai-pipeline namespace"
+
 ##@ Vagrant: Full Stack Management
 
 vagrant-build-all: ## Build dashboard and agent images only (no redeploy)
@@ -182,6 +197,23 @@ vagrant-rebuild-markov: ## Rebuild markov CLI binary
 	@echo "==> Building markov CLI..."
 	vagrant ssh -c "cd /vagrant && bash deploy/scripts/05d-build-markov.sh"
 	@echo "✓ markov CLI rebuilt"
+
+vagrant-rebuild-ingress-proxy: ## Rebuild and redeploy ingress proxy (Go reverse proxy)
+	@echo "==> Rebuilding ingress proxy..."
+	vagrant ssh -c "cd /vagrant/deploy/scripts && sudo bash 09-deploy-ingress-proxy.sh"
+	@echo "✓ Ingress proxy rebuilt and redeployed"
+
+vagrant-rebuild-observatory: ## Rebuild and redeploy Observatory
+	@echo "==> Building observatory image..."
+	vagrant ssh -c "cd /vagrant && sudo bash deploy/scripts/05e-build-observatory.sh"
+	@echo "==> Applying manifest and restarting observatory..."
+	vagrant ssh -c "kubectl apply -f /vagrant/deploy/k8s/18-observatory.yaml"
+	vagrant ssh -c "kubectl rollout restart deployment/observatory -n ai-pipeline"
+	vagrant ssh -c "kubectl rollout status deployment/observatory -n ai-pipeline --timeout=120s"
+	@echo "✓ Observatory rebuilt and redeployed"
+
+vagrant-logs-observatory: ## Follow Observatory logs
+	vagrant ssh -c "kubectl logs -n ai-pipeline -l app=observatory -f"
 
 ##@ Vagrant: Backup & Restore
 
@@ -333,6 +365,14 @@ host-describe-job: ## Describe last job on host (set JOB_NAME=<name> to specify)
 	else \
 		kubectl describe -n ai-pipeline job/$(JOB_NAME); \
 	fi
+
+host-push-gcp-creds: ## Create/update gcp-credentials secret from local ADC
+	@test -f "$(GCP_CREDS)" || { echo "ERROR: $(GCP_CREDS) not found. Run 'gcloud auth application-default login' first."; exit 1; }
+	@echo "==> Pushing GCP credentials to ai-pipeline namespace..."
+	kubectl -n ai-pipeline create secret generic gcp-credentials \
+		--from-file=credentials.json="$(GCP_CREDS)" \
+		--dry-run=client -o yaml | kubectl apply -f -
+	@echo "✓ gcp-credentials secret created/updated in ai-pipeline namespace"
 
 host-deploy-elasticsearch: ## Deploy Elasticsearch on host
 	@echo "==> Deploying Elasticsearch..."

@@ -1,170 +1,296 @@
 <!doctype html>
-<html lang="en" data-theme="light">
+<html lang="en" class="">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>{% block title %}Pipeline Dashboard{% endblock %}</title>
-  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@picocss/pico@2/css/pico.min.css">
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          colors: {
+            primary: {
+              50: '#eff6ff',
+              100: '#dbeafe',
+              200: '#bfdbfe',
+              300: '#93c5fd',
+              400: '#60a5fa',
+              500: '#3b82f6',
+              600: '#2563eb',
+              700: '#1d4ed8',
+              800: '#1e40af',
+              900: '#1e3a8a',
+            }
+          }
+        }
+      }
+    }
+  </script>
   <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+  <script>
+    (function() {
+      var stored = localStorage.getItem('pipeline_theme');
+      var mode = stored || 'system';
+      var isDark = mode === 'dark' || (mode === 'system' && window.matchMedia('(prefers-color-scheme: dark)').matches);
+      if (isDark) document.documentElement.classList.add('dark');
+    })();
+  </script>
   <style>
-    :root { --pico-font-size: 87.5%; }
-    nav { margin-bottom: 1rem; }
-    .score-red { color: #c0392b; font-weight: bold; }
-    .score-yellow { color: #d4a017; font-weight: bold; }
-    .score-green { color: #27ae60; font-weight: bold; }
+    /* --- Score colors --- */
+    .score-red { color: #dc2626; font-weight: bold; }
+    .score-yellow { color: #ca8a04; font-weight: bold; }
+    .score-green { color: #16a34a; font-weight: bold; }
+    html.dark .score-red { color: #f87171; }
+    html.dark .score-yellow { color: #facc15; }
+    html.dark .score-green { color: #4ade80; }
+
+    /* --- Badge base --- */
     .badge {
-      display: inline-block; padding: 0.15em 0.5em; border-radius: 4px;
-      font-size: 0.85em; font-weight: 600;
+      display: inline-block; padding: 0.15em 0.6em; border-radius: 9999px;
+      font-size: 0.75rem; font-weight: 600; letter-spacing: 0.025em;
+      white-space: nowrap;
     }
-    .badge-bug { background: #e74c3c; color: #fff; }
-    .badge-enhancement { background: #3498db; color: #fff; }
-    .badge-feature-request { background: #9b59b6; color: #fff; }
-    .badge-task { background: #7f8c8d; color: #fff; }
-    .badge-default { background: #95a5a6; color: #fff; }
-    .badge-fix-ai-fixable { background: #27ae60; color: #fff; }
-    .badge-fix-already-fixed { background: #2980b9; color: #fff; }
-    .badge-fix-not-a-bug { background: #8e44ad; color: #fff; }
-    .badge-fix-docs-only { background: #16a085; color: #fff; }
-    .badge-fix-upstream-required { background: #d35400; color: #fff; }
-    .badge-fix-insufficient-info { background: #f39c12; color: #fff; }
-    .badge-fix-ai-could-not-fix { background: #c0392b; color: #fff; }
-    .badge-val-pass { background: #27ae60; color: #fff; }
-    .badge-val-fail { background: #c0392b; color: #fff; }
-    .badge-val-skip { background: #95a5a6; color: #fff; }
-    .badge-val-timeout { background: #d35400; color: #fff; }
-    .val-cmd { margin-bottom: 0.8em; padding: 0.5em; border-radius: 4px; font-size: 0.9em; }
-    .val-cmd-pass { background: #eafaf1; border-left: 3px solid #27ae60; }
-    .val-cmd-fail { background: #fdedec; border-left: 3px solid #c0392b; }
-    .badge-correction { background: #e67e22; color: #fff; }
-    .badge-approach-change { background: #c0392b; color: #fff; }
-    .badge-minor-fix { background: #27ae60; color: #fff; }
-    .correction-block { padding: 0.5em; margin-bottom: 0.8em; border-left: 3px solid #e67e22; background: #fef5e7; border-radius: 4px; font-size: 0.9em; }
-    .correction-block p { margin-bottom: 0.3em; }
-    .val-cmd code { font-size: 0.85em; }
-    .val-cmd pre { font-size: 0.8em; max-height: 12em; overflow-y: auto; margin: 0.3em 0 0 0; }
-    table { font-size: 0.9em; }
-    th.sortable { cursor: pointer; user-select: none; }
-    th.sortable:hover { text-decoration: underline; }
-    th.sortable::after { content: ' \\2195'; opacity: 0.3; }
-    .truncate { max-width: 300px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-    .filter-bar { display: flex; gap: 1rem; flex-wrap: wrap; margin-bottom: 1rem; align-items: end; }
-    .filter-bar label { margin-bottom: 0; }
-    .filter-bar select { margin-bottom: 0; padding: 0.4em 0.6em; }
-    details { margin-bottom: 1rem; }
-    summary { font-weight: 600; font-size: 1.1em; cursor: pointer; }
-    .detail-columns { display: grid; grid-template-columns: 1fr 1fr; gap: 2rem; align-items: start; }
-    @media (max-width: 1200px) { .detail-columns { grid-template-columns: 1fr; } }
-    .detail-left, .detail-right { min-width: 0; }
-    .issue-text { font-size: 0.9em; padding: 0.5em; background: #f8f9fa; border-radius: 4px; }
-    .issue-text p { margin-bottom: 0.5em; }
-    .issue-text pre { background: #1e1e1e; color: #f0f0f0; padding: 0.8em; border-radius: 4px; overflow-x: auto; font-size: 0.9em; }
-    .issue-text code { background: #e8e8e8; padding: 0.1em 0.3em; border-radius: 3px; font-size: 0.9em; }
-    .issue-text pre code { background: none; padding: 0; color: inherit; }
-    .issue-text blockquote { border-left: 3px solid #bbb; margin: 0.5em 0; padding-left: 0.8em; color: #555; }
-    .issue-text table { font-size: 0.85em; }
-    .issue-text h1, .issue-text h2, .issue-text h3, .issue-text h4, .issue-text h5, .issue-text h6 { margin-top: 0.8em; margin-bottom: 0.3em; }
-    .issue-text ul, .issue-text ol { margin: 0.3em 0; padding-left: 1.5em; }
-    .issue-text img { max-width: 100%; }
-    .action-bar {
-      padding: 0.5em 1em;
-      margin-bottom: 0.5em;
-      background: #fff3cd;
-      border: 1px solid #ffc107;
-      border-radius: 4px;
-      display: flex;
-      align-items: center;
-      gap: 1em;
-    }
-    .btn-reset {
-      background: #c0392b;
-      color: white;
-      border: none;
-      padding: 0.3em 1em;
-      border-radius: 4px;
-      cursor: pointer;
-    }
-    .comment-block { font-size: 0.9em; padding: 0.5em; margin-bottom: 0.5em; background: #f0f4f8; border-radius: 4px; border-left: 3px solid #3498db; }
-    .comment-block p { margin-bottom: 0.3em; }
-    .comment-meta { font-size: 0.85em; color: #555; margin-bottom: 0.3em; }
-    pre.patch {
-      background: #1e1e1e; color: #d4d4d4; padding: 1em;
-      border-radius: 6px; overflow-x: auto; font-size: 0.85em;
-    }
-    pre.patch .diff-add { color: #6a9955; }
-    pre.patch .diff-del { color: #f44747; }
-    pre.patch .diff-hunk { color: #569cd6; }
-    .score-bar {
-      background: #ecf0f1; border-radius: 4px; height: 1.4em;
-      position: relative; overflow: hidden; min-width: 120px;
-    }
-    .score-bar-fill {
-      height: 100%; border-radius: 4px;
-      display: flex; align-items: center; justify-content: center;
-      font-size: 0.8em; font-weight: bold; color: #fff;
-      min-width: 2em;
-    }
-    /* --- Type badges --- */
-    .badge-type-bug { background: #e74c3c; color: #fff; }
-    .badge-type-rfe { background: #3498db; color: #fff; }
-    .badge-type-strategy { background: #9b59b6; color: #fff; }
-    /* --- Size badges --- */
-    .badge-size-s { background: #27ae60; color: #fff; }
-    .badge-size-m { background: #f1c40f; color: #333; }
-    .badge-size-l { background: #e67e22; color: #fff; }
-    .badge-size-xl { background: #e74c3c; color: #fff; }
-    /* --- Recommendation badges --- */
-    .badge-rec-submit, .badge-rec-approve { background: #27ae60; color: #fff; }
-    .badge-rec-revise { background: #f1c40f; color: #333; }
-    .badge-rec-split { background: #3498db; color: #fff; }
-    .badge-rec-reject { background: #e74c3c; color: #fff; }
-    /* --- Feasibility badges --- */
-    .badge-feas-feasible { background: #27ae60; color: #fff; }
-    .badge-feas-infeasible { background: #e74c3c; color: #fff; }
-    .badge-feas-indeterminate { background: #95a5a6; color: #fff; }
-    /* --- Security badges --- */
-    .badge-sec-pass { background: #27ae60; color: #fff; }
-    .badge-sec-concerns { background: #f1c40f; color: #333; }
-    .badge-sec-fail { background: #e74c3c; color: #fff; }
-    /* --- Tier badges --- */
-    .badge-tier-light { background: #95a5a6; color: #fff; }
-    .badge-tier-standard { background: #3498db; color: #fff; }
-    .badge-tier-deep { background: #8e44ad; color: #fff; }
+    .badge-bug { background: #ef4444; color: #fff; }
+    .badge-enhancement { background: #3b82f6; color: #fff; }
+    .badge-feature-request { background: #a855f7; color: #fff; }
+    .badge-task { background: #6b7280; color: #fff; }
+    .badge-default { background: #9ca3af; color: #fff; }
+    .badge-fix-ai-fixable { background: #22c55e; color: #fff; }
+    .badge-fix-already-fixed { background: #2563eb; color: #fff; }
+    .badge-fix-not-a-bug { background: #7c3aed; color: #fff; }
+    .badge-fix-docs-only { background: #14b8a6; color: #fff; }
+    .badge-fix-upstream-required { background: #ea580c; color: #fff; }
+    .badge-fix-insufficient-info { background: #eab308; color: #111; }
+    .badge-fix-ai-could-not-fix { background: #dc2626; color: #fff; }
+    .badge-val-pass { background: #22c55e; color: #fff; }
+    .badge-val-fail { background: #dc2626; color: #fff; }
+    .badge-val-skip { background: #9ca3af; color: #fff; }
+    .badge-val-timeout { background: #ea580c; color: #fff; }
+    .badge-correction { background: #f97316; color: #fff; }
+    .badge-approach-change { background: #dc2626; color: #fff; }
+    .badge-minor-fix { background: #22c55e; color: #fff; }
+    .badge-type-bug { background: #ef4444; color: #fff; }
+    .badge-type-rfe { background: #3b82f6; color: #fff; }
+    .badge-type-strategy { background: #a855f7; color: #fff; }
+    .badge-size-s { background: #22c55e; color: #fff; }
+    .badge-size-m { background: #eab308; color: #111; }
+    .badge-size-l { background: #f97316; color: #fff; }
+    .badge-size-xl { background: #ef4444; color: #fff; }
+    .badge-rec-submit, .badge-rec-approve { background: #22c55e; color: #fff; }
+    .badge-rec-revise { background: #eab308; color: #111; }
+    .badge-rec-split { background: #3b82f6; color: #fff; }
+    .badge-rec-reject { background: #ef4444; color: #fff; }
+    .badge-feas-feasible { background: #22c55e; color: #fff; }
+    .badge-feas-infeasible { background: #ef4444; color: #fff; }
+    .badge-feas-indeterminate { background: #9ca3af; color: #fff; }
+    .badge-sec-pass { background: #22c55e; color: #fff; }
+    .badge-sec-concerns { background: #eab308; color: #111; }
+    .badge-sec-fail { background: #ef4444; color: #fff; }
+    .badge-tier-light { background: #9ca3af; color: #fff; }
+    .badge-tier-standard { background: #3b82f6; color: #fff; }
+    .badge-tier-deep { background: #7c3aed; color: #fff; }
+
     /* --- Rubric dots --- */
     .rubric-dot {
       display: inline-block; width: 12px; height: 12px;
       border-radius: 50%; vertical-align: middle;
     }
-    .rubric-0 { background: #e74c3c; }
-    .rubric-1 { background: #f1c40f; }
-    .rubric-2 { background: #27ae60; }
-    /* --- Tab navigation --- */
-    .tab-nav {
-      display: flex; border-bottom: 2px solid #ddd;
-      margin-bottom: 1rem; gap: 0;
+    .rubric-0 { background: #ef4444; }
+    .rubric-1 { background: #eab308; }
+    .rubric-2 { background: #22c55e; }
+
+    /* --- Score bar --- */
+    .score-bar {
+      background: #e5e7eb; border-radius: 6px; height: 1.4em;
+      position: relative; overflow: hidden; min-width: 120px;
     }
-    .tab-nav button {
-      background: none; border: none; border-bottom: 3px solid transparent;
-      padding: 0.6em 1.2em; cursor: pointer;
-      font-size: 0.95em; font-weight: 600; color: #555;
+    html.dark .score-bar { background: #374151; }
+    .score-bar-fill {
+      height: 100%; border-radius: 6px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 0.75rem; font-weight: bold; color: #fff;
+      min-width: 2em;
     }
-    .tab-nav button:hover { color: #111; background: rgba(0,0,0,0.03); }
-    .tab-nav button.active {
-      color: #111; border-bottom-color: #3498db;
+
+    /* --- Sortable table headers --- */
+    th.sortable { cursor: pointer; user-select: none; }
+    th.sortable:hover { text-decoration: underline; }
+    th.sortable::after { content: ' \2195'; opacity: 0.3; }
+
+    /* --- Truncate --- */
+    .truncate { max-width: 300px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+    /* --- Validation command blocks --- */
+    .val-cmd { margin-bottom: 0.8em; padding: 0.5em; border-radius: 8px; font-size: 0.875rem; }
+    .val-cmd-pass { background: #f0fdf4; border-left: 3px solid #22c55e; }
+    .val-cmd-fail { background: #fef2f2; border-left: 3px solid #dc2626; }
+    html.dark .val-cmd-pass { background: rgba(34,197,94,0.1); }
+    html.dark .val-cmd-fail { background: rgba(220,38,38,0.1); }
+    .val-cmd code { font-size: 0.8rem; }
+    .val-cmd pre { font-size: 0.8rem; max-height: 12em; overflow-y: auto; margin: 0.3em 0 0 0; }
+
+    /* --- Correction blocks --- */
+    .correction-block {
+      padding: 0.5em; margin-bottom: 0.8em;
+      border-left: 3px solid #f97316; background: #fff7ed;
+      border-radius: 8px; font-size: 0.875rem;
     }
+    html.dark .correction-block { background: rgba(249,115,22,0.1); }
+    .correction-block p { margin-bottom: 0.3em; }
+
+    /* --- Issue text (markdown rendered content) --- */
+    .issue-text {
+      font-size: 0.875rem; padding: 0.75em;
+      background: #f9fafb; border-radius: 8px;
+    }
+    html.dark .issue-text { background: #1f2937; }
+    .issue-text p { margin-bottom: 0.5em; }
+    .issue-text pre {
+      background: #1e1e1e; color: #f0f0f0; padding: 0.8em;
+      border-radius: 6px; overflow-x: auto; font-size: 0.875rem;
+    }
+    .issue-text code {
+      background: #e5e7eb; padding: 0.1em 0.3em;
+      border-radius: 4px; font-size: 0.875rem;
+    }
+    html.dark .issue-text code { background: #374151; color: #e5e7eb; }
+    .issue-text pre code { background: none; padding: 0; color: inherit; }
+    .issue-text blockquote { border-left: 3px solid #d1d5db; margin: 0.5em 0; padding-left: 0.8em; color: #6b7280; }
+    html.dark .issue-text blockquote { border-left-color: #4b5563; color: #9ca3af; }
+    .issue-text table { font-size: 0.8rem; }
+    .issue-text h1, .issue-text h2, .issue-text h3, .issue-text h4, .issue-text h5, .issue-text h6 { margin-top: 0.8em; margin-bottom: 0.3em; }
+    .issue-text ul, .issue-text ol { margin: 0.3em 0; padding-left: 1.5em; }
+    .issue-text img { max-width: 100%; }
+
+    /* --- Patch / diff --- */
+    pre.patch {
+      background: #1e1e1e; color: #d4d4d4; padding: 1em;
+      border-radius: 8px; overflow-x: auto; font-size: 0.8rem;
+    }
+    pre.patch .diff-add { color: #6a9955; }
+    pre.patch .diff-del { color: #f44747; }
+    pre.patch .diff-hunk { color: #569cd6; }
+
+    /* --- Comment blocks --- */
+    .comment-block {
+      font-size: 0.875rem; padding: 0.75em; margin-bottom: 0.5em;
+      background: #f0f4f8; border-radius: 8px; border-left: 3px solid #3b82f6;
+    }
+    html.dark .comment-block { background: #1e293b; border-left-color: #60a5fa; }
+    .comment-block p { margin-bottom: 0.3em; }
+    .comment-meta { font-size: 0.8rem; color: #6b7280; margin-bottom: 0.3em; }
+    html.dark .comment-meta { color: #9ca3af; }
+
+    /* --- Action bar --- */
+    .action-bar {
+      padding: 0.5em 1em; margin-bottom: 0.5em;
+      background: #fef3c7; border: 1px solid #fbbf24;
+      border-radius: 8px; display: flex; align-items: center; gap: 1em;
+    }
+    html.dark .action-bar { background: rgba(251,191,36,0.1); border-color: #92400e; }
+
+    /* --- Attention flag --- */
+    .attention-flag { color: #ef4444; font-weight: bold; }
+
+    /* --- Raw/rendered toggle --- */
+    .desc-toggle-wrap { position: relative; }
+    .desc-toggle-btn {
+      position: absolute; top: 0.5em; right: 0.5em; z-index: 5;
+      padding: 0.25em 0.5em; border-radius: 6px; cursor: pointer;
+      background: #e5e7eb; border: none; color: #374151;
+      font-size: 0.7rem; font-weight: 600; line-height: 1;
+      opacity: 0.7; transition: opacity 0.15s;
+    }
+    .desc-toggle-btn:hover { opacity: 1; }
+    html.dark .desc-toggle-btn { background: #374151; color: #d1d5db; }
+    .desc-toggle-btn.active { background: #2563eb; color: #fff; opacity: 1; }
+    html.dark .desc-toggle-btn.active { background: #3b82f6; }
+    .desc-raw {
+      display: none; white-space: pre-wrap; word-wrap: break-word;
+      font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+      font-size: 0.8rem; line-height: 1.5;
+    }
+    .desc-toggle-wrap.show-raw .desc-rendered { display: none; }
+    .desc-toggle-wrap.show-raw .desc-raw { display: block; }
+
+    /* --- Tab panels --- */
     .tab-panel { display: none; }
     .tab-panel.active { display: block; }
-    /* --- Attention flag --- */
-    .attention-flag { color: #e74c3c; font-weight: bold; }
+
+    /* --- Pipeline row highlights --- */
+    .pipeline-pending td { background: rgba(0,0,0,0.03) !important; }
+    .pipeline-pending td:first-child { box-shadow: inset 3px 0 0 #9ca3af; }
+    .pipeline-active td { background: rgba(34,197,94,0.08) !important; animation: pulse-green 2s ease-in-out infinite; }
+    .pipeline-active td:first-child { box-shadow: inset 3px 0 0 #22c55e; }
+    @keyframes pulse-green { 0%,100% { background: rgba(34,197,94,0.06); } 50% { background: rgba(34,197,94,0.18); } }
   </style>
 </head>
-<body>
-  <nav class="container-fluid">
-    <ul><li><strong><a href="/">Pipeline Dashboard</a></strong></li></ul>
-    <ul><li><a href="/">Dashboard</a></li><li><a href="/jobs">Jobs</a></li><li><a href="/files">Files</a></li><li><a href="/settings">Settings</a></li></ul>
+<body class="bg-gray-50 dark:bg-gray-950 text-gray-900 dark:text-gray-100 min-h-screen transition-colors">
+  <!-- Sticky glassmorphic header -->
+  <nav class="sticky top-0 z-30 bg-white/80 dark:bg-gray-900/80 backdrop-blur-xl border-b border-gray-200/60 dark:border-gray-700/60">
+    <div class="max-w-[100rem] mx-auto px-4 lg:px-8 flex items-center justify-between h-14">
+      <a href="/" class="flex items-center gap-2 text-gray-900 dark:text-white no-underline">
+        <span class="bg-primary-600 text-white rounded-lg w-8 h-8 flex items-center justify-center text-sm font-bold">P</span>
+        <span class="font-semibold text-base hidden sm:inline">Pipeline Dashboard</span>
+      </a>
+      <div class="flex items-center gap-1">
+        <a href="/" class="px-3 py-1.5 rounded-lg text-sm font-medium text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 hover:text-gray-900 dark:hover:text-white transition-colors no-underline">Dashboard</a>
+        <a href="/jobs" class="px-3 py-1.5 rounded-lg text-sm font-medium text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 hover:text-gray-900 dark:hover:text-white transition-colors no-underline">Jobs</a>
+        <a href="/files" class="px-3 py-1.5 rounded-lg text-sm font-medium text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 hover:text-gray-900 dark:hover:text-white transition-colors no-underline">Files</a>
+        <a href="/settings" class="px-3 py-1.5 rounded-lg text-sm font-medium text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 hover:text-gray-900 dark:hover:text-white transition-colors no-underline">Settings</a>
+        <div class="w-px h-5 bg-gray-200 dark:bg-gray-700 mx-1"></div>
+        <a href="http://mlflow.local" target="_blank" class="px-2 py-1.5 rounded-lg text-xs font-medium text-gray-400 dark:text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-800 hover:text-gray-700 dark:hover:text-gray-300 transition-colors no-underline" title="MLflow Tracking">MLflow</a>
+        <a href="http://markovd.local" target="_blank" class="px-2 py-1.5 rounded-lg text-xs font-medium text-gray-400 dark:text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-800 hover:text-gray-700 dark:hover:text-gray-300 transition-colors no-underline" title="Markov Workflow Engine">Markov</a>
+        <a href="https://github.local" target="_blank" class="px-2 py-1.5 rounded-lg text-xs font-medium text-gray-400 dark:text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-800 hover:text-gray-700 dark:hover:text-gray-300 transition-colors no-underline" title="GitHub Emulator">GitHub</a>
+        <a href="https://jira.local" target="_blank" class="px-2 py-1.5 rounded-lg text-xs font-medium text-gray-400 dark:text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-800 hover:text-gray-700 dark:hover:text-gray-300 transition-colors no-underline" title="Jira Emulator">Jira</a>
+        <a href="https://observatory.local" target="_blank" class="px-2 py-1.5 rounded-lg text-xs font-medium text-gray-400 dark:text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-800 hover:text-gray-700 dark:hover:text-gray-300 transition-colors no-underline" title="Observatory">Observatory</a>
+        <div class="w-px h-5 bg-gray-200 dark:bg-gray-700 mx-1"></div>
+        <button id="theme-toggle" onclick="cycleTheme()" class="p-2 rounded-lg text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 hover:text-gray-900 dark:hover:text-white transition-colors" title="Toggle theme">
+          <svg id="icon-sun" class="w-5 h-5 hidden" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="5"/><path d="M12 1v2m0 18v2M4.22 4.22l1.42 1.42m12.72 12.72l1.42 1.42M1 12h2m18 0h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/></svg>
+          <svg id="icon-moon" class="w-5 h-5 hidden" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M21 12.79A9 9 0 1111.21 3 7 7 0 0021 12.79z"/></svg>
+          <svg id="icon-monitor" class="w-5 h-5 hidden" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8m-4-4v4"/></svg>
+        </button>
+      </div>
+    </div>
   </nav>
-  <main class="container-fluid">
+
+  <main class="max-w-[100rem] mx-auto px-4 lg:px-8 py-6">
     {% block content %}{% endblock %}
   </main>
+
+  <script>
+    function getThemeMode() {
+      return localStorage.getItem('pipeline_theme') || 'system';
+    }
+    function applyTheme(mode) {
+      var isDark = mode === 'dark' || (mode === 'system' && window.matchMedia('(prefers-color-scheme: dark)').matches);
+      document.documentElement.classList.toggle('dark', isDark);
+      document.getElementById('icon-sun').classList.toggle('hidden', mode !== 'light');
+      document.getElementById('icon-moon').classList.toggle('hidden', mode !== 'dark');
+      document.getElementById('icon-monitor').classList.toggle('hidden', mode !== 'system');
+    }
+    function cycleTheme() {
+      var modes = ['light', 'dark', 'system'];
+      var current = getThemeMode();
+      var next = modes[(modes.indexOf(current) + 1) % modes.length];
+      localStorage.setItem('pipeline_theme', next);
+      applyTheme(next);
+    }
+    applyTheme(getThemeMode());
+    window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', function() {
+      if (getThemeMode() === 'system') applyTheme('system');
+    });
+
+    function toggleDescView(btn) {
+      var wrap = btn.closest('.desc-toggle-wrap');
+      wrap.classList.toggle('show-raw');
+      var isRaw = wrap.classList.contains('show-raw');
+      btn.textContent = isRaw ? 'Rendered' : 'Raw';
+      btn.classList.toggle('active', isRaw);
+    }
+  </script>
   {% block scripts %}{% endblock %}
 </body>
 </html>

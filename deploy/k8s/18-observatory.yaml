@@ -1,0 +1,131 @@
+---
+# ConfigMap for Observatory
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: observatory-config
+  namespace: ai-pipeline
+  labels:
+    app: observatory
+data:
+  OBSERVATORY_DATABASE_PATH: /data/observatory.db
+  OBSERVATORY_STATIC_DIR: /app/src/frontend/dist
+  OBSERVATORY_COLLECTOR_INTERVAL_MINUTES: "30"
+  OBSERVATORY_HOST: "0.0.0.0"
+  OBSERVATORY_PORT: "8000"
+---
+# Secret for Observatory (tokens populated manually or via deploy script)
+apiVersion: v1
+kind: Secret
+metadata:
+  name: observatory-secrets
+  namespace: ai-pipeline
+  labels:
+    app: observatory
+type: Opaque
+stringData:
+  OBSERVATORY_GITLAB_TOKEN: ""
+  OBSERVATORY_GITHUB_TOKEN: ""
+  OBSERVATORY_API_KEY: "observatory-dev-key"
+---
+# Service for Observatory
+apiVersion: v1
+kind: Service
+metadata:
+  name: observatory
+  namespace: ai-pipeline
+  labels:
+    app: observatory
+spec:
+  type: ClusterIP
+  selector:
+    app: observatory
+  ports:
+    - name: http
+      port: 8000
+      targetPort: 8000
+      protocol: TCP
+---
+# PersistentVolumeClaim for Observatory data
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: observatory-data
+  namespace: ai-pipeline
+  labels:
+    app: observatory
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 2Gi
+  storageClassName: local-path
+---
+# Deployment for Observatory
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: observatory
+  namespace: ai-pipeline
+  labels:
+    app: observatory
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: observatory
+  template:
+    metadata:
+      labels:
+        app: observatory
+    spec:
+      containers:
+      - name: observatory
+        image: observatory:latest
+        imagePullPolicy: Never
+        ports:
+        - name: http
+          containerPort: 8000
+          protocol: TCP
+
+        envFrom:
+        - configMapRef:
+            name: observatory-config
+        - secretRef:
+            name: observatory-secrets
+
+        volumeMounts:
+        - name: data
+          mountPath: /data
+
+        resources:
+          requests:
+            memory: "256Mi"
+            cpu: "100m"
+          limits:
+            memory: "512Mi"
+            cpu: "500m"
+
+        livenessProbe:
+          httpGet:
+            path: /healthz
+            port: 8000
+          initialDelaySeconds: 10
+          periodSeconds: 30
+          timeoutSeconds: 5
+          failureThreshold: 3
+
+        readinessProbe:
+          httpGet:
+            path: /healthz
+            port: 8000
+          initialDelaySeconds: 5
+          periodSeconds: 10
+          timeoutSeconds: 3
+          failureThreshold: 3
+
+      volumes:
+      - name: data
+        persistentVolumeClaim:
+          claimName: observatory-data

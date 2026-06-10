@@ -1,54 +1,58 @@
-<h2>Epics (<span id="epic-row-count">{{ epic_issues|length }}</span>)</h2>
-<div class="filter-bar" id="epic-filter-bar">
-  <label>
+<h2 class="text-lg font-semibold text-gray-900 dark:text-white mb-4">Epics (<span id="epic-row-count">{{ epic_issues|length }}</span>)</h2>
+
+<div class="flex flex-wrap gap-3 mb-4 items-end" id="epic-filter-bar">
+  <label class="text-sm font-medium text-gray-700 dark:text-gray-300">
     Type
-    <select data-attr="epictype" onchange="applyTabFilters('epic-table','epic-filter-bar','epic-row-count')">
+    <select data-attr="epictype" onchange="applyTabFilters('epic-table','epic-filter-bar','epic-row-count')" class="mt-1 block rounded-lg border-gray-300 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-200 text-sm py-1.5 px-2.5">
       <option value="">All</option>
       {% for v in epic_types %}<option value="{{ v }}">{{ v }}</option>{% endfor %}
     </select>
   </label>
-  <label>
+  <label class="text-sm font-medium text-gray-700 dark:text-gray-300">
     Strategy
-    <select data-attr="stratkey" onchange="applyTabFilters('epic-table','epic-filter-bar','epic-row-count')">
+    <select data-attr="stratkey" onchange="applyTabFilters('epic-table','epic-filter-bar','epic-row-count')" class="mt-1 block rounded-lg border-gray-300 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-200 text-sm py-1.5 px-2.5">
       <option value="">All</option>
       {% for v in epic_strat_keys %}<option value="{{ v }}">{{ v }}</option>{% endfor %}
     </select>
   </label>
-  <label>
+  <label class="text-sm font-medium text-gray-700 dark:text-gray-300">
     Search
-    <input type="text" oninput="applyTabFilters('epic-table','epic-filter-bar','epic-row-count')" placeholder="text search&hellip;" style="margin-bottom:0; padding:0.4em 0.6em;">
+    <input type="text" oninput="applyTabFilters('epic-table','epic-filter-bar','epic-row-count')" placeholder="text search&hellip;" class="mt-1 block rounded-lg border-gray-300 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-200 text-sm py-1.5 px-2.5">
   </label>
 </div>
-<div style="overflow-x:auto;">
-<table role="grid" id="epic-table">
-  <thead>
+
+<div class="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 overflow-hidden">
+<div class="overflow-x-auto">
+<table class="w-full text-sm text-left" role="grid" id="epic-table">
+  <thead class="bg-gray-50 dark:bg-gray-800 text-xs uppercase text-gray-500 dark:text-gray-400">
     <tr>
-      <th class="sortable" data-col="0">Key</th>
-      <th class="sortable" data-col="1">Title</th>
-      <th class="sortable" data-col="2">Type</th>
-      <th class="sortable" data-col="3">Parent Strategy</th>
-      <th class="sortable" data-col="4">Created</th>
+      <th class="sortable px-4 py-3" data-col="0">Key</th>
+      <th class="sortable px-4 py-3" data-col="1">Title</th>
+      <th class="sortable px-4 py-3" data-col="2">Type</th>
+      <th class="sortable px-4 py-3" data-col="3">Parent Strategy</th>
+      <th class="sortable px-4 py-3" data-col="4">Created</th>
     </tr>
   </thead>
-  <tbody>
+  <tbody class="divide-y divide-gray-200 dark:divide-gray-700">
     {% for ep in epic_issues %}
-    <tr
+    <tr class="hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors"
       data-epictype="{{ ep.type|default('') }}"
       data-stratkey="{{ ep.strat_key|default('') }}"
     >
-      <td><a href="https://issues.redhat.com/browse/{{ ep.key }}">{{ ep.key }}</a></td>
-      <td class="truncate" title="{{ ep.title|default('') }}">{{ ep.title|default('')|truncate(80) }}</td>
-      <td>
+      <td class="px-4 py-2.5"><a href="https://issues.redhat.com/browse/{{ ep.key }}" class="text-primary-600 dark:text-primary-400 hover:underline font-medium">{{ ep.key }}</a></td>
+      <td class="px-4 py-2.5 truncate" title="{{ ep.title|default('') }}">{{ ep.title|default('')|truncate(80) }}</td>
+      <td class="px-4 py-2.5">
         {% if ep.type == 'eng' %}<span class="badge badge-rec-approve">eng</span>
         {% elif ep.type == 'qe' %}<span class="badge badge-sec-concerns">qe</span>
-        {% elif ep.type == 'integration' %}<span class="badge badge-tier-2">integration</span>
-        {% else %}<span class="badge">{{ ep.type }}</span>
+        {% elif ep.type == 'integration' %}<span class="badge badge-tier-standard">integration</span>
+        {% else %}<span class="badge badge-default">{{ ep.type }}</span>
         {% endif %}
       </td>
-      <td><a href="/strat/{{ ep.strat_key }}">{{ ep.strat_key }}</a></td>
-      <td>{{ ep.created_at|default('&mdash;'|safe) }}</td>
+      <td class="px-4 py-2.5"><a href="/strat/{{ ep.strat_key }}" class="text-primary-600 dark:text-primary-400 hover:underline font-medium">{{ ep.strat_key }}</a></td>
+      <td class="px-4 py-2.5 text-gray-500 dark:text-gray-500 text-xs">{{ ep.created_at|default('&mdash;'|safe) }}</td>
     </tr>
     {% endfor %}
   </tbody>
 </table>
+</div>
 </div>

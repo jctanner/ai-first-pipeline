@@ -2,113 +2,56 @@
 {% block title %}Jobs{% endblock %}
 {% block content %}
 <style>
-  .job-form {
-    background: #f8f9fa;
-    padding: 1.5rem;
-    border-radius: 8px;
-    margin-bottom: 2rem;
-  }
-  .job-form h2 { margin-top: 0; }
-  .form-grid {
-    display: grid;
-    grid-template-columns: 1fr 1fr 1fr 1fr auto;
-    gap: 1rem;
-    align-items: end;
-  }
-  @media (max-width: 900px) {
-    .form-grid { grid-template-columns: 1fr 1fr; }
-  }
-  .jobs-table { margin-top: 1rem; }
-  .status-pending { color: #95a5a6; }
-  .status-running { color: #3498db; font-weight: bold; }
-  .status-completed { color: #27ae60; font-weight: bold; }
-  .status-failed { color: #e74c3c; font-weight: bold; }
-  .btn-delete {
-    background: #e74c3c;
-    color: white;
-    border: none;
-    padding: 0.2em 0.6em;
-    border-radius: 4px;
-    cursor: pointer;
-    font-size: 0.85em;
-  }
-  .btn-delete:hover { background: #c0392b; }
-  .btn-logs {
-    background: #3498db;
-    color: white;
-    border: none;
-    padding: 0.2em 0.6em;
-    border-radius: 4px;
-    cursor: pointer;
-    font-size: 0.85em;
-  }
-  .btn-logs:hover { background: #2980b9; }
-  .btn-stop {
-    background: #e67e22;
-    color: white;
-    border: none;
-    padding: 0.2em 0.6em;
-    border-radius: 4px;
-    cursor: pointer;
-    font-size: 0.85em;
-  }
-  .btn-stop:hover { background: #d35400; }
+  .status-pending { color: #9ca3af; }
+  .status-running { color: #3b82f6; font-weight: bold; }
+  .status-completed { color: #22c55e; font-weight: bold; }
+  .status-failed { color: #ef4444; font-weight: bold; }
+  html.dark .status-pending { color: #6b7280; }
+  html.dark .status-running { color: #60a5fa; }
+  html.dark .status-completed { color: #4ade80; }
+  html.dark .status-failed { color: #f87171; }
   .btn-rerun {
-    background: #27ae60;
-    color: white;
-    border: none;
-    padding: 0.2em 0.6em;
-    border-radius: 4px;
-    cursor: pointer;
-    font-size: 0.85em;
+    background: #22c55e; color: white; border: none;
+    padding: 0.2em 0.6em; border-radius: 6px; cursor: pointer; font-size: 0.8rem;
   }
-  .btn-rerun:hover { background: #219a52; }
-  #log-viewer {
-    display: none;
-    margin-top: 1rem;
-    background: #1e1e1e;
-    color: #d4d4d4;
-    padding: 1rem;
-    border-radius: 6px;
-    max-height: 500px;
-    overflow-y: auto;
-    font-family: monospace;
-    font-size: 0.85em;
-    white-space: pre-wrap;
-    word-wrap: break-word;
+  .btn-rerun:hover { background: #16a34a; }
+  .btn-stop {
+    background: #f97316; color: white; border: none;
+    padding: 0.2em 0.6em; border-radius: 6px; cursor: pointer; font-size: 0.8rem;
   }
-  #log-viewer.active { display: block; }
-  .log-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: 0.5rem;
+  .btn-stop:hover { background: #ea580c; }
+  .btn-delete {
+    background: #ef4444; color: white; border: none;
+    padding: 0.2em 0.6em; border-radius: 6px; cursor: pointer; font-size: 0.8rem;
   }
-  .btn-close-logs {
-    background: #95a5a6;
-    color: white;
-    border: none;
-    padding: 0.3em 0.8em;
-    border-radius: 4px;
-    cursor: pointer;
+  .btn-delete:hover { background: #dc2626; }
+  #job-modal::backdrop { background: rgba(0,0,0,0.5); }
+  #job-modal { max-width: 80rem; width: calc(100% - 2rem); }
+  .modal-log {
+    background: #0a0a0a; color: #d4d4d4;
+    padding: 1rem; border-radius: 8px;
+    max-height: 60vh; overflow-y: auto;
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    font-size: 0.75rem; line-height: 1.5;
+    white-space: pre-wrap; word-wrap: break-word;
   }
 </style>
 
-<h1>Kubernetes Jobs</h1>
+<h1 class="text-xl font-semibold text-gray-900 dark:text-white mb-6">Kubernetes Jobs</h1>
 
 {% if not k8s_available %}
-<div class="action-bar" style="background: #fdedec; border-color: #e74c3c;">
-  <strong>⚠️ Kubernetes orchestration not available</strong>
-  <p style="margin: 0;">The K8s client library is not installed or the cluster is not accessible.</p>
+<div class="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-xl p-4 mb-6">
+  <p class="text-sm font-medium text-red-800 dark:text-red-300">Kubernetes orchestration not available</p>
+  <p class="text-sm text-red-600 dark:text-red-400 mt-1">The K8s client library is not installed or the cluster is not accessible.</p>
 </div>
 {% else %}
 
-<div class="job-form">
-  <h2>Submit New Job</h2>
-  <form id="submit-form" class="form-grid">
+<div class="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 p-5 mb-6">
+  <h2 class="text-base font-semibold text-gray-900 dark:text-white mb-4">Submit New Job</h2>
+  <form id="submit-form" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-7 gap-4 items-end">
     <div>
-      <label for="skill">Skill</label>
-      <select id="skill" name="skill" required>
+      <label for="skill" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Skill</label>
+      <select id="skill" name="skill" required class="w-full rounded-lg border-gray-300 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-200 text-sm py-2 px-3">
         <option value="">Select skill...</option>
         {% for s in skills %}
         <option value="{{ s.key }}">{{ s.display }}</option>
@@ -116,62 +59,93 @@
       </select>
     </div>
     <div>
-      <label for="issue">Issue Key <small style="color: #95a5a6;">(optional for some skills)</small></label>
-      <input type="text" id="issue" name="issue" placeholder="RHOAIENG-12345">
+      <label for="issue" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Issue Key <span class="text-gray-400 text-xs">(optional)</span></label>
+      <input type="text" id="issue" name="issue" placeholder="RHOAIENG-12345" class="w-full rounded-lg border-gray-300 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-200 text-sm py-2 px-3">
     </div>
     <div>
-      <label for="model">Model</label>
-      <select id="model" name="model" required>
+      <label for="model" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Model</label>
+      <select id="model" name="model" required class="w-full rounded-lg border-gray-300 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-200 text-sm py-2 px-3">
         <option value="haiku">haiku</option>
         <option value="sonnet">sonnet</option>
         <option value="opus" selected>opus</option>
       </select>
     </div>
     <div>
-      <label for="runner">Runner</label>
-      <select id="runner" name="runner" required>
+      <label for="runner" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Runner</label>
+      <select id="runner" name="runner" required class="w-full rounded-lg border-gray-300 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-200 text-sm py-2 px-3">
         <option value="cli" selected>CLI</option>
         <option value="sdk">SDK</option>
       </select>
     </div>
+    <div class="flex items-end gap-4">
+      <label class="flex items-center gap-1.5 text-sm text-gray-700 dark:text-gray-300 cursor-pointer select-none">
+        <input type="checkbox" id="enable-strace" checked class="rounded border-gray-300 dark:border-gray-600">
+        strace
+      </label>
+      <label class="flex items-center gap-1.5 text-sm text-gray-700 dark:text-gray-300 cursor-pointer select-none">
+        <input type="checkbox" id="enable-mlflow" checked class="rounded border-gray-300 dark:border-gray-600">
+        MLflow
+      </label>
+    </div>
     <div>
-      <label>&nbsp;</label>
-      <button type="submit">Submit Job</button>
+      <button type="submit" class="w-full bg-primary-600 hover:bg-primary-700 text-white text-sm font-medium py-2 px-4 rounded-lg transition-colors">Submit Job</button>
     </div>
   </form>
-  <div id="submit-status" style="margin-top: 1rem;"></div>
+  <div id="submit-status" class="mt-3 text-sm"></div>
 </div>
 
-<h2>Active Jobs <span id="job-count" style="color: #95a5a6; font-size: 0.9em;">(0)</span></h2>
+<h2 class="text-base font-semibold text-gray-900 dark:text-white mb-3">Active Jobs <span id="job-count" class="text-gray-400 text-sm font-normal">(0)</span></h2>
 
-<div class="jobs-table">
-  <table id="jobs-table">
-    <thead>
+<div class="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 overflow-hidden">
+<div class="overflow-x-auto">
+  <table class="w-full text-sm text-left" id="jobs-table">
+    <thead class="bg-gray-50 dark:bg-gray-800 text-xs uppercase text-gray-500 dark:text-gray-400">
       <tr>
-        <th>Job Name</th>
-        <th>Skill</th>
-        <th>Issue</th>
-        <th>Model</th>
-        <th>Runner</th>
-        <th>Status</th>
-        <th>Created</th>
-        <th>Duration (s)</th>
-        <th>Actions</th>
+        <th class="px-4 py-3">Job Name</th>
+        <th class="px-4 py-3">Skill</th>
+        <th class="px-4 py-3">Issue</th>
+        <th class="px-4 py-3">Model</th>
+        <th class="px-4 py-3">Runner</th>
+        <th class="px-4 py-3">Status</th>
+        <th class="px-4 py-3">Created</th>
+        <th class="px-4 py-3">Duration (s)</th>
       </tr>
     </thead>
-    <tbody id="jobs-tbody">
-      <tr><td colspan="9" style="text-align: center; color: #95a5a6;">Loading jobs...</td></tr>
+    <tbody id="jobs-tbody" class="divide-y divide-gray-200 dark:divide-gray-700">
+      <tr><td colspan="8" class="px-4 py-8 text-center text-gray-400">Loading jobs...</td></tr>
     </tbody>
   </table>
 </div>
-
-<div id="log-viewer">
-  <div class="log-header">
-    <strong id="log-job-name"></strong>
-    <button class="btn-close-logs" onclick="closeLogs()">Close</button>
-  </div>
-  <div id="log-content"></div>
 </div>
+
+<dialog id="job-modal" class="rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 p-0">
+  <div class="p-5">
+    <div class="flex items-center justify-between mb-4">
+      <div class="flex items-center gap-3 min-w-0">
+        <h3 class="text-base font-semibold text-gray-900 dark:text-white truncate" id="modal-job-name"></h3>
+        <span id="modal-status-badge" class="badge"></span>
+      </div>
+      <button onclick="closeJobModal()" class="ml-4 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 text-xl leading-none">&times;</button>
+    </div>
+
+    <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 text-sm mb-4">
+      <div><span class="text-gray-500 dark:text-gray-400">Phase</span><div id="modal-phase" class="font-medium text-gray-900 dark:text-white"></div></div>
+      <div><span class="text-gray-500 dark:text-gray-400">Issue</span><div id="modal-issue" class="font-medium text-gray-900 dark:text-white"></div></div>
+      <div><span class="text-gray-500 dark:text-gray-400">Model</span><div id="modal-model" class="font-medium text-gray-900 dark:text-white"></div></div>
+      <div><span class="text-gray-500 dark:text-gray-400">Runner</span><div id="modal-runner" class="font-medium text-gray-900 dark:text-white"></div></div>
+      <div><span class="text-gray-500 dark:text-gray-400">Created</span><div id="modal-created" class="font-medium text-gray-900 dark:text-white"></div></div>
+      <div><span class="text-gray-500 dark:text-gray-400">Started</span><div id="modal-started" class="font-medium text-gray-900 dark:text-white"></div></div>
+      <div><span class="text-gray-500 dark:text-gray-400">Duration</span><div id="modal-duration" class="font-medium text-gray-900 dark:text-white"></div></div>
+      <div><span class="text-gray-500 dark:text-gray-400">Result</span><div id="modal-result" class="font-medium text-gray-900 dark:text-white"></div></div>
+      <div><span class="text-gray-500 dark:text-gray-400">strace</span><div id="modal-strace" class="font-medium text-gray-900 dark:text-white"></div></div>
+      <div><span class="text-gray-500 dark:text-gray-400">MLflow</span><div id="modal-mlflow" class="font-medium text-gray-900 dark:text-white"></div></div>
+    </div>
+
+    <div class="flex gap-2 mb-4" id="modal-actions"></div>
+
+    <div class="modal-log" id="modal-log-content">Loading logs...</div>
+  </div>
+</dialog>
 
 {% endif %}
 

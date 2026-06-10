@@ -6,52 +6,54 @@
 {% set reviewers = rev.reviewers if rev and rev.reviewers else {} %}
 {% set rc = sec.risk_count if sec and sec.risk_count else {} %}
 {% set total_risks = (rc.critical|default(0)) + (rc.high|default(0)) + (rc.medium|default(0)) %}
-<hgroup>
-  <h2>{{ strat.key }}: {{ strat.title|default('Untitled Strategy') }}</h2>
-</hgroup>
-<p>
-  <a href="/">&larr; Back to dashboard</a>
-  {% if strat.jira_key %}
-    &nbsp;|&nbsp; <a href="https://issues.redhat.com/browse/{{ strat.jira_key }}" target="_blank">View in Jira &nearr;</a>
-  {% endif %}
-</p>
+
+<div class="mb-4">
+  <h2 class="text-xl font-semibold text-gray-900 dark:text-white">{{ strat.key }}: {{ strat.title|default('Untitled Strategy') }}</h2>
+  <div class="flex gap-3 text-sm mt-1">
+    <a href="/" class="text-primary-600 dark:text-primary-400 hover:underline">&larr; Back to dashboard</a>
+    {% if strat.jira_key %}
+      <span class="text-gray-300 dark:text-gray-600">|</span>
+      <a href="https://issues.redhat.com/browse/{{ strat.jira_key }}" target="_blank" class="text-primary-600 dark:text-primary-400 hover:underline">View in Jira &nearr;</a>
+    {% endif %}
+  </div>
+</div>
 
 {# --- Issue metadata --- #}
-<div style="display:flex; gap:1.5rem; flex-wrap:wrap; margin-bottom:1rem; font-size:0.95em;">
-  <span><strong>Priority:</strong> {{ strat.priority|default('—') }}</span>
-  <span><strong>Status:</strong> {{ strat.status|default('—') }}</span>
-  <span><strong>Source RFE:</strong>
+<div class="flex gap-4 flex-wrap mb-4 text-sm">
+  <span><strong class="text-gray-600 dark:text-gray-400">Priority:</strong> {{ strat.priority|default('—') }}</span>
+  <span><strong class="text-gray-600 dark:text-gray-400">Status:</strong> {{ strat.status|default('—') }}</span>
+  <span><strong class="text-gray-600 dark:text-gray-400">Source RFE:</strong>
     {% if strat.source_rfe %}
-      <a href="/rfe/{{ strat.source_rfe }}">{{ strat.source_rfe }}</a>
+      <a href="/rfe/{{ strat.source_rfe }}" class="text-primary-600 dark:text-primary-400 hover:underline">{{ strat.source_rfe }}</a>
     {% else %}—{% endif %}
   </span>
-  <span><strong>Jira Key:</strong>
+  <span><strong class="text-gray-600 dark:text-gray-400">Jira Key:</strong>
     {% if strat.jira_key %}
-      <a href="https://issues.redhat.com/browse/{{ strat.jira_key }}" target="_blank">{{ strat.jira_key }}</a>
+      <a href="https://issues.redhat.com/browse/{{ strat.jira_key }}" target="_blank" class="text-primary-600 dark:text-primary-400 hover:underline">{{ strat.jira_key }}</a>
     {% else %}—{% endif %}
   </span>
 </div>
 
-{# =============== Review Summary (always visible) =============== #}
+{# =============== Review Summary =============== #}
 {% if rev or sec %}
-<div style="background:#f8f9fa; border-radius:6px; padding:1rem; margin-bottom:1.5rem;">
-  <div style="display:flex; gap:2rem; flex-wrap:wrap; align-items:start;">
+<div class="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 p-5 mb-6">
+  <div class="flex gap-6 flex-wrap items-start">
 
     {# -- Overall recommendation + reviewer verdicts -- #}
-    <div style="flex:1; min-width:250px;">
+    <div class="flex-1 min-w-[250px]">
       {% if rev and rev.recommendation %}
-      <div style="margin-bottom:0.8em;">
-        <strong>Overall Recommendation: </strong>
+      <div class="mb-3">
+        <strong class="text-sm text-gray-600 dark:text-gray-400">Overall Recommendation: </strong>
         <span class="badge badge-rec-{{ rev.recommendation }}">{{ rev.recommendation }}</span>
       </div>
       {% endif %}
-      <div style="display:flex; gap:0.8rem; flex-wrap:wrap; font-size:0.9em;">
+      <div class="flex gap-3 flex-wrap text-sm">
         {% for rname, rlabel in [('feasibility','Feasibility'),('testability','Testability'),('scope','Scope'),('architecture','Architecture')] %}
         <span>
           {{ rlabel }}:
           {% if reviewers[rname] %}
             <span class="badge badge-rec-{{ reviewers[rname] }}">{{ reviewers[rname] }}</span>
-          {% else %}—{% endif %}
+          {% else %}<span class="text-gray-400">—</span>{% endif %}
         </span>
         {% endfor %}
       </div>
@@ -59,8 +61,8 @@
 
     {# -- Security summary -- #}
     {% if sec %}
-    <div style="display:flex; gap:0.6rem; flex-wrap:wrap; align-items:center; font-size:0.9em;">
-      <strong>Security:</strong>
+    <div class="flex gap-2 flex-wrap items-center text-sm">
+      <strong class="text-gray-600 dark:text-gray-400">Security:</strong>
       {% if sec.verdict %}
         <span class="badge badge-sec-{{ sec.verdict|lower }}">{{ sec.verdict }}</span>
       {% endif %}
@@ -86,49 +88,67 @@
   </div>
 </div>
 {% else %}
-<p><em>No review data available for this strategy.</em></p>
+<p class="text-sm text-gray-500 italic mb-6">No review data available for this strategy.</p>
 {% endif %}
 
 {# =============== Content Tabs =============== #}
-<div class="tab-nav" id="strat-tab-nav">
-  <button class="active" onclick="switchStratTab('strategy')">Strategy</button>
-  <button onclick="switchStratTab('business')">Business Need</button>
-  {% if rev %}<button onclick="switchStratTab('review')">Review</button>{% endif %}
-  {% if sec %}<button onclick="switchStratTab('security')">Security Review</button>{% endif %}
+<div class="flex items-center border-b border-gray-200 dark:border-gray-700 mb-4 gap-1 overflow-x-auto" id="strat-tab-nav">
+  <button class="strat-tab-btn active px-4 py-2.5 text-sm font-semibold border-b-2 whitespace-nowrap transition-colors text-gray-900 dark:text-white border-primary-600" onclick="switchStratTab('strategy')">Strategy</button>
+  <button class="strat-tab-btn px-4 py-2.5 text-sm font-semibold border-b-2 whitespace-nowrap transition-colors text-gray-500 dark:text-gray-400 border-transparent hover:text-gray-700 dark:hover:text-gray-200" onclick="switchStratTab('business')">Business Need</button>
+  {% if rev %}<button class="strat-tab-btn px-4 py-2.5 text-sm font-semibold border-b-2 whitespace-nowrap transition-colors text-gray-500 dark:text-gray-400 border-transparent hover:text-gray-700 dark:hover:text-gray-200" onclick="switchStratTab('review')">Review</button>{% endif %}
+  {% if sec %}<button class="strat-tab-btn px-4 py-2.5 text-sm font-semibold border-b-2 whitespace-nowrap transition-colors text-gray-500 dark:text-gray-400 border-transparent hover:text-gray-700 dark:hover:text-gray-200" onclick="switchStratTab('security')">Security Review</button>{% endif %}
 </div>
 
 <div id="strat-tab-strategy" class="tab-panel active">
 {% if strat._body %}
   {% set body_text = strat._body %}
   {% if '## Strategy' in body_text %}
-    <div class="issue-text md-content">{{ body_text.split('## Strategy', 1)[1]|e }}</div>
+    {% set raw_text = body_text.split('## Strategy', 1)[1] %}
   {% elif '## Business Need' in body_text %}
-    <div class="issue-text md-content">{{ body_text.split('## Business Need')[0]|e }}</div>
+    {% set raw_text = body_text.split('## Business Need')[0] %}
   {% else %}
-    <div class="issue-text md-content">{{ body_text|e }}</div>
+    {% set raw_text = body_text %}
   {% endif %}
+  <div class="desc-toggle-wrap">
+    <button onclick="toggleDescView(this)" class="desc-toggle-btn" title="Toggle raw/rendered view">Raw</button>
+    <div class="issue-text md-content desc-rendered">{{ raw_text|e }}</div>
+    <pre class="issue-text desc-raw">{{ raw_text|e }}</pre>
+  </div>
 {% else %}
-  <p><em>No strategy content available.</em></p>
+  <p class="text-sm text-gray-500 italic">No strategy content available.</p>
 {% endif %}
 </div>
 
 <div id="strat-tab-business" class="tab-panel">
 {% if strat._body and '## Business Need' in strat._body %}
   {% set parts = strat._body.split('## Business Need', 1) %}
-  <div class="issue-text md-content">## Business Need{{ parts[1].split('## Strategy')[0] if '## Strategy' in parts[1] else parts[1] }}</div>
+  {% set biz_text = '## Business Need' ~ (parts[1].split('## Strategy')[0] if '## Strategy' in parts[1] else parts[1]) %}
+  <div class="desc-toggle-wrap">
+    <button onclick="toggleDescView(this)" class="desc-toggle-btn" title="Toggle raw/rendered view">Raw</button>
+    <div class="issue-text md-content desc-rendered">{{ biz_text|e }}</div>
+    <pre class="issue-text desc-raw">{{ biz_text|e }}</pre>
+  </div>
 {% elif strat._body %}
-  <div class="issue-text md-content">{{ strat._body|e }}</div>
+  <div class="desc-toggle-wrap">
+    <button onclick="toggleDescView(this)" class="desc-toggle-btn" title="Toggle raw/rendered view">Raw</button>
+    <div class="issue-text md-content desc-rendered">{{ strat._body|e }}</div>
+    <pre class="issue-text desc-raw">{{ strat._body|e }}</pre>
+  </div>
 {% else %}
-  <p><em>No business need content available.</em></p>
+  <p class="text-sm text-gray-500 italic">No business need content available.</p>
 {% endif %}
 </div>
 
 {% if rev %}
 <div id="strat-tab-review" class="tab-panel">
 {% if rev._body %}
-  <div class="issue-text md-content">{{ rev._body|e }}</div>
+  <div class="desc-toggle-wrap">
+    <button onclick="toggleDescView(this)" class="desc-toggle-btn" title="Toggle raw/rendered view">Raw</button>
+    <div class="issue-text md-content desc-rendered">{{ rev._body|e }}</div>
+    <pre class="issue-text desc-raw">{{ rev._body|e }}</pre>
+  </div>
 {% else %}
-  <p><em>No review feedback available.</em></p>
+  <p class="text-sm text-gray-500 italic">No review feedback available.</p>
 {% endif %}
 </div>
 {% endif %}
@@ -136,9 +156,13 @@
 {% if sec %}
 <div id="strat-tab-security" class="tab-panel">
 {% if sec._body %}
-  <div class="issue-text md-content">{{ sec._body|e }}</div>
+  <div class="desc-toggle-wrap">
+    <button onclick="toggleDescView(this)" class="desc-toggle-btn" title="Toggle raw/rendered view">Raw</button>
+    <div class="issue-text md-content desc-rendered">{{ sec._body|e }}</div>
+    <pre class="issue-text desc-raw">{{ sec._body|e }}</pre>
+  </div>
 {% else %}
-  <p><em>No security review available.</em></p>
+  <p class="text-sm text-gray-500 italic">No security review available.</p>
 {% endif %}
 </div>
 {% endif %}

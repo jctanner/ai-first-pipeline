@@ -11,135 +11,104 @@
   @media (max-width: 900px) {
     .file-browser { grid-template-columns: 1fr; height: auto; }
   }
-  .file-tree {
-    background: #f8f9fa;
-    padding: 1rem;
-    border-radius: 8px;
-    overflow-y: auto;
-  }
-  .file-viewer {
-    background: #f8f9fa;
-    padding: 1rem;
-    border-radius: 8px;
-    overflow-y: auto;
-  }
-  .breadcrumb {
-    background: #fff;
-    padding: 0.5rem 1rem;
-    border-radius: 6px;
-    margin-bottom: 1rem;
-    font-size: 0.9em;
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-    flex-wrap: wrap;
-  }
-  .breadcrumb a {
-    color: #3498db;
-    text-decoration: none;
-  }
-  .breadcrumb a:hover { text-decoration: underline; }
-  .breadcrumb span { color: #95a5a6; }
   .dir-list {
     list-style: none;
     padding-left: 1rem;
     margin: 0;
   }
   .dir-list li {
-    padding: 0.3rem 0;
+    padding: 0.2rem 0;
     cursor: pointer;
   }
   .dir-entry {
     display: flex;
     align-items: center;
     gap: 0.5rem;
-    padding: 0.2rem 0.5rem;
-    border-radius: 4px;
+    padding: 0.25rem 0.5rem;
+    border-radius: 6px;
+    font-size: 0.875rem;
   }
   .dir-entry:hover {
-    background: #e9ecef;
+    background: #f3f4f6;
+  }
+  html.dark .dir-entry:hover {
+    background: #1f2937;
   }
   .dir-entry.selected {
-    background: #3498db;
+    background: #2563eb;
     color: white;
   }
-  .icon-dir::before { content: '📁 '; }
-  .icon-file::before { content: '📄 '; }
+  .icon-dir::before { content: '\1F4C1 '; }
+  .icon-file::before { content: '\1F4C4 '; }
   .file-content {
     background: #1e1e1e;
     color: #d4d4d4;
     padding: 1rem;
-    border-radius: 6px;
+    border-radius: 8px;
     font-family: monospace;
-    font-size: 0.85em;
+    font-size: 0.8rem;
     white-space: pre-wrap;
     word-wrap: break-word;
     overflow-x: auto;
     max-height: calc(100vh - 300px);
   }
   .file-info {
-    background: #fff;
+    background: #f9fafb;
     padding: 0.5rem 1rem;
-    border-radius: 6px;
-    margin-bottom: 1rem;
-    font-size: 0.9em;
+    border-radius: 8px;
+    margin-bottom: 0.75rem;
+    font-size: 0.875rem;
     display: flex;
     justify-content: space-between;
   }
+  html.dark .file-info { background: #1f2937; }
   .empty-state {
     text-align: center;
-    color: #95a5a6;
-    padding: 3rem 1rem;
+    color: #9ca3af;
+    padding: 2rem 1rem;
+    font-size: 0.875rem;
   }
   .error-state {
-    background: #fdedec;
-    border: 1px solid #e74c3c;
-    color: #c0392b;
+    background: #fef2f2;
+    border: 1px solid #fecaca;
+    color: #dc2626;
     padding: 1rem;
-    border-radius: 6px;
+    border-radius: 8px;
+    font-size: 0.875rem;
   }
-  .base-dir-links {
-    margin-bottom: 1rem;
-    display: flex;
-    flex-wrap: wrap;
-    gap: 0.5rem;
+  html.dark .error-state { background: rgba(220,38,38,0.1); border-color: #7f1d1d; color: #f87171; }
+  .breadcrumb a {
+    color: #2563eb;
+    text-decoration: none;
   }
-  .base-dir-btn {
-    background: #3498db;
-    color: white;
-    border: none;
-    padding: 0.4rem 0.8rem;
-    border-radius: 4px;
-    cursor: pointer;
-    font-size: 0.85em;
-  }
-  .base-dir-btn:hover { background: #2980b9; }
-  .base-dir-btn.active { background: #27ae60; }
+  html.dark .breadcrumb a { color: #60a5fa; }
+  .breadcrumb a:hover { text-decoration: underline; }
+  .breadcrumb span { color: #9ca3af; }
 </style>
 
-<h1>File Browser</h1>
+<h1 class="text-xl font-semibold text-gray-900 dark:text-white mb-4">File Browser</h1>
 
-<div class="base-dir-links">
-  <button class="base-dir-btn" onclick="navigateTo('/app/artifacts')">artifacts/</button>
-  <button class="base-dir-btn" onclick="navigateTo('/app/issues')">issues/</button>
-  <button class="base-dir-btn" onclick="navigateTo('/app/workspace')">workspace/</button>
-  <button class="base-dir-btn" onclick="navigateTo('/app/logs')">logs/</button>
-  <button class="base-dir-btn" onclick="navigateTo('/app/.context')">.context/</button>
+<div class="flex flex-wrap gap-2 mb-4">
+  <button class="bg-primary-600 hover:bg-primary-700 text-white text-sm font-medium py-1.5 px-3 rounded-lg transition-colors" onclick="navigateTo('/app/artifacts')">artifacts/</button>
+  <button class="bg-primary-600 hover:bg-primary-700 text-white text-sm font-medium py-1.5 px-3 rounded-lg transition-colors" onclick="navigateTo('/app/issues')">issues/</button>
+  <button class="bg-primary-600 hover:bg-primary-700 text-white text-sm font-medium py-1.5 px-3 rounded-lg transition-colors" onclick="navigateTo('/app/workspace')">workspace/</button>
+  <button class="bg-primary-600 hover:bg-primary-700 text-white text-sm font-medium py-1.5 px-3 rounded-lg transition-colors" onclick="navigateTo('/app/logs')">logs/</button>
+  <button class="bg-primary-600 hover:bg-primary-700 text-white text-sm font-medium py-1.5 px-3 rounded-lg transition-colors" onclick="navigateTo('/app/.context')">.context/</button>
 </div>
 
 <div class="file-browser">
-  <div class="file-tree">
-    <h3 style="margin-top: 0;">Directory</h3>
-    <div class="breadcrumb" id="breadcrumb"></div>
+  <div class="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 p-4 overflow-y-auto">
+    <h3 class="text-sm font-semibold text-gray-900 dark:text-white mb-3">Directory</h3>
+    <div class="bg-gray-50 dark:bg-gray-800 rounded-lg px-3 py-2 mb-3 text-sm flex items-center gap-2 flex-wrap" id="breadcrumb"></div>
     <ul class="dir-list" id="dir-list">
-      <li class="empty-state">Select a base directory above</li>
+      <li class="text-center text-gray-400 py-6 text-sm">Select a base directory above</li>
     </ul>
   </div>
 
-  <div class="file-viewer">
-    <h3 style="margin-top: 0;">File Viewer</h3>
+  <div class="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 p-4 overflow-y-auto">
+    <h3 class="text-sm font-semibold text-gray-900 dark:text-white mb-3">File Viewer</h3>
     <div id="file-display">
-      <div class="empty-state">Select a file to view its contents</div>
+      <div class="text-center text-gray-400 py-12 text-sm">Select a file to view its contents</div>
     </div>
   </div>
 </div>

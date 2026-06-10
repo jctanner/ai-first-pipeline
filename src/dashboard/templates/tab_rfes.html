@@ -1,90 +1,93 @@
-<h2>RFEs (<span id="rfe-row-count">{{ rfe_issues|length }}</span>)</h2>
-<div class="filter-bar" id="rfe-filter-bar">
-  <label>
+<h2 class="text-lg font-semibold text-gray-900 dark:text-white mb-4">RFEs (<span id="rfe-row-count">{{ rfe_issues|length }}</span>)</h2>
+
+<div class="flex flex-wrap gap-3 mb-4 items-end" id="rfe-filter-bar">
+  <label class="text-sm font-medium text-gray-700 dark:text-gray-300">
     Status
-    <select data-attr="status" onchange="applyTabFilters('rfe-table','rfe-filter-bar','rfe-row-count')">
+    <select data-attr="status" onchange="applyTabFilters('rfe-table','rfe-filter-bar','rfe-row-count')" class="mt-1 block rounded-lg border-gray-300 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-200 text-sm py-1.5 px-2.5">
       <option value="">All</option>
       {% for v in rfe_statuses %}<option value="{{ v }}">{{ v }}</option>{% endfor %}
     </select>
   </label>
-  <label>
+  <label class="text-sm font-medium text-gray-700 dark:text-gray-300">
     Priority
-    <select data-attr="priority" onchange="applyTabFilters('rfe-table','rfe-filter-bar','rfe-row-count')">
+    <select data-attr="priority" onchange="applyTabFilters('rfe-table','rfe-filter-bar','rfe-row-count')" class="mt-1 block rounded-lg border-gray-300 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-200 text-sm py-1.5 px-2.5">
       <option value="">All</option>
       {% for v in rfe_priorities %}<option value="{{ v }}">{{ v }}</option>{% endfor %}
     </select>
   </label>
-  <label>
+  <label class="text-sm font-medium text-gray-700 dark:text-gray-300">
     Size
-    <select data-attr="size" onchange="applyTabFilters('rfe-table','rfe-filter-bar','rfe-row-count')">
+    <select data-attr="size" onchange="applyTabFilters('rfe-table','rfe-filter-bar','rfe-row-count')" class="mt-1 block rounded-lg border-gray-300 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-200 text-sm py-1.5 px-2.5">
       <option value="">All</option>
       <option value="S">S</option><option value="M">M</option>
       <option value="L">L</option><option value="XL">XL</option>
     </select>
   </label>
-  <label>
+  <label class="text-sm font-medium text-gray-700 dark:text-gray-300">
     Recommendation
-    <select data-attr="recommendation" onchange="applyTabFilters('rfe-table','rfe-filter-bar','rfe-row-count')">
+    <select data-attr="recommendation" onchange="applyTabFilters('rfe-table','rfe-filter-bar','rfe-row-count')" class="mt-1 block rounded-lg border-gray-300 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-200 text-sm py-1.5 px-2.5">
       <option value="">All</option>
       {% for v in rfe_recommendations %}<option value="{{ v }}">{{ v }}</option>{% endfor %}
     </select>
   </label>
-  <label>
+  <label class="text-sm font-medium text-gray-700 dark:text-gray-300">
     Feasibility
-    <select data-attr="feasibility" onchange="applyTabFilters('rfe-table','rfe-filter-bar','rfe-row-count')">
+    <select data-attr="feasibility" onchange="applyTabFilters('rfe-table','rfe-filter-bar','rfe-row-count')" class="mt-1 block rounded-lg border-gray-300 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-200 text-sm py-1.5 px-2.5">
       <option value="">All</option>
       <option value="feasible">feasible</option>
       <option value="infeasible">infeasible</option>
       <option value="indeterminate">indeterminate</option>
     </select>
   </label>
-  <label>
+  <label class="text-sm font-medium text-gray-700 dark:text-gray-300">
     Pass/Fail
-    <select data-attr="pass" onchange="applyTabFilters('rfe-table','rfe-filter-bar','rfe-row-count')">
+    <select data-attr="pass" onchange="applyTabFilters('rfe-table','rfe-filter-bar','rfe-row-count')" class="mt-1 block rounded-lg border-gray-300 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-200 text-sm py-1.5 px-2.5">
       <option value="">All</option>
       <option value="true">Pass</option>
       <option value="false">Fail</option>
     </select>
   </label>
-  <label>
+  <label class="text-sm font-medium text-gray-700 dark:text-gray-300">
     Attention
-    <select data-attr="attention" onchange="applyTabFilters('rfe-table','rfe-filter-bar','rfe-row-count')">
+    <select data-attr="attention" onchange="applyTabFilters('rfe-table','rfe-filter-bar','rfe-row-count')" class="mt-1 block rounded-lg border-gray-300 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-200 text-sm py-1.5 px-2.5">
       <option value="">All</option>
       <option value="true">Needs Attention</option>
     </select>
   </label>
-  <label>
+  <label class="text-sm font-medium text-gray-700 dark:text-gray-300">
     Search
-    <input type="text" oninput="applyTabFilters('rfe-table','rfe-filter-bar','rfe-row-count')" placeholder="text search&hellip;" style="margin-bottom:0; padding:0.4em 0.6em;">
+    <input type="text" oninput="applyTabFilters('rfe-table','rfe-filter-bar','rfe-row-count')" placeholder="text search&hellip;" class="mt-1 block rounded-lg border-gray-300 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-200 text-sm py-1.5 px-2.5">
   </label>
 </div>
-<div style="overflow-x:auto;">
-<table role="grid" id="rfe-table">
-  <thead>
+
+<div class="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 overflow-hidden">
+<div class="overflow-x-auto">
+<table class="w-full text-sm text-left" role="grid" id="rfe-table">
+  <thead class="bg-gray-50 dark:bg-gray-800 text-xs uppercase text-gray-500 dark:text-gray-400">
     <tr>
-      <th class="sortable" data-col="0">Key</th>
-      <th class="sortable" data-col="1">Title</th>
-      <th class="sortable" data-col="2">Priority</th>
-      <th class="sortable" data-col="3">Size</th>
-      <th class="sortable" data-col="4">Status</th>
-      <th class="sortable" data-col="5" data-type="number">Score</th>
-      <th class="sortable" data-col="6">Pass</th>
-      <th class="sortable" data-col="7">Recommendation</th>
-      <th class="sortable" data-col="8">Feasibility</th>
-      <th class="sortable" data-col="9">WHAT</th>
-      <th class="sortable" data-col="10">WHY</th>
-      <th class="sortable" data-col="11">HOW</th>
-      <th class="sortable" data-col="12">Not Task</th>
-      <th class="sortable" data-col="13">Right-Sized</th>
-      <th class="sortable" data-col="14">Auto-Revised</th>
-      <th class="sortable" data-col="15">Attention</th>
-      <th class="sortable" data-col="16" data-type="number">Delta</th>
+      <th class="sortable px-4 py-3" data-col="0">Key</th>
+      <th class="sortable px-4 py-3" data-col="1">Title</th>
+      <th class="sortable px-4 py-3" data-col="2">Priority</th>
+      <th class="sortable px-4 py-3" data-col="3">Size</th>
+      <th class="sortable px-4 py-3" data-col="4">Status</th>
+      <th class="sortable px-4 py-3" data-col="5" data-type="number">Score</th>
+      <th class="sortable px-4 py-3" data-col="6">Pass</th>
+      <th class="sortable px-4 py-3" data-col="7">Recommendation</th>
+      <th class="sortable px-4 py-3" data-col="8">Feasibility</th>
+      <th class="sortable px-4 py-3" data-col="9">WHAT</th>
+      <th class="sortable px-4 py-3" data-col="10">WHY</th>
+      <th class="sortable px-4 py-3" data-col="11">HOW</th>
+      <th class="sortable px-4 py-3" data-col="12">Not Task</th>
+      <th class="sortable px-4 py-3" data-col="13">Right-Sized</th>
+      <th class="sortable px-4 py-3" data-col="14">Auto-Revised</th>
+      <th class="sortable px-4 py-3" data-col="15">Attention</th>
+      <th class="sortable px-4 py-3" data-col="16" data-type="number">Delta</th>
     </tr>
   </thead>
-  <tbody>
+  <tbody class="divide-y divide-gray-200 dark:divide-gray-700">
     {% for rfe in rfe_issues %}
     {% set rev = rfe.review %}
-    <tr
+    <tr class="hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors"
       data-status="{{ rfe.status|default('') }}"
       data-priority="{{ rfe.priority|default('') }}"
       data-size="{{ rfe.size|default('') }}"
@@ -93,60 +96,60 @@
       data-pass="{{ rev.pass|string|lower if rev and rev.pass is defined else '' }}"
       data-attention="{{ rev.needs_attention|string|lower if rev and rev.needs_attention is defined else 'false' }}"
     >
-      <td><a href="/rfe/{{ rfe.key }}">{{ rfe.key }}</a></td>
-      <td class="truncate" title="{{ rfe.title|default('') }}">{{ rfe.title|default('')|truncate(80) }}</td>
-      <td>{{ rfe.priority|default('&mdash;'|safe) }}</td>
-      <td>
+      <td class="px-4 py-2.5"><a href="/rfe/{{ rfe.key }}" class="text-primary-600 dark:text-primary-400 hover:underline font-medium">{{ rfe.key }}</a></td>
+      <td class="px-4 py-2.5 truncate" title="{{ rfe.title|default('') }}">{{ rfe.title|default('')|truncate(80) }}</td>
+      <td class="px-4 py-2.5 text-gray-600 dark:text-gray-400">{{ rfe.priority|default('&mdash;'|safe) }}</td>
+      <td class="px-4 py-2.5">
         {% if rfe.size %}
           <span class="badge badge-size-{{ rfe.size|lower }}">{{ rfe.size }}</span>
-        {% else %}&mdash;{% endif %}
+        {% else %}<span class="text-gray-400">&mdash;</span>{% endif %}
       </td>
-      <td>{{ rfe.status|default('&mdash;'|safe) }}</td>
-      <td data-sort-value="{{ rev.score if rev and rev.score is defined else -1 }}">
+      <td class="px-4 py-2.5 text-gray-600 dark:text-gray-400">{{ rfe.status|default('&mdash;'|safe) }}</td>
+      <td class="px-4 py-2.5" data-sort-value="{{ rev.score if rev and rev.score is defined else -1 }}">
         {% if rev and rev.score is defined %}
           {% set sc = rev.score %}
           <span class="{{ 'score-red' if sc < 5 else ('score-yellow' if sc < 8 else 'score-green') }}">{{ sc }}/10</span>
-        {% else %}&mdash;{% endif %}
+        {% else %}<span class="text-gray-400">&mdash;</span>{% endif %}
       </td>
-      <td>
+      <td class="px-4 py-2.5">
         {% if rev and rev.pass is defined %}
-          {% if rev.pass %}&#10003;{% else %}&#10007;{% endif %}
-        {% else %}&mdash;{% endif %}
+          {% if rev.pass %}<span class="text-green-600 dark:text-green-400 font-bold">&#10003;</span>{% else %}<span class="text-red-600 dark:text-red-400 font-bold">&#10007;</span>{% endif %}
+        {% else %}<span class="text-gray-400">&mdash;</span>{% endif %}
       </td>
-      <td>
+      <td class="px-4 py-2.5">
         {% if rev and rev.recommendation %}
           <span class="badge badge-rec-{{ rev.recommendation }}">{{ rev.recommendation }}</span>
-        {% else %}&mdash;{% endif %}
+        {% else %}<span class="text-gray-400">&mdash;</span>{% endif %}
       </td>
-      <td>
+      <td class="px-4 py-2.5">
         {% if rev and rev.feasibility %}
           <span class="badge badge-feas-{{ rev.feasibility }}">{{ rev.feasibility }}</span>
-        {% else %}&mdash;{% endif %}
+        {% else %}<span class="text-gray-400">&mdash;</span>{% endif %}
       </td>
-      {# Rubric dots: WHAT, WHY, HOW, Not Task, Right-Sized #}
       {% for dim in ['what','why','open_to_how','not_a_task','right_sized'] %}
-      <td>
+      <td class="px-4 py-2.5">
         {% if rev and rev.scores and rev.scores[dim] is defined %}
           <span class="rubric-dot rubric-{{ rev.scores[dim] }}" title="{{ dim }}: {{ rev.scores[dim] }}/2"></span>
-        {% else %}&mdash;{% endif %}
+        {% else %}<span class="text-gray-400">&mdash;</span>{% endif %}
       </td>
       {% endfor %}
-      <td>
+      <td class="px-4 py-2.5">
         {% if rev and rev.auto_revised %}
           <span class="badge badge-rec-split">yes</span>
-        {% elif rev %}no{% else %}&mdash;{% endif %}
+        {% elif rev %}<span class="text-gray-600 dark:text-gray-400">no</span>{% else %}<span class="text-gray-400">&mdash;</span>{% endif %}
       </td>
-      <td>
-        {% if rev and rev.needs_attention %}<span class="attention-flag">&#9888;</span>{% else %}&mdash;{% endif %}
+      <td class="px-4 py-2.5">
+        {% if rev and rev.needs_attention %}<span class="attention-flag">&#9888;</span>{% else %}<span class="text-gray-400">&mdash;</span>{% endif %}
       </td>
-      <td data-sort-value="{{ (rev.score - rev.before_score) if rev and rev.score is not none and rev.before_score is not none else 0 }}">
+      <td class="px-4 py-2.5" data-sort-value="{{ (rev.score - rev.before_score) if rev and rev.score is not none and rev.before_score is not none else 0 }}">
         {% if rev and rev.score is not none and rev.before_score is not none %}
           {% set delta = rev.score - rev.before_score %}
-          {% if delta > 0 %}+{{ delta }}{% else %}{{ delta }}{% endif %}
-        {% else %}&mdash;{% endif %}
+          <span class="{{ 'text-green-600 dark:text-green-400' if delta > 0 else ('text-red-600 dark:text-red-400' if delta < 0 else 'text-gray-500') }}">{% if delta > 0 %}+{{ delta }}{% else %}{{ delta }}{% endif %}</span>
+        {% else %}<span class="text-gray-400">&mdash;</span>{% endif %}
       </td>
     </tr>
     {% endfor %}
   </tbody>
 </table>
+</div>
 </div>

@@ -144,9 +144,22 @@ else
   echo "The deployment will fail"
 fi
 
+# Build observatory if the repo exists
+if [ -d ${PROJECT_ROOT}/deploy/repos/observatory ]; then
+  echo "--- Building observatory image for k3s ---"
+  cd ${PROJECT_ROOT}/deploy/repos/observatory
+
+  ${CONTAINER_CMD} build -t observatory:latest .
+  ${CONTAINER_CMD} save observatory:latest | sudo k3s ctr images import -
+  sudo k3s ctr images tag localhost/observatory:latest docker.io/library/observatory:latest 2>/dev/null || true
+  echo "Successfully built and imported observatory:latest"
+else
+  echo "WARNING: observatory repo not found at ${PROJECT_ROOT}/deploy/repos/observatory"
+fi
+
 echo "==> Image build complete!"
 echo ""
 echo "Imported images:"
-sudo k3s ctr images ls | grep -E 'ai-first-pipeline|github-emulator|jira-emulator|ingress-proxy' || echo "No matching images found"
+sudo k3s ctr images ls | grep -E 'ai-first-pipeline|github-emulator|jira-emulator|ingress-proxy|observatory' || echo "No matching images found"
 echo ""
 echo "Note: ingress-proxy image is built during the ingress deployment step"

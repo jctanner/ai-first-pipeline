@@ -1,117 +1,120 @@
-<h2>Strategies (<span id="strat-row-count">{{ strat_issues|length }}</span>)</h2>
-<div class="filter-bar" id="strat-filter-bar">
-  <label>
+<h2 class="text-lg font-semibold text-gray-900 dark:text-white mb-4">Strategies (<span id="strat-row-count">{{ strat_issues|length }}</span>)</h2>
+
+<div class="flex flex-wrap gap-3 mb-4 items-end" id="strat-filter-bar">
+  <label class="text-sm font-medium text-gray-700 dark:text-gray-300">
     Status
-    <select data-attr="status" onchange="applyTabFilters('strat-table','strat-filter-bar','strat-row-count')">
+    <select data-attr="status" onchange="applyTabFilters('strat-table','strat-filter-bar','strat-row-count')" class="mt-1 block rounded-lg border-gray-300 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-200 text-sm py-1.5 px-2.5">
       <option value="">All</option>
       {% for v in strat_statuses %}<option value="{{ v }}">{{ v }}</option>{% endfor %}
     </select>
   </label>
-  <label>
+  <label class="text-sm font-medium text-gray-700 dark:text-gray-300">
     Priority
-    <select data-attr="priority" onchange="applyTabFilters('strat-table','strat-filter-bar','strat-row-count')">
+    <select data-attr="priority" onchange="applyTabFilters('strat-table','strat-filter-bar','strat-row-count')" class="mt-1 block rounded-lg border-gray-300 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-200 text-sm py-1.5 px-2.5">
       <option value="">All</option>
       {% for v in strat_priorities %}<option value="{{ v }}">{{ v }}</option>{% endfor %}
     </select>
   </label>
-  <label>
+  <label class="text-sm font-medium text-gray-700 dark:text-gray-300">
     Recommendation
-    <select data-attr="recommendation" onchange="applyTabFilters('strat-table','strat-filter-bar','strat-row-count')">
+    <select data-attr="recommendation" onchange="applyTabFilters('strat-table','strat-filter-bar','strat-row-count')" class="mt-1 block rounded-lg border-gray-300 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-200 text-sm py-1.5 px-2.5">
       <option value="">All</option>
       {% for v in strat_recommendations %}<option value="{{ v }}">{{ v }}</option>{% endfor %}
     </select>
   </label>
-  <label>
+  <label class="text-sm font-medium text-gray-700 dark:text-gray-300">
     Security
-    <select data-attr="secverdict" onchange="applyTabFilters('strat-table','strat-filter-bar','strat-row-count')">
+    <select data-attr="secverdict" onchange="applyTabFilters('strat-table','strat-filter-bar','strat-row-count')" class="mt-1 block rounded-lg border-gray-300 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-200 text-sm py-1.5 px-2.5">
       <option value="">All</option>
       <option value="PASS">PASS</option>
       <option value="CONCERNS">CONCERNS</option>
       <option value="FAIL">FAIL</option>
     </select>
   </label>
-  <label>
+  <label class="text-sm font-medium text-gray-700 dark:text-gray-300">
     Search
-    <input type="text" oninput="applyTabFilters('strat-table','strat-filter-bar','strat-row-count')" placeholder="text search&hellip;" style="margin-bottom:0; padding:0.4em 0.6em;">
+    <input type="text" oninput="applyTabFilters('strat-table','strat-filter-bar','strat-row-count')" placeholder="text search&hellip;" class="mt-1 block rounded-lg border-gray-300 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-200 text-sm py-1.5 px-2.5">
   </label>
 </div>
-<div style="overflow-x:auto;">
-<table role="grid" id="strat-table">
-  <thead>
+
+<div class="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 overflow-hidden">
+<div class="overflow-x-auto">
+<table class="w-full text-sm text-left" role="grid" id="strat-table">
+  <thead class="bg-gray-50 dark:bg-gray-800 text-xs uppercase text-gray-500 dark:text-gray-400">
     <tr>
-      <th class="sortable" data-col="0">Key</th>
-      <th class="sortable" data-col="1">Title</th>
-      <th class="sortable" data-col="2">Source RFE</th>
-      <th class="sortable" data-col="3">Priority</th>
-      <th class="sortable" data-col="4">Status</th>
-      <th class="sortable" data-col="5">Recommendation</th>
-      <th class="sortable" data-col="6">Feasibility</th>
-      <th class="sortable" data-col="7">Testability</th>
-      <th class="sortable" data-col="8">Scope</th>
-      <th class="sortable" data-col="9">Architecture</th>
-      <th class="sortable" data-col="10">Sec Verdict</th>
-      <th class="sortable" data-col="11">Sec Tier</th>
-      <th class="sortable" data-col="12" data-type="number">Sec Risks</th>
-      <th class="sortable" data-col="13" data-type="number">Critical</th>
-      <th class="sortable" data-col="14" data-type="number">High</th>
-      <th class="sortable" data-col="15" data-type="number">Medium</th>
+      <th class="sortable px-4 py-3" data-col="0">Key</th>
+      <th class="sortable px-4 py-3" data-col="1">Title</th>
+      <th class="sortable px-4 py-3" data-col="2">Source RFE</th>
+      <th class="sortable px-4 py-3" data-col="3">Priority</th>
+      <th class="sortable px-4 py-3" data-col="4">Status</th>
+      <th class="sortable px-4 py-3" data-col="5">Recommendation</th>
+      <th class="sortable px-4 py-3" data-col="6">Feasibility</th>
+      <th class="sortable px-4 py-3" data-col="7">Testability</th>
+      <th class="sortable px-4 py-3" data-col="8">Scope</th>
+      <th class="sortable px-4 py-3" data-col="9">Architecture</th>
+      <th class="sortable px-4 py-3" data-col="10">Sec Verdict</th>
+      <th class="sortable px-4 py-3" data-col="11">Sec Tier</th>
+      <th class="sortable px-4 py-3" data-col="12" data-type="number">Sec Risks</th>
+      <th class="sortable px-4 py-3" data-col="13" data-type="number">Critical</th>
+      <th class="sortable px-4 py-3" data-col="14" data-type="number">High</th>
+      <th class="sortable px-4 py-3" data-col="15" data-type="number">Medium</th>
     </tr>
   </thead>
-  <tbody>
+  <tbody class="divide-y divide-gray-200 dark:divide-gray-700">
     {% for st in strat_issues %}
     {% set rev = st.review %}
     {% set sec = st.security %}
     {% set reviewers = rev.reviewers if rev and rev.reviewers else {} %}
     {% set rc = sec.risk_count if sec and sec.risk_count else {} %}
     {% set total_risks = (rc.critical|default(0)) + (rc.high|default(0)) + (rc.medium|default(0)) %}
-    <tr
+    <tr class="hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors"
       data-status="{{ st.status|default('') }}"
       data-priority="{{ st.priority|default('') }}"
       data-recommendation="{{ rev.recommendation if rev and rev.recommendation else '' }}"
       data-secverdict="{{ sec.verdict|default('')|upper if sec else '' }}"
     >
-      <td><a href="/strat/{{ st.key }}">{{ st.key }}</a></td>
-      <td class="truncate" title="{{ st.title|default('') }}">{{ st.title|default('')|truncate(80) }}</td>
-      <td>{{ st.source_rfe|default('&mdash;'|safe) }}</td>
-      <td>{{ st.priority|default('&mdash;'|safe) }}</td>
-      <td>{{ st.status|default('&mdash;'|safe) }}</td>
-      <td>
+      <td class="px-4 py-2.5"><a href="/strat/{{ st.key }}" class="text-primary-600 dark:text-primary-400 hover:underline font-medium">{{ st.key }}</a></td>
+      <td class="px-4 py-2.5 truncate" title="{{ st.title|default('') }}">{{ st.title|default('')|truncate(80) }}</td>
+      <td class="px-4 py-2.5 text-gray-600 dark:text-gray-400">{{ st.source_rfe|default('&mdash;'|safe) }}</td>
+      <td class="px-4 py-2.5 text-gray-600 dark:text-gray-400">{{ st.priority|default('&mdash;'|safe) }}</td>
+      <td class="px-4 py-2.5 text-gray-600 dark:text-gray-400">{{ st.status|default('&mdash;'|safe) }}</td>
+      <td class="px-4 py-2.5">
         {% if rev and rev.recommendation %}
           <span class="badge badge-rec-{{ rev.recommendation }}">{{ rev.recommendation }}</span>
-        {% else %}&mdash;{% endif %}
+        {% else %}<span class="text-gray-400">&mdash;</span>{% endif %}
       </td>
-      {# Reviewer verdicts: feasibility, testability, scope, architecture #}
       {% for rname in ['feasibility','testability','scope','architecture'] %}
-      <td>
+      <td class="px-4 py-2.5">
         {% if reviewers[rname] %}
           <span class="badge badge-rec-{{ reviewers[rname] }}">{{ reviewers[rname] }}</span>
-        {% else %}&mdash;{% endif %}
+        {% else %}<span class="text-gray-400">&mdash;</span>{% endif %}
       </td>
       {% endfor %}
-      <td>
+      <td class="px-4 py-2.5">
         {% if sec and sec.verdict %}
           <span class="badge badge-sec-{{ sec.verdict|lower }}">{{ sec.verdict }}</span>
-        {% else %}&mdash;{% endif %}
+        {% else %}<span class="text-gray-400">&mdash;</span>{% endif %}
       </td>
-      <td>
+      <td class="px-4 py-2.5">
         {% if sec and sec.review_tier %}
           <span class="badge badge-tier-{{ sec.review_tier }}">{{ sec.review_tier }}</span>
-        {% else %}&mdash;{% endif %}
+        {% else %}<span class="text-gray-400">&mdash;</span>{% endif %}
       </td>
-      <td data-sort-value="{{ total_risks }}">
+      <td class="px-4 py-2.5" data-sort-value="{{ total_risks }}">
         <span class="{{ 'score-green' if total_risks == 0 else ('score-yellow' if total_risks <= 2 else 'score-red') }}">{{ total_risks }}</span>
       </td>
-      <td data-sort-value="{{ rc.critical|default(0) }}">
+      <td class="px-4 py-2.5" data-sort-value="{{ rc.critical|default(0) }}">
         <span class="{{ 'score-red' if rc.critical|default(0) > 0 else '' }}">{{ rc.critical|default(0) }}</span>
       </td>
-      <td data-sort-value="{{ rc.high|default(0) }}">
+      <td class="px-4 py-2.5" data-sort-value="{{ rc.high|default(0) }}">
         <span class="{{ 'score-red' if rc.high|default(0) > 0 else '' }}">{{ rc.high|default(0) }}</span>
       </td>
-      <td data-sort-value="{{ rc.medium|default(0) }}">
+      <td class="px-4 py-2.5" data-sort-value="{{ rc.medium|default(0) }}">
         <span class="{{ 'score-yellow' if rc.medium|default(0) > 0 else '' }}">{{ rc.medium|default(0) }}</span>
       </td>
     </tr>
     {% endfor %}
   </tbody>
 </table>
+</div>
 </div>

@@ -227,3 +227,60 @@ def runs_by_issue(runs: list[dict] | None = None) -> dict[str, list[dict]]:
     for key in grouped:
         grouped[key].sort(key=lambda r: r["start_time"] or "")
     return grouped
+
+
+def clear_all_data() -> dict:
+    """Delete all MLflow runs, traces, and non-default experiments.
+
+    Returns a summary dict with counts of deleted items and any errors.
+    """
+    import mlflow
+
+    client = mlflow.MlflowClient(MLFLOW_TRACKING_URI)
+    results = {"runs_deleted": 0, "traces_deleted": 0,
+               "experiments_deleted": 0, "errors": []}
+
+    try:
+        experiments = client.search_experiments()
+    except Exception as e:
+        results["errors"].append(f"list experiments: {e}")
+        return results
+
+    far_future_ms = int(datetime(2099, 1, 1, tzinfo=timezone.utc).timestamp() * 1000)
+
+    for exp in experiments:
+        exp_id = exp.experiment_id
+
+        # Delete traces
+        try:
+            deleted = client.delete_traces(
+                experiment_id=exp_id,
+                max_timestamp_millis=far_future_ms,
+            )
+            results["traces_deleted"] += deleted
+        except Exception as e:
+            results["errors"].append(f"traces exp {exp_id}: {e}")
+
+        # Delete runs
+        try:
+            while True:
+                runs = client.search_runs(
+                    experiment_ids=[exp_id], max_results=100
+                )
+                if not runs:
+                    break
+                for run in runs:
+                    client.delete_run(run.info.run_id)
+                    results["runs_deleted"] += 1
+        except Exception as e:
+            results["errors"].append(f"runs exp {exp_id}: {e}")
+
+        # Delete experiment (skip Default)
+        if exp_id != "0":
+            try:
+                client.delete_experiment(exp_id)
+                results["experiments_deleted"] += 1
+            except Exception as e:
+                results["errors"].append(f"experiment {exp_id}: {e}")
+
+    return results

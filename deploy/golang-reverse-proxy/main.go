@@ -59,6 +59,14 @@ var routes = []Route{
 		Host:    "markovd.local",
 		Backend: "http://markovd.ai-pipeline.svc.cluster.local:8080",
 	},
+	{
+		Host:    "observatory.ai-pipeline.svc.cluster.local",
+		Backend: "http://observatory.ai-pipeline.svc.cluster.local:8000",
+	},
+	{
+		Host:    "observatory.local",
+		Backend: "http://observatory.ai-pipeline.svc.cluster.local:8000",
+	},
 }
 
 var (

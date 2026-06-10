@@ -200,6 +200,23 @@ def get_mcp_servers(phase: str) -> dict:
     return result
 
 
+def get_skill_fqn(phase: str) -> str:
+    """Return the fully-qualified skill name for *phase*.
+
+    Format: ``repo/owner@ref:skill`` for external skills,
+    ``local:skill`` for local ones.
+    """
+    pc = get_phase_config(phase)
+    skill_name = pc.get("skill", phase)
+    source = pc.get("source")
+    if source:
+        github = get_repo_github(source)
+        ref = get_repo_ref(source)
+        repo_part = github if github else source
+        return f"{repo_part}@{ref}:{skill_name}"
+    return f"local:{skill_name}"
+
+
 def list_skills() -> list[dict]:
     """Return all registered skills with display metadata.
 

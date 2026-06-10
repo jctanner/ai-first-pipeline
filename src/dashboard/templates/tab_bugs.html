@@ -1,146 +1,147 @@
-<h2>Bugs (<span id="bug-row-count">{{ rows|length }}</span>)</h2>
+<h2 class="text-lg font-semibold text-gray-900 dark:text-white mb-4">Bugs (<span id="bug-row-count">{{ rows|length }}</span>)</h2>
 
-<div class="filter-bar">
-  <label>
+<div class="flex flex-wrap gap-3 mb-4 items-end">
+  <label class="text-sm font-medium text-gray-700 dark:text-gray-300">
     Model
-    <select id="filter-model" onchange="applyBugFilters()">
+    <select id="filter-model" onchange="applyBugFilters()" class="mt-1 block rounded-lg border-gray-300 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-200 text-sm py-1.5 px-2.5">
       <option value="">All</option>
       {% for v in model_names %}<option value="{{ v }}">{{ v }}</option>{% endfor %}
     </select>
   </label>
-  <label>
+  <label class="text-sm font-medium text-gray-700 dark:text-gray-300">
     Status
-    <select id="filter-status" onchange="applyBugFilters()">
+    <select id="filter-status" onchange="applyBugFilters()" class="mt-1 block rounded-lg border-gray-300 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-200 text-sm py-1.5 px-2.5">
       <option value="">All</option>
       {% for v in statuses %}<option value="{{ v }}">{{ v }}</option>{% endfor %}
     </select>
   </label>
-  <label>
+  <label class="text-sm font-medium text-gray-700 dark:text-gray-300">
     Triage
-    <select id="filter-triage" onchange="applyBugFilters()">
+    <select id="filter-triage" onchange="applyBugFilters()" class="mt-1 block rounded-lg border-gray-300 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-200 text-sm py-1.5 px-2.5">
       <option value="">All</option>
       {% for v in triages %}<option value="{{ v }}">{{ v }}</option>{% endfor %}
     </select>
   </label>
-  <label>
+  <label class="text-sm font-medium text-gray-700 dark:text-gray-300">
     Issue Type
-    <select id="filter-issuetype" onchange="applyBugFilters()">
+    <select id="filter-issuetype" onchange="applyBugFilters()" class="mt-1 block rounded-lg border-gray-300 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-200 text-sm py-1.5 px-2.5">
       <option value="">All</option>
       {% for v in issue_types %}<option value="{{ v }}">{{ v }}</option>{% endfor %}
     </select>
   </label>
-  <label>
+  <label class="text-sm font-medium text-gray-700 dark:text-gray-300">
     Component
-    <select id="filter-component" onchange="applyBugFilters()">
+    <select id="filter-component" onchange="applyBugFilters()" class="mt-1 block rounded-lg border-gray-300 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-200 text-sm py-1.5 px-2.5">
       <option value="">All</option>
       {% for v in components %}<option value="{{ v }}">{{ v }}</option>{% endfor %}
     </select>
   </label>
-  <label>
+  <label class="text-sm font-medium text-gray-700 dark:text-gray-300">
     Arch Context
-    <select id="filter-context" onchange="applyBugFilters()">
+    <select id="filter-context" onchange="applyBugFilters()" class="mt-1 block rounded-lg border-gray-300 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-200 text-sm py-1.5 px-2.5">
       <option value="">All</option>
       {% for v in context_ratings %}<option value="{{ v }}">{{ v }}</option>{% endfor %}
     </select>
   </label>
-  <label>
+  <label class="text-sm font-medium text-gray-700 dark:text-gray-300">
     Arch Docs
-    <select id="filter-archdocs" onchange="applyBugFilters()">
+    <select id="filter-archdocs" onchange="applyBugFilters()" class="mt-1 block rounded-lg border-gray-300 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-200 text-sm py-1.5 px-2.5">
       <option value="">All</option>
       {% for v in arch_docs_values %}<option value="{{ v }}">{{ v }}</option>{% endfor %}
     </select>
   </label>
-  <label>
+  <label class="text-sm font-medium text-gray-700 dark:text-gray-300">
     Src Code
-    <select id="filter-srccode" onchange="applyBugFilters()">
+    <select id="filter-srccode" onchange="applyBugFilters()" class="mt-1 block rounded-lg border-gray-300 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-200 text-sm py-1.5 px-2.5">
       <option value="">All</option>
       {% for v in src_code_values %}<option value="{{ v }}">{{ v }}</option>{% endfor %}
     </select>
   </label>
-  <label>
+  <label class="text-sm font-medium text-gray-700 dark:text-gray-300">
     Fix
-    <select id="filter-fix" onchange="applyBugFilters()">
+    <select id="filter-fix" onchange="applyBugFilters()" class="mt-1 block rounded-lg border-gray-300 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-200 text-sm py-1.5 px-2.5">
       <option value="">All</option>
       {% for v in fix_recommendations %}<option value="{{ v }}">{{ v }}</option>{% endfor %}
     </select>
   </label>
-  <label>
+  <label class="text-sm font-medium text-gray-700 dark:text-gray-300">
     Test Context
-    <select id="filter-testctx" onchange="applyBugFilters()">
+    <select id="filter-testctx" onchange="applyBugFilters()" class="mt-1 block rounded-lg border-gray-300 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-200 text-sm py-1.5 px-2.5">
       <option value="">All</option>
       {% for v in test_context_ratings %}<option value="{{ v }}">{{ v }}</option>{% endfor %}
     </select>
   </label>
-  <label>
+  <label class="text-sm font-medium text-gray-700 dark:text-gray-300">
     Write Test
-    <select id="filter-writetest" onchange="applyBugFilters()">
+    <select id="filter-writetest" onchange="applyBugFilters()" class="mt-1 block rounded-lg border-gray-300 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-200 text-sm py-1.5 px-2.5">
       <option value="">All</option>
       {% for v in write_test_decisions %}<option value="{{ v }}">{{ v }}</option>{% endfor %}
     </select>
   </label>
-  <label>
+  <label class="text-sm font-medium text-gray-700 dark:text-gray-300">
     AI Eligible
-    <select id="filter-eligible" onchange="applyBugFilters()">
+    <select id="filter-eligible" onchange="applyBugFilters()" class="mt-1 block rounded-lg border-gray-300 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-200 text-sm py-1.5 px-2.5">
       <option value="">All</option>
       <option value="yes">Eligible for fix</option>
       <option value="no">Excluded from fix</option>
     </select>
   </label>
-  <label>
+  <label class="text-sm font-medium text-gray-700 dark:text-gray-300">
     Search
-    <input type="text" id="filter-text" oninput="applyBugFilters()" placeholder="text search&hellip;" style="margin-bottom:0; padding:0.4em 0.6em;">
+    <input type="text" id="filter-text" oninput="applyBugFilters()" placeholder="text search&hellip;" class="mt-1 block rounded-lg border-gray-300 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-200 text-sm py-1.5 px-2.5">
   </label>
 </div>
 
 <div class="action-bar" id="action-bar" style="display:none;">
-  <span id="selected-count">0</span> selected &mdash;
-  <button class="btn-reset" onclick="confirmReset()">Reset Selected</button>
+  <span id="selected-count" class="font-medium">0</span> selected &mdash;
+  <button class="bg-red-600 hover:bg-red-700 text-white text-sm font-medium py-1.5 px-4 rounded-lg transition-colors" onclick="confirmReset()">Reset Selected</button>
 </div>
 
-<dialog id="reset-modal">
-  <article>
-    <h3>Reset Workspace</h3>
-    <p>This will delete all analysis results (completeness, context-map,
-    fix-attempt, test-plan, write-test) for <strong id="reset-count">0</strong>
+<dialog id="reset-modal" class="rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 p-0 backdrop:bg-black/50">
+  <div class="p-6 max-w-md">
+    <h3 class="text-lg font-semibold text-gray-900 dark:text-white mb-3">Reset Workspace</h3>
+    <p class="text-sm text-gray-600 dark:text-gray-400 mb-3">This will delete all analysis results (completeness, context-map,
+    fix-attempt, test-plan, write-test) for <strong id="reset-count" class="text-gray-900 dark:text-white">0</strong>
     issue&times;model pairs. They will be re-processed on the next pipeline run.</p>
-    <p id="reset-list" style="max-height:200px; overflow-y:auto; font-size:0.85em;"></p>
-    <footer>
-      <button class="secondary" onclick="document.getElementById('reset-modal').close()">Cancel</button>
-      <button onclick="executeReset()">Confirm Reset</button>
-    </footer>
-  </article>
+    <div id="reset-list" class="max-h-48 overflow-y-auto text-xs text-gray-600 dark:text-gray-400 mb-4"></div>
+    <div class="flex justify-end gap-3">
+      <button class="px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 bg-gray-100 dark:bg-gray-800 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors" onclick="document.getElementById('reset-modal').close()">Cancel</button>
+      <button class="px-4 py-2 text-sm font-medium text-white bg-red-600 rounded-lg hover:bg-red-700 transition-colors" onclick="executeReset()">Confirm Reset</button>
+    </div>
+  </div>
 </dialog>
 
-<div style="overflow-x:auto;">
-<table role="grid" id="issues-table">
-  <thead>
+<div class="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 overflow-hidden">
+<div class="overflow-x-auto">
+<table class="w-full text-sm text-left" role="grid" id="issues-table">
+  <thead class="bg-gray-50 dark:bg-gray-800 text-xs uppercase text-gray-500 dark:text-gray-400">
     <tr>
-      <th><input type="checkbox" id="select-all" onchange="toggleSelectAll(this)"></th>
-      <th class="sortable" data-col="1">Key</th>
-      <th class="sortable" data-col="2">Model</th>
-      <th class="sortable" data-col="3">Summary</th>
-      <th class="sortable" data-col="4">Status</th>
-      <th class="sortable" data-col="5">Priority</th>
-      <th class="sortable" data-col="6">Components</th>
-      <th class="sortable" data-col="7">Issue<br>Type</th>
-      <th class="sortable" data-col="8" data-type="number">Bug<br>Quality</th>
-      <th class="sortable" data-col="9">AI<br>Type</th>
-      <th class="sortable" data-col="10">Triage</th>
-      <th class="sortable" data-col="11">Arch<br>Context</th>
-      <th class="sortable" data-col="12" data-type="number">Arch<br>Quality</th>
-      <th class="sortable" data-col="13">Arch<br>Docs</th>
-      <th class="sortable" data-col="14">Src<br>Code</th>
-      <th class="sortable" data-col="15">Test<br>Context</th>
-      <th class="sortable" data-col="16">Fix</th>
-      <th class="sortable" data-col="17">Confidence</th>
-      <th class="sortable" data-col="18">Test<br>Effort</th>
-      <th class="sortable" data-col="19">Write<br>Test</th>
-      <th class="sortable" data-col="20">Processed</th>
+      <th class="px-3 py-3"><input type="checkbox" id="select-all" onchange="toggleSelectAll(this)" class="rounded"></th>
+      <th class="sortable px-3 py-3" data-col="1">Key</th>
+      <th class="sortable px-3 py-3" data-col="2">Model</th>
+      <th class="sortable px-3 py-3" data-col="3">Summary</th>
+      <th class="sortable px-3 py-3" data-col="4">Status</th>
+      <th class="sortable px-3 py-3" data-col="5">Priority</th>
+      <th class="sortable px-3 py-3" data-col="6">Components</th>
+      <th class="sortable px-3 py-3" data-col="7">Issue<br>Type</th>
+      <th class="sortable px-3 py-3" data-col="8" data-type="number">Bug<br>Quality</th>
+      <th class="sortable px-3 py-3" data-col="9">AI<br>Type</th>
+      <th class="sortable px-3 py-3" data-col="10">Triage</th>
+      <th class="sortable px-3 py-3" data-col="11">Arch<br>Context</th>
+      <th class="sortable px-3 py-3" data-col="12" data-type="number">Arch<br>Quality</th>
+      <th class="sortable px-3 py-3" data-col="13">Arch<br>Docs</th>
+      <th class="sortable px-3 py-3" data-col="14">Src<br>Code</th>
+      <th class="sortable px-3 py-3" data-col="15">Test<br>Context</th>
+      <th class="sortable px-3 py-3" data-col="16">Fix</th>
+      <th class="sortable px-3 py-3" data-col="17">Confidence</th>
+      <th class="sortable px-3 py-3" data-col="18">Test<br>Effort</th>
+      <th class="sortable px-3 py-3" data-col="19">Write<br>Test</th>
+      <th class="sortable px-3 py-3" data-col="20">Processed</th>
     </tr>
   </thead>
-  <tbody>
+  <tbody class="divide-y divide-gray-200 dark:divide-gray-700">
     {% for row in rows %}
-    <tr
+    <tr class="hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors"
       data-key="{{ row.key }}"
       data-model="{{ row.model }}"
       data-status="{{ row.status }}"
@@ -155,64 +156,65 @@
       data-writetest="{{ row.write_test.decision if row.write_test and row.write_test.decision is defined else '' }}"
       data-eligible="{% if row.status in ['In Progress', 'Review', 'Testing', 'Closed', 'Done'] %}no{% elif row.completeness and row.completeness.overall_score is defined and row.completeness.overall_score < 5 %}no{% elif row.context_map and row.context_map.overall_rating == 'no-context' %}no{% else %}yes{% endif %}"
     >
-      <td><input type="checkbox" class="row-select" data-key="{{ row.key }}" data-model="{{ row.model }}"></td>
-      <td><a href="/issue/{{ row.key }}{% if row.model %}?model={{ row.model }}{% endif %}">{{ row.key }}</a></td>
-      <td>{{ row.model or '&mdash;'|safe }}</td>
-      <td class="truncate" title="{{ row.summary }}">{{ row.summary[:80] }}{% if row.summary|length > 80 %}&hellip;{% endif %}</td>
-      <td>{{ row.status }}</td>
-      <td>{{ row.priority }}</td>
-      <td>{{ row.components|join(', ') }}</td>
-      <td>{{ row.issue_type }}</td>
-      <td data-sort-value="{{ row.completeness.overall_score if row.completeness and row.completeness.overall_score is defined else -1 }}">
+      <td class="px-3 py-2"><input type="checkbox" class="row-select rounded" data-key="{{ row.key }}" data-model="{{ row.model }}"></td>
+      <td class="px-3 py-2"><a href="/issue/{{ row.key }}{% if row.model %}?model={{ row.model }}{% endif %}" class="text-primary-600 dark:text-primary-400 hover:underline font-medium">{{ row.key }}</a></td>
+      <td class="px-3 py-2 text-gray-600 dark:text-gray-400">{{ row.model or '&mdash;'|safe }}</td>
+      <td class="px-3 py-2 truncate" title="{{ row.summary }}">{{ row.summary[:80] }}{% if row.summary|length > 80 %}&hellip;{% endif %}</td>
+      <td class="px-3 py-2 text-gray-600 dark:text-gray-400">{{ row.status }}</td>
+      <td class="px-3 py-2 text-gray-600 dark:text-gray-400">{{ row.priority }}</td>
+      <td class="px-3 py-2 text-gray-600 dark:text-gray-400">{{ row.components|join(', ') }}</td>
+      <td class="px-3 py-2 text-gray-600 dark:text-gray-400">{{ row.issue_type }}</td>
+      <td class="px-3 py-2" data-sort-value="{{ row.completeness.overall_score if row.completeness and row.completeness.overall_score is defined else -1 }}">
         {% if row.completeness and row.completeness.overall_score is defined %}
           {% set score = row.completeness.overall_score %}
           <span class="{{ 'score-red' if score < 40 else ('score-yellow' if score < 80 else 'score-green') }}">{{ score }}</span>
-        {% else %}&mdash;{% endif %}
+        {% else %}<span class="text-gray-400">&mdash;</span>{% endif %}
       </td>
-      <td>
+      <td class="px-3 py-2">
         {% if row.completeness and row.completeness.issue_type_assessment %}
           {% set itype = row.completeness.issue_type_assessment.classified_type %}
           <span class="badge badge-{{ itype if itype in ('bug','enhancement','feature-request','task') else 'default' }}">{{ itype }}</span>
-        {% else %}&mdash;{% endif %}
+        {% else %}<span class="text-gray-400">&mdash;</span>{% endif %}
       </td>
-      <td>{{ row.completeness.triage_recommendation if row.completeness and row.completeness.triage_recommendation is defined else '&mdash;'|safe }}</td>
-      <td>{{ row.context_map.overall_rating if row.context_map and row.context_map.overall_rating is defined else '&mdash;'|safe }}</td>
-      <td data-sort-value="{{ row.context_map.context_helpfulness.overall_score if row.context_map and row.context_map.context_helpfulness else -1 }}">
+      <td class="px-3 py-2 text-gray-600 dark:text-gray-400">{{ row.completeness.triage_recommendation if row.completeness and row.completeness.triage_recommendation is defined else '&mdash;'|safe }}</td>
+      <td class="px-3 py-2 text-gray-600 dark:text-gray-400">{{ row.context_map.overall_rating if row.context_map and row.context_map.overall_rating is defined else '&mdash;'|safe }}</td>
+      <td class="px-3 py-2" data-sort-value="{{ row.context_map.context_helpfulness.overall_score if row.context_map and row.context_map.context_helpfulness else -1 }}">
         {% if row.context_map and row.context_map.context_helpfulness %}
           {% set hs = row.context_map.context_helpfulness.overall_score %}
           <span class="{{ 'score-red' if hs < 40 else ('score-yellow' if hs < 80 else 'score-green') }}">{{ hs }}</span>
-        {% else %}&mdash;{% endif %}
+        {% else %}<span class="text-gray-400">&mdash;</span>{% endif %}
       </td>
-      <td>
+      <td class="px-3 py-2">
         {% if row.arch_docs %}
           <span class="badge {{ 'badge-val-pass' if row.arch_docs == 'all' else ('badge-default' if row.arch_docs == 'partial' else 'badge-val-fail') }}">{{ row.arch_docs }}</span>
-        {% else %}&mdash;{% endif %}
+        {% else %}<span class="text-gray-400">&mdash;</span>{% endif %}
       </td>
-      <td>
+      <td class="px-3 py-2">
         {% if row.src_code %}
           <span class="badge {{ 'badge-val-pass' if row.src_code == 'all' else ('badge-default' if row.src_code == 'partial' else 'badge-val-fail') }}">{{ row.src_code }}</span>
-        {% else %}&mdash;{% endif %}
+        {% else %}<span class="text-gray-400">&mdash;</span>{% endif %}
       </td>
-      <td>
+      <td class="px-3 py-2">
         {% if row.test_context_rating %}
           <span class="badge {{ 'badge-val-pass' if row.test_context_rating == 'high' else ('badge-default' if row.test_context_rating == 'medium' else 'badge-val-fail') }}">{{ row.test_context_rating }}</span>
-        {% else %}&mdash;{% endif %}
+        {% else %}<span class="text-gray-400">&mdash;</span>{% endif %}
       </td>
-      <td>
+      <td class="px-3 py-2">
         {% if row.fix_attempt %}
           <span class="badge badge-fix-{{ row.fix_attempt.recommendation }}">{{ row.fix_attempt.recommendation }}</span>
-        {% else %}&mdash;{% endif %}
+        {% else %}<span class="text-gray-400">&mdash;</span>{% endif %}
       </td>
-      <td>{{ row.fix_attempt.confidence if row.fix_attempt and row.fix_attempt.confidence is defined else '&mdash;'|safe }}</td>
-      <td>{{ row.test_plan.effort_estimate if row.test_plan and row.test_plan.effort_estimate is defined else '&mdash;'|safe }}</td>
-      <td>
+      <td class="px-3 py-2 text-gray-600 dark:text-gray-400">{{ row.fix_attempt.confidence if row.fix_attempt and row.fix_attempt.confidence is defined else '&mdash;'|safe }}</td>
+      <td class="px-3 py-2 text-gray-600 dark:text-gray-400">{{ row.test_plan.effort_estimate if row.test_plan and row.test_plan.effort_estimate is defined else '&mdash;'|safe }}</td>
+      <td class="px-3 py-2">
         {% if row.write_test %}
           <span class="badge {{ 'badge-val-pass' if row.write_test.decision == 'write-test' else 'badge-default' }}">{{ row.write_test.decision }}</span>
-        {% else %}&mdash;{% endif %}
+        {% else %}<span class="text-gray-400">&mdash;</span>{% endif %}
       </td>
-      <td>{{ row.last_processed or '&mdash;'|safe }}</td>
+      <td class="px-3 py-2 text-gray-500 dark:text-gray-500 text-xs">{{ row.last_processed or '&mdash;'|safe }}</td>
     </tr>
     {% endfor %}
   </tbody>
 </table>
+</div>
 </div>

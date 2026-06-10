@@ -32,10 +32,13 @@ sudo k3s ctr images tag localhost/ingress-proxy:latest docker.io/library/ingress
 echo "  Deploying to Kubernetes..."
 kubectl apply -f deployment.yaml
 
+# Restart pods to pick up the new image
+echo "  Restarting pods..."
+kubectl rollout restart deployment/ingress-proxy -n ai-pipeline
+
 # Wait for deployment
 echo "  Waiting for ingress-proxy to be ready..."
-kubectl wait --for=condition=Available --timeout=120s \
-  deployment/ingress-proxy -n ai-pipeline || true
+kubectl rollout status deployment/ingress-proxy -n ai-pipeline --timeout=120s || true
 
 # Wait for certificate
 echo "  Waiting for TLS certificate..."

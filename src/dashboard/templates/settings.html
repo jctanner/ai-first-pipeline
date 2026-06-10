@@ -1,165 +1,177 @@
 {% extends "layout.html" %}
 {% block title %}Settings{% endblock %}
 {% block content %}
-<div class="container">
-  <h2>Configuration Settings</h2>
 
-  <section style="margin-top: 2rem;">
-    <h3>Environment Variables</h3>
-    <table>
-      <thead>
+<h2 class="text-xl font-semibold text-gray-900 dark:text-white mb-6">Configuration Settings</h2>
+
+<div class="space-y-6">
+
+  <div class="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 overflow-hidden">
+    <div class="px-5 py-3 border-b border-gray-200 dark:border-gray-700">
+      <h3 class="text-base font-semibold text-gray-900 dark:text-white">Environment Variables</h3>
+    </div>
+    <div class="overflow-x-auto">
+    <table class="w-full text-sm">
+      <thead class="bg-gray-50 dark:bg-gray-800 text-xs uppercase text-gray-500 dark:text-gray-400">
         <tr>
-          <th>Variable</th>
-          <th>Value</th>
+          <th class="px-5 py-2.5 text-left">Variable</th>
+          <th class="px-5 py-2.5 text-left">Value</th>
         </tr>
       </thead>
-      <tbody>
+      <tbody class="divide-y divide-gray-100 dark:divide-gray-800">
         {% for key, value in config.items() %}
-        <tr>
-          <td><code>{{ key }}</code></td>
-          <td>
+        <tr class="hover:bg-gray-50 dark:hover:bg-gray-800/50">
+          <td class="px-5 py-2"><code class="text-xs bg-gray-100 dark:bg-gray-800 px-1.5 py-0.5 rounded">{{ key }}</code></td>
+          <td class="px-5 py-2">
             {% if value %}
               {% if 'TOKEN' in key or 'PASSWORD' in key or 'SECRET' in key %}
-                <code>{{ '***' + value[-4:] if value and value|length > 4 else '***' }}</code>
+                <code class="text-xs bg-gray-100 dark:bg-gray-800 px-1.5 py-0.5 rounded">{{ '***' + value[-4:] if value and value|length > 4 else '***' }}</code>
               {% else %}
-                <code>{{ value }}</code>
+                <code class="text-xs bg-gray-100 dark:bg-gray-800 px-1.5 py-0.5 rounded">{{ value }}</code>
               {% endif %}
             {% else %}
-              <em style="color: #999;">not set</em>
+              <em class="text-gray-400 text-xs">not set</em>
             {% endif %}
           </td>
         </tr>
         {% endfor %}
       </tbody>
     </table>
-  </section>
+    </div>
+  </div>
 
-  <section style="margin-top: 2rem;">
-    <h3>Cluster Information</h3>
-    <table>
-      <thead>
+  <div class="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 overflow-hidden">
+    <div class="px-5 py-3 border-b border-gray-200 dark:border-gray-700">
+      <h3 class="text-base font-semibold text-gray-900 dark:text-white">Cluster Information</h3>
+    </div>
+    <div class="overflow-x-auto">
+    <table class="w-full text-sm">
+      <thead class="bg-gray-50 dark:bg-gray-800 text-xs uppercase text-gray-500 dark:text-gray-400">
         <tr>
-          <th>Property</th>
-          <th>Value</th>
+          <th class="px-5 py-2.5 text-left">Property</th>
+          <th class="px-5 py-2.5 text-left">Value</th>
         </tr>
       </thead>
-      <tbody>
-        <tr>
-          <td>Namespace</td>
-          <td><code>{{ cluster.namespace }}</code></td>
-        </tr>
-        <tr>
-          <td>Platform</td>
-          <td><code>{{ cluster.platform }}</code></td>
-        </tr>
-        <tr>
-          <td>Storage Class</td>
-          <td><code>{{ cluster.storage_class }}</code></td>
-        </tr>
+      <tbody class="divide-y divide-gray-100 dark:divide-gray-800">
+        <tr><td class="px-5 py-2 font-medium text-gray-600 dark:text-gray-400">Namespace</td><td class="px-5 py-2"><code class="text-xs bg-gray-100 dark:bg-gray-800 px-1.5 py-0.5 rounded">{{ cluster.namespace }}</code></td></tr>
+        <tr><td class="px-5 py-2 font-medium text-gray-600 dark:text-gray-400">Platform</td><td class="px-5 py-2"><code class="text-xs bg-gray-100 dark:bg-gray-800 px-1.5 py-0.5 rounded">{{ cluster.platform }}</code></td></tr>
+        <tr><td class="px-5 py-2 font-medium text-gray-600 dark:text-gray-400">Storage Class</td><td class="px-5 py-2"><code class="text-xs bg-gray-100 dark:bg-gray-800 px-1.5 py-0.5 rounded">{{ cluster.storage_class }}</code></td></tr>
       </tbody>
     </table>
-  </section>
+    </div>
+  </div>
 
-  <section style="margin-top: 2rem;">
-    <h3>Service Endpoints</h3>
-    <table>
-      <thead>
+  <div class="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 overflow-hidden">
+    <div class="px-5 py-3 border-b border-gray-200 dark:border-gray-700">
+      <h3 class="text-base font-semibold text-gray-900 dark:text-white">Service Endpoints</h3>
+    </div>
+    <div class="overflow-x-auto">
+    <table class="w-full text-sm">
+      <thead class="bg-gray-50 dark:bg-gray-800 text-xs uppercase text-gray-500 dark:text-gray-400">
         <tr>
-          <th>Service</th>
-          <th>URL</th>
-          <th>Status</th>
+          <th class="px-5 py-2.5 text-left">Service</th>
+          <th class="px-5 py-2.5 text-left">URL</th>
+          <th class="px-5 py-2.5 text-left">Status</th>
         </tr>
       </thead>
-      <tbody>
+      <tbody class="divide-y divide-gray-100 dark:divide-gray-800">
         {% for service in services %}
-        <tr>
-          <td>{{ service.name }}</td>
-          <td><code>{{ service.url }}</code></td>
-          <td>
+        <tr class="hover:bg-gray-50 dark:hover:bg-gray-800/50">
+          <td class="px-5 py-2">{{ service.name }}</td>
+          <td class="px-5 py-2"><code class="text-xs bg-gray-100 dark:bg-gray-800 px-1.5 py-0.5 rounded">{{ service.url }}</code></td>
+          <td class="px-5 py-2">
             {% if service.status == 'available' %}
-              <span style="color: green;">●</span> Available
+              <span class="inline-flex items-center gap-1.5"><span class="w-2 h-2 rounded-full bg-green-500"></span> <span class="text-green-600 dark:text-green-400">Available</span></span>
             {% elif service.status == 'unknown' %}
-              <span style="color: #999;">●</span> Unknown
+              <span class="inline-flex items-center gap-1.5"><span class="w-2 h-2 rounded-full bg-gray-400"></span> <span class="text-gray-500">Unknown</span></span>
             {% else %}
-              <span style="color: red;">●</span> Unavailable
+              <span class="inline-flex items-center gap-1.5"><span class="w-2 h-2 rounded-full bg-red-500"></span> <span class="text-red-600 dark:text-red-400">Unavailable</span></span>
             {% endif %}
           </td>
         </tr>
         {% endfor %}
       </tbody>
     </table>
-  </section>
+    </div>
+  </div>
 
-  <section style="margin-top: 2rem;">
-    <h3>Data Volumes</h3>
-    <p style="color: #666; font-size: 0.9em;">Clear analysis data from shared volumes. This cannot be undone.</p>
-    <table>
-      <thead>
+  <div class="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 overflow-hidden">
+    <div class="px-5 py-3 border-b border-gray-200 dark:border-gray-700">
+      <h3 class="text-base font-semibold text-gray-900 dark:text-white">Data Volumes</h3>
+      <p class="text-xs text-gray-500 dark:text-gray-500 mt-1">Clear analysis data from shared volumes. This cannot be undone.</p>
+    </div>
+    <div class="overflow-x-auto">
+    <table class="w-full text-sm">
+      <thead class="bg-gray-50 dark:bg-gray-800 text-xs uppercase text-gray-500 dark:text-gray-400">
         <tr>
-          <th style="width: 2em;"><input type="checkbox" id="vol-select-all" onchange="toggleVolSelectAll(this)"></th>
-          <th>Volume</th>
-          <th>Path</th>
+          <th class="px-5 py-2.5 w-8"><input type="checkbox" id="vol-select-all" onchange="toggleVolSelectAll(this)" class="rounded"></th>
+          <th class="px-5 py-2.5 text-left">Volume</th>
+          <th class="px-5 py-2.5 text-left">Path</th>
         </tr>
       </thead>
-      <tbody>
-        <tr>
-          <td><input type="checkbox" class="vol-select" value="issues"></td>
-          <td>Issues</td>
-          <td><code>/app/issues</code></td>
-        </tr>
-        <tr>
-          <td><input type="checkbox" class="vol-select" value="workspace"></td>
-          <td>Workspace</td>
-          <td><code>/app/workspace</code></td>
-        </tr>
-        <tr>
-          <td><input type="checkbox" class="vol-select" value="logs"></td>
-          <td>Logs</td>
-          <td><code>/app/logs</code></td>
-        </tr>
-        <tr>
-          <td><input type="checkbox" class="vol-select" value="artifacts"></td>
-          <td>Artifacts</td>
-          <td><code>/app/artifacts</code></td>
-        </tr>
-        <tr>
-          <td><input type="checkbox" class="vol-select" value="context"></td>
-          <td>Context</td>
-          <td><code>/app/.context</code></td>
-        </tr>
+      <tbody class="divide-y divide-gray-100 dark:divide-gray-800">
+        <tr><td class="px-5 py-2"><input type="checkbox" class="vol-select rounded" value="issues"></td><td class="px-5 py-2">Issues</td><td class="px-5 py-2"><code class="text-xs">/app/issues</code></td></tr>
+        <tr><td class="px-5 py-2"><input type="checkbox" class="vol-select rounded" value="workspace"></td><td class="px-5 py-2">Workspace</td><td class="px-5 py-2"><code class="text-xs">/app/workspace</code></td></tr>
+        <tr><td class="px-5 py-2"><input type="checkbox" class="vol-select rounded" value="logs"></td><td class="px-5 py-2">Logs</td><td class="px-5 py-2"><code class="text-xs">/app/logs</code></td></tr>
+        <tr><td class="px-5 py-2"><input type="checkbox" class="vol-select rounded" value="artifacts"></td><td class="px-5 py-2">Artifacts</td><td class="px-5 py-2"><code class="text-xs">/app/artifacts</code></td></tr>
+        <tr><td class="px-5 py-2"><input type="checkbox" class="vol-select rounded" value="context"></td><td class="px-5 py-2">Context</td><td class="px-5 py-2"><code class="text-xs">/app/.context</code></td></tr>
       </tbody>
     </table>
-    <button style="background:#c0392b; color:white; border:none; padding:0.4em 1.2em; border-radius:4px; cursor:pointer; margin-top:0.5rem;"
-            onclick="confirmClearVolumes()">Clear Selected</button>
-  </section>
+    </div>
+    <div class="px-5 py-3 border-t border-gray-200 dark:border-gray-700">
+      <button class="bg-red-600 hover:bg-red-700 text-white text-sm font-medium py-2 px-4 rounded-lg transition-colors"
+              onclick="confirmClearVolumes()">Clear Selected</button>
+    </div>
+  </div>
 
-  <dialog id="clear-volumes-modal">
-    <article>
-      <h3>Clear Data Volumes</h3>
-      <p>This will <strong>permanently delete</strong> all contents from the following volumes:</p>
-      <p id="clear-volumes-list" style="max-height:200px; overflow-y:auto; font-size:0.85em;"></p>
-      <footer>
-        <button class="secondary" onclick="document.getElementById('clear-volumes-modal').close()">Cancel</button>
-        <button style="background:#c0392b; color:white; border:none;" onclick="executeClearVolumes()">Confirm &amp; Clear</button>
-      </footer>
-    </article>
+  <div class="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 overflow-hidden">
+    <div class="px-5 py-3 border-b border-gray-200 dark:border-gray-700">
+      <h3 class="text-base font-semibold text-gray-900 dark:text-white">MLflow Data</h3>
+      <p class="text-xs text-gray-500 dark:text-gray-500 mt-1">Delete all experiments, runs, and traces from the MLflow tracking server. The Default experiment (ID 0) is preserved but emptied.</p>
+    </div>
+    <div class="px-5 py-3 flex items-center justify-between">
+      <span class="text-sm text-gray-600 dark:text-gray-400">All experiments, runs, and traces</span>
+      <button class="bg-red-600 hover:bg-red-700 text-white text-sm font-medium py-2 px-4 rounded-lg transition-colors"
+              onclick="confirmClearMlflow()">Clear MLflow Data</button>
+    </div>
+  </div>
+
+  <dialog id="clear-mlflow-modal" class="rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 p-0 backdrop:bg-black/50">
+    <div class="p-6 max-w-md">
+      <h3 class="text-lg font-semibold text-gray-900 dark:text-white mb-3">Clear MLflow Data</h3>
+      <p class="text-sm text-gray-600 dark:text-gray-400 mb-4">This will <strong class="text-gray-900 dark:text-white">permanently delete</strong> all MLflow experiments (except Default), runs, and traces.</p>
+      <div class="flex justify-end gap-3">
+        <button class="px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 bg-gray-100 dark:bg-gray-800 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors" onclick="document.getElementById('clear-mlflow-modal').close()">Cancel</button>
+        <button class="px-4 py-2 text-sm font-medium text-white bg-red-600 rounded-lg hover:bg-red-700 transition-colors" onclick="executeClearMlflow()">Confirm &amp; Clear</button>
+      </div>
+    </div>
   </dialog>
 
-  <section style="margin-top: 2rem;">
+  <dialog id="clear-volumes-modal" class="rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 p-0 backdrop:bg-black/50">
+    <div class="p-6 max-w-md">
+      <h3 class="text-lg font-semibold text-gray-900 dark:text-white mb-3">Clear Data Volumes</h3>
+      <p class="text-sm text-gray-600 dark:text-gray-400 mb-3">This will <strong class="text-gray-900 dark:text-white">permanently delete</strong> all contents from the following volumes:</p>
+      <div id="clear-volumes-list" class="max-h-48 overflow-y-auto text-xs text-gray-600 dark:text-gray-400 mb-4"></div>
+      <div class="flex justify-end gap-3">
+        <button class="px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 bg-gray-100 dark:bg-gray-800 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors" onclick="document.getElementById('clear-volumes-modal').close()">Cancel</button>
+        <button class="px-4 py-2 text-sm font-medium text-white bg-red-600 rounded-lg hover:bg-red-700 transition-colors" onclick="executeClearVolumes()">Confirm &amp; Clear</button>
+      </div>
+    </div>
+  </dialog>
+
+  <div class="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 overflow-hidden">
     <details>
-      <summary>About These Settings</summary>
-      <div style="max-width: 800px; line-height: 1.6; padding: 1em 0;">
-        <p>This page displays the configuration used by the AI-First Pipeline system.</p>
-        <p><strong>Environment Variables</strong> are loaded from the <code>.env</code> file or
-        Kubernetes secrets and control how the pipeline connects to external services.</p>
-        <p><strong>Cluster Information</strong> describes the Kubernetes environment where the
-        pipeline is running.</p>
-        <p><strong>Service Endpoints</strong> lists the URLs for Jira, GitHub emulators, and
-        other services used by the pipeline.</p>
+      <summary class="px-5 py-3 font-semibold text-gray-900 dark:text-white cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800/50">About These Settings</summary>
+      <div class="px-5 pb-4 text-sm text-gray-600 dark:text-gray-400 leading-relaxed max-w-3xl">
+        <p class="mb-2">This page displays the configuration used by the AI-First Pipeline system.</p>
+        <p class="mb-2"><strong class="text-gray-900 dark:text-white">Environment Variables</strong> are loaded from the <code class="text-xs bg-gray-100 dark:bg-gray-800 px-1.5 py-0.5 rounded">.env</code> file or Kubernetes secrets and control how the pipeline connects to external services.</p>
+        <p class="mb-2"><strong class="text-gray-900 dark:text-white">Cluster Information</strong> describes the Kubernetes environment where the pipeline is running.</p>
+        <p class="mb-2"><strong class="text-gray-900 dark:text-white">Service Endpoints</strong> lists the URLs for Jira, GitHub emulators, and other services used by the pipeline.</p>
         <p><em>Note:</em> Sensitive values like tokens and passwords are partially masked for security.</p>
       </div>
     </details>
-  </section>
+  </div>
+
 </div>
 {% endblock %}
 {% block scripts %}

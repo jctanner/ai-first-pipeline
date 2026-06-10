@@ -109,7 +109,9 @@ class PipelineOrchestrator:
             "phase": job.metadata.labels.get("phase"),
             "issue": job.metadata.labels.get("issue"),
             "model": job.metadata.labels.get("model"),
-            "runner": job.metadata.labels.get("runner", "cli")
+            "runner": job.metadata.labels.get("runner", "cli"),
+            "strace": job.metadata.labels.get("strace", "false") == "true",
+            "mlflow": job.metadata.labels.get("mlflow", "true") == "true",
         }
 
     def get_job_logs(self, job_name: str) -> str:
@@ -206,6 +208,13 @@ class PipelineOrchestrator:
         else:
             job_name = f"{phase}-all-{model}-{timestamp}".lower().replace("_", "-")
 
+        # Resolve fully-qualified skill name for MLflow experiment
+        try:
+            from src.cli.skill_config import get_skill_fqn
+            skill_fqn = get_skill_fqn(phase)
+        except Exception:
+            skill_fqn = phase
+
         # Build command args - choose script based on runner type
         if runner == "sdk":
             cmd_args = ["/bin/bash", "/app/scripts/run_skill_sdk.sh"]
@@ -231,7 +240,9 @@ class PipelineOrchestrator:
                     "phase": phase,
                     "issue": issue_key.lower() if issue_key else "all",
                     "model": model,
-                    "runner": runner
+                    "runner": runner,
+                    "strace": "true" if args.get("strace") else "false",
+                    "mlflow": "false" if args.get("mlflow") is False else "true",
                 }
             ),
             spec=client.V1JobSpec(
@@ -306,13 +317,16 @@ fi
                                 image_pull_policy="Never",  # Use local image
                                 command=cmd_args,
 
-                                env=self._build_env_vars(),
+                                env=self._build_env_vars(args, job_name=job_name, skill_fqn=skill_fqn),
                                 volume_mounts=self._build_volume_mounts(),
 
                                 resources=client.V1ResourceRequirements(
                                     requests={"memory": "2Gi", "cpu": "500m"},
                                     limits={"memory": "8Gi", "cpu": "2000m"}
-                                )
+                                ),
+                                security_context=client.V1SecurityContext(
+                                    capabilities=client.V1Capabilities(add=["SYS_PTRACE"])
+                                ) if args.get("strace") else None
                             )
                         ],
 
@@ -324,9 +338,13 @@ fi
 
         return job
 
-    def _build_env_vars(self) -> list:
+    def _build_env_vars(self, args: dict = None, job_name: str = "", skill_fqn: str = "") -> list:
         """Build environment variables for agent containers."""
-        return [
+        if args is None:
+            args = {}
+
+        env_vars = [
+            client.V1EnvVar(name="PIPELINE_JOB_NAME", value=job_name),
             # Vertex AI config
             client.V1EnvVar(
                 name="CLAUDE_CODE_USE_VERTEX",
@@ -399,12 +417,26 @@ fi
                 name="GOOGLE_APPLICATION_CREDENTIALS",
                 value="/home/pipelineagent/.config/gcloud/credentials.json"
             ),
-            # MLflow tracking
-            client.V1EnvVar(
+        ]
+
+        if args.get("mlflow") is not False:
+            env_vars.append(client.V1EnvVar(
                 name="MLFLOW_TRACKING_URI",
                 value="http://mlflow.ai-pipeline.svc.cluster.local:5000"
-            )
-        ]
+            ))
+            if skill_fqn:
+                env_vars.append(client.V1EnvVar(
+                    name="MLFLOW_EXPERIMENT_NAME",
+                    value=skill_fqn
+                ))
+
+        if args.get("strace"):
+            env_vars.append(client.V1EnvVar(
+                name="ENABLE_STRACE",
+                value="1"
+            ))
+
+        return env_vars
 
     def _build_volume_mounts(self) -> list:
         """Build volume mounts for agent containers."""

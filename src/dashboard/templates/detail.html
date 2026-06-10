@@ -1,15 +1,16 @@
 {% extends "layout.html" %}
 {% block title %}{{ issue.key }} - Bug Bash{% endblock %}
 {% block content %}
-<hgroup>
-  <h2>{{ issue.key }}: {{ issue.summary }}</h2>
-</hgroup>
-<p><a href="/">&larr; Back to dashboard</a></p>
+<div class="mb-4">
+  <h2 class="text-xl font-semibold text-gray-900 dark:text-white">{{ issue.key }}: {{ issue.summary }}</h2>
+  <a href="/" class="text-sm text-primary-600 dark:text-primary-400 hover:underline">&larr; Back to dashboard</a>
+</div>
 
 {% if available_models and available_models|length > 1 %}
-<div style="margin-bottom: 1rem;">
-  <label><strong>Model:</strong>
-    <select onchange="window.location.href='/issue/{{ issue.key }}?model=' + this.value;">
+<div class="mb-4">
+  <label class="text-sm font-medium text-gray-700 dark:text-gray-300">
+    <strong>Model:</strong>
+    <select onchange="window.location.href='/issue/{{ issue.key }}?model=' + this.value;" class="ml-2 rounded-lg border-gray-300 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-200 text-sm py-1.5 px-2.5">
       {% for m in available_models %}
       <option value="{{ m }}"{% if m == selected_model %} selected{% endif %}>{{ m }}</option>
       {% endfor %}
@@ -17,604 +18,646 @@
   </label>
 </div>
 {% elif selected_model %}
-<p><strong>Model:</strong> {{ selected_model }}</p>
+<p class="text-sm text-gray-600 dark:text-gray-400 mb-4"><strong>Model:</strong> {{ selected_model }}</p>
 {% endif %}
 
-<div class="detail-columns">
+<div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
 
 {# =============== LEFT COLUMN: Issue Data =============== #}
-<div class="detail-left">
+<div class="space-y-4">
 
-<details open>
-  <summary>Issue Details</summary>
-  <table>
-    <tbody>
-      <tr><td><strong>Status</strong></td><td>{{ issue.status }}</td></tr>
-      <tr><td><strong>Priority</strong></td><td>{{ issue.priority }}</td></tr>
-      <tr><td><strong>Type</strong></td><td>{{ issue.issue_type }}</td></tr>
-      <tr><td><strong>Components</strong></td><td>{{ issue.components|join(', ') or '—' }}</td></tr>
-      <tr><td><strong>Labels</strong></td><td>{{ issue.labels|join(', ') or '—' }}</td></tr>
-      <tr><td><strong>Assignee</strong></td><td>{{ issue.assignee }}</td></tr>
-      <tr><td><strong>Reporter</strong></td><td>{{ issue.reporter or '—' }}</td></tr>
-      <tr><td><strong>Affected Versions</strong></td><td>{{ issue.versions|join(', ') if issue.versions else '—' }}</td></tr>
-      <tr><td><strong>Fix Versions</strong></td><td>{{ issue.fix_versions|join(', ') if issue.fix_versions else '—' }}</td></tr>
-      <tr><td><strong>Created</strong></td><td>{{ issue.created[:10] if issue.created else '—' }}</td></tr>
-      <tr><td><strong>Updated</strong></td><td>{{ issue.updated[:10] if issue.updated else '—' }}</td></tr>
-    </tbody>
-  </table>
-</details>
+<div class="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 overflow-hidden">
+  <details open>
+    <summary class="px-5 py-3 font-semibold text-gray-900 dark:text-white cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800/50">Issue Details</summary>
+    <div class="px-5 pb-4">
+    <table class="w-full text-sm">
+      <tbody class="divide-y divide-gray-100 dark:divide-gray-800">
+        <tr><td class="py-1.5 font-medium text-gray-600 dark:text-gray-400 w-36">Status</td><td class="py-1.5">{{ issue.status }}</td></tr>
+        <tr><td class="py-1.5 font-medium text-gray-600 dark:text-gray-400">Priority</td><td class="py-1.5">{{ issue.priority }}</td></tr>
+        <tr><td class="py-1.5 font-medium text-gray-600 dark:text-gray-400">Type</td><td class="py-1.5">{{ issue.issue_type }}</td></tr>
+        <tr><td class="py-1.5 font-medium text-gray-600 dark:text-gray-400">Components</td><td class="py-1.5">{{ issue.components|join(', ') or '—' }}</td></tr>
+        <tr><td class="py-1.5 font-medium text-gray-600 dark:text-gray-400">Labels</td><td class="py-1.5">{{ issue.labels|join(', ') or '—' }}</td></tr>
+        <tr><td class="py-1.5 font-medium text-gray-600 dark:text-gray-400">Assignee</td><td class="py-1.5">{{ issue.assignee }}</td></tr>
+        <tr><td class="py-1.5 font-medium text-gray-600 dark:text-gray-400">Reporter</td><td class="py-1.5">{{ issue.reporter or '—' }}</td></tr>
+        <tr><td class="py-1.5 font-medium text-gray-600 dark:text-gray-400">Affected Versions</td><td class="py-1.5">{{ issue.versions|join(', ') if issue.versions else '—' }}</td></tr>
+        <tr><td class="py-1.5 font-medium text-gray-600 dark:text-gray-400">Fix Versions</td><td class="py-1.5">{{ issue.fix_versions|join(', ') if issue.fix_versions else '—' }}</td></tr>
+        <tr><td class="py-1.5 font-medium text-gray-600 dark:text-gray-400">Created</td><td class="py-1.5">{{ issue.created[:10] if issue.created else '—' }}</td></tr>
+        <tr><td class="py-1.5 font-medium text-gray-600 dark:text-gray-400">Updated</td><td class="py-1.5">{{ issue.updated[:10] if issue.updated else '—' }}</td></tr>
+      </tbody>
+    </table>
+    </div>
+  </details>
+</div>
 
-<details open>
-  <summary>Description</summary>
-  <div class="issue-text">{{ issue.description_html|safe }}</div>
-</details>
+<div class="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 overflow-hidden">
+  <details open>
+    <summary class="px-5 py-3 font-semibold text-gray-900 dark:text-white cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800/50">Description</summary>
+    <div class="px-5 pb-4">
+      <div class="desc-toggle-wrap">
+        <button onclick="toggleDescView(this)" class="desc-toggle-btn" title="Toggle raw/rendered view">Raw</button>
+        <div class="issue-text desc-rendered">{{ issue.description_html|safe }}</div>
+        <pre class="issue-text desc-raw">{{ issue.description }}</pre>
+      </div>
+    </div>
+  </details>
+</div>
 
 {% if issue.comments_html %}
-<details open>
-  <summary>Comments ({{ issue.comments_html|length }})</summary>
-  {% for comment in issue.comments_html %}
-  <div class="comment-block">
-    <div class="comment-meta"><strong>{{ comment.author }}</strong> &mdash; {{ comment.created[:10] if comment.created else '' }}</div>
-    {{ comment.body_html|safe }}
-  </div>
-  {% endfor %}
-</details>
+<div class="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 overflow-hidden">
+  <details open>
+    <summary class="px-5 py-3 font-semibold text-gray-900 dark:text-white cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800/50">Comments ({{ issue.comments_html|length }})</summary>
+    <div class="px-5 pb-4 space-y-2">
+    {% for comment in issue.comments_html %}
+      <div class="comment-block">
+        <div class="comment-meta"><strong>{{ comment.author }}</strong> &mdash; {{ comment.created[:10] if comment.created else '' }}</div>
+        {{ comment.body_html|safe }}
+      </div>
+    {% endfor %}
+    </div>
+  </details>
+</div>
 {% endif %}
 
 {% if issue.attachments %}
-<details>
-  <summary>Attachments ({{ issue.attachments|length }})</summary>
-  <ul>
-    {% for a in issue.attachments %}
-    <li><code>{{ a }}</code></li>
-    {% endfor %}
-  </ul>
-</details>
+<div class="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 overflow-hidden">
+  <details>
+    <summary class="px-5 py-3 font-semibold text-gray-900 dark:text-white cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800/50">Attachments ({{ issue.attachments|length }})</summary>
+    <ul class="px-5 pb-4 list-disc list-inside text-sm">
+      {% for a in issue.attachments %}
+      <li><code class="text-xs bg-gray-100 dark:bg-gray-800 px-1.5 py-0.5 rounded">{{ a }}</code></li>
+      {% endfor %}
+    </ul>
+  </details>
+</div>
 {% endif %}
 
-</div>{# end detail-left #}
+</div>
 
 {# =============== RIGHT COLUMN: Analysis =============== #}
-<div class="detail-right">
+<div class="space-y-4">
 
 {# ---- Completeness ---- #}
-<details open>
-  <summary>Completeness Analysis</summary>
-  {% if issue.completeness %}
-    {% set c = issue.completeness %}
-    {% if c.overall_score is defined %}
-    <p>
-      <strong>Overall Score:</strong>
-      <span class="{{ 'score-red' if c.overall_score < 40 else ('score-yellow' if c.overall_score < 80 else 'score-green') }}">
-        {{ c.overall_score }} / 100
-      </span>
-    </p>
-    <div class="score-bar">
-      <div class="score-bar-fill" style="width:{{ c.overall_score }}%; background:{{ '#c0392b' if c.overall_score < 40 else ('#d4a017' if c.overall_score < 80 else '#27ae60') }};">
-        {{ c.overall_score }}
+<div class="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 overflow-hidden">
+  <details open>
+    <summary class="px-5 py-3 font-semibold text-gray-900 dark:text-white cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800/50">Completeness Analysis</summary>
+    <div class="px-5 pb-4">
+    {% if issue.completeness %}
+      {% set c = issue.completeness %}
+      {% if c.overall_score is defined %}
+      <p class="mb-2">
+        <strong class="text-sm text-gray-600 dark:text-gray-400">Overall Score:</strong>
+        <span class="{{ 'score-red' if c.overall_score < 40 else ('score-yellow' if c.overall_score < 80 else 'score-green') }}">
+          {{ c.overall_score }} / 100
+        </span>
+      </p>
+      <div class="score-bar mb-4">
+        <div class="score-bar-fill" style="width:{{ c.overall_score }}%; background:{{ '#dc2626' if c.overall_score < 40 else ('#ca8a04' if c.overall_score < 80 else '#16a34a') }};">
+          {{ c.overall_score }}
+        </div>
       </div>
-    </div>
+      {% else %}
+      <p class="text-sm text-gray-500 italic">Completeness data is incomplete (missing overall_score).</p>
+      {% endif %}
+
+      <h4 class="text-sm font-semibold text-gray-900 dark:text-white mt-4 mb-2">Dimensions</h4>
+      <div class="overflow-x-auto">
+      <table class="w-full text-sm">
+        <thead class="bg-gray-50 dark:bg-gray-800 text-xs uppercase text-gray-500 dark:text-gray-400">
+          <tr><th class="px-3 py-2 text-left">Dimension</th><th class="px-3 py-2">Weight</th><th class="px-3 py-2">Score</th><th class="px-3 py-2">Weighted</th><th class="px-3 py-2 text-left">Justification</th></tr>
+        </thead>
+        <tbody class="divide-y divide-gray-100 dark:divide-gray-800">
+          {% for d in c.dimensions %}
+          <tr>
+            <td class="px-3 py-1.5">{{ d.name }}</td>
+            <td class="px-3 py-1.5 text-center">{{ d.weight }}</td>
+            <td class="px-3 py-1.5 text-center">{{ d.score }}</td>
+            <td class="px-3 py-1.5 text-center">{{ d.weighted_score }}</td>
+            <td class="px-3 py-1.5 text-gray-600 dark:text-gray-400">{{ d.justification }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+      </div>
+
+      {% if c.missing_information %}
+      <h4 class="text-sm font-semibold text-gray-900 dark:text-white mt-4 mb-2">Missing Information</h4>
+      <ul class="list-disc list-inside text-sm text-gray-600 dark:text-gray-400">
+        {% for item in c.missing_information %}<li>{{ item }}</li>{% endfor %}
+      </ul>
+      {% endif %}
+
+      {% if c.issue_type_assessment %}
+      <h4 class="text-sm font-semibold text-gray-900 dark:text-white mt-4 mb-2">Issue Type Assessment</h4>
+      <p class="text-sm mb-1">
+        <strong>Type:</strong> <span class="badge badge-{{ c.issue_type_assessment.classified_type if c.issue_type_assessment.classified_type in ('bug','enhancement','feature-request','task') else 'default' }}">{{ c.issue_type_assessment.classified_type }}</span>
+        &middot; <strong>Confidence:</strong> {{ c.issue_type_assessment.confidence }}
+      </p>
+      <p class="text-sm text-gray-600 dark:text-gray-400">{{ c.issue_type_assessment.justification }}</p>
+      {% endif %}
+
+      <h4 class="text-sm font-semibold text-gray-900 dark:text-white mt-4 mb-2">Triage Recommendation</h4>
+      <p class="text-sm font-medium">{{ c.triage_recommendation }}</p>
     {% else %}
-    <p><em>Completeness data is incomplete (missing overall_score).</em></p>
+      <p class="text-sm text-gray-500 italic">No completeness analysis available.</p>
     {% endif %}
-
-    <h4>Dimensions</h4>
-    <table>
-      <thead><tr><th>Dimension</th><th>Weight</th><th>Score</th><th>Weighted</th><th>Justification</th></tr></thead>
-      <tbody>
-        {% for d in c.dimensions %}
-        <tr>
-          <td>{{ d.name }}</td>
-          <td>{{ d.weight }}</td>
-          <td>{{ d.score }}</td>
-          <td>{{ d.weighted_score }}</td>
-          <td>{{ d.justification }}</td>
-        </tr>
-        {% endfor %}
-      </tbody>
-    </table>
-
-    {% if c.missing_information %}
-    <h4>Missing Information</h4>
-    <ul>
-      {% for item in c.missing_information %}
-      <li>{{ item }}</li>
-      {% endfor %}
-    </ul>
-    {% endif %}
-
-    {% if c.issue_type_assessment %}
-    <h4>Issue Type Assessment</h4>
-    <p>
-      <strong>Type:</strong> <span class="badge badge-{{ c.issue_type_assessment.classified_type if c.issue_type_assessment.classified_type in ('bug','enhancement','feature-request','task') else 'default' }}">{{ c.issue_type_assessment.classified_type }}</span>
-      &middot; <strong>Confidence:</strong> {{ c.issue_type_assessment.confidence }}
-    </p>
-    <p>{{ c.issue_type_assessment.justification }}</p>
-    {% endif %}
-
-    <h4>Triage Recommendation</h4>
-    <p><strong>{{ c.triage_recommendation }}</strong></p>
-  {% else %}
-    <p><em>No completeness analysis available.</em></p>
-  {% endif %}
-</details>
+    </div>
+  </details>
+</div>
 
 {# ---- Context Map ---- #}
-<details open>
-  <summary>Context Map</summary>
-  {% if issue.context_map %}
-    {% set cm = issue.context_map %}
-    <p><strong>Overall Rating:</strong> {{ cm.overall_rating }}</p>
+<div class="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 overflow-hidden">
+  <details open>
+    <summary class="px-5 py-3 font-semibold text-gray-900 dark:text-white cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800/50">Context Map</summary>
+    <div class="px-5 pb-4">
+    {% if issue.context_map %}
+      {% set cm = issue.context_map %}
+      <p class="text-sm mb-3"><strong>Overall Rating:</strong> {{ cm.overall_rating }}</p>
 
-    {% if cm.identified_components %}
-    <h4>Identified Components</h4>
-    <ul>
-      {% for comp in cm.identified_components %}
-      <li>{{ comp }}</li>
-      {% endfor %}
-    </ul>
-    {% endif %}
+      {% if cm.identified_components %}
+      <h4 class="text-sm font-semibold text-gray-900 dark:text-white mt-4 mb-2">Identified Components</h4>
+      <ul class="list-disc list-inside text-sm text-gray-600 dark:text-gray-400">
+        {% for comp in cm.identified_components %}<li>{{ comp }}</li>{% endfor %}
+      </ul>
+      {% endif %}
 
-    {% if cm.context_entries %}
-    <h4>Context Entries</h4>
-    <table>
-      <thead><tr><th>Source</th><th>Relevance</th><th>Content</th></tr></thead>
-      <tbody>
-        {% for entry in cm.context_entries %}
-        <tr>
-          <td>{{ entry.source if entry.source is defined else '' }}</td>
-          <td>{{ entry.relevance if entry.relevance is defined else '' }}</td>
-          <td>{{ entry.content if entry.content is defined else (entry.summary if entry.summary is defined else '') }}</td>
-        </tr>
-        {% endfor %}
-      </tbody>
-    </table>
-    {% endif %}
-
-    {% if cm.relevant_files %}
-    <h4>Relevant Files</h4>
-    <ul>
-      {% for f in cm.relevant_files %}
-      <li><code>{{ f }}</code></li>
-      {% endfor %}
-    </ul>
-    {% endif %}
-
-    {% if cm.missing_context %}
-    <h4>Missing Context</h4>
-    <ul>
-      {% for item in cm.missing_context %}
-      <li>{{ item }}</li>
-      {% endfor %}
-    </ul>
-    {% endif %}
-
-    {% if cm.context_helpfulness %}
-    <h4>Context Helpfulness: {{ cm.context_helpfulness.overall_score }} / 100</h4>
-    <div class="score-bar">
-      <div class="score-bar-fill" style="width:{{ cm.context_helpfulness.overall_score }}%; background:{{ '#c0392b' if cm.context_helpfulness.overall_score < 40 else ('#d4a017' if cm.context_helpfulness.overall_score < 80 else '#27ae60') }};">
-        {{ cm.context_helpfulness.overall_score }}
+      {% if cm.context_entries %}
+      <h4 class="text-sm font-semibold text-gray-900 dark:text-white mt-4 mb-2">Context Entries</h4>
+      <div class="overflow-x-auto">
+      <table class="w-full text-sm">
+        <thead class="bg-gray-50 dark:bg-gray-800 text-xs uppercase text-gray-500 dark:text-gray-400">
+          <tr><th class="px-3 py-2 text-left">Source</th><th class="px-3 py-2 text-left">Relevance</th><th class="px-3 py-2 text-left">Content</th></tr>
+        </thead>
+        <tbody class="divide-y divide-gray-100 dark:divide-gray-800">
+          {% for entry in cm.context_entries %}
+          <tr>
+            <td class="px-3 py-1.5">{{ entry.source if entry.source is defined else '' }}</td>
+            <td class="px-3 py-1.5">{{ entry.relevance if entry.relevance is defined else '' }}</td>
+            <td class="px-3 py-1.5 text-gray-600 dark:text-gray-400">{{ entry.content if entry.content is defined else (entry.summary if entry.summary is defined else '') }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
       </div>
+      {% endif %}
+
+      {% if cm.relevant_files %}
+      <h4 class="text-sm font-semibold text-gray-900 dark:text-white mt-4 mb-2">Relevant Files</h4>
+      <ul class="list-disc list-inside text-sm">
+        {% for f in cm.relevant_files %}<li><code class="text-xs bg-gray-100 dark:bg-gray-800 px-1.5 py-0.5 rounded">{{ f }}</code></li>{% endfor %}
+      </ul>
+      {% endif %}
+
+      {% if cm.missing_context %}
+      <h4 class="text-sm font-semibold text-gray-900 dark:text-white mt-4 mb-2">Missing Context</h4>
+      <ul class="list-disc list-inside text-sm text-gray-600 dark:text-gray-400">
+        {% for item in cm.missing_context %}<li>{{ item }}</li>{% endfor %}
+      </ul>
+      {% endif %}
+
+      {% if cm.context_helpfulness %}
+      <h4 class="text-sm font-semibold text-gray-900 dark:text-white mt-4 mb-2">Context Helpfulness: {{ cm.context_helpfulness.overall_score }} / 100</h4>
+      <div class="score-bar mb-3">
+        <div class="score-bar-fill" style="width:{{ cm.context_helpfulness.overall_score }}%; background:{{ '#dc2626' if cm.context_helpfulness.overall_score < 40 else ('#ca8a04' if cm.context_helpfulness.overall_score < 80 else '#16a34a') }};">
+          {{ cm.context_helpfulness.overall_score }}
+        </div>
+      </div>
+      <div class="overflow-x-auto">
+      <table class="w-full text-sm">
+        <thead class="bg-gray-50 dark:bg-gray-800 text-xs uppercase text-gray-500 dark:text-gray-400">
+          <tr><th class="px-3 py-2 text-left">Dimension</th><th class="px-3 py-2">Score</th><th class="px-3 py-2 text-left">Justification</th></tr>
+        </thead>
+        <tbody class="divide-y divide-gray-100 dark:divide-gray-800">
+          <tr><td class="px-3 py-1.5">Coverage</td><td class="px-3 py-1.5 text-center">{{ cm.context_helpfulness.coverage.score }}</td><td class="px-3 py-1.5 text-gray-600 dark:text-gray-400">{{ cm.context_helpfulness.coverage.justification }}</td></tr>
+          <tr><td class="px-3 py-1.5">Depth</td><td class="px-3 py-1.5 text-center">{{ cm.context_helpfulness.depth.score }}</td><td class="px-3 py-1.5 text-gray-600 dark:text-gray-400">{{ cm.context_helpfulness.depth.justification }}</td></tr>
+          <tr><td class="px-3 py-1.5">Freshness</td><td class="px-3 py-1.5 text-center">{{ cm.context_helpfulness.freshness.score }}</td><td class="px-3 py-1.5 text-gray-600 dark:text-gray-400">{{ cm.context_helpfulness.freshness.justification }}</td></tr>
+        </tbody>
+      </table>
+      </div>
+      {% endif %}
+
+      {% if cm.repos_and_files_used %}
+      <h4 class="text-sm font-semibold text-gray-900 dark:text-white mt-4 mb-2">Repos &amp; Files Used</h4>
+      <ul class="list-disc list-inside text-sm">
+        {% for entry in cm.repos_and_files_used %}
+        <li>
+          <strong>{{ entry.repository }}</strong>
+          {% if entry.files %}
+          <ul class="ml-4 list-disc list-inside">
+            {% for f in entry.files %}<li><code class="text-xs bg-gray-100 dark:bg-gray-800 px-1.5 py-0.5 rounded">{{ f }}</code></li>{% endfor %}
+          </ul>
+          {% endif %}
+        </li>
+        {% endfor %}
+      </ul>
+      {% endif %}
+
+      {% if cm.repos_and_files_needed %}
+      <h4 class="text-sm font-semibold text-gray-900 dark:text-white mt-4 mb-2">Repos &amp; Files Needed (Gaps)</h4>
+      <ul class="list-disc list-inside text-sm">
+        {% for entry in cm.repos_and_files_needed %}
+        <li>
+          <strong>{{ entry.repository }}</strong>
+          {% if entry.files %}
+          <ul class="ml-4 list-disc list-inside">
+            {% for f in entry.files %}<li><code class="text-xs bg-gray-100 dark:bg-gray-800 px-1.5 py-0.5 rounded">{{ f }}</code></li>{% endfor %}
+          </ul>
+          {% endif %}
+          <br><em class="text-gray-500">Reason: {{ entry.reason }}</em>
+        </li>
+        {% endfor %}
+      </ul>
+      {% endif %}
+
+      {% if cm.affected_versions %}
+      <h4 class="text-sm font-semibold text-gray-900 dark:text-white mt-4 mb-2">Affected Versions</h4>
+      <ul class="list-disc list-inside text-sm text-gray-600 dark:text-gray-400">
+        {% for v in cm.affected_versions %}<li>{{ v }}</li>{% endfor %}
+      </ul>
+      {% endif %}
+    {% else %}
+      <p class="text-sm text-gray-500 italic">No context map available.</p>
+    {% endif %}
     </div>
-    <table>
-      <thead><tr><th>Dimension</th><th>Score</th><th>Justification</th></tr></thead>
-      <tbody>
-        <tr>
-          <td>Coverage</td>
-          <td>{{ cm.context_helpfulness.coverage.score }}</td>
-          <td>{{ cm.context_helpfulness.coverage.justification }}</td>
-        </tr>
-        <tr>
-          <td>Depth</td>
-          <td>{{ cm.context_helpfulness.depth.score }}</td>
-          <td>{{ cm.context_helpfulness.depth.justification }}</td>
-        </tr>
-        <tr>
-          <td>Freshness</td>
-          <td>{{ cm.context_helpfulness.freshness.score }}</td>
-          <td>{{ cm.context_helpfulness.freshness.justification }}</td>
-        </tr>
-      </tbody>
-    </table>
-    {% endif %}
-
-    {% if cm.repos_and_files_used %}
-    <h4>Repos &amp; Files Used</h4>
-    <ul>
-      {% for entry in cm.repos_and_files_used %}
-      <li>
-        <strong>{{ entry.repository }}</strong>
-        {% if entry.files %}
-        <ul>
-          {% for f in entry.files %}
-          <li><code>{{ f }}</code></li>
-          {% endfor %}
-        </ul>
-        {% endif %}
-      </li>
-      {% endfor %}
-    </ul>
-    {% endif %}
-
-    {% if cm.repos_and_files_needed %}
-    <h4>Repos &amp; Files Needed (Gaps)</h4>
-    <ul>
-      {% for entry in cm.repos_and_files_needed %}
-      <li>
-        <strong>{{ entry.repository }}</strong>
-        {% if entry.files %}
-        <ul>
-          {% for f in entry.files %}
-          <li><code>{{ f }}</code></li>
-          {% endfor %}
-        </ul>
-        {% endif %}
-        <br><em>Reason: {{ entry.reason }}</em>
-      </li>
-      {% endfor %}
-    </ul>
-    {% endif %}
-
-    {% if cm.affected_versions %}
-    <h4>Affected Versions</h4>
-    <ul>
-      {% for v in cm.affected_versions %}
-      <li>{{ v }}</li>
-      {% endfor %}
-    </ul>
-    {% endif %}
-  {% else %}
-    <p><em>No context map available.</em></p>
-  {% endif %}
-</details>
+  </details>
+</div>
 
 {# ---- Fix Attempt ---- #}
-<details open>
-  <summary>Fix Attempt</summary>
-  {% if issue.fix_attempt %}
-    {% set fa = issue.fix_attempt %}
-    <p><strong>Recommendation:</strong> <span class="badge badge-fix-{{ fa.recommendation }}">{{ fa.recommendation }}</span> &middot; <strong>Confidence:</strong> {{ fa.confidence }}</p>
+<div class="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 overflow-hidden">
+  <details open>
+    <summary class="px-5 py-3 font-semibold text-gray-900 dark:text-white cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800/50">Fix Attempt</summary>
+    <div class="px-5 pb-4">
+    {% if issue.fix_attempt %}
+      {% set fa = issue.fix_attempt %}
+      <p class="text-sm mb-3"><strong>Recommendation:</strong> <span class="badge badge-fix-{{ fa.recommendation }}">{{ fa.recommendation }}</span> &middot; <strong>Confidence:</strong> {{ fa.confidence }}</p>
 
-    {% if fa.target_repo %}
-    <p><strong>Target Repository:</strong> <code>{{ fa.target_repo }}</code></p>
-    {% endif %}
-
-    {% if fa.upstream_consideration %}
-    <p><strong>Upstream Consideration:</strong> {{ fa.upstream_consideration }}</p>
-    {% endif %}
-
-    <h4>Root Cause Hypothesis</h4>
-    <p>{{ fa.root_cause_hypothesis }}</p>
-
-    {% if fa.affected_files %}
-    <h4>Affected Files</h4>
-    <table>
-      <thead><tr><th>File</th><th>Change</th></tr></thead>
-      <tbody>
-        {% for af in fa.affected_files %}
-        <tr>
-          <td><code>{{ af.file if af.file is defined else (af.path if af.path is defined else '') }}</code></td>
-          <td>{{ af.change if af.change is defined else (af.description if af.description is defined else '') }}</td>
-        </tr>
-        {% endfor %}
-      </tbody>
-    </table>
-    {% endif %}
-
-    <h4>Fix Description</h4>
-    <p>{{ fa.fix_description }}</p>
-
-    {% if fa.patch %}
-    <h4>Patch</h4>
-    <pre class="patch">{{ fa.patch }}</pre>
-    {% endif %}
-
-    {% if fa.risks %}
-    <h4>Risks</h4>
-    <ul>{% for r in fa.risks %}<li>{{ r }}</li>{% endfor %}</ul>
-    {% endif %}
-
-    {% if fa.blockers %}
-    <h4>Blockers</h4>
-    <ul>{% for b in fa.blockers %}<li>{{ b }}</li>{% endfor %}</ul>
-    {% endif %}
-
-    {% if fa.validation %}
-    <h4>Patch Validation</h4>
-    {% set last_iter = fa.validation[-1] %}
-    <p>
-      <strong>Result:</strong>
-      {% if last_iter.all_passed %}
-        <span class="badge badge-val-pass">PASSED</span>
-      {% else %}
-        <span class="badge badge-val-fail">FAILED</span>
+      {% if fa.target_repo %}
+      <p class="text-sm mb-2"><strong>Target Repository:</strong> <code class="text-xs bg-gray-100 dark:bg-gray-800 px-1.5 py-0.5 rounded">{{ fa.target_repo }}</code></p>
       {% endif %}
-      &middot; <strong>Iterations:</strong> {{ fa.validation | length }}
-    </p>
 
-    {% for vi in fa.validation %}
-    <details{% if loop.last %} open{% endif %}>
-      <summary>Iteration {{ vi.iteration }}{% if vi.full_suite is defined and vi.full_suite %} (full suite){% endif %}{% if vi.all_passed %} — <span class="badge badge-val-pass">passed</span>{% else %} — <span class="badge badge-val-fail">failed</span>{% endif %}</summary>
-      {% for vr in vi.results %}
-      <p><strong>{{ vr.repo_name }}</strong>
-        {% if vr.skipped is defined and vr.skipped %}
-          — <span class="badge badge-val-skip">skipped</span> {{ vr.skip_reason if vr.skip_reason is defined else '' }}
-        {% elif vr.overall_passed is defined and vr.overall_passed %}
-          — <span class="badge badge-val-pass">passed</span>
+      {% if fa.upstream_consideration %}
+      <p class="text-sm mb-2"><strong>Upstream Consideration:</strong> {{ fa.upstream_consideration }}</p>
+      {% endif %}
+
+      <h4 class="text-sm font-semibold text-gray-900 dark:text-white mt-4 mb-2">Root Cause Hypothesis</h4>
+      <p class="text-sm text-gray-600 dark:text-gray-400">{{ fa.root_cause_hypothesis }}</p>
+
+      {% if fa.affected_files %}
+      <h4 class="text-sm font-semibold text-gray-900 dark:text-white mt-4 mb-2">Affected Files</h4>
+      <div class="overflow-x-auto">
+      <table class="w-full text-sm">
+        <thead class="bg-gray-50 dark:bg-gray-800 text-xs uppercase text-gray-500 dark:text-gray-400">
+          <tr><th class="px-3 py-2 text-left">File</th><th class="px-3 py-2 text-left">Change</th></tr>
+        </thead>
+        <tbody class="divide-y divide-gray-100 dark:divide-gray-800">
+          {% for af in fa.affected_files %}
+          <tr>
+            <td class="px-3 py-1.5"><code class="text-xs bg-gray-100 dark:bg-gray-800 px-1.5 py-0.5 rounded">{{ af.file if af.file is defined else (af.path if af.path is defined else '') }}</code></td>
+            <td class="px-3 py-1.5 text-gray-600 dark:text-gray-400">{{ af.change if af.change is defined else (af.description if af.description is defined else '') }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+      </div>
+      {% endif %}
+
+      <h4 class="text-sm font-semibold text-gray-900 dark:text-white mt-4 mb-2">Fix Description</h4>
+      <p class="text-sm text-gray-600 dark:text-gray-400">{{ fa.fix_description }}</p>
+
+      {% if fa.patch %}
+      <h4 class="text-sm font-semibold text-gray-900 dark:text-white mt-4 mb-2">Patch</h4>
+      <pre class="patch">{{ fa.patch }}</pre>
+      {% endif %}
+
+      {% if fa.risks %}
+      <h4 class="text-sm font-semibold text-gray-900 dark:text-white mt-4 mb-2">Risks</h4>
+      <ul class="list-disc list-inside text-sm text-gray-600 dark:text-gray-400">{% for r in fa.risks %}<li>{{ r }}</li>{% endfor %}</ul>
+      {% endif %}
+
+      {% if fa.blockers %}
+      <h4 class="text-sm font-semibold text-gray-900 dark:text-white mt-4 mb-2">Blockers</h4>
+      <ul class="list-disc list-inside text-sm text-gray-600 dark:text-gray-400">{% for b in fa.blockers %}<li>{{ b }}</li>{% endfor %}</ul>
+      {% endif %}
+
+      {% if fa.validation %}
+      <h4 class="text-sm font-semibold text-gray-900 dark:text-white mt-4 mb-2">Patch Validation</h4>
+      {% set last_iter = fa.validation[-1] %}
+      <p class="text-sm mb-3">
+        <strong>Result:</strong>
+        {% if last_iter.all_passed %}
+          <span class="badge badge-val-pass">PASSED</span>
         {% else %}
-          —
-          {% if vr.lint_passed is defined %}
-            {% if vr.lint_passed %}<span class="badge badge-val-pass">lint ok</span>{% else %}<span class="badge badge-val-fail">lint fail</span>{% endif %}
-          {% endif %}
-          {% if vr.selective_tests_passed is defined and vr.selective_tests_passed is not none %}
-            {% if vr.selective_tests_passed %}<span class="badge badge-val-pass">tests ok</span>{% else %}<span class="badge badge-val-fail">tests fail</span>{% endif %}
-          {% elif vr.full_tests_passed is defined and vr.full_tests_passed is not none %}
-            {% if vr.full_tests_passed %}<span class="badge badge-val-pass">tests ok</span>{% else %}<span class="badge badge-val-fail">tests fail</span>{% endif %}
-          {% endif %}
+          <span class="badge badge-val-fail">FAILED</span>
         {% endif %}
+        &middot; <strong>Iterations:</strong> {{ fa.validation | length }}
       </p>
-      {% if vr.test_context_helpfulness is defined and vr.test_context_helpfulness %}
-      <p style="font-size:0.9em;">
-        <strong>Test context helpfulness:</strong>
-        <span class="badge {{ 'badge-val-pass' if vr.test_context_helpfulness.rating == 'high' else ('badge-default' if vr.test_context_helpfulness.rating == 'medium' else 'badge-val-fail') }}">
-          {{ vr.test_context_helpfulness.rating }}
-        </span>
-        {% if vr.test_context_helpfulness.explanation is defined %}
-          &mdash; {{ vr.test_context_helpfulness.explanation }}
-        {% endif %}
-      </p>
-      {% endif %}
-      {% if vr.summary is defined and vr.summary %}
-      <p style="font-size:0.9em;"><em>{{ vr.summary }}</em></p>
-      {% endif %}
-      {% if not (vr.skipped is defined and vr.skipped) and vr.commands_run is defined and vr.commands_run %}
-        {% for cmd in vr.commands_run %}
-        <div class="val-cmd {{ 'val-cmd-pass' if cmd.passed else 'val-cmd-fail' }}">
-          <code>{{ cmd.command }}</code>
-          &nbsp;
-          {% if cmd.exit_code is defined and cmd.exit_code == -1 %}
-            <span class="badge badge-val-timeout">timeout</span>
-          {% elif cmd.passed is defined and cmd.passed %}
-            <span class="badge badge-val-pass">exit {{ cmd.exit_code if cmd.exit_code is defined else 0 }}</span>
+
+      {% for vi in fa.validation %}
+      <details{% if loop.last %} open{% endif %} class="mb-2">
+        <summary class="text-sm font-medium cursor-pointer text-gray-700 dark:text-gray-300">Iteration {{ vi.iteration }}{% if vi.full_suite is defined and vi.full_suite %} (full suite){% endif %}{% if vi.all_passed %} — <span class="badge badge-val-pass">passed</span>{% else %} — <span class="badge badge-val-fail">failed</span>{% endif %}</summary>
+        <div class="pl-4 mt-2">
+        {% for vr in vi.results %}
+        <p class="text-sm mb-1"><strong>{{ vr.repo_name }}</strong>
+          {% if vr.skipped is defined and vr.skipped %}
+            — <span class="badge badge-val-skip">skipped</span> {{ vr.skip_reason if vr.skip_reason is defined else '' }}
+          {% elif vr.overall_passed is defined and vr.overall_passed %}
+            — <span class="badge badge-val-pass">passed</span>
           {% else %}
-            <span class="badge badge-val-fail">exit {{ cmd.exit_code if cmd.exit_code is defined else '?' }}</span>
+            —
+            {% if vr.lint_passed is defined %}
+              {% if vr.lint_passed %}<span class="badge badge-val-pass">lint ok</span>{% else %}<span class="badge badge-val-fail">lint fail</span>{% endif %}
+            {% endif %}
+            {% if vr.selective_tests_passed is defined and vr.selective_tests_passed is not none %}
+              {% if vr.selective_tests_passed %}<span class="badge badge-val-pass">tests ok</span>{% else %}<span class="badge badge-val-fail">tests fail</span>{% endif %}
+            {% elif vr.full_tests_passed is defined and vr.full_tests_passed is not none %}
+              {% if vr.full_tests_passed %}<span class="badge badge-val-pass">tests ok</span>{% else %}<span class="badge badge-val-fail">tests fail</span>{% endif %}
+            {% endif %}
           {% endif %}
-          {% if cmd.category is defined %}
-          <span style="opacity:0.6; font-size:0.85em">({{ cmd.category }})</span>
+        </p>
+        {% if vr.test_context_helpfulness is defined and vr.test_context_helpfulness %}
+        <p class="text-sm mb-1">
+          <strong>Test context helpfulness:</strong>
+          <span class="badge {{ 'badge-val-pass' if vr.test_context_helpfulness.rating == 'high' else ('badge-default' if vr.test_context_helpfulness.rating == 'medium' else 'badge-val-fail') }}">
+            {{ vr.test_context_helpfulness.rating }}
+          </span>
+          {% if vr.test_context_helpfulness.explanation is defined %}
+            &mdash; <span class="text-gray-500">{{ vr.test_context_helpfulness.explanation }}</span>
           {% endif %}
-          {% if cmd.output_summary is defined and cmd.output_summary and cmd.output_summary.strip() %}
-          <pre>{{ cmd.output_summary.strip() }}</pre>
+        </p>
+        {% endif %}
+        {% if vr.summary is defined and vr.summary %}
+        <p class="text-sm italic text-gray-500 mb-1">{{ vr.summary }}</p>
+        {% endif %}
+        {% if not (vr.skipped is defined and vr.skipped) and vr.commands_run is defined and vr.commands_run %}
+          {% for cmd in vr.commands_run %}
+          <div class="val-cmd {{ 'val-cmd-pass' if cmd.passed else 'val-cmd-fail' }}">
+            <code>{{ cmd.command }}</code>
+            &nbsp;
+            {% if cmd.exit_code is defined and cmd.exit_code == -1 %}
+              <span class="badge badge-val-timeout">timeout</span>
+            {% elif cmd.passed is defined and cmd.passed %}
+              <span class="badge badge-val-pass">exit {{ cmd.exit_code if cmd.exit_code is defined else 0 }}</span>
+            {% else %}
+              <span class="badge badge-val-fail">exit {{ cmd.exit_code if cmd.exit_code is defined else '?' }}</span>
+            {% endif %}
+            {% if cmd.category is defined %}
+            <span class="text-xs text-gray-400">({{ cmd.category }})</span>
+            {% endif %}
+            {% if cmd.output_summary is defined and cmd.output_summary and cmd.output_summary.strip() %}
+            <pre class="text-xs mt-1">{{ cmd.output_summary.strip() }}</pre>
+            {% endif %}
+          </div>
+          {% endfor %}
+        {% endif %}
+        {% endfor %}
+        </div>
+      </details>
+      {% endfor %}
+      {% endif %}
+
+      {% if fa.self_corrections %}
+      <h4 class="text-sm font-semibold text-gray-900 dark:text-white mt-4 mb-2">Self-Corrections ({{ fa.self_corrections|length }})</h4>
+      <p class="text-sm text-gray-500 mb-2">The fix agent identified and corrected the following mistakes during validation retries:</p>
+      {% for sc in fa.self_corrections %}
+      <details{% if loop.last %} open{% endif %} class="mb-2">
+        <summary class="text-sm font-medium cursor-pointer text-gray-700 dark:text-gray-300">
+          <span class="badge badge-correction">{{ sc.mistake_category }}</span>
+          &middot; Trigger: {{ sc.failure_trigger }}
+          &middot; After iteration {{ sc.after_iteration }}
+          {% if sc.was_original_approach_wrong %}
+            <span class="badge badge-approach-change">approach changed</span>
+          {% else %}
+            <span class="badge badge-minor-fix">minor fix</span>
+          {% endif %}
+        </summary>
+        <div class="correction-block mt-2">
+          <p><strong>What went wrong:</strong> {{ sc.what_went_wrong }}</p>
+          <p><strong>What was changed:</strong> {{ sc.what_was_changed }}</p>
+          {% if sc.files_modified %}
+          <p><strong>Files modified:</strong></p>
+          <ul class="list-disc list-inside text-sm">
+            {% for f in sc.files_modified %}<li><code class="text-xs bg-gray-100 dark:bg-gray-800 px-1.5 py-0.5 rounded">{{ f }}</code></li>{% endfor %}
+          </ul>
           {% endif %}
         </div>
-        {% endfor %}
-      {% endif %}
+      </details>
       {% endfor %}
-    </details>
-    {% endfor %}
-    {% endif %}
-
-    {% if fa.self_corrections %}
-    <h4>Self-Corrections ({{ fa.self_corrections|length }})</h4>
-    <p>The fix agent identified and corrected the following mistakes during validation retries:</p>
-    {% for sc in fa.self_corrections %}
-    <details{% if loop.last %} open{% endif %}>
-      <summary>
-        <span class="badge badge-correction">{{ sc.mistake_category }}</span>
-        &middot; Trigger: {{ sc.failure_trigger }}
-        &middot; After iteration {{ sc.after_iteration }}
-        {% if sc.was_original_approach_wrong %}
-          <span class="badge badge-approach-change">approach changed</span>
-        {% else %}
-          <span class="badge badge-minor-fix">minor fix</span>
-        {% endif %}
-      </summary>
-      <div class="correction-block">
-        <p><strong>What went wrong:</strong> {{ sc.what_went_wrong }}</p>
-        <p><strong>What was changed:</strong> {{ sc.what_was_changed }}</p>
-        {% if sc.files_modified %}
-        <p><strong>Files modified:</strong></p>
-        <ul>
-          {% for f in sc.files_modified %}
-          <li><code>{{ f }}</code></li>
-          {% endfor %}
-        </ul>
-        {% endif %}
-      </div>
-    </details>
-    {% endfor %}
-    {% endif %}
-  {% else %}
-    <p><em>No fix attempt available.</em></p>
-    <p><strong>Reason:</strong>
-    {% if not issue.completeness %}
-      Completeness analysis has not been run yet.
-    {% elif issue.completeness.overall_score is defined and issue.completeness.overall_score < 5 %}
-      Completeness score too low ({{ issue.completeness.overall_score }}/100, needs &ge; 5).
-    {% elif not issue.context_map %}
-      Context map has not been run yet.
-    {% elif issue.context_map.overall_rating is defined and issue.context_map.overall_rating == 'no-context' %}
-      No architecture context available for this issue.
-    {% elif issue.status is defined and issue.status in ['Review', 'Testing'] %}
-      Issue has active work (status: {{ issue.status }}).
+      {% endif %}
     {% else %}
-      Fix attempt phase has not been run for this issue yet.
+      <p class="text-sm text-gray-500 italic">No fix attempt available.</p>
+      <p class="text-sm text-gray-600 dark:text-gray-400 mt-1"><strong>Reason:</strong>
+      {% if not issue.completeness %}
+        Completeness analysis has not been run yet.
+      {% elif issue.completeness.overall_score is defined and issue.completeness.overall_score < 5 %}
+        Completeness score too low ({{ issue.completeness.overall_score }}/100, needs &ge; 5).
+      {% elif not issue.context_map %}
+        Context map has not been run yet.
+      {% elif issue.context_map.overall_rating is defined and issue.context_map.overall_rating == 'no-context' %}
+        No architecture context available for this issue.
+      {% elif issue.status is defined and issue.status in ['Review', 'Testing'] %}
+        Issue has active work (status: {{ issue.status }}).
+      {% else %}
+        Fix attempt phase has not been run for this issue yet.
+      {% endif %}
+      </p>
     {% endif %}
-    </p>
-  {% endif %}
-</details>
+    </div>
+  </details>
+</div>
 
 {# ---- Test Plan ---- #}
-<details open>
-  <summary>Test Plan</summary>
-  {% if issue.test_plan %}
-    {% set tp = issue.test_plan %}
-    <p><strong>Effort Estimate:</strong> {{ tp.effort_estimate }}</p>
+<div class="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 overflow-hidden">
+  <details open>
+    <summary class="px-5 py-3 font-semibold text-gray-900 dark:text-white cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800/50">Test Plan</summary>
+    <div class="px-5 pb-4">
+    {% if issue.test_plan %}
+      {% set tp = issue.test_plan %}
+      <p class="text-sm mb-3"><strong>Effort Estimate:</strong> {{ tp.effort_estimate }}</p>
 
-    {% if tp.decision_rationale %}
-    <h4>Decision Rationale</h4>
-    <p>{{ tp.decision_rationale }}</p>
-    {% endif %}
+      {% if tp.decision_rationale %}
+      <h4 class="text-sm font-semibold text-gray-900 dark:text-white mt-4 mb-2">Decision Rationale</h4>
+      <p class="text-sm text-gray-600 dark:text-gray-400">{{ tp.decision_rationale }}</p>
+      {% endif %}
 
-    {% if tp.target_test_repos %}
-    <h4>Target Test Repositories</h4>
-    <table>
-      <thead><tr><th>Repo</th><th>Test Directory</th><th>Framework</th><th>Run Command</th></tr></thead>
-      <tbody>
-        {% for r in tp.target_test_repos %}
-        <tr>
-          <td><code>{{ r.repo }}</code></td>
-          <td><code>{{ r.test_directory }}</code></td>
-          <td>{{ r.framework }}</td>
-          <td><code>{{ r.run_command }}</code></td>
-        </tr>
-        {% endfor %}
-      </tbody>
-    </table>
-    {% endif %}
+      {% if tp.target_test_repos %}
+      <h4 class="text-sm font-semibold text-gray-900 dark:text-white mt-4 mb-2">Target Test Repositories</h4>
+      <div class="overflow-x-auto">
+      <table class="w-full text-sm">
+        <thead class="bg-gray-50 dark:bg-gray-800 text-xs uppercase text-gray-500 dark:text-gray-400">
+          <tr><th class="px-3 py-2 text-left">Repo</th><th class="px-3 py-2 text-left">Test Directory</th><th class="px-3 py-2 text-left">Framework</th><th class="px-3 py-2 text-left">Run Command</th></tr>
+        </thead>
+        <tbody class="divide-y divide-gray-100 dark:divide-gray-800">
+          {% for r in tp.target_test_repos %}
+          <tr>
+            <td class="px-3 py-1.5"><code class="text-xs">{{ r.repo }}</code></td>
+            <td class="px-3 py-1.5"><code class="text-xs">{{ r.test_directory }}</code></td>
+            <td class="px-3 py-1.5">{{ r.framework }}</td>
+            <td class="px-3 py-1.5"><code class="text-xs">{{ r.run_command }}</code></td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+      </div>
+      {% endif %}
 
-    {% if tp.unit_tests %}
-    <h4>Unit Tests</h4>
-    <table>
-      <thead><tr><th>Description</th><th>File</th><th>Expected</th></tr></thead>
-      <tbody>
-        {% for t in tp.unit_tests %}
-        <tr>
-          <td>{{ t.description if t.description is defined else '' }}</td>
-          <td><code>{{ t.file if t.file is defined else '' }}</code></td>
-          <td>{{ t.expected if t.expected is defined else '' }}</td>
-        </tr>
-        {% endfor %}
-      </tbody>
-    </table>
-    {% endif %}
+      {% if tp.unit_tests %}
+      <h4 class="text-sm font-semibold text-gray-900 dark:text-white mt-4 mb-2">Unit Tests</h4>
+      <div class="overflow-x-auto">
+      <table class="w-full text-sm">
+        <thead class="bg-gray-50 dark:bg-gray-800 text-xs uppercase text-gray-500 dark:text-gray-400">
+          <tr><th class="px-3 py-2 text-left">Description</th><th class="px-3 py-2 text-left">File</th><th class="px-3 py-2 text-left">Expected</th></tr>
+        </thead>
+        <tbody class="divide-y divide-gray-100 dark:divide-gray-800">
+          {% for t in tp.unit_tests %}
+          <tr>
+            <td class="px-3 py-1.5">{{ t.description if t.description is defined else '' }}</td>
+            <td class="px-3 py-1.5"><code class="text-xs">{{ t.file if t.file is defined else '' }}</code></td>
+            <td class="px-3 py-1.5 text-gray-600 dark:text-gray-400">{{ t.expected if t.expected is defined else '' }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+      </div>
+      {% endif %}
 
-    {% if tp.integration_tests %}
-    <h4>Integration Tests</h4>
-    <table>
-      <thead><tr><th>Description</th><th>Components</th><th>Expected</th></tr></thead>
-      <tbody>
-        {% for t in tp.integration_tests %}
-        <tr>
-          <td>{{ t.description if t.description is defined else '' }}</td>
-          <td>{{ t.components|join(', ') if t.components is defined else '' }}</td>
-          <td>{{ t.expected if t.expected is defined else '' }}</td>
-        </tr>
-        {% endfor %}
-      </tbody>
-    </table>
-    {% endif %}
+      {% if tp.integration_tests %}
+      <h4 class="text-sm font-semibold text-gray-900 dark:text-white mt-4 mb-2">Integration Tests</h4>
+      <div class="overflow-x-auto">
+      <table class="w-full text-sm">
+        <thead class="bg-gray-50 dark:bg-gray-800 text-xs uppercase text-gray-500 dark:text-gray-400">
+          <tr><th class="px-3 py-2 text-left">Description</th><th class="px-3 py-2 text-left">Components</th><th class="px-3 py-2 text-left">Expected</th></tr>
+        </thead>
+        <tbody class="divide-y divide-gray-100 dark:divide-gray-800">
+          {% for t in tp.integration_tests %}
+          <tr>
+            <td class="px-3 py-1.5">{{ t.description if t.description is defined else '' }}</td>
+            <td class="px-3 py-1.5">{{ t.components|join(', ') if t.components is defined else '' }}</td>
+            <td class="px-3 py-1.5 text-gray-600 dark:text-gray-400">{{ t.expected if t.expected is defined else '' }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+      </div>
+      {% endif %}
 
-    {% if tp.regression_tests %}
-    <h4>Regression Tests</h4>
-    <table>
-      <thead><tr><th>Description</th><th>Before Fix</th><th>After Fix</th></tr></thead>
-      <tbody>
-        {% for t in tp.regression_tests %}
-        <tr>
-          <td>{{ t.description if t.description is defined else '' }}</td>
-          <td>{{ t.before_fix if t.before_fix is defined else '' }}</td>
-          <td>{{ t.after_fix if t.after_fix is defined else '' }}</td>
-        </tr>
-        {% endfor %}
-      </tbody>
-    </table>
-    {% endif %}
+      {% if tp.regression_tests %}
+      <h4 class="text-sm font-semibold text-gray-900 dark:text-white mt-4 mb-2">Regression Tests</h4>
+      <div class="overflow-x-auto">
+      <table class="w-full text-sm">
+        <thead class="bg-gray-50 dark:bg-gray-800 text-xs uppercase text-gray-500 dark:text-gray-400">
+          <tr><th class="px-3 py-2 text-left">Description</th><th class="px-3 py-2 text-left">Before Fix</th><th class="px-3 py-2 text-left">After Fix</th></tr>
+        </thead>
+        <tbody class="divide-y divide-gray-100 dark:divide-gray-800">
+          {% for t in tp.regression_tests %}
+          <tr>
+            <td class="px-3 py-1.5">{{ t.description if t.description is defined else '' }}</td>
+            <td class="px-3 py-1.5">{{ t.before_fix if t.before_fix is defined else '' }}</td>
+            <td class="px-3 py-1.5">{{ t.after_fix if t.after_fix is defined else '' }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+      </div>
+      {% endif %}
 
-    {% if tp.manual_verification_steps %}
-    <h4>Manual Verification Steps</h4>
-    <ol>
-      {% for step in tp.manual_verification_steps %}
-      <li>{{ step }}</li>
-      {% endfor %}
-    </ol>
-    {% endif %}
+      {% if tp.manual_verification_steps %}
+      <h4 class="text-sm font-semibold text-gray-900 dark:text-white mt-4 mb-2">Manual Verification Steps</h4>
+      <ol class="list-decimal list-inside text-sm text-gray-600 dark:text-gray-400">
+        {% for step in tp.manual_verification_steps %}<li>{{ step }}</li>{% endfor %}
+      </ol>
+      {% endif %}
 
-    {% if tp.environment_requirements %}
-    <h4>Environment Requirements</h4>
-    <table>
-      <tbody>
-        {% if tp.environment_requirements.ocp_version %}
-        <tr><td><strong>OCP Version</strong></td><td>{{ tp.environment_requirements.ocp_version }}</td></tr>
-        {% endif %}
-        {% if tp.environment_requirements.rhoai_version %}
-        <tr><td><strong>RHOAI Version</strong></td><td>{{ tp.environment_requirements.rhoai_version }}</td></tr>
-        {% endif %}
-        {% if tp.environment_requirements.platform %}
-        <tr><td><strong>Platform</strong></td><td>{{ tp.environment_requirements.platform }}</td></tr>
-        {% endif %}
-        {% if tp.environment_requirements.special_config %}
-        <tr><td><strong>Special Config</strong></td><td>{{ tp.environment_requirements.special_config }}</td></tr>
-        {% endif %}
-      </tbody>
-    </table>
-    {% endif %}
+      {% if tp.environment_requirements %}
+      <h4 class="text-sm font-semibold text-gray-900 dark:text-white mt-4 mb-2">Environment Requirements</h4>
+      <table class="w-full text-sm">
+        <tbody class="divide-y divide-gray-100 dark:divide-gray-800">
+          {% if tp.environment_requirements.ocp_version %}
+          <tr><td class="py-1.5 font-medium text-gray-600 dark:text-gray-400 w-36">OCP Version</td><td class="py-1.5">{{ tp.environment_requirements.ocp_version }}</td></tr>
+          {% endif %}
+          {% if tp.environment_requirements.rhoai_version %}
+          <tr><td class="py-1.5 font-medium text-gray-600 dark:text-gray-400">RHOAI Version</td><td class="py-1.5">{{ tp.environment_requirements.rhoai_version }}</td></tr>
+          {% endif %}
+          {% if tp.environment_requirements.platform %}
+          <tr><td class="py-1.5 font-medium text-gray-600 dark:text-gray-400">Platform</td><td class="py-1.5">{{ tp.environment_requirements.platform }}</td></tr>
+          {% endif %}
+          {% if tp.environment_requirements.special_config %}
+          <tr><td class="py-1.5 font-medium text-gray-600 dark:text-gray-400">Special Config</td><td class="py-1.5">{{ tp.environment_requirements.special_config }}</td></tr>
+          {% endif %}
+        </tbody>
+      </table>
+      {% endif %}
 
-    {% if tp.qe_coverage_note %}
-    <h4>QE Coverage Note</h4>
-    <p>{{ tp.qe_coverage_note }}</p>
+      {% if tp.qe_coverage_note %}
+      <h4 class="text-sm font-semibold text-gray-900 dark:text-white mt-4 mb-2">QE Coverage Note</h4>
+      <p class="text-sm text-gray-600 dark:text-gray-400">{{ tp.qe_coverage_note }}</p>
+      {% endif %}
+    {% else %}
+      <p class="text-sm text-gray-500 italic">No test plan available.</p>
     {% endif %}
-  {% else %}
-    <p><em>No test plan available.</em></p>
-  {% endif %}
-</details>
+    </div>
+  </details>
+</div>
 
 {# ---- Write Test ---- #}
-<details open>
-  <summary>Write Test</summary>
-  {% if issue.write_test %}
-    {% set wt = issue.write_test %}
-    <p>
-      <strong>Decision:</strong>
-      <span class="badge {{ 'badge-val-pass' if wt.decision == 'write-test' else 'badge-default' }}">{{ wt.decision }}</span>
-      {% if wt.confidence %}
-      &middot; <strong>Confidence:</strong> {{ wt.confidence }}
-      {% endif %}
-    </p>
-
-    <h4>Justification</h4>
-    <p>{{ wt.justification }}</p>
-
-    {% if wt.decision == 'write-test' %}
-      {% if wt.test_file %}
-      <p><strong>Test File:</strong> <code>{{ wt.test_file }}</code></p>
-      {% endif %}
-
-      {% if wt.test_markers %}
-      <p><strong>Markers:</strong>
-        {% for m in wt.test_markers %}
-          <span class="badge badge-default">{{ m }}</span>
-        {% endfor %}
+<div class="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 overflow-hidden">
+  <details open>
+    <summary class="px-5 py-3 font-semibold text-gray-900 dark:text-white cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800/50">Write Test</summary>
+    <div class="px-5 pb-4">
+    {% if issue.write_test %}
+      {% set wt = issue.write_test %}
+      <p class="text-sm mb-3">
+        <strong>Decision:</strong>
+        <span class="badge {{ 'badge-val-pass' if wt.decision == 'write-test' else 'badge-default' }}">{{ wt.decision }}</span>
+        {% if wt.confidence %}
+        &middot; <strong>Confidence:</strong> {{ wt.confidence }}
+        {% endif %}
       </p>
+
+      <h4 class="text-sm font-semibold text-gray-900 dark:text-white mt-4 mb-2">Justification</h4>
+      <p class="text-sm text-gray-600 dark:text-gray-400">{{ wt.justification }}</p>
+
+      {% if wt.decision == 'write-test' %}
+        {% if wt.test_file %}
+        <p class="text-sm mt-2"><strong>Test File:</strong> <code class="text-xs bg-gray-100 dark:bg-gray-800 px-1.5 py-0.5 rounded">{{ wt.test_file }}</code></p>
+        {% endif %}
+
+        {% if wt.test_markers %}
+        <p class="text-sm mt-2"><strong>Markers:</strong>
+          {% for m in wt.test_markers %}
+            <span class="badge badge-default">{{ m }}</span>
+          {% endfor %}
+        </p>
+        {% endif %}
+
+        {% if wt.test_description %}
+        <h4 class="text-sm font-semibold text-gray-900 dark:text-white mt-4 mb-2">Test Description</h4>
+        <p class="text-sm text-gray-600 dark:text-gray-400">{{ wt.test_description }}</p>
+        {% endif %}
+
+        {% if wt.patch %}
+        <h4 class="text-sm font-semibold text-gray-900 dark:text-white mt-4 mb-2">Test Patch</h4>
+        <pre class="patch">{{ wt.patch }}</pre>
+        {% else %}
+        <p class="text-sm text-gray-500 italic mt-2">Patch not captured. Re-run the write-test phase to generate the diff.</p>
+        {% endif %}
       {% endif %}
 
-      {% if wt.test_description %}
-      <h4>Test Description</h4>
-      <p>{{ wt.test_description }}</p>
+      {% if wt.risks %}
+      <h4 class="text-sm font-semibold text-gray-900 dark:text-white mt-4 mb-2">Risks</h4>
+      <ul class="list-disc list-inside text-sm text-gray-600 dark:text-gray-400">{% for r in wt.risks %}<li>{{ r }}</li>{% endfor %}</ul>
       {% endif %}
 
-      {% if wt.patch %}
-      <h4>Test Patch</h4>
-      <pre class="patch">{{ wt.patch }}</pre>
-      {% else %}
-      <p><em>Patch not captured. Re-run the write-test phase to generate the diff.</em></p>
+      {% if wt.cluster_requirements %}
+      <h4 class="text-sm font-semibold text-gray-900 dark:text-white mt-4 mb-2">Cluster Requirements</h4>
+      <p class="text-sm text-gray-600 dark:text-gray-400">{{ wt.cluster_requirements }}</p>
       {% endif %}
+    {% else %}
+      <p class="text-sm text-gray-500 italic">No write-test analysis available.</p>
     {% endif %}
+    </div>
+  </details>
+</div>
 
-    {% if wt.risks %}
-    <h4>Risks</h4>
-    <ul>{% for r in wt.risks %}<li>{{ r }}</li>{% endfor %}</ul>
-    {% endif %}
+</div>
 
-    {% if wt.cluster_requirements %}
-    <h4>Cluster Requirements</h4>
-    <p>{{ wt.cluster_requirements }}</p>
-    {% endif %}
-  {% else %}
-    <p><em>No write-test analysis available.</em></p>
-  {% endif %}
-</details>
-
-</div>{# end detail-right #}
-
-</div>{# end detail-columns #}
+</div>
 {% endblock %}

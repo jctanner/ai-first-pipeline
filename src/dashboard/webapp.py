@@ -548,6 +548,16 @@ def create_app() -> Flask:
         except Exception as e:
             return jsonify({"error": str(e)}), 502
 
+    @app.route("/api/mlflow/clear", methods=["POST"])
+    def api_mlflow_clear():
+        """Delete all MLflow experiments, runs, and traces."""
+        from src.dashboard.mlflow_client import clear_all_data
+
+        results = clear_all_data()
+        if results["errors"] and not (results["runs_deleted"] or results["traces_deleted"] or results["experiments_deleted"]):
+            return jsonify(results), 502
+        return jsonify(results)
+
     @app.route("/api/pipeline/status")
     def api_pipeline_status():
         return jsonify(load_pipeline_status())
