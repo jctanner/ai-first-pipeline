@@ -7,8 +7,8 @@ writes a summary with cross-mode comparison.
 
 Usage:
     python scripts/aggregate_benchmark.py \
-        --results-dir benchmarks/arch-context/results \
-        --corpus benchmarks/arch-context/corpus-AB-final.yaml \
+        --results-dir var/benchmarks/arch-context/results \
+        --corpus var/benchmarks/arch-context/corpus-AB-final.yaml \
         --arch-context-commit abc123 \
         --agent-model opus \
         --judge-model sonnet

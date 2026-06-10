@@ -15,7 +15,7 @@ Two extraction passes:
 Usage:
     python scripts/extract_corpus_tier12.py \
         [--elastic-uri http://elasticsearch:9200] \
-        [--output benchmarks/arch-context/raw/tier12-extracted.jsonl] \
+        [--output var/benchmarks/arch-context/raw/tier12-extracted.jsonl] \
         [--dry-run]
 
 Environment:
@@ -213,7 +213,7 @@ def main():
     )
     parser.add_argument(
         "--output",
-        default="benchmarks/arch-context/raw/tier12-extracted.jsonl",
+        default="var/benchmarks/arch-context/raw/tier12-extracted.jsonl",
     )
     parser.add_argument("--dry-run", action="store_true")
     args = parser.parse_args()

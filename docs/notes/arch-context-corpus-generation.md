@@ -86,19 +86,19 @@ fi
 
 ```bash
 kubectl exec corpus-extract -n ai-pipeline -- bash -c '
-mkdir -p /app/artifacts/benchmarks/arch-context/raw
+mkdir -p /app/artifacts/var/benchmarks/arch-context/raw
 
 python scripts/extract_corpus_tier4.py \
   --elastic-uri $ELASTICSEARCH_URI \
-  --output /app/artifacts/benchmarks/arch-context/raw/tier4-extracted.jsonl &
+  --output /app/artifacts/var/benchmarks/arch-context/raw/tier4-extracted.jsonl &
 
 python scripts/extract_corpus_tier12.py \
   --elastic-uri $ELASTICSEARCH_URI \
-  --output /app/artifacts/benchmarks/arch-context/raw/tier12-extracted.jsonl &
+  --output /app/artifacts/var/benchmarks/arch-context/raw/tier12-extracted.jsonl &
 
 python scripts/extract_corpus_tier3.py \
   --elastic-uri $ELASTICSEARCH_URI \
-  --output /app/artifacts/benchmarks/arch-context/raw/tier3-extracted.jsonl &
+  --output /app/artifacts/var/benchmarks/arch-context/raw/tier3-extracted.jsonl &
 
 wait
 '
@@ -111,9 +111,9 @@ Each writes a JSONL file into the artifacts PVC. Report the count of questions e
 ```bash
 kubectl exec corpus-extract -n ai-pipeline -- bash -c '
 python scripts/build_corpus.py \
-  --raw-dir /app/artifacts/benchmarks/arch-context/raw \
+  --raw-dir /app/artifacts/var/benchmarks/arch-context/raw \
   --arch-context-dir /app/.context/architecture-context \
-  --output /app/artifacts/benchmarks/arch-context/corpus.yaml
+  --output /app/artifacts/var/benchmarks/arch-context/corpus.yaml
 '
 ```
 
@@ -121,7 +121,7 @@ Report: total questions, per-tier counts, and how many need manual curation (`NE
 
 ### Step 4: Verify the output
 
-Read `/app/artifacts/benchmarks/arch-context/corpus.yaml` and confirm:
+Read `/app/artifacts/var/benchmarks/arch-context/corpus.yaml` and confirm:
 - It has a `version`, `architecture_context_commit`, and `generated_date` header
 - Questions have sequential IDs (`t1-001`, `t2-001`, etc.)
 - `source_files` paths are populated (not empty lists)

@@ -7,14 +7,14 @@ SDK, without requiring K8s or Markov.
 Usage:
     # Both modes, all tiers
     python scripts/run_benchmark.py \
-        --corpus benchmarks/arch-context/corpus-AB-final.yaml \
+        --corpus var/benchmarks/arch-context/corpus-AB-final.yaml \
         --arch-context-dir .context/architecture-context \
         --arch-query-bin bin/arch-query \
-        --output-dir benchmarks/arch-context/results/$(date +%Y%m%d)
+        --output-dir var/benchmarks/arch-context/results/$(date +%Y%m%d)
 
     # Single mode, single tier
     python scripts/run_benchmark.py \
-        --corpus benchmarks/arch-context/corpus-AB-final.yaml \
+        --corpus var/benchmarks/arch-context/corpus-AB-final.yaml \
         --arch-context-dir .context/architecture-context \
         --arch-query-bin bin/arch-query \
         --mode flat_files \
@@ -23,8 +23,8 @@ Usage:
 
     # Skip answer phase (re-judge existing answers)
     python scripts/run_benchmark.py \
-        --corpus benchmarks/arch-context/corpus-AB-final.yaml \
-        --output-dir benchmarks/arch-context/results/20260505 \
+        --corpus var/benchmarks/arch-context/corpus-AB-final.yaml \
+        --output-dir var/benchmarks/arch-context/results/20260505 \
         --judge-only
 """
 
@@ -307,7 +307,7 @@ def main():
     )
     parser.add_argument(
         "--output-dir",
-        default="benchmarks/arch-context/results",
+        default="var/benchmarks/arch-context/results",
         help="Output directory for results",
     )
     parser.add_argument("--model", default="opus", help="Answer agent model")

@@ -7,7 +7,7 @@ benchmark summary as an artifact.
 
 Usage:
     python scripts/log_benchmark_to_mlflow.py \
-        --results-dir benchmarks/arch-context/results \
+        --results-dir var/benchmarks/arch-context/results \
         --experiment arch-context-access-benchmark \
         --arch-context-commit abc123 \
         --arch-query-version def456

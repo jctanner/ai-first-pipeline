@@ -8,7 +8,7 @@ set -euo pipefail
 
 MLFLOW_URL="${MLFLOW_URL:-https://mlflow.local}"
 MLFLOW_EXPERIMENT="arch-context-access-benchmark"
-PVC_RESULTS_DIR="/app/artifacts/benchmarks/arch-context/results"
+PVC_RESULTS_DIR="/app/artifacts/var/benchmarks/arch-context/results"
 NAMESPACE="ai-pipeline"
 DRY_RUN=false
 

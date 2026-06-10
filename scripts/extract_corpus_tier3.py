@@ -9,7 +9,7 @@ generating questions that test multi-component reasoning.
 Usage:
     python scripts/extract_corpus_tier3.py \
         [--elastic-uri http://elasticsearch:9200] \
-        [--output benchmarks/arch-context/raw/tier3-extracted.jsonl] \
+        [--output var/benchmarks/arch-context/raw/tier3-extracted.jsonl] \
         [--dry-run]
 
 Environment:
@@ -206,7 +206,7 @@ def main():
     )
     parser.add_argument(
         "--output",
-        default="benchmarks/arch-context/raw/tier3-extracted.jsonl",
+        default="var/benchmarks/arch-context/raw/tier3-extracted.jsonl",
     )
     parser.add_argument("--dry-run", action="store_true")
     args = parser.parse_args()

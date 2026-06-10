@@ -8,16 +8,16 @@ assigns sequential IDs (t1-001, t2-001...), and writes corpus.yaml.
 
 Usage:
     python scripts/build_corpus.py \
-        --raw-dir benchmarks/arch-context/raw \
+        --raw-dir var/benchmarks/arch-context/raw \
         --arch-context-dir .context/architecture-context \
-        --output benchmarks/arch-context/corpus.yaml
+        --output var/benchmarks/arch-context/corpus.yaml
 
     # Add hand-curated questions from a YAML seed file
     python scripts/build_corpus.py \
-        --raw-dir benchmarks/arch-context/raw \
+        --raw-dir var/benchmarks/arch-context/raw \
         --arch-context-dir .context/architecture-context \
-        --seed benchmarks/arch-context/seed-questions.yaml \
-        --output benchmarks/arch-context/corpus.yaml
+        --seed var/benchmarks/arch-context/seed-questions.yaml \
+        --output var/benchmarks/arch-context/corpus.yaml
 """
 
 import argparse
@@ -213,7 +213,7 @@ def main():
     )
     parser.add_argument(
         "--raw-dir",
-        default="benchmarks/arch-context/raw",
+        default="var/benchmarks/arch-context/raw",
         help="Directory containing extracted JSONL files",
     )
     parser.add_argument(
@@ -228,7 +228,7 @@ def main():
     )
     parser.add_argument(
         "--output",
-        default="benchmarks/arch-context/corpus.yaml",
+        default="var/benchmarks/arch-context/corpus.yaml",
         help="Output corpus YAML path",
     )
     args = parser.parse_args()

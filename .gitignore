@@ -50,7 +50,8 @@ backups/
 *.zip
 
 # Internal notes and analysis (not for public consumption)
-notes/
+/notes/
+!docs/notes/
 BUG_BASH_PLAN.md
 artifacts/
 

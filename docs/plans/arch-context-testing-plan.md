@@ -56,7 +56,7 @@ MLflow experiment: arch-context-access-benchmark
 ## New Files
 
 ```
-benchmarks/arch-context/
+var/benchmarks/arch-context/
   corpus.yaml                              # Curated question corpus (~200 questions)
   raw/                                     # Intermediate ES extraction output (gitignored)
 
@@ -92,7 +92,7 @@ markov.workflows/
 
 Follow the pattern of `scripts/sync_mlflow_to_elastic.py` (same ES client, env var config, CLI args).
 
-**`scripts/extract_corpus_tier4.py`** — Queries `mlflow-spans` for `tool_Bash` spans with `architecture-context` in inputs and error patterns (`No such file`, `DIR NOT FOUND`, `cannot access`) in outputs. Normalizes paths (strip `./`, resolve symlinks, extract component name), deduplicates by `(component, error_type)`. Writes JSONL to `benchmarks/arch-context/raw/tier4-extracted.jsonl`.
+**`scripts/extract_corpus_tier4.py`** — Queries `mlflow-spans` for `tool_Bash` spans with `architecture-context` in inputs and error patterns (`No such file`, `DIR NOT FOUND`, `cannot access`) in outputs. Normalizes paths (strip `./`, resolve symlinks, extract component name), deduplicates by `(component, error_type)`. Writes JSONL to `var/benchmarks/arch-context/raw/tier4-extracted.jsonl`.
 
 **`scripts/extract_corpus_tier12.py`** — Two queries:
 1. LLM spans with "absent from" / "not in the architecture" phrases → Tier 1 existence questions
@@ -116,7 +116,7 @@ Deduplication strategies (from design doc recommendations):
 The corpus is shared across both access modes. Questions are architecture questions — the access method is a runtime parameter, not a corpus concern.
 
 ```yaml
-# benchmarks/arch-context/corpus.yaml
+# var/benchmarks/arch-context/corpus.yaml
 version: "1.0"
 architecture_context_commit: "abc123"
 generated_date: "2026-05-05"
@@ -401,10 +401,10 @@ Follows the pattern of `markov.workflows/rfe-pipeline-with-gates.yaml`. The work
 
 ```yaml
 vars:
-  corpus_path: "/app/artifacts/benchmarks/arch-context/corpus.yaml"
+  corpus_path: "/app/artifacts/var/benchmarks/arch-context/corpus.yaml"
   arch_context_dir: "/app/.context/architecture-context"
   arch_query_bin: "/usr/local/bin/arch-query"
-  results_dir: "/app/artifacts/benchmarks/arch-context/results"
+  results_dir: "/app/artifacts/var/benchmarks/arch-context/results"
   model: opus
   judge_model: sonnet
   mlflow_enabled: false
@@ -555,12 +555,12 @@ For development without K8s. Uses `lib/agent_runner.run_agent()` directly with a
 ```bash
 # Run both modes (default)
 python scripts/run_benchmark.py \
-  --corpus benchmarks/arch-context/corpus.yaml \
+  --corpus var/benchmarks/arch-context/corpus.yaml \
   --arch-context-dir references/architecture-context \
   --arch-query-bin /path/to/arch-query \
   --model opus \
   --judge-model sonnet \
-  --output-dir benchmarks/arch-context/results/$(date +%Y%m%d) \
+  --output-dir var/benchmarks/arch-context/results/$(date +%Y%m%d) \
   [--mlflow] \
   [--concurrency 3] \
   [--tier 4]
@@ -709,7 +709,7 @@ The `--mode`, `--tier`, and Markov `--var` overrides allow running subsets durin
 - **Skills**: Test each skill variant with `claude -p` against 5 sample questions, validate output JSON against `BENCH_ANSWER_SCHEMA`
 - **Mode enforcement**: Run bench-answer-query on 5 questions, verify no Read/Glob/Grep spans appear in agent logs; run bench-answer-flat, verify no Bash spans
 - **Fallback detection**: Manually inject a `cat architecture-context/...` call into an arch_query mode log, verify aggregation flags `fallback_to_filesystem: true`
-- **Local runner**: `python scripts/run_benchmark.py --corpus benchmarks/arch-context/corpus.yaml --tier 1 --concurrency 1` with both modes
+- **Local runner**: `python scripts/run_benchmark.py --corpus var/benchmarks/arch-context/corpus.yaml --tier 1 --concurrency 1` with both modes
 - **Aggregation**: Verify per-mode averages match hand-calculated values; verify comparison deltas are correct
 - **Markov**: `markov run markov.workflows/arch-context-benchmark.yaml --dry-run` for YAML validation, then live paired run with 5-question subset
 - **MLflow**: Check experiment `arch-context-access-benchmark` has two paired runs with correct shared/differing params
