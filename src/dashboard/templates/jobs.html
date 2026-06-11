@@ -48,7 +48,7 @@
 
 <div class="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 p-5 mb-6">
   <h2 class="text-base font-semibold text-gray-900 dark:text-white mb-4">Submit New Job</h2>
-  <form id="submit-form" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-7 gap-4 items-end">
+  <form id="submit-form" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-8 gap-4 items-end">
     <div>
       <label for="skill" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Skill</label>
       <select id="skill" name="skill" required class="w-full rounded-lg border-gray-300 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-200 text-sm py-2 px-3">
@@ -76,6 +76,10 @@
         <option value="cli" selected>CLI</option>
         <option value="sdk">SDK</option>
       </select>
+    </div>
+    <div>
+      <label for="extra-kwargs" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Extra kwargs <span class="text-gray-400 text-xs">(optional)</span></label>
+      <input type="text" id="extra-kwargs" name="extra_kwargs" placeholder="key=value key2=value2" class="w-full rounded-lg border-gray-300 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-200 text-sm py-2 px-3">
     </div>
     <div class="flex items-end gap-4">
       <label class="flex items-center gap-1.5 text-sm text-gray-700 dark:text-gray-300 cursor-pointer select-none">

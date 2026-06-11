@@ -229,6 +229,10 @@ class PipelineOrchestrator:
         if args.get("force"):
             cmd_args.append("--force")
 
+        for kv in (args.get("extra_kwargs") or "").split():
+            if "=" in kv:
+                cmd_args.extend(["--extra-vars", kv])
+
         job = client.V1Job(
             api_version="batch/v1",
             kind="Job",

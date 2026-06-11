@@ -8,6 +8,7 @@ SKILL=""
 ISSUE_KEY=""
 MODEL="opus"
 FORCE=""
+declare -a EXTRA_VARS=()
 
 while [[ $# -gt 0 ]]; do
   case $1 in
@@ -26,6 +27,10 @@ while [[ $# -gt 0 ]]; do
     --force)
       FORCE="--force"
       shift
+      ;;
+    --extra-vars)
+      EXTRA_VARS+=("$2")
+      shift 2
       ;;
     *)
       echo "Unknown argument: $1"
@@ -130,8 +135,19 @@ if [ "${ENABLE_STRACE:-}" = "1" ]; then
   JOB_TAG="${PIPELINE_JOB_NAME:-$(hostname)}"
   STRACE_DIR="/app/artifacts/strace/${JOB_TAG}"
   mkdir -p "$STRACE_DIR"
-  STRACE_CMD="strace -ffttv -s 100000 -o ${STRACE_DIR}/${JOB_TAG}"
+  STRACE_CMD="strace -ffttv -s 1024 -o ${STRACE_DIR}/${JOB_TAG}"
   echo "strace enabled: output → $STRACE_DIR"
+fi
+
+# Build extra-vars prompt suffix
+EXTRA_VARS_PROMPT=""
+if [ ${#EXTRA_VARS[@]} -gt 0 ]; then
+  EXTRA_VARS_PROMPT=$'\n\n## Inputs'
+  for VAR in "${EXTRA_VARS[@]}"; do
+    KEY="${VAR%%=*}"
+    VALUE="${VAR#*=}"
+    EXTRA_VARS_PROMPT="$EXTRA_VARS_PROMPT"$'\n'"- $KEY: $VALUE"
+  done
 fi
 
 # Run via Python SDK with MLflow integration
@@ -223,7 +239,8 @@ async def run_skill():
 
     # Build prompt
     issue_part = f" {issue_key}" if issue_key else ""
-    prompt = f"/{skill_name} --headless{issue_part}"
+    extra_vars = """${EXTRA_VARS_PROMPT}"""
+    prompt = f"/{skill_name} --headless{issue_part}{extra_vars}"
 
     # Set working directory
     cwd = plugin_dir if plugin_dir else "/app"

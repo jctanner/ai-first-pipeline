@@ -14,6 +14,8 @@ if (K8S_AVAILABLE) {
     try {
       const args = { model, runner };
       if (issue) args.issue = issue;
+      const extraKwargs = document.getElementById('extra-kwargs').value.trim();
+      if (extraKwargs) args.extra_kwargs = extraKwargs;
       if (document.getElementById('enable-strace').checked) args.strace = true;
       if (!document.getElementById('enable-mlflow').checked) args.mlflow = false;
       const response = await fetch('/api/jobs/submit', {

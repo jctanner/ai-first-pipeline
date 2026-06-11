@@ -274,7 +274,7 @@ if [ "${ENABLE_STRACE:-}" = "1" ]; then
   JOB_TAG="${PIPELINE_JOB_NAME:-$(hostname)}"
   STRACE_DIR="/app/artifacts/strace/${JOB_TAG}"
   mkdir -p "$STRACE_DIR"
-  STRACE_CMD="strace -ffttv -s 100000 -o ${STRACE_DIR}/${JOB_TAG}"
+  STRACE_CMD="strace -ffttv -s 1024 -o ${STRACE_DIR}/${JOB_TAG}"
   echo "strace enabled: output → $STRACE_DIR"
 fi
 

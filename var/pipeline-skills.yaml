@@ -236,6 +236,19 @@ skills:
     runner: cli
     allowed_tools: [Read, Write, Edit, Glob, Grep, Bash, Skill]
 
+  # === Observatory skills (local, native) ===
+  extract-claims:
+    skill: extract-claims
+    invoke: native
+    runner: cli
+    allowed_tools: [Read, Write, Glob, Grep, Bash]
+
+  verify-claims:
+    skill: verify-claims
+    invoke: native
+    runner: cli
+    allowed_tools: [Read, Write, Glob, Grep, Bash]
+
   # === Benchmark skills (local, templated) ===
   bench-answer-flat:
     skill: bench-answer-flat
