@@ -87,6 +87,17 @@ workflows:
 
     steps:
 
+      # ── Preflight: verify PVC mount paths ───────────────────────
+
+      - name: check_mounts
+        type: shell_exec
+        params:
+          command: |
+            ok=true
+            test -d /app/artifacts || { echo "FATAL: /app/artifacts not mounted (need pipeline-artifacts PVC at /app/artifacts)"; ok=false; }
+            $ok || exit 1
+            echo "✓ /app/artifacts mounted"
+
       # ── Check if strategy already exists for this RFE ────────────
 
       - name: check_strat_exists
