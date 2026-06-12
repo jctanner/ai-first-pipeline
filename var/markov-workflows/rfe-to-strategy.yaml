@@ -1,0 +1,279 @@
+---
+# ====================================================================
+# RFE to Strategy Pipeline
+# ====================================================================
+#
+# Takes a single RHAIRFE ticket and runs the strategy lifecycle:
+#
+#   1. strategy-create  → produces RHAISTRAT ticket + artifact
+#   2. strategy-refine  → adds HOW, dependencies, NFRs
+#   3. strategy-review  → adversarial review with rubric
+#   4. extract-claims   → pull verifiable claims from artifacts
+#   5. verify-claims    → check claims against architecture docs
+#   6. explain-claims   → root-cause analysis on non-supported claims
+#
+# All steps are idempotent — existing artifacts are detected and
+# completed steps are skipped on re-run.
+#
+# Usage:
+#   markov run rfe-to-strategy.yaml --var issue=RHAIRFE-2001
+#   markov run rfe-to-strategy.yaml --var issue=RHAIRFE-2001 --var model=sonnet
+
+entrypoint: main
+
+namespace: ai-pipeline
+
+vars:
+  issue: RHAIRFE-0000
+  model: opus
+
+step_types:
+  agent_job:
+    base: k8s_job
+    description: "Run a pipeline-agent skill as a K8s Job"
+    job:
+      image: pipeline-agent:latest
+      backoff_limit: 0
+      ttl_seconds: 86400
+      service_account: pipeline-dashboard
+      env:
+        GOOGLE_APPLICATION_CREDENTIALS: /home/pipelineagent/.config/gcloud/credentials.json
+        MLFLOW_TRACKING_URI: http://mlflow.ai-pipeline.svc.cluster.local:5000
+      secrets:
+        - pipeline-secrets
+      volumes:
+        - name: pipeline-issues
+          mount: /app/issues
+          pvc: pipeline-issues
+        - name: pipeline-workspace
+          mount: /app/workspace
+          pvc: pipeline-workspace
+        - name: pipeline-logs
+          mount: /app/logs
+          pvc: pipeline-logs
+        - name: pipeline-artifacts
+          mount: /app/artifacts
+          pvc: pipeline-artifacts
+        - name: pipeline-context
+          mount: /app/.context
+          pvc: pipeline-context
+        - name: gcp-credentials
+          mount: /home/pipelineagent/.config/gcloud
+          secret: gcp-credentials
+          read_only: true
+      resources:
+        requests:
+          memory: 2Gi
+          cpu: 500m
+        limits:
+          memory: 8Gi
+          cpu: 2000m
+      affinity:
+        pod_affinity:
+          required:
+            match_labels:
+              app: pipeline-dashboard
+            topology_key: kubernetes.io/hostname
+
+workflows:
+  - name: main
+    description: "Create, refine, and review a strategy from an RFE ticket"
+
+    steps:
+
+      # ── Check if strategy already exists for this RFE ────────────
+
+      - name: check_strat_exists
+        type: load_artifact
+        artifacts:
+          strat_task:
+            path: "/app/artifacts/strat-tasks/{{ issue }}.md"
+            format: markdown
+            source: local
+            optional: true
+          strat_skipped:
+            path: "/app/artifacts/strat-skipped/{{ issue }}.md"
+            format: markdown
+            source: local
+            optional: true
+
+      - name: eval_initial_state
+        type: set_fact
+        vars:
+          strat_exists: "check_strat_exists.artifacts.strat_task != None"
+          strat_skipped: "check_strat_exists.artifacts.strat_skipped != None"
+          strat_key: "{{ check_strat_exists.artifacts.strat_task.frontmatter.strat_id }}"
+
+      # ── Step 1: Strategy Create ──────────────────────────────────
+
+      - name: add_strat_label
+        type: shell_exec
+        when: "not strat_exists and not strat_skipped"
+        params:
+          command: |
+            curl -sfk -X PUT \
+              -H "Content-Type: application/json" \
+              -u "$JIRA_USER:$JIRA_TOKEN" \
+              "$JIRA_SERVER/rest/api/2/issue/{{ issue }}" \
+              -d '{"update":{"labels":[{"add":"strat-creator-3.5"}]}}'
+
+      - name: strategy_create
+        type: agent_job
+        when: "not strat_exists and not strat_skipped"
+        params:
+          command: ["/bin/bash"]
+          args:
+            - /app/scripts/run_skill.sh
+            - --skill
+            - strategy-create
+            - --issue
+            - "{{ issue }}"
+            - --model
+            - "{{ model }}"
+
+      # Re-load to pick up the newly-created RHAISTRAT key
+      - name: reload_strat
+        type: load_artifact
+        artifacts:
+          strat_task:
+            path: "/app/artifacts/strat-tasks/{{ issue }}.md"
+            format: markdown
+            source: local
+            optional: true
+
+      - name: resolve_strat_key
+        type: set_fact
+        vars:
+          strat_exists: "reload_strat.artifacts.strat_task != None"
+          strat_key: "{{ reload_strat.artifacts.strat_task.frontmatter.strat_id }}"
+
+      # ── Step 2: Strategy Refine ──────────────────────────────────
+
+      - name: check_already_refined
+        type: load_artifact
+        when: "strat_exists"
+        artifacts:
+          strat_task_current:
+            path: "/app/artifacts/strat-tasks/{{ strat_key }}.md"
+            format: markdown
+            source: local
+            optional: true
+
+      - name: eval_refine_state
+        type: set_fact
+        when: "strat_exists"
+        vars:
+          strat_already_refined: "check_already_refined.artifacts.strat_task_current != None and check_already_refined.artifacts.strat_task_current.frontmatter.status == 'Refined'"
+
+      - name: strategy_refine
+        type: agent_job
+        when: "strat_exists and not strat_already_refined"
+        params:
+          command: ["/bin/bash"]
+          args:
+            - /app/scripts/run_skill.sh
+            - --skill
+            - strategy-refine
+            - --issue
+            - "{{ strat_key }}"
+            - --model
+            - "{{ model }}"
+
+      # ── Step 3: Strategy Review ──────────────────────────────────
+
+      - name: check_already_reviewed
+        type: load_artifact
+        when: "strat_exists"
+        artifacts:
+          strat_review:
+            path: "/app/artifacts/strat-reviews/{{ strat_key }}-review.md"
+            format: markdown
+            source: local
+            optional: true
+
+      - name: eval_review_state
+        type: set_fact
+        when: "strat_exists"
+        vars:
+          strat_already_reviewed: "check_already_reviewed.artifacts.strat_review != None"
+
+      - name: strategy_review
+        type: agent_job
+        when: "strat_exists and not strat_already_reviewed"
+        params:
+          command: ["/bin/bash"]
+          args:
+            - /app/scripts/run_skill.sh
+            - --skill
+            - strategy-review
+            - --issue
+            - "{{ strat_key }}"
+            - --model
+            - "{{ model }}"
+
+      # ── Step 4: Extract Claims ─────────────────────────────────
+
+      - name: extract_claims
+        type: agent_job
+        when: "strat_exists"
+        params:
+          command: ["/bin/bash"]
+          args:
+            - /app/scripts/run_skill.sh
+            - --skill
+            - extract-claims
+            - --issue
+            - "{{ strat_key }}"
+            - --model
+            - "{{ model }}"
+
+      # ── Step 5: Verify Claims ──────────────────────────────────
+
+      - name: verify_claims
+        type: agent_job
+        when: "strat_exists"
+        params:
+          command: ["/bin/bash"]
+          args:
+            - /app/scripts/run_skill.sh
+            - --skill
+            - verify-claims
+            - --issue
+            - "{{ strat_key }}"
+            - --model
+            - "{{ model }}"
+
+      # ── Step 6: Explain Claims ─────────────────────────────────
+
+      - name: explain_claims
+        type: agent_job
+        when: "strat_exists"
+        params:
+          command: ["/bin/bash"]
+          args:
+            - /app/scripts/run_skill.sh
+            - --skill
+            - explain-claims
+            - --issue
+            - "{{ strat_key }}"
+            - --model
+            - "{{ model }}"
+
+      # ── Summary ──────────────────────────────────────────────────
+
+      - name: final_status
+        type: shell_exec
+        params:
+          command: |
+            echo "=== RFE to Strategy Pipeline Complete ==="
+            echo "RFE:      {{ issue }}"
+            echo "Strategy: {{ strat_key }}"
+            echo "Skipped:  {{ strat_skipped }}"
+            test -f "/app/artifacts/strat-tasks/{{ strat_key }}.md" && echo "Task:     EXISTS" || echo "Task:     MISSING"
+            test -f "/app/artifacts/strat-reviews/{{ strat_key }}-review.md" && echo "Review:   EXISTS" || echo "Review:   MISSING"
+            CLAIMS_COUNT=$(find /app/artifacts/claims -name "{{ strat_key }}*.claims.json" 2>/dev/null | wc -l)
+            echo "Claims:   ${CLAIMS_COUNT} file(s)"
+            VERIF_COUNT=$(ls /app/artifacts/verification/ 2>/dev/null | wc -l)
+            echo "Verdicts: ${VERIF_COUNT} file(s)"
+            EXPLAIN_COUNT=$(ls /app/artifacts/explanations/ 2>/dev/null | wc -l)
+            echo "Explains: ${EXPLAIN_COUNT} file(s)"
