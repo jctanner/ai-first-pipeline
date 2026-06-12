@@ -1,0 +1,626 @@
+---
+# ====================================================================
+# Batch RFE-to-Strategy Pipeline
+# ====================================================================
+#
+# Paginates through Approved RHAIRFE tickets and runs the strategy +
+# claims lifecycle for each:
+#
+#   1. strategy-create  → produces RHAISTRAT ticket + artifact
+#   2. strategy-refine  → adds HOW, dependencies, NFRs
+#   3. strategy-review  → adversarial review with rubric
+#   4. extract-claims   → pull verifiable claims from artifacts
+#   5. verify-claims    → check claims against architecture docs
+#   6. explain-claims   → root-cause analysis on non-supported claims
+#
+# All steps are idempotent — existing artifacts are detected and
+# completed steps are skipped on re-run. Strategy steps (1-3) use
+# recursive retry sub-workflows (max 3 attempts).
+#
+# Runner pod mounts (set in markovd preferences or trigger UI):
+#   pipeline-artifacts → /app/artifacts
+#   pipeline-secrets   → (env)
+#
+# Usage:
+#   markov run batch-rfe-to-strategy.yaml
+#   markov run batch-rfe-to-strategy.yaml --var max_tickets=10
+#   markov run batch-rfe-to-strategy.yaml --forks 20
+
+entrypoint: batch-rfe-to-strategy
+
+namespace: ai-pipeline
+
+forks: 10
+
+vars:
+  model: opus
+  jql: "project = RHAIRFE AND status = Approved ORDER BY created DESC"
+  max_tickets: 50
+
+# ====================================================================
+# Rules
+# ====================================================================
+
+rules:
+
+  # ── Pagination rules ─────────────────────────────────────────────
+
+  - name: batch_has_more
+    description: "More tickets remain in the Jira backlog"
+    salience: 100
+    when: "batch_offset < batch_total"
+    action: continue
+
+  - name: batch_done
+    description: "All tickets have been processed"
+    salience: 200
+    when: "batch_offset >= batch_total"
+    action: skip
+    set_fact:
+      batch_complete: true
+
+  # ── Retry loop rules ────────────────────────────────────────────
+
+  - name: retry_artifacts_ready
+    description: "Artifacts exist, no retry needed"
+    salience: 200
+    when: "artifacts_ready"
+    action: skip
+    set_fact:
+      retry_done: true
+
+  - name: retry_continue
+    description: "Artifacts missing, retries remaining"
+    salience: 100
+    when: "not artifacts_ready and retries_remaining > 0"
+    action: continue
+    set_fact:
+      retry_done: false
+
+  - name: retry_exhausted
+    description: "Artifacts missing, no retries left"
+    salience: 150
+    when: "not artifacts_ready and retries_remaining <= 0"
+    action: skip
+    set_fact:
+      retry_done: true
+      retry_failed: true
+
+# ====================================================================
+# Step Types
+# ====================================================================
+
+step_types:
+  agent_job:
+    base: k8s_job
+    description: "Run a pipeline-agent skill as a K8s Job"
+    job:
+      image: pipeline-agent:latest
+      backoff_limit: 0
+      ttl_seconds: 86400
+      service_account: pipeline-dashboard
+      env:
+        GOOGLE_APPLICATION_CREDENTIALS: /home/pipelineagent/.config/gcloud/credentials.json
+        MLFLOW_TRACKING_URI: http://mlflow.ai-pipeline.svc.cluster.local:5000
+        ENABLE_STRACE: "1"
+        ENABLE_OTEL: "1"
+      secrets:
+        - pipeline-secrets
+      volumes:
+        - name: pipeline-issues
+          mount: /app/issues
+          pvc: pipeline-issues
+        - name: pipeline-workspace
+          mount: /app/workspace
+          pvc: pipeline-workspace
+        - name: pipeline-logs
+          mount: /app/logs
+          pvc: pipeline-logs
+        - name: pipeline-artifacts
+          mount: /app/artifacts
+          pvc: pipeline-artifacts
+        - name: pipeline-context
+          mount: /app/.context
+          pvc: pipeline-context
+        - name: gcp-credentials
+          mount: /home/pipelineagent/.config/gcloud
+          secret: gcp-credentials
+          read_only: true
+      resources:
+        requests:
+          memory: 2Gi
+          cpu: 500m
+        limits:
+          memory: 8Gi
+          cpu: 2000m
+      affinity:
+        pod_affinity:
+          required:
+            match_labels:
+              app: pipeline-dashboard
+            topology_key: kubernetes.io/hostname
+
+# ====================================================================
+# Workflows
+# ====================================================================
+workflows:
+
+  # ------------------------------------------------------------------
+  # batch-rfe-to-strategy (entrypoint)
+  # ------------------------------------------------------------------
+  - name: batch-rfe-to-strategy
+    description: "Process Approved RFEs through strategy + claims pipeline in batches"
+
+    steps:
+      - name: check_mounts
+        type: shell_exec
+        params:
+          command: |
+            ok=true
+            test -d /app/artifacts || { echo "FATAL: /app/artifacts not mounted (need pipeline-artifacts PVC at /app/artifacts)"; ok=false; }
+            $ok || exit 1
+            echo "✓ /app/artifacts mounted"
+
+      - name: start_batch_loop
+        workflow: batch-loop
+        vars:
+          jql: "{{ jql }}"
+          model: "{{ model }}"
+          batch_size: "{{ max_tickets }}"
+          batch_offset: 0
+
+  # ------------------------------------------------------------------
+  # batch-loop (recursive pagination)
+  # ------------------------------------------------------------------
+  - name: batch-loop
+    vars:
+      jql: null
+      model: opus
+      batch_size: 50
+      batch_offset: 0
+
+    steps:
+
+      - name: fetch_page
+        type: shell_exec
+        register: fetch_page
+        params:
+          command: |
+            python3 -c '
+            import json, os, sys, ssl, urllib.request, urllib.parse, base64
+
+            server = os.environ["JIRA_SERVER"]
+            user = os.environ["JIRA_USER"]
+            token = os.environ["JIRA_TOKEN"]
+            jql = sys.argv[1]
+            max_results = int(sys.argv[2])
+            start_at = int(sys.argv[3])
+
+            ctx = ssl.create_default_context()
+            ctx.check_hostname = False
+            ctx.verify_mode = ssl.CERT_NONE
+
+            creds = base64.b64encode(f"{user}:{token}".encode()).decode()
+            headers = {"Authorization": f"Basic {creds}", "Content-Type": "application/json"}
+
+            issues = []
+            total = 0
+            remaining = max_results
+            offset = start_at
+
+            while remaining > 0:
+                batch = min(50, remaining)
+                params = urllib.parse.urlencode({"jql": jql, "startAt": offset, "maxResults": batch, "fields": "key"})
+                url = f"{server}/rest/api/2/search?{params}"
+                req = urllib.request.Request(url, headers=headers)
+                with urllib.request.urlopen(req, context=ctx) as resp:
+                    data = json.loads(resp.read())
+                total = data.get("total", 0)
+                page_issues = data.get("issues", [])
+                for issue in page_issues:
+                    issues.append({"key": issue["key"]})
+                if not page_issues or offset + batch >= total:
+                    break
+                offset += len(page_issues)
+                remaining -= len(page_issues)
+
+            json.dump({"issues": issues, "total": total}, sys.stdout)
+            ' '{{ jql }}' '{{ batch_size }}' '{{ batch_offset }}'
+
+      - name: parse_page
+        type: set_fact
+        vars:
+          page_data: "{{ fetch_page.stdout | fromjson }}"
+
+      - name: extract_total
+        type: set_fact
+        vars:
+          batch_total: "{{ page_data.total }}"
+
+      - name: process_tickets
+        for_each: "page_data.issues"
+        for_each_key: "key"
+        as: ticket
+        concurrency: 10
+        workflow: per-ticket
+        vars:
+          issue: "{{ ticket.key }}"
+          model: "{{ model }}"
+
+      - name: advance_offset
+        type: set_fact
+        vars:
+          batch_offset: "{{ batch_offset + batch_size }}"
+
+      - name: pagination_gate
+        type: gate
+        rules:
+          - batch_has_more
+          - batch_done
+
+      - name: next_page
+        when: "batch_offset < batch_total"
+        workflow: batch-loop
+        vars:
+          jql: "{{ jql }}"
+          model: "{{ model }}"
+          batch_size: "{{ batch_size }}"
+          batch_offset: "{{ batch_offset }}"
+
+  # ------------------------------------------------------------------
+  # per-ticket
+  #
+  # Strategy + claims lifecycle for a single RHAIRFE ticket.
+  # All steps are idempotent. If strategy-create fails after 3 retries,
+  # downstream steps are silently skipped.
+  # ------------------------------------------------------------------
+  - name: per-ticket
+    description: "Strategy + claims pipeline for a single RFE"
+
+    vars:
+      issue: null
+      model: opus
+
+    steps:
+
+      # ── Check if strategy already exists ─────────────────────────
+
+      - name: check_strat_exists
+        type: load_artifact
+        artifacts:
+          strat_task:
+            path: "/app/artifacts/strat-tasks/{{ issue }}.md"
+            format: markdown
+            source: local
+            optional: true
+          strat_skipped:
+            path: "/app/artifacts/strat-skipped/{{ issue }}.md"
+            format: markdown
+            source: local
+            optional: true
+
+      - name: eval_initial_state
+        type: set_fact
+        vars:
+          strat_exists: "check_strat_exists.artifacts.strat_task != None"
+          strat_skipped: "check_strat_exists.artifacts.strat_skipped != None"
+          strat_key: "{{ check_strat_exists.artifacts.strat_task.frontmatter.strat_id }}"
+
+      # ── Step 1: Strategy Create ──────────────────────────────────
+
+      - name: add_strat_label
+        type: shell_exec
+        when: "not strat_exists and not strat_skipped"
+        params:
+          command: |
+            curl -sfk -X PUT \
+              -H "Content-Type: application/json" \
+              -u "$JIRA_USER:$JIRA_TOKEN" \
+              "$JIRA_SERVER/rest/api/2/issue/{{ issue }}" \
+              -d '{"update":{"labels":[{"add":"strat-creator-3.5"}]}}' || true
+
+      - name: ensure_strategy_created
+        when: "not strat_exists and not strat_skipped"
+        workflow: strategy-create-retry
+        vars:
+          issue: "{{ issue }}"
+          model: "{{ model }}"
+          retries_remaining: 3
+
+      # Re-load to pick up the newly-created RHAISTRAT key
+      - name: reload_strat
+        type: load_artifact
+        artifacts:
+          strat_task:
+            path: "/app/artifacts/strat-tasks/{{ issue }}.md"
+            format: markdown
+            source: local
+            optional: true
+
+      - name: resolve_strat_key
+        type: set_fact
+        vars:
+          strat_exists: "reload_strat.artifacts.strat_task != None"
+          strat_key: "{{ reload_strat.artifacts.strat_task.frontmatter.strat_id }}"
+
+      # ── Step 2: Strategy Refine ──────────────────────────────────
+
+      - name: check_already_refined
+        type: load_artifact
+        when: "strat_exists"
+        artifacts:
+          strat_task_current:
+            path: "/app/artifacts/strat-tasks/{{ strat_key }}.md"
+            format: markdown
+            source: local
+            optional: true
+
+      - name: eval_refine_state
+        type: set_fact
+        when: "strat_exists"
+        vars:
+          strat_already_refined: "check_already_refined.artifacts.strat_task_current != None and check_already_refined.artifacts.strat_task_current.frontmatter.status == 'Refined'"
+
+      - name: ensure_strategy_refined
+        when: "strat_exists and not strat_already_refined"
+        workflow: strategy-refine-retry
+        vars:
+          strat_key: "{{ strat_key }}"
+          model: "{{ model }}"
+          retries_remaining: 3
+
+      # ── Step 3: Strategy Review ──────────────────────────────────
+
+      - name: check_already_reviewed
+        type: load_artifact
+        when: "strat_exists"
+        artifacts:
+          strat_review:
+            path: "/app/artifacts/strat-reviews/{{ strat_key }}-review.md"
+            format: markdown
+            source: local
+            optional: true
+
+      - name: eval_review_state
+        type: set_fact
+        when: "strat_exists"
+        vars:
+          strat_already_reviewed: "check_already_reviewed.artifacts.strat_review != None"
+
+      - name: ensure_strategy_reviewed
+        when: "strat_exists and not strat_already_reviewed"
+        workflow: strategy-review-retry
+        vars:
+          strat_key: "{{ strat_key }}"
+          model: "{{ model }}"
+          retries_remaining: 3
+
+      # ── Step 4: Extract Claims ─────────────────────────────────
+
+      - name: extract_claims
+        type: agent_job
+        when: "strat_exists"
+        params:
+          command: ["/bin/bash"]
+          args:
+            - /app/scripts/run_skill.sh
+            - --skill
+            - extract-claims
+            - --issue
+            - "{{ strat_key }}"
+            - --model
+            - "{{ model }}"
+
+      # ── Step 5: Verify Claims ──────────────────────────────────
+
+      - name: verify_claims
+        type: agent_job
+        when: "strat_exists"
+        params:
+          command: ["/bin/bash"]
+          args:
+            - /app/scripts/run_skill.sh
+            - --skill
+            - verify-claims
+            - --issue
+            - "{{ strat_key }}"
+            - --model
+            - "{{ model }}"
+
+      # ── Step 6: Explain Claims ─────────────────────────────────
+
+      - name: explain_claims
+        type: agent_job
+        when: "strat_exists"
+        params:
+          command: ["/bin/bash"]
+          args:
+            - /app/scripts/run_skill.sh
+            - --skill
+            - explain-claims
+            - --issue
+            - "{{ strat_key }}"
+            - --model
+            - "{{ model }}"
+
+  # ------------------------------------------------------------------
+  # strategy-create-retry
+  # ------------------------------------------------------------------
+  - name: strategy-create-retry
+    vars:
+      issue: null
+      model: opus
+      retries_remaining: 3
+
+    steps:
+      - name: check_artifacts
+        type: load_artifact
+        artifacts:
+          strat_task:
+            path: "/app/artifacts/strat-tasks/{{ issue }}.md"
+            format: markdown
+            source: local
+            optional: true
+          strat_skipped:
+            path: "/app/artifacts/strat-skipped/{{ issue }}.md"
+            format: markdown
+            source: local
+            optional: true
+
+      - name: eval_retry_state
+        type: set_fact
+        vars:
+          artifacts_ready: "check_artifacts.artifacts.strat_task != None or check_artifacts.artifacts.strat_skipped != None"
+
+      - name: retry_gate
+        type: gate
+        rules:
+          - retry_artifacts_ready
+          - retry_continue
+          - retry_exhausted
+
+      - name: run_skill
+        type: agent_job
+        when: "not artifacts_ready and retries_remaining > 0"
+        params:
+          command: ["/bin/bash"]
+          args:
+            - /app/scripts/run_skill.sh
+            - --skill
+            - strategy-create
+            - --issue
+            - "{{ issue }}"
+            - --model
+            - "{{ model }}"
+
+      - name: decrement_retries
+        type: set_fact
+        when: "not artifacts_ready and retries_remaining > 0"
+        vars:
+          retries_remaining: "{{ retries_remaining - 1 }}"
+
+      - name: recurse
+        when: "not artifacts_ready and retries_remaining > 0"
+        workflow: strategy-create-retry
+        vars:
+          issue: "{{ issue }}"
+          model: "{{ model }}"
+          retries_remaining: "{{ retries_remaining }}"
+
+  # ------------------------------------------------------------------
+  # strategy-refine-retry
+  # ------------------------------------------------------------------
+  - name: strategy-refine-retry
+    vars:
+      strat_key: null
+      model: opus
+      retries_remaining: 3
+
+    steps:
+      - name: check_artifacts
+        type: load_artifact
+        artifacts:
+          strat_task:
+            path: "/app/artifacts/strat-tasks/{{ strat_key }}.md"
+            format: markdown
+            source: local
+            optional: true
+
+      - name: eval_retry_state
+        type: set_fact
+        vars:
+          artifacts_ready: "check_artifacts.artifacts.strat_task != None and check_artifacts.artifacts.strat_task.frontmatter.status == 'Refined'"
+
+      - name: retry_gate
+        type: gate
+        rules:
+          - retry_artifacts_ready
+          - retry_continue
+          - retry_exhausted
+
+      - name: run_skill
+        type: agent_job
+        when: "not artifacts_ready and retries_remaining > 0"
+        params:
+          command: ["/bin/bash"]
+          args:
+            - /app/scripts/run_skill.sh
+            - --skill
+            - strategy-refine
+            - --issue
+            - "{{ strat_key }}"
+            - --model
+            - "{{ model }}"
+
+      - name: decrement_retries
+        type: set_fact
+        when: "not artifacts_ready and retries_remaining > 0"
+        vars:
+          retries_remaining: "{{ retries_remaining - 1 }}"
+
+      - name: recurse
+        when: "not artifacts_ready and retries_remaining > 0"
+        workflow: strategy-refine-retry
+        vars:
+          strat_key: "{{ strat_key }}"
+          model: "{{ model }}"
+          retries_remaining: "{{ retries_remaining }}"
+
+  # ------------------------------------------------------------------
+  # strategy-review-retry
+  # ------------------------------------------------------------------
+  - name: strategy-review-retry
+    vars:
+      strat_key: null
+      model: opus
+      retries_remaining: 3
+
+    steps:
+      - name: check_artifacts
+        type: load_artifact
+        artifacts:
+          strat_review:
+            path: "/app/artifacts/strat-reviews/{{ strat_key }}-review.md"
+            format: markdown
+            source: local
+            optional: true
+
+      - name: eval_retry_state
+        type: set_fact
+        vars:
+          artifacts_ready: "check_artifacts.artifacts.strat_review != None"
+
+      - name: retry_gate
+        type: gate
+        rules:
+          - retry_artifacts_ready
+          - retry_continue
+          - retry_exhausted
+
+      - name: run_skill
+        type: agent_job
+        when: "not artifacts_ready and retries_remaining > 0"
+        params:
+          command: ["/bin/bash"]
+          args:
+            - /app/scripts/run_skill.sh
+            - --skill
+            - strategy-review
+            - --issue
+            - "{{ strat_key }}"
+            - --model
+            - "{{ model }}"
+
+      - name: decrement_retries
+        type: set_fact
+        when: "not artifacts_ready and retries_remaining > 0"
+        vars:
+          retries_remaining: "{{ retries_remaining - 1 }}"
+
+      - name: recurse
+        when: "not artifacts_ready and retries_remaining > 0"
+        workflow: strategy-review-retry
+        vars:
+          strat_key: "{{ strat_key }}"
+          model: "{{ model }}"
+          retries_remaining: "{{ retries_remaining }}"
