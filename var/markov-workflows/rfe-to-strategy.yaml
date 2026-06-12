@@ -15,6 +15,10 @@
 # All steps are idempotent — existing artifacts are detected and
 # completed steps are skipped on re-run.
 #
+# Runner pod mounts (set in markovd preferences or trigger UI):
+#   pipeline-artifacts → /app/artifacts
+#   pipeline-secrets   → (env)
+#
 # Usage:
 #   markov run rfe-to-strategy.yaml --var issue=RHAIRFE-2001
 #   markov run rfe-to-strategy.yaml --var issue=RHAIRFE-2001 --var model=sonnet
@@ -91,10 +95,12 @@ workflows:
           strat_task:
             path: "/app/artifacts/strat-tasks/{{ issue }}.md"
             format: markdown
+            source: local
             optional: true
           strat_skipped:
             path: "/app/artifacts/strat-skipped/{{ issue }}.md"
             format: markdown
+            source: local
             optional: true
 
       - name: eval_initial_state
@@ -138,6 +144,7 @@ workflows:
           strat_task:
             path: "/app/artifacts/strat-tasks/{{ issue }}.md"
             format: markdown
+            source: local
             optional: true
 
       - name: resolve_strat_key
@@ -155,6 +162,7 @@ workflows:
           strat_task_current:
             path: "/app/artifacts/strat-tasks/{{ strat_key }}.md"
             format: markdown
+            source: local
             optional: true
 
       - name: eval_refine_state
@@ -186,6 +194,7 @@ workflows:
           strat_review:
             path: "/app/artifacts/strat-reviews/{{ strat_key }}-review.md"
             format: markdown
+            source: local
             optional: true
 
       - name: eval_review_state
