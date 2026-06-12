@@ -39,6 +39,8 @@ step_types:
       env:
         GOOGLE_APPLICATION_CREDENTIALS: /home/pipelineagent/.config/gcloud/credentials.json
         MLFLOW_TRACKING_URI: http://mlflow.ai-pipeline.svc.cluster.local:5000
+        ENABLE_STRACE: "1"
+        ENABLE_OTEL: "1"
       secrets:
         - pipeline-secrets
       volumes:
