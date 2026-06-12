@@ -117,7 +117,7 @@ workflows:
               -H "Content-Type: application/json" \
               -u "$JIRA_USER:$JIRA_TOKEN" \
               "$JIRA_SERVER/rest/api/2/issue/{{ issue }}" \
-              -d '{"update":{"labels":[{"add":"strat-creator-3.5"}]}}'
+              -d '{"update":{"labels":[{"add":"strat-creator-3.5"}]}}' || true
 
       - name: strategy_create
         type: agent_job
