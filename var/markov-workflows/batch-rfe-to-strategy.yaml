@@ -403,13 +403,10 @@ workflows:
         params:
           command: ["/bin/bash"]
           args:
-            - /app/scripts/run_skill.sh
-            - --skill
-            - extract-claims
-            - --issue
-            - "{{ strat_key }}"
-            - --model
-            - "{{ model }}"
+            - -c
+            - >-
+              export PIPELINE_JOB_NAME="extract-claims-{{ strat_key }}";
+              exec /app/scripts/run_skill.sh --skill extract-claims --issue "{{ strat_key }}" --model "{{ model }}"
 
       # ── Step 5: Verify Claims ──────────────────────────────────
 
@@ -419,13 +416,10 @@ workflows:
         params:
           command: ["/bin/bash"]
           args:
-            - /app/scripts/run_skill.sh
-            - --skill
-            - verify-claims
-            - --issue
-            - "{{ strat_key }}"
-            - --model
-            - "{{ model }}"
+            - -c
+            - >-
+              export PIPELINE_JOB_NAME="verify-claims-{{ strat_key }}";
+              exec /app/scripts/run_skill.sh --skill verify-claims --issue "{{ strat_key }}" --model "{{ model }}"
 
       # ── Step 6: Explain Claims ─────────────────────────────────
 
@@ -435,13 +429,10 @@ workflows:
         params:
           command: ["/bin/bash"]
           args:
-            - /app/scripts/run_skill.sh
-            - --skill
-            - explain-claims
-            - --issue
-            - "{{ strat_key }}"
-            - --model
-            - "{{ model }}"
+            - -c
+            - >-
+              export PIPELINE_JOB_NAME="explain-claims-{{ strat_key }}";
+              exec /app/scripts/run_skill.sh --skill explain-claims --issue "{{ strat_key }}" --model "{{ model }}"
 
   # ------------------------------------------------------------------
   # strategy-create-retry
@@ -485,13 +476,10 @@ workflows:
         params:
           command: ["/bin/bash"]
           args:
-            - /app/scripts/run_skill.sh
-            - --skill
-            - strategy-create
-            - --issue
-            - "{{ issue }}"
-            - --model
-            - "{{ model }}"
+            - -c
+            - >-
+              export PIPELINE_JOB_NAME="strategy-create-{{ issue }}";
+              exec /app/scripts/run_skill.sh --skill strategy-create --issue "{{ issue }}" --model "{{ model }}"
 
       - name: decrement_retries
         type: set_fact
@@ -544,13 +532,10 @@ workflows:
         params:
           command: ["/bin/bash"]
           args:
-            - /app/scripts/run_skill.sh
-            - --skill
-            - strategy-refine
-            - --issue
-            - "{{ strat_key }}"
-            - --model
-            - "{{ model }}"
+            - -c
+            - >-
+              export PIPELINE_JOB_NAME="strategy-refine-{{ strat_key }}";
+              exec /app/scripts/run_skill.sh --skill strategy-refine --issue "{{ strat_key }}" --model "{{ model }}"
 
       - name: decrement_retries
         type: set_fact
@@ -603,13 +588,10 @@ workflows:
         params:
           command: ["/bin/bash"]
           args:
-            - /app/scripts/run_skill.sh
-            - --skill
-            - strategy-review
-            - --issue
-            - "{{ strat_key }}"
-            - --model
-            - "{{ model }}"
+            - -c
+            - >-
+              export PIPELINE_JOB_NAME="strategy-review-{{ strat_key }}";
+              exec /app/scripts/run_skill.sh --skill strategy-review --issue "{{ strat_key }}" --model "{{ model }}"
 
       - name: decrement_retries
         type: set_fact
