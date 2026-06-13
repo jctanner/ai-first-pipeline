@@ -3,6 +3,11 @@
 
 set -euo pipefail
 
+# Save full pod log as artifact
+LOG_DIR="/app/artifacts/jobs"
+mkdir -p "$LOG_DIR" 2>/dev/null || true
+exec > >(tee -a "${LOG_DIR}/${PIPELINE_JOB_NAME:-$(hostname)}.log") 2>&1
+
 # Parse arguments
 SKILL=""
 ISSUE_KEY=""
@@ -42,6 +47,11 @@ done
 if [ -z "$SKILL" ]; then
   echo "Usage: $0 --skill <skill-name> [--issue <issue-key>] [--model <model>] [--force]"
   exit 1
+fi
+
+# Include skill+issue in job tag so strace/apibodies dirs are discoverable by issue key
+if [ -n "$ISSUE_KEY" ]; then
+  export PIPELINE_JOB_NAME="${SKILL}-${ISSUE_KEY}"
 fi
 
 echo "============================================================"
@@ -216,7 +226,7 @@ done
 # Skills accept issue keys as positional arguments, not flags
 # Example: /rfe.review --headless RHAIRFE-953
 # --headless flag suppresses interactive prompts and end-of-run summary
-PROMPT="/$SKILL_NAME --headless${ISSUE_KEY:+ $ISSUE_KEY}"
+PROMPT="/$SKILL_NAME --headless${FORCE:+ $FORCE}${ISSUE_KEY:+ $ISSUE_KEY}"
 
 # Append extra vars as prompt context
 if [ ${#EXTRA_VARS[@]} -gt 0 ]; then
@@ -262,6 +272,31 @@ echo "Executing: claude --model $MODEL --print \"$PROMPT\""
 echo "Working directory: $(pwd)"
 echo "Starting execution at: $(date)"
 echo
+
+# OpenTelemetry → Observatory (enabled by default)
+if [ "${ENABLE_OTEL:-1}" = "1" ]; then
+  JOB_TAG="${PIPELINE_JOB_NAME:-$(hostname)}"
+  APIBODIES_DIR="/app/artifacts/apibodies/${JOB_TAG}"
+  mkdir -p "$APIBODIES_DIR"
+  OBSERVATORY_URL="${OBSERVATORY_URL:-http://observatory.ai-pipeline.svc.cluster.local:8000}"
+  export CLAUDE_CODE_ENABLE_TELEMETRY=1
+  export CLAUDE_CODE_ENHANCED_TELEMETRY_BETA=1
+  export OTEL_EXPORTER_OTLP_PROTOCOL=http/json
+  export OTEL_EXPORTER_OTLP_ENDPOINT="${OBSERVATORY_URL}/otel"
+  export OTEL_METRICS_EXPORTER=otlp
+  export OTEL_LOGS_EXPORTER=otlp
+  export OTEL_TRACES_EXPORTER=otlp
+  export OTEL_LOG_USER_PROMPTS=1
+  export OTEL_LOG_TOOL_DETAILS=1
+  export OTEL_LOG_TOOL_CONTENT=1
+  export OTEL_LOG_RAW_API_BODIES="file:${APIBODIES_DIR}"
+  export OTEL_METRIC_EXPORT_INTERVAL=10000
+  export OTEL_LOGS_EXPORT_INTERVAL=5000
+  export OTEL_TRACES_EXPORT_INTERVAL=5000
+  echo "OTel telemetry enabled: OTLP → ${OBSERVATORY_URL}/otel, API bodies → $APIBODIES_DIR"
+else
+  echo "OTel telemetry disabled"
+fi
 
 # Set up FIFO for streaming output (proven pattern from rfe-autofixer GitLab CI)
 claude_fifo="/tmp/claude-stream.fifo"

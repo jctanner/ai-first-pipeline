@@ -3,6 +3,11 @@
 
 set -euo pipefail
 
+# Save full pod log as artifact
+LOG_DIR="/app/artifacts/jobs"
+mkdir -p "$LOG_DIR" 2>/dev/null || true
+exec > >(tee -a "${LOG_DIR}/${PIPELINE_JOB_NAME:-$(hostname)}.log") 2>&1
+
 # Parse arguments
 SKILL=""
 ISSUE_KEY=""
@@ -42,6 +47,11 @@ done
 if [ -z "$SKILL" ]; then
   echo "Usage: $0 --skill <skill-name> [--issue <issue-key>] [--model <model>] [--force]"
   exit 1
+fi
+
+# Include skill+issue in job tag so strace/apibodies dirs are discoverable by issue key
+if [ -n "$ISSUE_KEY" ]; then
+  export PIPELINE_JOB_NAME="${SKILL}-${ISSUE_KEY}"
 fi
 
 echo "============================================================"
@@ -137,6 +147,31 @@ if [ "${ENABLE_STRACE:-}" = "1" ]; then
   mkdir -p "$STRACE_DIR"
   STRACE_CMD="strace -ffttv -s 1024 -o ${STRACE_DIR}/${JOB_TAG}"
   echo "strace enabled: output → $STRACE_DIR"
+fi
+
+# OpenTelemetry → Observatory (enabled by default)
+if [ "${ENABLE_OTEL:-1}" = "1" ]; then
+  JOB_TAG="${PIPELINE_JOB_NAME:-$(hostname)}"
+  APIBODIES_DIR="/app/artifacts/apibodies/${JOB_TAG}"
+  mkdir -p "$APIBODIES_DIR"
+  OBSERVATORY_URL="${OBSERVATORY_URL:-http://observatory.ai-pipeline.svc.cluster.local:8000}"
+  export CLAUDE_CODE_ENABLE_TELEMETRY=1
+  export CLAUDE_CODE_ENHANCED_TELEMETRY_BETA=1
+  export OTEL_EXPORTER_OTLP_PROTOCOL=http/json
+  export OTEL_EXPORTER_OTLP_ENDPOINT="${OBSERVATORY_URL}/otel"
+  export OTEL_METRICS_EXPORTER=otlp
+  export OTEL_LOGS_EXPORTER=otlp
+  export OTEL_TRACES_EXPORTER=otlp
+  export OTEL_LOG_USER_PROMPTS=1
+  export OTEL_LOG_TOOL_DETAILS=1
+  export OTEL_LOG_TOOL_CONTENT=1
+  export OTEL_LOG_RAW_API_BODIES="file:${APIBODIES_DIR}"
+  export OTEL_METRIC_EXPORT_INTERVAL=10000
+  export OTEL_LOGS_EXPORT_INTERVAL=5000
+  export OTEL_TRACES_EXPORT_INTERVAL=5000
+  echo "OTel telemetry enabled: OTLP → ${OBSERVATORY_URL}/otel, API bodies → $APIBODIES_DIR"
+else
+  echo "OTel telemetry disabled"
 fi
 
 # Build extra-vars prompt suffix
@@ -238,9 +273,10 @@ async def run_skill():
                 plugin_dir = str(subdirs[0])
 
     # Build prompt
+    force_part = " --force" if """${FORCE}""" else ""
     issue_part = f" {issue_key}" if issue_key else ""
     extra_vars = """${EXTRA_VARS_PROMPT}"""
-    prompt = f"/{skill_name} --headless{issue_part}{extra_vars}"
+    prompt = f"/{skill_name} --headless{force_part}{issue_part}{extra_vars}"
 
     # Set working directory
     cwd = plugin_dir if plugin_dir else "/app"
