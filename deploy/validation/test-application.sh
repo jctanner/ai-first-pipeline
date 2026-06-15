@@ -48,11 +48,14 @@ for pvc in pipeline-data github-emulator-data; do
   }
 
   PVC_STATUS=$(kubectl get pvc ${pvc} -n ${NAMESPACE} -o jsonpath='{.status.phase}')
-  if [ "$PVC_STATUS" != "Bound" ]; then
-    echo "ERROR: PVC ${pvc} not Bound (status: ${PVC_STATUS})"
+  if [ "$PVC_STATUS" = "Bound" ]; then
+    echo "✓ PVC ${pvc} is Bound"
+  elif [ "$PVC_STATUS" = "Pending" ]; then
+    echo "✓ PVC ${pvc} is Pending (WaitForFirstConsumer — will bind when a pod mounts it)"
+  else
+    echo "ERROR: PVC ${pvc} unexpected status: ${PVC_STATUS}"
     exit 1
   fi
-  echo "✓ PVC ${pvc} is Bound"
 done
 
 # Check secrets

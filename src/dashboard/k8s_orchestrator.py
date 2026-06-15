@@ -110,8 +110,11 @@ class PipelineOrchestrator:
             "issue": job.metadata.labels.get("issue"),
             "model": job.metadata.labels.get("model"),
             "runner": job.metadata.labels.get("runner", "cli"),
+            "force": job.metadata.labels.get("force", "false") == "true",
             "strace": job.metadata.labels.get("strace", "false") == "true",
             "mlflow": job.metadata.labels.get("mlflow", "true") == "true",
+            "otel": job.metadata.labels.get("otel", "true") == "true",
+            "extra_kwargs": (job.metadata.annotations or {}).get("extra_kwargs", ""),
         }
 
     def get_job_logs(self, job_name: str) -> str:
@@ -239,14 +242,19 @@ class PipelineOrchestrator:
             metadata=client.V1ObjectMeta(
                 name=job_name,
                 namespace=self.namespace,
+                annotations={
+                    "extra_kwargs": args.get("extra_kwargs") or "",
+                },
                 labels={
                     "app": "pipeline-agent",
                     "phase": phase,
                     "issue": issue_key.lower() if issue_key else "all",
                     "model": model,
                     "runner": runner,
+                    "force": "true" if args.get("force") else "false",
                     "strace": "true" if args.get("strace") else "false",
                     "mlflow": "false" if args.get("mlflow") is False else "true",
+                    "otel": "false" if args.get("otel") is False else "true",
                 }
             ),
             spec=client.V1JobSpec(
@@ -433,6 +441,12 @@ fi
                     name="MLFLOW_EXPERIMENT_NAME",
                     value=skill_fqn
                 ))
+
+        if args.get("otel") is not False:
+            env_vars.append(client.V1EnvVar(
+                name="ENABLE_OTEL",
+                value="1"
+            ))
 
         if args.get("strace"):
             env_vars.append(client.V1EnvVar(

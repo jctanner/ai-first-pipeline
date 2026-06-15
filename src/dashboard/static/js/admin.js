@@ -32,6 +32,81 @@ function executeClearVolumes() {
   .catch(err => alert('Clear failed: ' + err));
 }
 
+function loadJobCount() {
+  fetch('/api/jobs')
+    .then(r => r.json())
+    .then(data => {
+      const jobs = data.jobs || [];
+      document.getElementById('k8s-job-count').textContent =
+        jobs.length + ' job(s) in cluster';
+    })
+    .catch(() => {
+      document.getElementById('k8s-job-count').textContent = 'Unable to query jobs';
+    });
+}
+
+function confirmDeleteJobs() {
+  document.getElementById('delete-jobs-modal').showModal();
+}
+
+function executeDeleteJobs() {
+  const btn = document.querySelector('#delete-jobs-modal button:last-child');
+  btn.textContent = 'Deleting...';
+  btn.disabled = true;
+  fetch('/api/jobs/all', { method: 'DELETE' })
+    .then(r => r.json())
+    .then(data => {
+      document.getElementById('delete-jobs-modal').close();
+      btn.textContent = 'Confirm & Delete';
+      btn.disabled = false;
+      let msg = data.deleted + ' job(s) deleted.';
+      if (data.errors && data.errors.length)
+        msg += '\n\nErrors:\n' + data.errors.join('\n');
+      alert(msg);
+      loadJobCount();
+    })
+    .catch(err => {
+      btn.textContent = 'Confirm & Delete';
+      btn.disabled = false;
+      alert('Delete failed: ' + err);
+    });
+}
+
+document.addEventListener('DOMContentLoaded', loadJobCount);
+
+function confirmClearObservatory() {
+  document.getElementById('clear-observatory-modal').showModal();
+}
+
+function executeClearObservatory() {
+  const btn = document.querySelector('#clear-observatory-modal button:last-child');
+  btn.textContent = 'Clearing...';
+  btn.disabled = true;
+  fetch('/api/observatory/clear', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({})
+  })
+    .then(r => r.json())
+    .then(data => {
+      document.getElementById('clear-observatory-modal').close();
+      btn.textContent = 'Confirm & Clear';
+      btn.disabled = false;
+      if (data.error) {
+        alert('Clear failed: ' + data.error);
+      } else {
+        let msg = 'Observatory data cleared.';
+        if (data.deleted !== undefined) msg = data.deleted + ' record(s) deleted.';
+        alert(msg);
+      }
+    })
+    .catch(err => {
+      btn.textContent = 'Confirm & Clear';
+      btn.disabled = false;
+      alert('Clear failed: ' + err);
+    });
+}
+
 function confirmClearMlflow() {
   document.getElementById('clear-mlflow-modal').showModal();
 }

@@ -157,9 +157,22 @@ else
   echo "WARNING: observatory repo not found at ${PROJECT_ROOT}/deploy/repos/observatory"
 fi
 
+# Build markovd if the repo exists
+if [ -d ${PROJECT_ROOT}/deploy/repos/markovd ]; then
+  echo "--- Building markovd image for k3s ---"
+  cd ${PROJECT_ROOT}/deploy/repos/markovd
+
+  ${CONTAINER_CMD} build -t markovd:latest .
+  ${CONTAINER_CMD} save markovd:latest | sudo k3s ctr images import -
+  sudo k3s ctr images tag localhost/markovd:latest docker.io/library/markovd:latest 2>/dev/null || true
+  echo "Successfully built and imported markovd:latest"
+else
+  echo "WARNING: markovd repo not found at ${PROJECT_ROOT}/deploy/repos/markovd"
+fi
+
 echo "==> Image build complete!"
 echo ""
 echo "Imported images:"
-sudo k3s ctr images ls | grep -E 'ai-first-pipeline|github-emulator|jira-emulator|ingress-proxy|observatory' || echo "No matching images found"
+sudo k3s ctr images ls | grep -E 'ai-first-pipeline|github-emulator|jira-emulator|ingress-proxy|observatory|markovd' || echo "No matching images found"
 echo ""
 echo "Note: ingress-proxy image is built during the ingress deployment step"

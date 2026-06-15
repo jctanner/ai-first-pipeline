@@ -96,70 +96,6 @@
   </div>
 
   <div class="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 overflow-hidden">
-    <div class="px-5 py-3 border-b border-gray-200 dark:border-gray-700">
-      <h3 class="text-base font-semibold text-gray-900 dark:text-white">Data Volumes</h3>
-      <p class="text-xs text-gray-500 dark:text-gray-500 mt-1">Clear analysis data from shared volumes. This cannot be undone.</p>
-    </div>
-    <div class="overflow-x-auto">
-    <table class="w-full text-sm">
-      <thead class="bg-gray-50 dark:bg-gray-800 text-xs uppercase text-gray-500 dark:text-gray-400">
-        <tr>
-          <th class="px-5 py-2.5 w-8"><input type="checkbox" id="vol-select-all" onchange="toggleVolSelectAll(this)" class="rounded"></th>
-          <th class="px-5 py-2.5 text-left">Volume</th>
-          <th class="px-5 py-2.5 text-left">Path</th>
-        </tr>
-      </thead>
-      <tbody class="divide-y divide-gray-100 dark:divide-gray-800">
-        <tr><td class="px-5 py-2"><input type="checkbox" class="vol-select rounded" value="issues"></td><td class="px-5 py-2">Issues</td><td class="px-5 py-2"><code class="text-xs">/app/issues</code></td></tr>
-        <tr><td class="px-5 py-2"><input type="checkbox" class="vol-select rounded" value="workspace"></td><td class="px-5 py-2">Workspace</td><td class="px-5 py-2"><code class="text-xs">/app/workspace</code></td></tr>
-        <tr><td class="px-5 py-2"><input type="checkbox" class="vol-select rounded" value="logs"></td><td class="px-5 py-2">Logs</td><td class="px-5 py-2"><code class="text-xs">/app/logs</code></td></tr>
-        <tr><td class="px-5 py-2"><input type="checkbox" class="vol-select rounded" value="artifacts"></td><td class="px-5 py-2">Artifacts</td><td class="px-5 py-2"><code class="text-xs">/app/artifacts</code></td></tr>
-        <tr><td class="px-5 py-2"><input type="checkbox" class="vol-select rounded" value="context"></td><td class="px-5 py-2">Context</td><td class="px-5 py-2"><code class="text-xs">/app/.context</code></td></tr>
-      </tbody>
-    </table>
-    </div>
-    <div class="px-5 py-3 border-t border-gray-200 dark:border-gray-700">
-      <button class="bg-red-600 hover:bg-red-700 text-white text-sm font-medium py-2 px-4 rounded-lg transition-colors"
-              onclick="confirmClearVolumes()">Clear Selected</button>
-    </div>
-  </div>
-
-  <div class="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 overflow-hidden">
-    <div class="px-5 py-3 border-b border-gray-200 dark:border-gray-700">
-      <h3 class="text-base font-semibold text-gray-900 dark:text-white">MLflow Data</h3>
-      <p class="text-xs text-gray-500 dark:text-gray-500 mt-1">Delete all experiments, runs, and traces from the MLflow tracking server. The Default experiment (ID 0) is preserved but emptied.</p>
-    </div>
-    <div class="px-5 py-3 flex items-center justify-between">
-      <span class="text-sm text-gray-600 dark:text-gray-400">All experiments, runs, and traces</span>
-      <button class="bg-red-600 hover:bg-red-700 text-white text-sm font-medium py-2 px-4 rounded-lg transition-colors"
-              onclick="confirmClearMlflow()">Clear MLflow Data</button>
-    </div>
-  </div>
-
-  <dialog id="clear-mlflow-modal" class="rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 p-0 backdrop:bg-black/50">
-    <div class="p-6 max-w-md">
-      <h3 class="text-lg font-semibold text-gray-900 dark:text-white mb-3">Clear MLflow Data</h3>
-      <p class="text-sm text-gray-600 dark:text-gray-400 mb-4">This will <strong class="text-gray-900 dark:text-white">permanently delete</strong> all MLflow experiments (except Default), runs, and traces.</p>
-      <div class="flex justify-end gap-3">
-        <button class="px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 bg-gray-100 dark:bg-gray-800 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors" onclick="document.getElementById('clear-mlflow-modal').close()">Cancel</button>
-        <button class="px-4 py-2 text-sm font-medium text-white bg-red-600 rounded-lg hover:bg-red-700 transition-colors" onclick="executeClearMlflow()">Confirm &amp; Clear</button>
-      </div>
-    </div>
-  </dialog>
-
-  <dialog id="clear-volumes-modal" class="rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 p-0 backdrop:bg-black/50">
-    <div class="p-6 max-w-md">
-      <h3 class="text-lg font-semibold text-gray-900 dark:text-white mb-3">Clear Data Volumes</h3>
-      <p class="text-sm text-gray-600 dark:text-gray-400 mb-3">This will <strong class="text-gray-900 dark:text-white">permanently delete</strong> all contents from the following volumes:</p>
-      <div id="clear-volumes-list" class="max-h-48 overflow-y-auto text-xs text-gray-600 dark:text-gray-400 mb-4"></div>
-      <div class="flex justify-end gap-3">
-        <button class="px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 bg-gray-100 dark:bg-gray-800 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors" onclick="document.getElementById('clear-volumes-modal').close()">Cancel</button>
-        <button class="px-4 py-2 text-sm font-medium text-white bg-red-600 rounded-lg hover:bg-red-700 transition-colors" onclick="executeClearVolumes()">Confirm &amp; Clear</button>
-      </div>
-    </div>
-  </dialog>
-
-  <div class="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 overflow-hidden">
     <details>
       <summary class="px-5 py-3 font-semibold text-gray-900 dark:text-white cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800/50">About These Settings</summary>
       <div class="px-5 pb-4 text-sm text-gray-600 dark:text-gray-400 leading-relaxed max-w-3xl">
@@ -173,7 +109,4 @@
   </div>
 
 </div>
-{% endblock %}
-{% block scripts %}
-<script src="/static/js/settings.js"></script>
 {% endblock %}

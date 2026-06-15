@@ -258,6 +258,12 @@ HOST_PROJECT_ROOT := $(shell pwd)
 host-install-k3s: ## Install K3s on host with /data auto-detection
 	sudo bash deploy/scripts/01-install-k3s-host.sh
 
+host-kubeconfig: ## Copy k3s kubeconfig to ~/.kube/config for non-sudo kubectl
+	sudo cp /etc/rancher/k3s/k3s.yaml $(HOME)/.kube/config
+	sudo chown $(shell id -u):$(shell id -g) $(HOME)/.kube/config
+	chmod 600 $(HOME)/.kube/config
+	@echo "✓ kubeconfig updated — kubectl should work without sudo"
+
 host-deploy-all: ## Run full deployment from scratch on host
 	sudo PROJECT_ROOT=$(HOST_PROJECT_ROOT) bash deploy/scripts/deploy-all.sh
 
@@ -335,6 +341,23 @@ host-status: ## Check cluster and pod status on host
 
 host-images: ## List imported k3s images on host
 	sudo k3s ctr images ls | grep -E 'pipeline-agent|pipeline-dashboard|github-emulator|jira-emulator|ingress-proxy|markov' || true
+
+host-rebuild-ingress-proxy: ## Rebuild and redeploy ingress proxy on host
+	@echo "==> Rebuilding ingress proxy..."
+	sudo PROJECT_ROOT=$(HOST_PROJECT_ROOT) bash deploy/scripts/09-deploy-ingress-proxy.sh
+	@echo "✓ Ingress proxy rebuilt and redeployed"
+
+host-rebuild-observatory: ## Rebuild and redeploy Observatory on host
+	@echo "==> Building observatory image..."
+	PROJECT_ROOT=$(HOST_PROJECT_ROOT) bash deploy/scripts/05e-build-observatory.sh
+	@echo "==> Applying manifest and restarting observatory..."
+	kubectl apply -f deploy/k8s/18-observatory.yaml
+	kubectl rollout restart deployment/observatory -n ai-pipeline
+	kubectl rollout status deployment/observatory -n ai-pipeline --timeout=120s
+	@echo "✓ Observatory rebuilt and redeployed"
+
+host-logs-observatory: ## Follow Observatory logs on host
+	kubectl logs -n ai-pipeline -l app=observatory -f
 
 host-logs-dashboard: ## Follow dashboard logs on host
 	kubectl logs -n ai-pipeline -l app=pipeline-dashboard -f

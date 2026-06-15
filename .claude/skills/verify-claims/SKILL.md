@@ -81,29 +81,81 @@ Find source/ground-truth files related to the claim's source artifact. Given the
 
 ### 2b. Architecture Context (for `architectural` and `security` claims)
 
-Search the architecture-context checkout for relevant component documentation.
+Use **both** `arch-query` (structured queries) and **raw file reads** (full narrative) to gather evidence. They complement each other — arch-query gives fast structured lookups (ports, webhooks, CRDs, deps), while raw files contain data flows, proxy chains, deployment topology, and architectural narratives that the structured output omits.
+
+#### arch-query CLI
+
+The `arch-query` binary is installed at `/usr/local/bin/arch-query`. It queries structured RHOAI architecture documentation with embedded data.
+
+**Version handling:** Do NOT specify `--version` unless the claim references a specific RHOAI release (e.g., "RHOAI 3.4"). The default is `rhoai.next` which has the most complete component coverage. Only add `--version rhoai-3.4` when verifying claims specifically about the 3.4 GA release. List available versions with `arch-query versions`.
+
+| Subcommand | When to use | Example |
+|------------|-------------|---------|
+| `component {name}` | Claim mentions a specific component | `arch-query component training-operator` |
+| `search {term}` | Don't know the exact component name | `arch-query search "model serving"` |
+| `grep {term}` | Search for a term across ALL components | `arch-query grep "mTLS"` |
+| `list --names-only` | Need to see all available component names | `arch-query list --names-only` |
+| `ports` or `ports {component}` | Claims about ports, protocols, TLS | `arch-query ports kserve` |
+| `webhooks` or `webhooks {component}` | Claims about webhook counts or types | `arch-query webhooks training-operator` |
+| `deps {component}` | Claims about dependencies | `arch-query deps odh-dashboard` |
+| `crds` or `crds {component}` | Claims about CRDs | `arch-query crds kserve` |
+| `images` or `images {filter}` | Claims about container images | `arch-query images mlflow` |
+| `watches` or `watches {component}` | Claims about controller watches | `arch-query watches rhods-operator` |
+| `platform` | Platform-level summary (component counts, image counts) | `arch-query platform` |
+| `overlays` | Recent architecture changes, renames, policies | `arch-query overlays` |
+| `diff {component} --from {v1} --to {v2}` | Compare versions | `arch-query diff kserve --from rhoai-3.3 --to rhoai-3.4` |
+
+Add `-o raw` to any subcommand to get the full unstructured markdown instead of the structured summary.
+
+**Component name tips:**
+- Component names are lowercase with hyphens: `training-operator`, `odh-dashboard`, `kserve`
+- If unsure of the exact name, use `search` first, then `component` with the result
+- Common aliases: OGX = llama-stack, OGX Operator = llama-stack-k8s-operator
+- Use `list --names-only` to see all component names
+
+#### Raw Architecture Docs
+
+Read the full component markdown files directly for data flows, integration points, and architectural narrative:
+
+```
+{context_dir}/architecture-context/architecture/{version}/{component}.md
+```
 
 **Directory structure:**
 ```
-{context_dir}/architecture-context/architecture/
-├── rhoai-3.4/           # GA release docs
-│   ├── component-name.md
-│   └── PLATFORM.md
-├── rhoai-3.5-ea.1/      # EA release docs
-└── rhoai.next/           # Next release docs
+{context_dir}/architecture-context/
+├── architecture/
+│   ├── rhoai-3.4/           # GA release docs
+│   │   ├── component-name.md
+│   │   └── PLATFORM.md
+│   ├── rhoai-3.5-ea.1/      # EA release docs
+│   └── rhoai.next/           # Next release docs (most complete)
+└── overlays/                # Human-authored corrections & policies
+    ├── 0001-*.md
+    ├── 0008-no-external-operator-auto-install-policy.md
+    └── ...
 ```
 
-**Component detection:** Extract component names from the claim text. Check these known aliases:
-- ogx, ogx distribution, llama stack, llamastack → `llama-stack`
-- ogx k8s operator, ogx operator → `llama-stack-k8s-operator`
+Use `grep -r` to search for technical terms from the claim (mTLS, FIPS, kube-rbac-proxy, NetworkPolicy, port numbers, etc.) across the raw docs. For platform-level claims, read `PLATFORM.md`.
 
-**Version detection:** Look for RHOAI version patterns in the claim (e.g., "RHOAI 3.5", "rhoai-3.4"). Default to `rhoai-3.4` if no version detected.
+#### Overlays
 
-**Steps:**
-1. List available components: `ls {context_dir}/architecture-context/architecture/{version}/`
-2. For each component mentioned in the claim, read the `.md` file
-3. Use `grep -r` to search for technical terms from the claim (mTLS, FIPS, kube-rbac-proxy, NetworkPolicy, port numbers, etc.)
-4. For platform-level claims (mentioning "ships", "container image", "component"), read `PLATFORM.md`
+**Check overlays** for recent architecture changes, renames, version bumps, and platform policies. Read any overlay referenced by number in the claim, or grep overlays for claim keywords. Overlays are authoritative first-class architecture context — treat them the same as component docs.
+
+Access via either:
+- `arch-query overlays` (structured summary)
+- `ls {context_dir}/architecture-context/overlays/` + read individual files (full content)
+
+#### Evidence Gathering Steps
+
+1. Run `arch-query component {name}` for each component mentioned in the claim
+2. Read the raw `.md` file for the same component(s) — especially for claims about data flows, proxy chains, or deployment topology
+3. Use `arch-query grep {term}` or `grep -r` on raw docs for technical terms in the claim
+4. For platform-level claims, run `arch-query platform` and read `PLATFORM.md`
+5. Check overlays via `arch-query overlays` and read any overlay referenced in the claim
+6. For version-specific claims, use `arch-query diff` to compare versions
+
+Query only components and terms mentioned in the claim — don't fetch everything.
 
 ### 2c. NFR Checklist (for `security` claims)
 
@@ -116,7 +168,10 @@ Or search for it:
 find {base_dir} -path "*/strat-security-review/references/nfr-checklist.md" -type f 2>/dev/null | head -1
 ```
 
-A security requirement that maps to a checklist item is valid (not hallucinated).
+The checklist defines platform-wide security requirements. Three cases:
+1. A claim that **applies** a checklist requirement to a specific component (e.g., "Kagenti must be built with CGO_ENABLED=1 for FIPS") → **supported** if the checklist defines that requirement for the component's language/type
+2. A claim that **restates** a checklist item as a review requirement → **supported**
+3. A claim that asserts a component **already implements** something (e.g., "component X has FIPS mode enabled") → requires verification against architecture docs. The checklist defines requirements, not current implementation state.
 
 ## Step 3: Evaluate Each Claim
 
@@ -128,11 +183,31 @@ For each claim, evaluate it against the gathered evidence. You ARE the verificat
 
 1. **Source documents** (strat-text, strat-originals) describe what is being PROPOSED. They are NOT evidence of current platform state.
 2. **Architecture context docs** represent what CURRENTLY EXISTS in the platform. These are authoritative for architectural claims.
-3. **NFR checklist items** are ground truth for security requirements.
+3. **Overlay files** are human-authored corrections and platform policies. They are authoritative first-class architecture context — treat them the same as architecture docs.
+4. **NFR checklist items** are ground truth for security requirements.
+
+**For architectural and security claims: ALWAYS query architecture docs before rendering a verdict**, even if source documents seem sufficient. Source documents describe proposals — you must cross-reference against actual architecture docs to determine whether something exists in the platform or is merely proposed.
 
 When a claim says something "does not exist" or "has no reference" in the platform, verify against architecture docs ONLY, not source documents.
 
 When verifying architectural claims, connect related facts. For example, if a source says component X has a kube-rbac-proxy sidecar AND lists port 8443 as HTTPS, then "X uses kube-rbac-proxy on port 8443" is supported.
+
+### Proposal-Derived Claims (CRITICAL)
+
+Check the claim's `sources` field. If the source file path matches one of these patterns, the claim was extracted from a review of a strategy PROPOSAL — not from documentation of the current platform:
+- `*-security-review.md` or `*-reviewer-*.md` (security review artifacts)
+- `strat-security-reviews/` (security review pipeline directory)
+- `strat-pipeline/` (strategy review pipeline directory)
+- `*-review.md` in a `strat-reviews/` directory
+
+For these claims, the verification question is: **"Does the source strategy text actually propose what this claim says?"** — NOT "Does this exist in the current platform?"
+
+- Look at the source documents for the original STRAT text
+- If the STRAT text describes the feature/behavior the claim mentions → **supported**
+- If the STRAT text does NOT describe it (the reviewer invented it) → **refuted**
+- If architecture docs show the feature doesn't exist yet, that is EXPECTED and NOT grounds for refutation — the whole point of a strategy is to propose new things
+
+Only use architecture docs to refute proposal-derived claims when the claim makes a specific assertion about the EXISTING platform that you can check (e.g., "this conflicts with the existing X" or "the platform currently has Y").
 
 ### Verdict Schema
 
@@ -145,17 +220,25 @@ For each claim, produce:
   "confidence": 85,
   "evidence_summary": "One sentence explaining the verdict",
   "evidence_source": "skill(verify-claims)",
-  "evidence_detail": "Most relevant quote or reasoning"
+  "evidence_detail": "Most relevant quote or reasoning",
+  "root_cause": "reasoning_error|information_gap|source_confusion|stale_data|training_knowledge|null"
 }
 ```
 
 **Verdict definitions:**
-- `supported` — the evidence clearly supports this claim
-- `refuted` — the evidence contradicts this claim
+- `supported` — the evidence clearly supports this claim. For proposal-derived claims: the source strategy text describes what the claim says.
+- `refuted` — the evidence contradicts this claim. For proposal-derived claims: the source strategy text does NOT describe what the claim says (the reviewer invented or mischaracterized it).
 - `insufficient` — no relevant evidence found in available sources
 - `inconclusive` — the evidence is ambiguous
 
 **Confidence:** 0-100 integer reflecting how certain you are of the verdict.
+
+**Root cause** (required for `refuted` claims, null otherwise):
+- `reasoning_error` — the agent had correct information but drew wrong conclusions (e.g., miscounted webhooks)
+- `information_gap` — the agent lacked architecture data and filled in from training knowledge
+- `source_confusion` — the agent confused what's proposed (in the strategy) with what exists (in the platform)
+- `stale_data` — the agent used an outdated version of architecture docs
+- `training_knowledge` — the agent stated training knowledge as platform fact (claim may be true in general, but isn't grounded in the source material)
 
 ## Step 4: Write Verification Logs
 
@@ -172,6 +255,7 @@ Log format:
 **Confidence:** {confidence}%
 **Type:** {claim_type}
 **Source file:** `{source_file}`
+**Root cause:** {root_cause or "N/A"}
 
 ## Claim
 
@@ -184,6 +268,9 @@ Log format:
 
 ### Architecture Docs
 - `{component}.md ({version})`
+
+### Overlays
+- `{overlay_file}` (if checked)
 
 ## Verdict
 

@@ -493,6 +493,10 @@ def create_app() -> Flask:
 
         return render_template("settings.html", config=config, cluster=cluster, services=services)
 
+    @app.route("/admin")
+    def admin():
+        return render_template("admin.html")
+
     @app.route("/jobs")
     def jobs():
         from src.cli.skill_config import list_skills
@@ -649,6 +653,9 @@ def create_app() -> Flask:
             "workspace": "/app/workspace",
             "logs": "/app/logs",
             "artifacts": "/app/artifacts",
+            "job-logs": "/app/artifacts/jobs",
+            "strace": "/app/artifacts/strace",
+            "apibodies": "/app/artifacts/apibodies",
             "context": "/app/.context",
         }
         results = {}
@@ -786,7 +793,12 @@ def create_app() -> Flask:
                     "runner": job.metadata.labels.get("runner", "cli"),
                     "status": job_status,
                     "created": job.metadata.creation_timestamp.isoformat() if job.metadata.creation_timestamp else None,
-                    "duration": duration
+                    "duration": duration,
+                    "force": job.metadata.labels.get("force", "false") == "true",
+                    "strace": job.metadata.labels.get("strace", "false") == "true",
+                    "mlflow": job.metadata.labels.get("mlflow", "true") == "true",
+                    "otel": job.metadata.labels.get("otel", "true") == "true",
+                    "extra_kwargs": (job.metadata.annotations or {}).get("extra_kwargs", ""),
                 })
 
             return jsonify(results)
@@ -856,6 +868,52 @@ def create_app() -> Flask:
                 return jsonify({"error": "Job not found"}), 404
         except Exception as e:
             return jsonify({"error": str(e)}), 500
+
+    @app.route("/api/jobs/all", methods=["DELETE"])
+    def api_delete_all_jobs():
+        """Delete all pipeline jobs and their pods."""
+        if not K8S_AVAILABLE:
+            return jsonify({"error": "K8s orchestration not available"}), 503
+
+        try:
+            orchestrator = get_orchestrator()
+            jobs = orchestrator.list_jobs()
+            deleted = 0
+            errors = []
+            for job in jobs:
+                try:
+                    orchestrator.delete_job(job.metadata.name)
+                    deleted += 1
+                except Exception as e:
+                    errors.append(f"{job.metadata.name}: {e}")
+
+            return jsonify({"deleted": deleted, "errors": errors})
+        except Exception as e:
+            return jsonify({"error": str(e)}), 500
+
+    @app.route("/api/observatory/clear", methods=["POST"])
+    def api_clear_observatory():
+        """Delete all hallucination data from Observatory."""
+        import urllib.request
+        import urllib.error
+
+        observatory_url = os.getenv(
+            "OBSERVATORY_URL",
+            "http://observatory.ai-pipeline.svc.cluster.local:8000",
+        )
+        try:
+            req = urllib.request.Request(
+                f"{observatory_url}/api/hallucinations/all",
+                method="DELETE",
+            )
+            resp = urllib.request.urlopen(req, timeout=30)
+            data = json.loads(resp.read())
+            return jsonify(data)
+        except urllib.error.HTTPError as e:
+            body = e.read().decode("utf-8", errors="replace")
+            return jsonify({"error": f"Observatory returned {e.code}: {body}"}), 502
+        except Exception as e:
+            return jsonify({"error": str(e)}), 502
 
     @app.route("/api/files/list")
     def api_list_files():

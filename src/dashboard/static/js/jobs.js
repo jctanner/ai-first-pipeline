@@ -16,8 +16,10 @@ if (K8S_AVAILABLE) {
       if (issue) args.issue = issue;
       const extraKwargs = document.getElementById('extra-kwargs').value.trim();
       if (extraKwargs) args.extra_kwargs = extraKwargs;
+      if (document.getElementById('enable-force').checked) args.force = true;
       if (document.getElementById('enable-strace').checked) args.strace = true;
       if (!document.getElementById('enable-mlflow').checked) args.mlflow = false;
+      if (!document.getElementById('enable-otel').checked) args.otel = false;
       const response = await fetch('/api/jobs/submit', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -130,17 +132,44 @@ if (K8S_AVAILABLE) {
         (job.failed ? (job.succeeded ? ', ' : '') + job.failed + ' failed' : '') ||
         '-';
 
+      document.getElementById('modal-force').innerHTML = job.force
+        ? '<span class="text-green-600 dark:text-green-400">Enabled</span>'
+        : '<span class="text-gray-400">Off</span>';
       document.getElementById('modal-strace').innerHTML = job.strace
         ? '<span class="text-green-600 dark:text-green-400">Enabled</span>'
         : '<span class="text-gray-400">Off</span>';
       document.getElementById('modal-mlflow').innerHTML = job.mlflow
         ? '<span class="text-green-600 dark:text-green-400">Enabled</span>'
         : '<span class="text-gray-400">Off</span>';
+      document.getElementById('modal-otel').innerHTML = job.otel !== false
+        ? '<span class="text-green-600 dark:text-green-400">Enabled</span>'
+        : '<span class="text-gray-400">Off</span>';
+
+      const ekRow = document.getElementById('modal-extra-kwargs-row');
+      if (job.extra_kwargs) {
+        document.getElementById('modal-extra-kwargs').textContent = job.extra_kwargs;
+        ekRow.style.display = '';
+      } else {
+        ekRow.style.display = 'none';
+      }
+
+      // Store job opts for re-run
+      window._rerunOpts = {
+        phase: job.phase,
+        issue: job.issue,
+        model: job.model,
+        runner: job.runner || 'cli',
+        extra_kwargs: job.extra_kwargs || '',
+        force: !!job.force,
+        strace: !!job.strace,
+        mlflow: job.mlflow !== false,
+        otel: job.otel !== false,
+      };
 
       // Action buttons
       const actionsEl = document.getElementById('modal-actions');
       let btns = '';
-      btns += `<button class="btn-rerun" onclick="modalRerun('${job.phase}','${job.issue}','${job.model}','${job.runner || 'cli'}')">Re-run</button>`;
+      btns += `<button class="btn-rerun" onclick="modalRerun(window._rerunOpts.phase, window._rerunOpts.issue, window._rerunOpts.model, window._rerunOpts.runner, {extra_kwargs: window._rerunOpts.extra_kwargs, force: window._rerunOpts.force, strace: window._rerunOpts.strace, mlflow: window._rerunOpts.mlflow, otel: window._rerunOpts.otel})">Re-run</button>`;
       if (job.status === 'running' || job.status === 'pending') {
         btns += `<button class="btn-stop" onclick="modalStop('${jobName}')">Stop</button>`;
       }
@@ -196,7 +225,7 @@ if (K8S_AVAILABLE) {
           // Update actions (remove Stop button)
           const actionsEl = document.getElementById('modal-actions');
           let btns = '';
-          btns += `<button class="btn-rerun" onclick="modalRerun('${job.phase}','${job.issue}','${job.model}','${job.runner || 'cli'}')">Re-run</button>`;
+          btns += `<button class="btn-rerun" onclick="modalRerun(window._rerunOpts.phase, window._rerunOpts.issue, window._rerunOpts.model, window._rerunOpts.runner, {extra_kwargs: window._rerunOpts.extra_kwargs, force: window._rerunOpts.force, strace: window._rerunOpts.strace, mlflow: window._rerunOpts.mlflow, otel: window._rerunOpts.otel})">Re-run</button>`;
           btns += `<button class="btn-delete" onclick="modalDelete('${jobName}')">Delete</button>`;
           actionsEl.innerHTML = btns;
 
@@ -258,9 +287,15 @@ if (K8S_AVAILABLE) {
     }
   }
 
-  async function modalRerun(phase, issue, model, runner) {
+  async function modalRerun(phase, issue, model, runner, opts) {
+    opts = opts || {};
     const args = { model, runner };
     if (issue && issue !== 'all') args.issue = issue.toUpperCase();
+    if (opts.extra_kwargs) args.extra_kwargs = opts.extra_kwargs;
+    if (opts.force) args.force = true;
+    if (opts.strace) args.strace = true;
+    if (opts.mlflow === false) args.mlflow = false;
+    if (opts.otel === false) args.otel = false;
 
     try {
       const res = await fetch('/api/jobs/submit', {

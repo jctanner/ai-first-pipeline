@@ -48,40 +48,46 @@
 
 <div class="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 p-5 mb-6">
   <h2 class="text-base font-semibold text-gray-900 dark:text-white mb-4">Submit New Job</h2>
-  <form id="submit-form" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-8 gap-4 items-end">
-    <div>
-      <label for="skill" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Skill</label>
-      <select id="skill" name="skill" required class="w-full rounded-lg border-gray-300 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-200 text-sm py-2 px-3">
-        <option value="">Select skill...</option>
-        {% for s in skills %}
-        <option value="{{ s.key }}">{{ s.display }}</option>
-        {% endfor %}
-      </select>
+  <form id="submit-form">
+    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4 items-end mb-4">
+      <div>
+        <label for="skill" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Skill</label>
+        <select id="skill" name="skill" required class="w-full rounded-lg border-gray-300 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-200 text-sm py-2 px-3">
+          <option value="">Select skill...</option>
+          {% for s in skills %}
+          <option value="{{ s.key }}">{{ s.display }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div>
+        <label for="issue" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Issue Key <span class="text-gray-400 text-xs">(optional)</span></label>
+        <input type="text" id="issue" name="issue" placeholder="RHOAIENG-12345" class="w-full rounded-lg border-gray-300 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-200 text-sm py-2 px-3">
+      </div>
+      <div>
+        <label for="model" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Model</label>
+        <select id="model" name="model" required class="w-full rounded-lg border-gray-300 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-200 text-sm py-2 px-3">
+          <option value="haiku">haiku</option>
+          <option value="sonnet">sonnet</option>
+          <option value="opus" selected>opus</option>
+        </select>
+      </div>
+      <div>
+        <label for="runner" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Runner</label>
+        <select id="runner" name="runner" required class="w-full rounded-lg border-gray-300 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-200 text-sm py-2 px-3">
+          <option value="cli" selected>CLI</option>
+          <option value="sdk">SDK</option>
+        </select>
+      </div>
+      <div>
+        <label for="extra-kwargs" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Extra kwargs <span class="text-gray-400 text-xs">(optional)</span></label>
+        <input type="text" id="extra-kwargs" name="extra_kwargs" placeholder="key=value key2=value2" class="w-full rounded-lg border-gray-300 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-200 text-sm py-2 px-3">
+      </div>
     </div>
-    <div>
-      <label for="issue" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Issue Key <span class="text-gray-400 text-xs">(optional)</span></label>
-      <input type="text" id="issue" name="issue" placeholder="RHOAIENG-12345" class="w-full rounded-lg border-gray-300 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-200 text-sm py-2 px-3">
-    </div>
-    <div>
-      <label for="model" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Model</label>
-      <select id="model" name="model" required class="w-full rounded-lg border-gray-300 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-200 text-sm py-2 px-3">
-        <option value="haiku">haiku</option>
-        <option value="sonnet">sonnet</option>
-        <option value="opus" selected>opus</option>
-      </select>
-    </div>
-    <div>
-      <label for="runner" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Runner</label>
-      <select id="runner" name="runner" required class="w-full rounded-lg border-gray-300 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-200 text-sm py-2 px-3">
-        <option value="cli" selected>CLI</option>
-        <option value="sdk">SDK</option>
-      </select>
-    </div>
-    <div>
-      <label for="extra-kwargs" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Extra kwargs <span class="text-gray-400 text-xs">(optional)</span></label>
-      <input type="text" id="extra-kwargs" name="extra_kwargs" placeholder="key=value key2=value2" class="w-full rounded-lg border-gray-300 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-200 text-sm py-2 px-3">
-    </div>
-    <div class="flex items-end gap-4">
+    <div class="flex items-center gap-6">
+      <label class="flex items-center gap-1.5 text-sm text-gray-700 dark:text-gray-300 cursor-pointer select-none">
+        <input type="checkbox" id="enable-force" class="rounded border-gray-300 dark:border-gray-600">
+        force
+      </label>
       <label class="flex items-center gap-1.5 text-sm text-gray-700 dark:text-gray-300 cursor-pointer select-none">
         <input type="checkbox" id="enable-strace" checked class="rounded border-gray-300 dark:border-gray-600">
         strace
@@ -90,9 +96,11 @@
         <input type="checkbox" id="enable-mlflow" checked class="rounded border-gray-300 dark:border-gray-600">
         MLflow
       </label>
-    </div>
-    <div>
-      <button type="submit" class="w-full bg-primary-600 hover:bg-primary-700 text-white text-sm font-medium py-2 px-4 rounded-lg transition-colors">Submit Job</button>
+      <label class="flex items-center gap-1.5 text-sm text-gray-700 dark:text-gray-300 cursor-pointer select-none">
+        <input type="checkbox" id="enable-otel" checked class="rounded border-gray-300 dark:border-gray-600">
+        OTel
+      </label>
+      <button type="submit" class="ml-auto bg-primary-600 hover:bg-primary-700 text-white text-sm font-medium py-2 px-6 rounded-lg transition-colors">Submit Job</button>
     </div>
   </form>
   <div id="submit-status" class="mt-3 text-sm"></div>
@@ -141,8 +149,14 @@
       <div><span class="text-gray-500 dark:text-gray-400">Started</span><div id="modal-started" class="font-medium text-gray-900 dark:text-white"></div></div>
       <div><span class="text-gray-500 dark:text-gray-400">Duration</span><div id="modal-duration" class="font-medium text-gray-900 dark:text-white"></div></div>
       <div><span class="text-gray-500 dark:text-gray-400">Result</span><div id="modal-result" class="font-medium text-gray-900 dark:text-white"></div></div>
+      <div><span class="text-gray-500 dark:text-gray-400">force</span><div id="modal-force" class="font-medium text-gray-900 dark:text-white"></div></div>
       <div><span class="text-gray-500 dark:text-gray-400">strace</span><div id="modal-strace" class="font-medium text-gray-900 dark:text-white"></div></div>
       <div><span class="text-gray-500 dark:text-gray-400">MLflow</span><div id="modal-mlflow" class="font-medium text-gray-900 dark:text-white"></div></div>
+      <div><span class="text-gray-500 dark:text-gray-400">OTel</span><div id="modal-otel" class="font-medium text-gray-900 dark:text-white"></div></div>
+    </div>
+    <div id="modal-extra-kwargs-row" class="text-sm mb-4" style="display:none;">
+      <span class="text-gray-500 dark:text-gray-400">Extra kwargs</span>
+      <div id="modal-extra-kwargs" class="font-medium font-mono text-gray-900 dark:text-white"></div>
     </div>
 
     <div class="flex gap-2 mb-4" id="modal-actions"></div>
