@@ -704,7 +704,7 @@ def create_app() -> Flask:
     def api_submit_job():
         """Submit a new pipeline job to K8s.
 
-        POST body:
+        POST body (registered skill):
         {
           "command": "bug-completeness",
           "args": {
@@ -713,6 +713,12 @@ def create_app() -> Flask:
             "runner": "cli",
             "force": true
           }
+        }
+
+        POST body (ad-hoc FQN):
+        {
+          "fqn": "github.local/org/repo@branch:skill-name",
+          "args": { ... }
         }
 
         Returns:
@@ -725,19 +731,37 @@ def create_app() -> Flask:
             return jsonify({"error": "K8s orchestration not available"}), 503
 
         try:
+            from src.cli.skill_config import parse_fqn
+
             data = request.get_json()
-            phase = data.get("command")
+            fqn = data.get("fqn", "").strip()
+            phase = data.get("command", "").strip()
             args = data.get("args", {})
 
             issue_key = args.get("issue", "")
             model = args.get("model", "opus")
             runner = args.get("runner", "cli")
+            harness = args.get("harness", "claude-code")
 
-            if not phase:
-                return jsonify({"error": "Missing required field: command"}), 400
+            if fqn:
+                parsed = parse_fqn(fqn)
+                if not parsed:
+                    return jsonify({"error": f"Invalid FQN format: {fqn}. Expected: host/owner/repo@ref:skill-name"}), 400
+                phase = parsed["skill"]
+            elif phase:
+                parsed = parse_fqn(phase)
+                if parsed:
+                    fqn = phase
+                    phase = parsed["skill"]
+            else:
+                return jsonify({"error": "Missing required field: command or fqn"}), 400
 
             orchestrator = get_orchestrator()
-            job = orchestrator.submit_phase_job(phase, issue_key, model, runner, args)
+            job = orchestrator.submit_phase_job(
+                phase, issue_key, model, runner, args,
+                fqn=fqn or None,
+                harness=harness,
+            )
 
             return jsonify({
                 "job_name": job.metadata.name,
@@ -789,8 +813,9 @@ def create_app() -> Flask:
                     "name": job.metadata.name,
                     "phase": job.metadata.labels.get("phase", ""),
                     "issue": job.metadata.labels.get("issue", ""),
-                    "model": job.metadata.labels.get("model", ""),
+                    "model": (job.metadata.annotations or {}).get("model") or job.metadata.labels.get("model", ""),
                     "runner": job.metadata.labels.get("runner", "cli"),
+                    "harness": job.metadata.labels.get("harness", "claude-code"),
                     "status": job_status,
                     "created": job.metadata.creation_timestamp.isoformat() if job.metadata.creation_timestamp else None,
                     "duration": duration,
@@ -799,6 +824,7 @@ def create_app() -> Flask:
                     "mlflow": job.metadata.labels.get("mlflow", "true") == "true",
                     "otel": job.metadata.labels.get("otel", "true") == "true",
                     "extra_kwargs": (job.metadata.annotations or {}).get("extra_kwargs", ""),
+                    "fqn": (job.metadata.annotations or {}).get("fqn", ""),
                 })
 
             return jsonify(results)

@@ -37,7 +37,7 @@ else
   echo "  CA certificate extracted successfully"
 fi
 
-${CONTAINER_CMD} build -f deploy/pipeline-agent/Dockerfile -t pipeline-agent:latest .
+${CONTAINER_CMD} build ${DOCKER_BUILD_ARGS:-} -f deploy/pipeline-agent/Dockerfile -t pipeline-agent:latest .
 
 # Clean up extracted cert
 rm -f internal-ca.crt

@@ -10,6 +10,7 @@ exec > >(tee -a "${LOG_DIR}/${PIPELINE_JOB_NAME:-$(hostname)}.log") 2>&1
 
 # Parse arguments
 SKILL=""
+FQN=""
 ISSUE_KEY=""
 MODEL="opus"
 FORCE=""
@@ -19,6 +20,10 @@ while [[ $# -gt 0 ]]; do
   case $1 in
     --skill)
       SKILL="$2"
+      shift 2
+      ;;
+    --fqn)
+      FQN="$2"
       shift 2
       ;;
     --issue)
@@ -44,8 +49,9 @@ while [[ $# -gt 0 ]]; do
   esac
 done
 
-if [ -z "$SKILL" ]; then
+if [ -z "$SKILL" ] && [ -z "$FQN" ]; then
   echo "Usage: $0 --skill <skill-name> [--issue <issue-key>] [--model <model>] [--force]"
+  echo "   or: $0 --fqn <host/owner/repo@ref:skill> [--issue <issue-key>] [--model <model>] [--force]"
   exit 1
 fi
 
@@ -55,7 +61,7 @@ if [ -n "$ISSUE_KEY" ]; then
 fi
 
 echo "============================================================"
-echo "Running skill: $SKILL"
+echo "Running skill: ${FQN:-$SKILL}"
 echo "Issue: $ISSUE_KEY"
 echo "Model: $MODEL"
 echo "Runner: SDK (Python)"
@@ -71,6 +77,15 @@ fi
 
 # Configure git to use HTTPS instead of SSH for GitHub
 git config --global url."https://github.com/".insteadOf "git@github.com:"
+
+# ---------------------------------------------------------------------------
+# FQN resolution: clone repo if --fqn was provided
+# ---------------------------------------------------------------------------
+FQN_CLONE_DIR=""
+if [ -n "$FQN" ]; then
+  SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+  source "$SCRIPT_DIR/resolve_fqn.sh"
+fi
 
 # Register skill marketplaces
 echo "Registering skill marketplaces..."
@@ -123,7 +138,9 @@ echo
 mkdir -p /app/artifacts/rfe-tasks /app/artifacts/strat-tasks /app/tmp /app/.context
 
 # Resolve skill name from pipeline-skills.yaml (falls back to dash-to-dot conversion)
-SKILL_NAME=$(python3 -c "
+# When --fqn was used, SKILL_NAME is already set by resolve_fqn.sh
+if [ -z "$SKILL_NAME" ]; then
+  SKILL_NAME=$(python3 -c "
 import yaml
 with open('/app/var/pipeline-skills.yaml') as f:
     cfg = yaml.safe_load(f)
@@ -133,6 +150,7 @@ if '${SKILL}' in skills:
 else:
     print('${SKILL}'.replace('-', '.'))
 " 2>/dev/null)
+fi
 
 echo "Skill name: $SKILL_NAME"
 echo "Working directory: /app"
@@ -248,29 +266,38 @@ async def run_skill():
 
     # Look up skill key (the pipeline-skills.yaml key, e.g. "rfe-create")
     skill_key = "${SKILL}"
+    fqn_clone_dir = "${FQN_CLONE_DIR}" or None
 
-    try:
-        phase_config = get_phase_config(skill_key)
-    except KeyError:
-        print(f"ERROR: Could not find skill config for {skill_key}")
-        sys.exit(1)
+    if fqn_clone_dir:
+        # FQN mode: use cloned repo, skip pipeline-skills.yaml lookup
+        phase_config = {
+            "skill": skill_name,
+            "invoke": "native",
+        }
+        plugin_dir = fqn_clone_dir
+    else:
+        try:
+            phase_config = get_phase_config(skill_key)
+        except KeyError:
+            print(f"ERROR: Could not find skill config for {skill_key}")
+            sys.exit(1)
 
-    # Get plugin directory for source skills
-    plugin_dir = None
-    source = phase_config.get('source')
-    if source:
-        import subprocess
-        result = subprocess.run(
-            ['find', os.path.expanduser('~/.claude/plugins/cache'),
-             '-name', source, '-type', 'd'],
-            capture_output=True, text=True
-        )
-        if result.stdout.strip():
-            plugin_dir = result.stdout.strip().split('\\n')[0]
-            # Find versioned subdir (e.g. 0.1.0) or branch name (e.g. main)
-            subdirs = [d for d in Path(plugin_dir).iterdir() if d.is_dir()]
-            if subdirs:
-                plugin_dir = str(subdirs[0])
+        # Get plugin directory for source skills
+        plugin_dir = None
+        source = phase_config.get('source')
+        if source:
+            import subprocess
+            result = subprocess.run(
+                ['find', os.path.expanduser('~/.claude/plugins/cache'),
+                 '-name', source, '-type', 'd'],
+                capture_output=True, text=True
+            )
+            if result.stdout.strip():
+                plugin_dir = result.stdout.strip().split('\\n')[0]
+                # Find versioned subdir (e.g. 0.1.0) or branch name (e.g. main)
+                subdirs = [d for d in Path(plugin_dir).iterdir() if d.is_dir()]
+                if subdirs:
+                    plugin_dir = str(subdirs[0])
 
     # Build prompt
     force_part = " --force" if """${FORCE}""" else ""
@@ -287,10 +314,12 @@ async def run_skill():
     print()
 
     # Configure agent options
-    allowed_tools = get_allowed_tools(skill_key)
-
-    # MCP servers configuration
-    mcp_servers = get_mcp_servers(skill_key)
+    if fqn_clone_dir:
+        allowed_tools = ["Read", "Write", "Edit", "Glob", "Grep", "Bash", "Skill"]
+        mcp_servers = {}
+    else:
+        allowed_tools = get_allowed_tools(skill_key)
+        mcp_servers = get_mcp_servers(skill_key)
 
     # Set up hooks for MLflow tool tracking
     hooks = {}

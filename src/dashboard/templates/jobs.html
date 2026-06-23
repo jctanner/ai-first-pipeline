@@ -49,21 +49,27 @@
 <div class="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 p-5 mb-6">
   <h2 class="text-base font-semibold text-gray-900 dark:text-white mb-4">Submit New Job</h2>
   <form id="submit-form">
-    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4 items-end mb-4">
-      <div>
+    <div class="flex flex-wrap gap-4 items-end mb-1">
+      <div class="flex-grow" style="min-width:14rem; position:relative;">
         <label for="skill" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Skill</label>
-        <select id="skill" name="skill" required class="w-full rounded-lg border-gray-300 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-200 text-sm py-2 px-3">
-          <option value="">Select skill...</option>
-          {% for s in skills %}
-          <option value="{{ s.key }}">{{ s.display }}</option>
-          {% endfor %}
+        <div style="position:relative;">
+          <select id="skill" name="skill" class="w-full rounded-lg border-gray-300 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-200 text-sm py-2 px-3">
+            <option value="">Select skill...</option>
+            {% for s in skills %}
+            <option value="{{ s.key }}">{{ s.display }}</option>
+            {% endfor %}
+          </select>
+          <input type="text" id="skill-fqn" name="skill_fqn" placeholder="github.local/org/repo@branch:skill" class="w-full rounded-lg border-gray-300 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-200 text-sm py-2 px-3" style="display:none; position:absolute; top:0; left:0; right:0;">
+        </div>
+      </div>
+      <div style="width:8rem;">
+        <label for="harness" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Harness</label>
+        <select id="harness" name="harness" class="w-full rounded-lg border-gray-300 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-200 text-sm py-2 px-3">
+          <option value="claude-code" selected>Claude Code</option>
+          <option value="opencode">OpenCode</option>
         </select>
       </div>
-      <div>
-        <label for="issue" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Issue Key <span class="text-gray-400 text-xs">(optional)</span></label>
-        <input type="text" id="issue" name="issue" placeholder="RHOAIENG-12345" class="w-full rounded-lg border-gray-300 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-200 text-sm py-2 px-3">
-      </div>
-      <div>
+      <div style="width:6rem;">
         <label for="model" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Model</label>
         <select id="model" name="model" required class="w-full rounded-lg border-gray-300 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-200 text-sm py-2 px-3">
           <option value="haiku">haiku</option>
@@ -71,17 +77,24 @@
           <option value="opus" selected>opus</option>
         </select>
       </div>
-      <div>
+      <div style="width:5rem;">
         <label for="runner" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Runner</label>
         <select id="runner" name="runner" required class="w-full rounded-lg border-gray-300 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-200 text-sm py-2 px-3">
           <option value="cli" selected>CLI</option>
           <option value="sdk">SDK</option>
         </select>
       </div>
-      <div>
+      <div style="width:12rem;">
+        <label for="issue" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Issue Key <span class="text-gray-400 text-xs">(optional)</span></label>
+        <input type="text" id="issue" name="issue" placeholder="RHOAIENG-12345" class="w-full rounded-lg border-gray-300 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-200 text-sm py-2 px-3">
+      </div>
+      <div class="flex-grow" style="min-width:10rem;">
         <label for="extra-kwargs" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Extra kwargs <span class="text-gray-400 text-xs">(optional)</span></label>
         <input type="text" id="extra-kwargs" name="extra_kwargs" placeholder="key=value key2=value2" class="w-full rounded-lg border-gray-300 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-200 text-sm py-2 px-3">
       </div>
+    </div>
+    <div class="mb-3">
+      <button type="button" id="toggle-fqn" class="text-xs text-primary-600 dark:text-primary-400 cursor-pointer bg-transparent border-none p-0">or enter FQN...</button>
     </div>
     <div class="flex items-center gap-6">
       <label class="flex items-center gap-1.5 text-sm text-gray-700 dark:text-gray-300 cursor-pointer select-none">
@@ -118,13 +131,14 @@
         <th class="px-4 py-3">Issue</th>
         <th class="px-4 py-3">Model</th>
         <th class="px-4 py-3">Runner</th>
+        <th class="px-4 py-3">Harness</th>
         <th class="px-4 py-3">Status</th>
         <th class="px-4 py-3">Created</th>
         <th class="px-4 py-3">Duration (s)</th>
       </tr>
     </thead>
     <tbody id="jobs-tbody" class="divide-y divide-gray-200 dark:divide-gray-700">
-      <tr><td colspan="8" class="px-4 py-8 text-center text-gray-400">Loading jobs...</td></tr>
+      <tr><td colspan="9" class="px-4 py-8 text-center text-gray-400">Loading jobs...</td></tr>
     </tbody>
   </table>
 </div>
@@ -132,19 +146,18 @@
 
 <dialog id="job-modal" class="rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 p-0">
   <div class="p-5">
-    <div class="flex items-center justify-between mb-4">
-      <div class="flex items-center gap-3 min-w-0">
-        <h3 class="text-base font-semibold text-gray-900 dark:text-white truncate" id="modal-job-name"></h3>
-        <span id="modal-status-badge" class="badge"></span>
-      </div>
+    <div class="flex items-center justify-between mb-1">
+      <span id="modal-status-badge" class="badge"></span>
       <button onclick="closeJobModal()" class="ml-4 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 text-xl leading-none">&times;</button>
     </div>
+    <h3 class="text-base font-semibold text-gray-900 dark:text-white font-mono mb-4" id="modal-job-name"></h3>
 
     <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 text-sm mb-4">
       <div><span class="text-gray-500 dark:text-gray-400">Phase</span><div id="modal-phase" class="font-medium text-gray-900 dark:text-white"></div></div>
       <div><span class="text-gray-500 dark:text-gray-400">Issue</span><div id="modal-issue" class="font-medium text-gray-900 dark:text-white"></div></div>
       <div><span class="text-gray-500 dark:text-gray-400">Model</span><div id="modal-model" class="font-medium text-gray-900 dark:text-white"></div></div>
       <div><span class="text-gray-500 dark:text-gray-400">Runner</span><div id="modal-runner" class="font-medium text-gray-900 dark:text-white"></div></div>
+      <div><span class="text-gray-500 dark:text-gray-400">Harness</span><div id="modal-harness" class="font-medium text-gray-900 dark:text-white"></div></div>
       <div><span class="text-gray-500 dark:text-gray-400">Created</span><div id="modal-created" class="font-medium text-gray-900 dark:text-white"></div></div>
       <div><span class="text-gray-500 dark:text-gray-400">Started</span><div id="modal-started" class="font-medium text-gray-900 dark:text-white"></div></div>
       <div><span class="text-gray-500 dark:text-gray-400">Duration</span><div id="modal-duration" class="font-medium text-gray-900 dark:text-white"></div></div>

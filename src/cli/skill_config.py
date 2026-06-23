@@ -103,6 +103,14 @@ def get_repo_ref(source: str) -> str:
     return repo.get("ref", "main")
 
 
+def get_repo_host(source: str) -> str:
+    """Return the git forge hostname for a skill repo, defaulting to 'github.com'."""
+    cfg = _load()
+    repos = cfg.get("skill_repos", {})
+    repo = repos.get(source, {})
+    return repo.get("host", "github.com")
+
+
 def resolve_skills_dir(phase: str) -> Path:
     """Return the ``.claude/skills`` directory that contains the skill for *phase*.
 
@@ -203,18 +211,43 @@ def get_mcp_servers(phase: str) -> dict:
 def get_skill_fqn(phase: str) -> str:
     """Return the fully-qualified skill name for *phase*.
 
-    Format: ``repo/owner@ref:skill`` for external skills,
+    Format: ``host/owner/repo@ref:skill`` for external skills,
     ``local:skill`` for local ones.
     """
     pc = get_phase_config(phase)
     skill_name = pc.get("skill", phase)
     source = pc.get("source")
     if source:
+        host = get_repo_host(source)
         github = get_repo_github(source)
         ref = get_repo_ref(source)
         repo_part = github if github else source
-        return f"{repo_part}@{ref}:{skill_name}"
+        return f"{host}/{repo_part}@{ref}:{skill_name}"
     return f"local:{skill_name}"
+
+
+_FQN_RE = re.compile(
+    r"^(?P<host>[a-zA-Z0-9._-]+)"
+    r"/(?P<owner>[a-zA-Z0-9._-]+)"
+    r"/(?P<repo>[a-zA-Z0-9._-]+)"
+    r"@(?P<ref>[a-zA-Z0-9._/-]+)"
+    r":(?P<skill>[a-zA-Z0-9._-]+)$"
+)
+
+
+def parse_fqn(fqn: str) -> dict | None:
+    """Parse a URI-style FQN into components.
+
+    Format: ``host/owner/repo@ref:skill-name``
+
+    Returns a dict with keys ``host``, ``owner``, ``repo``, ``ref``,
+    ``skill``, or ``None`` if *fqn* is not a valid URI-style FQN
+    (e.g. a plain phase key like ``"rfe-create"``).
+    """
+    m = _FQN_RE.match(fqn)
+    if not m:
+        return None
+    return m.groupdict()
 
 
 def list_skills() -> list[dict]:
@@ -224,7 +257,7 @@ def list_skills() -> list[dict]:
       - key: the internal skill key (e.g. "rfe-create")
       - skill: the skill name (e.g. "rfe.create")
       - source: the repo key or None for local
-      - display: fully-qualified display name (e.g. "jwforres/rfe-creator:rfe.create")
+      - display: fully-qualified display name including host
     """
     skills_block = _get_skills_block()
     result = []
@@ -232,10 +265,11 @@ def list_skills() -> list[dict]:
         skill_name = conf.get("skill", key)
         source = conf.get("source")
         if source:
+            host = get_repo_host(source)
             github = get_repo_github(source)
             ref = get_repo_ref(source)
             repo_part = github if github else source
-            display = f"{repo_part}@{ref}:{skill_name}"
+            display = f"{host}/{repo_part}@{ref}:{skill_name}"
         else:
             display = f"local:{skill_name}"
         result.append({

@@ -5,7 +5,8 @@
 # skill_repos:
 #   Each entry names an external repository whose .claude/skills/
 #   directory contains skills the pipeline can use.
-#   - github: owner/repo on GitHub (used for display and installation)
+#   - host: git forge hostname (defaults to github.com if omitted)
+#   - github: owner/repo on the forge (used for display and installation)
 #   - path: local checkout path (for development / templated invocation)
 #   - registry: marketplace plugin name (for K8s runner installation)
 #

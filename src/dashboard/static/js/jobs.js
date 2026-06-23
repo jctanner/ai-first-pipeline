@@ -1,18 +1,69 @@
 if (K8S_AVAILABLE) {
+  // FQN toggle logic
+  let fqnMode = false;
+  const toggleBtn = document.getElementById('toggle-fqn');
+  const skillSelect = document.getElementById('skill');
+  const fqnInput = document.getElementById('skill-fqn');
+
+  // Harness-dependent model options
+  const HARNESS_MODELS = {
+    'claude-code': [
+      { value: 'haiku', label: 'haiku' },
+      { value: 'sonnet', label: 'sonnet' },
+      { value: 'opus', label: 'opus', selected: true },
+    ],
+    'opencode': [
+      { value: 'google-vertex-anthropic/claude-haiku-4-5@20251001', label: 'claude-haiku-4-5' },
+      { value: 'google-vertex-anthropic/claude-sonnet-4-6@default', label: 'claude-sonnet-4-6' },
+      { value: 'google-vertex-anthropic/claude-opus-4-6@default', label: 'claude-opus-4-6', selected: true },
+    ],
+  };
+
+  document.getElementById('harness').addEventListener('change', function() {
+    const modelSelect = document.getElementById('model');
+    const models = HARNESS_MODELS[this.value] || HARNESS_MODELS['claude-code'];
+    modelSelect.innerHTML = models.map(m =>
+      `<option value="${m.value}"${m.selected ? ' selected' : ''}>${m.label}</option>`
+    ).join('');
+  });
+
+  toggleBtn.addEventListener('click', () => {
+    fqnMode = !fqnMode;
+    if (fqnMode) {
+      skillSelect.style.visibility = 'hidden';
+      skillSelect.value = '';
+      fqnInput.style.display = '';
+      fqnInput.focus();
+      toggleBtn.textContent = 'or select registered skill...';
+    } else {
+      fqnInput.style.display = 'none';
+      fqnInput.value = '';
+      skillSelect.style.visibility = '';
+      toggleBtn.textContent = 'or enter FQN...';
+    }
+  });
+
   // Submit job form
   document.getElementById('submit-form').addEventListener('submit', async (e) => {
     e.preventDefault();
     const skill = document.getElementById('skill').value;
+    const fqn = document.getElementById('skill-fqn').value.trim();
     const issueRaw = document.getElementById('issue').value.trim();
     const issue = issueRaw ? issueRaw.toUpperCase() : '';
     const model = document.getElementById('model').value;
     const runner = document.getElementById('runner').value;
+    const harness = document.getElementById('harness').value;
     const statusDiv = document.getElementById('submit-status');
+
+    if (!skill && !fqn) {
+      statusDiv.innerHTML = '<strong style="color: #e74c3c;">✗ Error:</strong> Select a skill or enter an FQN';
+      return;
+    }
 
     statusDiv.innerHTML = '<em style="color: #3498db;">Submitting job...</em>';
 
     try {
-      const args = { model, runner };
+      const args = { model, runner, harness };
       if (issue) args.issue = issue;
       const extraKwargs = document.getElementById('extra-kwargs').value.trim();
       if (extraKwargs) args.extra_kwargs = extraKwargs;
@@ -20,10 +71,12 @@ if (K8S_AVAILABLE) {
       if (document.getElementById('enable-strace').checked) args.strace = true;
       if (!document.getElementById('enable-mlflow').checked) args.mlflow = false;
       if (!document.getElementById('enable-otel').checked) args.otel = false;
+
+      const body = fqn ? { fqn, args } : { command: skill, args };
       const response = await fetch('/api/jobs/submit', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ command: skill, args })
+        body: JSON.stringify(body)
       });
 
       const data = await response.json();
@@ -31,7 +84,8 @@ if (K8S_AVAILABLE) {
       if (response.ok) {
         statusDiv.innerHTML = '<strong style="color: #27ae60;">✓ Job submitted:</strong> ' + data.job_name;
         document.getElementById('submit-form').reset();
-        document.getElementById('model').value = 'opus';
+        document.getElementById('harness').value = 'claude-code';
+        document.getElementById('harness').dispatchEvent(new Event('change'));
         document.getElementById('runner').value = 'cli';
         await refreshJobs();
         openJobModal(data.job_name);
@@ -56,7 +110,7 @@ if (K8S_AVAILABLE) {
       const tbody = document.getElementById('jobs-tbody');
 
       if (jobs.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="8" style="text-align: center; color: #95a5a6;">No jobs found</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="9" style="text-align: center; color: #95a5a6;">No jobs found</td></tr>';
         return;
       }
 
@@ -69,10 +123,11 @@ if (K8S_AVAILABLE) {
         return `
           <tr onclick="openJobModal('${job.name}')" class="cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800/50">
             <td class="px-4 py-3 font-mono text-xs">${job.name}</td>
-            <td class="px-4 py-3">${SKILL_MAP[job.phase] || job.phase}</td>
+            <td class="px-4 py-3">${job.fqn || SKILL_MAP[job.phase] || job.phase}</td>
             <td class="px-4 py-3">${job.issue.toUpperCase()}</td>
             <td class="px-4 py-3">${job.model}</td>
             <td class="px-4 py-3">${runner}</td>
+            <td class="px-4 py-3">${job.harness || 'claude-code'}</td>
             <td class="px-4 py-3 ${statusClass}">${job.status}</td>
             <td class="px-4 py-3">${created}</td>
             <td class="px-4 py-3">${duration}</td>
@@ -113,10 +168,11 @@ if (K8S_AVAILABLE) {
       badge.textContent = job.status;
       badge.className = 'badge ' + (STATUS_BADGE_CLASS[job.status] || 'badge-default');
 
-      document.getElementById('modal-phase').textContent = SKILL_MAP[job.phase] || job.phase || '-';
+      document.getElementById('modal-phase').textContent = job.fqn || SKILL_MAP[job.phase] || job.phase || '-';
       document.getElementById('modal-issue').textContent = (job.issue || '-').toUpperCase();
       document.getElementById('modal-model').textContent = job.model || '-';
       document.getElementById('modal-runner').textContent = job.runner || 'cli';
+      document.getElementById('modal-harness').textContent = job.harness || 'claude-code';
       document.getElementById('modal-created').textContent = job.created ? new Date(job.created).toLocaleString() : '-';
       document.getElementById('modal-started').textContent = job.started ? new Date(job.started).toLocaleString() : '-';
 
@@ -156,9 +212,11 @@ if (K8S_AVAILABLE) {
       // Store job opts for re-run
       window._rerunOpts = {
         phase: job.phase,
+        fqn: job.fqn || '',
         issue: job.issue,
         model: job.model,
         runner: job.runner || 'cli',
+        harness: job.harness || 'claude-code',
         extra_kwargs: job.extra_kwargs || '',
         force: !!job.force,
         strace: !!job.strace,
@@ -169,7 +227,7 @@ if (K8S_AVAILABLE) {
       // Action buttons
       const actionsEl = document.getElementById('modal-actions');
       let btns = '';
-      btns += `<button class="btn-rerun" onclick="modalRerun(window._rerunOpts.phase, window._rerunOpts.issue, window._rerunOpts.model, window._rerunOpts.runner, {extra_kwargs: window._rerunOpts.extra_kwargs, force: window._rerunOpts.force, strace: window._rerunOpts.strace, mlflow: window._rerunOpts.mlflow, otel: window._rerunOpts.otel})">Re-run</button>`;
+      btns += `<button class="btn-rerun" onclick="modalRerun(window._rerunOpts.phase, window._rerunOpts.issue, window._rerunOpts.model, window._rerunOpts.runner, {fqn: window._rerunOpts.fqn, harness: window._rerunOpts.harness, extra_kwargs: window._rerunOpts.extra_kwargs, force: window._rerunOpts.force, strace: window._rerunOpts.strace, mlflow: window._rerunOpts.mlflow, otel: window._rerunOpts.otel})">Re-run</button>`;
       if (job.status === 'running' || job.status === 'pending') {
         btns += `<button class="btn-stop" onclick="modalStop('${jobName}')">Stop</button>`;
       }
@@ -225,7 +283,7 @@ if (K8S_AVAILABLE) {
           // Update actions (remove Stop button)
           const actionsEl = document.getElementById('modal-actions');
           let btns = '';
-          btns += `<button class="btn-rerun" onclick="modalRerun(window._rerunOpts.phase, window._rerunOpts.issue, window._rerunOpts.model, window._rerunOpts.runner, {extra_kwargs: window._rerunOpts.extra_kwargs, force: window._rerunOpts.force, strace: window._rerunOpts.strace, mlflow: window._rerunOpts.mlflow, otel: window._rerunOpts.otel})">Re-run</button>`;
+          btns += `<button class="btn-rerun" onclick="modalRerun(window._rerunOpts.phase, window._rerunOpts.issue, window._rerunOpts.model, window._rerunOpts.runner, {fqn: window._rerunOpts.fqn, harness: window._rerunOpts.harness, extra_kwargs: window._rerunOpts.extra_kwargs, force: window._rerunOpts.force, strace: window._rerunOpts.strace, mlflow: window._rerunOpts.mlflow, otel: window._rerunOpts.otel})">Re-run</button>`;
           btns += `<button class="btn-delete" onclick="modalDelete('${jobName}')">Delete</button>`;
           actionsEl.innerHTML = btns;
 
@@ -289,7 +347,7 @@ if (K8S_AVAILABLE) {
 
   async function modalRerun(phase, issue, model, runner, opts) {
     opts = opts || {};
-    const args = { model, runner };
+    const args = { model, runner, harness: opts.harness || 'claude-code' };
     if (issue && issue !== 'all') args.issue = issue.toUpperCase();
     if (opts.extra_kwargs) args.extra_kwargs = opts.extra_kwargs;
     if (opts.force) args.force = true;
@@ -297,11 +355,13 @@ if (K8S_AVAILABLE) {
     if (opts.mlflow === false) args.mlflow = false;
     if (opts.otel === false) args.otel = false;
 
+    const body = opts.fqn ? { fqn: opts.fqn, args } : { command: phase, args };
+
     try {
       const res = await fetch('/api/jobs/submit', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ command: phase, args })
+        body: JSON.stringify(body)
       });
 
       const data = await res.json();

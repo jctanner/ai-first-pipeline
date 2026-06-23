@@ -41,6 +41,7 @@ workspace/
 logs/
 tmp/
 backups/
+var/strace/
 
 # Log files in project root
 *.log

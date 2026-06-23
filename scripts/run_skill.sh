@@ -10,6 +10,7 @@ exec > >(tee -a "${LOG_DIR}/${PIPELINE_JOB_NAME:-$(hostname)}.log") 2>&1
 
 # Parse arguments
 SKILL=""
+FQN=""
 ISSUE_KEY=""
 MODEL="opus"
 FORCE=""
@@ -19,6 +20,10 @@ while [[ $# -gt 0 ]]; do
   case $1 in
     --skill)
       SKILL="$2"
+      shift 2
+      ;;
+    --fqn)
+      FQN="$2"
       shift 2
       ;;
     --issue)
@@ -44,8 +49,9 @@ while [[ $# -gt 0 ]]; do
   esac
 done
 
-if [ -z "$SKILL" ]; then
+if [ -z "$SKILL" ] && [ -z "$FQN" ]; then
   echo "Usage: $0 --skill <skill-name> [--issue <issue-key>] [--model <model>] [--force]"
+  echo "   or: $0 --fqn <host/owner/repo@ref:skill> [--issue <issue-key>] [--model <model>] [--force]"
   exit 1
 fi
 
@@ -55,7 +61,7 @@ if [ -n "$ISSUE_KEY" ]; then
 fi
 
 echo "============================================================"
-echo "Running skill: $SKILL"
+echo "Running skill: ${FQN:-$SKILL}"
 echo "Issue: $ISSUE_KEY"
 echo "Model: $MODEL"
 echo "============================================================"
@@ -70,6 +76,15 @@ fi
 
 # Configure git to use HTTPS instead of SSH for GitHub
 git config --global url."https://github.com/".insteadOf "git@github.com:"
+
+# ---------------------------------------------------------------------------
+# FQN resolution: clone repo if --fqn was provided
+# ---------------------------------------------------------------------------
+FQN_CLONE_DIR=""
+if [ -n "$FQN" ]; then
+  SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+  source "$SCRIPT_DIR/resolve_fqn.sh"
+fi
 
 # Configure Claude CLI to use Vertex AI
 echo "Configuring Claude CLI for Vertex AI..."
@@ -183,7 +198,9 @@ echo "Running skill..."
 echo
 
 # Resolve skill name from pipeline-skills.yaml (falls back to dash-to-dot conversion)
-SKILL_NAME=$(python3 -c "
+# When --fqn was used, SKILL_NAME is already set by resolve_fqn.sh
+if [ -z "$SKILL_NAME" ]; then
+  SKILL_NAME=$(python3 -c "
 import yaml
 with open('/app/var/pipeline-skills.yaml') as f:
     cfg = yaml.safe_load(f)
@@ -193,6 +210,7 @@ if '${SKILL}' in skills:
 else:
     print('${SKILL}'.replace('-', '.'))
 " 2>/dev/null)
+fi
 
 echo "Skill name: $SKILL_NAME"
 echo
@@ -239,7 +257,11 @@ if [ ${#EXTRA_VARS[@]} -gt 0 ]; then
 fi
 
 # Resolve which plugin source this skill needs
-SKILL_SOURCE=$(python3 -c "
+# When --fqn was used, the repo is already cloned by resolve_fqn.sh
+if [ -n "$FQN_CLONE_DIR" ]; then
+  echo "Using FQN-cloned repo: $FQN_CLONE_DIR"
+else
+  SKILL_SOURCE=$(python3 -c "
 import yaml
 with open('/app/var/pipeline-skills.yaml') as f:
     cfg = yaml.safe_load(f)
@@ -253,19 +275,25 @@ if source:
     print(source)
 " 2>/dev/null)
 
-if [ -n "$SKILL_SOURCE" ]; then
-  PLUGIN_DIR=$(find ~/.claude/plugins/cache -name "$SKILL_SOURCE" -type d | head -1)
-  if [ -z "$PLUGIN_DIR" ]; then
-    echo "ERROR: Plugin $SKILL_SOURCE not found in ~/.claude/plugins/cache"
-    exit 1
+  if [ -n "$SKILL_SOURCE" ]; then
+    PLUGIN_DIR=$(find ~/.claude/plugins/cache -name "$SKILL_SOURCE" -type d | head -1)
+    if [ -z "$PLUGIN_DIR" ]; then
+      echo "ERROR: Plugin $SKILL_SOURCE not found in ~/.claude/plugins/cache"
+      exit 1
+    fi
+    echo "Plugin directory: $PLUGIN_DIR"
+    echo "✓ $SKILL_SOURCE plugin installed"
+  else
+    echo "Using local skill"
   fi
-  echo "Plugin directory: $PLUGIN_DIR"
-  echo "✓ $SKILL_SOURCE plugin installed"
-else
-  echo "Using local skill"
 fi
 
 mkdir -p /app/artifacts/rfe-tasks /app/artifacts/strat-tasks /app/tmp /app/.context
+
+# Change to FQN clone directory if applicable
+if [ -n "$FQN_CLONE_DIR" ]; then
+  cd "$FQN_CLONE_DIR"
+fi
 
 # Debug: Show what we're about to run
 echo "Executing: claude --model $MODEL --print \"$PROMPT\""

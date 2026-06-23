@@ -31,7 +31,9 @@ class PipelineOrchestrator:
         issue_key: str,
         model: str,
         runner: str = "cli",
-        args: dict = None
+        args: dict = None,
+        fqn: str | None = None,
+        harness: str = "claude-code",
     ) -> client.V1Job:
         """Create and submit a K8s Job for a pipeline phase.
 
@@ -41,13 +43,17 @@ class PipelineOrchestrator:
             model: Model shorthand ("opus", "sonnet", "haiku")
             runner: Runner type ("cli" or "sdk")
             args: Additional arguments (force, component, etc.)
+            fqn: Optional URI-style FQN (host/owner/repo@ref:skill).
+                 When provided, the container clones the repo at runtime
+                 instead of using a pre-registered skill.
+            harness: Agent harness ("claude-code" or "opencode")
 
         Returns:
             Created K8s Job object
         """
         if args is None:
             args = {}
-        job = self._create_job_manifest(phase, issue_key, model, runner, args)
+        job = self._create_job_manifest(phase, issue_key, model, runner, args, fqn=fqn, harness=harness)
         return self.batch_v1.create_namespaced_job(
             namespace=self.namespace,
             body=job
@@ -108,13 +114,15 @@ class PipelineOrchestrator:
             "failed": job.status.failed or 0,
             "phase": job.metadata.labels.get("phase"),
             "issue": job.metadata.labels.get("issue"),
-            "model": job.metadata.labels.get("model"),
+            "model": (job.metadata.annotations or {}).get("model") or job.metadata.labels.get("model"),
             "runner": job.metadata.labels.get("runner", "cli"),
+            "harness": job.metadata.labels.get("harness", "claude-code"),
             "force": job.metadata.labels.get("force", "false") == "true",
             "strace": job.metadata.labels.get("strace", "false") == "true",
             "mlflow": job.metadata.labels.get("mlflow", "true") == "true",
             "otel": job.metadata.labels.get("otel", "true") == "true",
             "extra_kwargs": (job.metadata.annotations or {}).get("extra_kwargs", ""),
+            "fqn": (job.metadata.annotations or {}).get("fqn", ""),
         }
 
     def get_job_logs(self, job_name: str) -> str:
@@ -194,37 +202,62 @@ class PipelineOrchestrator:
                 return False
             raise
 
+    SCRIPT_MAP = {
+        ("claude-code", "cli"): "/app/scripts/run_skill.sh",
+        ("claude-code", "sdk"): "/app/scripts/run_skill_sdk.sh",
+        ("opencode", "cli"): "/app/scripts/run_skill_opencode.sh",
+        ("opencode", "sdk"): "/app/scripts/run_skill_opencode_sdk.sh",
+    }
+
     def _create_job_manifest(
         self,
         phase: str,
         issue_key: str,
         model: str,
         runner: str,
-        args: dict
+        args: dict,
+        fqn: str | None = None,
+        harness: str = "claude-code",
     ) -> client.V1Job:
         """Generate a K8s Job manifest for a pipeline phase."""
 
-        # Sanitize for K8s naming (lowercase, no underscores)
+        # Sanitize model for K8s naming: strip provider prefix and version, replace illegal chars
+        import re
+        model_short = model.split("/")[-1].split("@")[0]  # "google-vertex-anthropic/claude-haiku-4-5@20251001" -> "claude-haiku-4-5"
+        model_slug = re.sub(r"[^a-z0-9-]", "-", model_short.lower()).strip("-")[:30]
+        model_label = re.sub(r"[^A-Za-z0-9._-]", "_", model)[:63]
+
         timestamp = datetime.now().strftime("%m%d-%H%M%S")
         if issue_key:
-            job_name = f"{phase}-{issue_key}-{model}-{timestamp}".lower().replace("_", "-")
+            job_name = f"{phase}-{issue_key}-{model_slug}-{timestamp}".lower().replace("_", "-")
         else:
-            job_name = f"{phase}-all-{model}-{timestamp}".lower().replace("_", "-")
+            job_name = f"{phase}-all-{model_slug}-{timestamp}".lower().replace("_", "-")
 
         # Resolve fully-qualified skill name for MLflow experiment
-        try:
-            from src.cli.skill_config import get_skill_fqn
-            skill_fqn = get_skill_fqn(phase)
-        except Exception:
-            skill_fqn = phase
-
-        # Build command args - choose script based on runner type
-        if runner == "sdk":
-            cmd_args = ["/bin/bash", "/app/scripts/run_skill_sdk.sh"]
+        if fqn:
+            skill_fqn = fqn
         else:
-            cmd_args = ["/bin/bash", "/app/scripts/run_skill.sh"]
+            try:
+                from src.cli.skill_config import get_skill_fqn
+                skill_fqn = get_skill_fqn(phase)
+            except Exception:
+                skill_fqn = phase
 
-        cmd_args.extend(["--skill", phase])
+        # OpenCode CLI mode can't flush MLflow plugin traces (process.exit race).
+        # Auto-upgrade to SDK runner when MLflow is enabled.
+        if harness == "opencode" and runner == "cli" and args.get("mlflow") is not False:
+            runner = "sdk"
+
+        # Build command args - choose script based on harness + runner
+        script = self.SCRIPT_MAP.get((harness, runner))
+        if script is None:
+            raise ValueError(f"Unsupported harness+runner: {harness}+{runner}")
+        cmd_args = ["/bin/bash", script]
+
+        if fqn:
+            cmd_args.extend(["--fqn", fqn])
+        else:
+            cmd_args.extend(["--skill", phase])
         if issue_key:
             cmd_args.extend(["--issue", issue_key])
         cmd_args.extend(["--model", model])
@@ -244,13 +277,16 @@ class PipelineOrchestrator:
                 namespace=self.namespace,
                 annotations={
                     "extra_kwargs": args.get("extra_kwargs") or "",
+                    "fqn": fqn or "",
+                    "model": model,
                 },
                 labels={
                     "app": "pipeline-agent",
                     "phase": phase,
                     "issue": issue_key.lower() if issue_key else "all",
-                    "model": model,
+                    "model": model_label,
                     "runner": runner,
+                    "harness": harness,
                     "force": "true" if args.get("force") else "false",
                     "strace": "true" if args.get("strace") else "false",
                     "mlflow": "false" if args.get("mlflow") is False else "true",

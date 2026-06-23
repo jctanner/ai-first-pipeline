@@ -283,7 +283,7 @@ host-build-agent: ## Build agent image on host
 
 host-rebuild-agent: ## Rebuild agent image on host
 	@echo "==> Building pipeline-agent image..."
-	PROJECT_ROOT=$(HOST_PROJECT_ROOT) bash deploy/scripts/05b-build-agent.sh
+	PROJECT_ROOT=$(HOST_PROJECT_ROOT) DOCKER_BUILD_ARGS="$(DOCKER_BUILD_ARGS)" bash deploy/scripts/05b-build-agent.sh
 	@echo "✓ Agent image rebuilt and imported to k3s"
 
 host-agent-test: ## Run a test job with the agent image on host

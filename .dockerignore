@@ -1,5 +1,8 @@
-# Exclude deployment infrastructure
+# Exclude deployment infrastructure (except OpenCode source for build)
 deploy/
+!deploy/repos/opencode/
+deploy/repos/opencode/.git/
+deploy/repos/opencode/node_modules/
 .vagrant/
 vagrant/
 

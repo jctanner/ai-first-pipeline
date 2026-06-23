@@ -1,0 +1,90 @@
+{
+  "metadata": {
+    "description": "Staging registry for skills not yet published to the opendatahub-io/skills-registry. Entries here should be migrated to the official registry once stable.\n"
+  },
+  "name": "pipeline-staging",
+  "owner": {
+    "name": "ai-first-pipeline"
+  },
+  "plugins": [
+    {
+      "author": {
+        "name": "ederign"
+      },
+      "category": "planning",
+      "description": "Strategy creation, refinement, and review skills for RHAISTRAT Jira tickets. Provides strategy-create, strategy-refine, strategy-review, and specialized review sub-skills.\n",
+      "homepage": "https://github.com/ederign/strat-creator",
+      "keywords": [
+        "strategy",
+        "jira",
+        "review",
+        "planning"
+      ],
+      "name": "strat-creator",
+      "repository": "https://github.com/ederign/strat-creator",
+      "skills": [
+        "./.claude/skills"
+      ],
+      "source": {
+        "ref": "main",
+        "repo": "ederign/strat-creator",
+        "source": "github"
+      },
+      "strict": false,
+      "version": "0.1.0"
+    },
+    {
+      "author": {
+        "name": "jctanner-opendatahub-io"
+      },
+      "category": "planning",
+      "description": "Fork of strat-creator with reorganized scripts for marketplace compatibility. Uses ${CLAUDE_SKILL_DIR} paths and removes context:fork from skills that don't need it.\n",
+      "homepage": "https://github.com/jctanner-opendatahub-io/eder-strat-creator",
+      "keywords": [
+        "strategy",
+        "jira",
+        "review",
+        "planning"
+      ],
+      "name": "strat-creator-fork",
+      "repository": "https://github.com/jctanner-opendatahub-io/eder-strat-creator",
+      "skills": [
+        "./.claude/skills"
+      ],
+      "source": {
+        "ref": "reorganize-scripts",
+        "repo": "jctanner-opendatahub-io/eder-strat-creator",
+        "source": "github"
+      },
+      "strict": false,
+      "version": "0.1.0"
+    },
+    {
+      "author": {
+        "name": "jctanner-opendatahub-io"
+      },
+      "category": "planning",
+      "description": "Fork of strat-creator with concurrency fixes for per-ticket filtering, symlink-based RFE-to-STRAT lookup, and targeted glob patterns for shared artifact directory safety.\n",
+      "homepage": "https://github.com/jctanner-opendatahub-io/eder-strat-creator",
+      "keywords": [
+        "strategy",
+        "jira",
+        "review",
+        "planning",
+        "concurrency"
+      ],
+      "name": "strat-creator-fix",
+      "repository": "https://github.com/jctanner-opendatahub-io/eder-strat-creator",
+      "skills": [
+        "./.claude/skills"
+      ],
+      "source": {
+        "ref": "concurrency_fixes",
+        "repo": "jctanner-opendatahub-io/eder-strat-creator",
+        "source": "github"
+      },
+      "strict": false,
+      "version": "0.1.0"
+    }
+  ]
+}
