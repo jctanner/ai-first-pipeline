@@ -226,7 +226,8 @@ if [ "${ENABLE_STRACE:-}" = "1" ]; then
   SERVE_STRACE_CMD="strace -ffttv -s 1024 -o ${STRACE_DIR}/serve"
   echo "strace enabled for serve process: output -> $STRACE_DIR/serve.*"
 fi
-$SERVE_STRACE_CMD opencode serve --port "$OC_PORT" > /tmp/opencode-serve.log 2>&1 &
+SERVE_LOG="${LOG_DIR}/opencode-serve.log"
+$SERVE_STRACE_CMD opencode serve --port "$OC_PORT" > "$SERVE_LOG" 2>&1 &
 OC_PID=$!
 
 # Ensure server is killed on exit
@@ -241,7 +242,7 @@ for i in $(seq 1 30); do
   fi
   if ! kill -0 "$OC_PID" 2>/dev/null; then
     echo " FAILED (server exited)"
-    cat /tmp/opencode-serve.log
+    cat ${SERVE_LOG}
     exit 1
   fi
   echo -n "."
@@ -251,7 +252,7 @@ done
 # Verify server is up
 if ! curl -sf -u "opencode:${OPENCODE_SERVER_PASSWORD}" "http://127.0.0.1:${OC_PORT}/api/health" > /dev/null 2>&1; then
   echo "OpenCode server failed to start within 30s"
-  cat /tmp/opencode-serve.log
+  cat ${SERVE_LOG}
   exit 1
 fi
 
@@ -373,16 +374,17 @@ def listen_events():
 
                 elif isinstance(part, StepFinishPart):
                     t = part.tokens
-                    cache_r = t.cache.read
-                    cache_w = t.cache.write
-                    total = int(t.input + t.output + t.reasoning + cache_r + cache_w)
-                    cost_str = f" cost=${part.cost:.4f}" if part.cost else ""
-                    print(
-                        f"{TOOL_COLOR}  \U0001f4ca TOKENS in={int(t.input)} out={int(t.output)} "
-                        f"reasoning={int(t.reasoning)} cache_r={int(cache_r)} cache_w={int(cache_w)} "
-                        f"total={total}{cost_str}{RESET}",
-                        flush=True,
-                    )
+                    if t:
+                        cache_r = t.cache.read
+                        cache_w = t.cache.write
+                        total = int(t.input + t.output + t.reasoning + cache_r + cache_w)
+                        cost_str = f" cost=${part.cost:.4f}" if part.cost else ""
+                        print(
+                            f"{TOOL_COLOR}  \U0001f4ca TOKENS in={int(t.input)} out={int(t.output)} "
+                            f"reasoning={int(t.reasoning)} cache_r={int(cache_r)} cache_w={int(cache_w)} "
+                            f"total={total}{cost_str}{RESET}",
+                            flush=True,
+                        )
 
                 elif isinstance(part, TextPart):
                     if part.time and part.time.end:
@@ -437,12 +439,14 @@ print("=== Execution Complete ===")
 
 if response.tokens:
     t = response.tokens
+    cost_str = f"${response.cost:.4f}" if response.cost else "n/a"
     print(
         f"{TOOL_COLOR}\U0001f4ca TOTAL in={int(t.input)} out={int(t.output)} "
-        f"reasoning={int(t.reasoning)} cost=${response.cost:.4f}{RESET}"
+        f"reasoning={int(t.reasoning)} cost={cost_str}{RESET}"
     )
 else:
-    print(f"{TOOL_COLOR}\U0001f4ca cost=${response.cost:.4f}{RESET}")
+    cost_str = f"${response.cost:.4f}" if response.cost else "n/a"
+    print(f"{TOOL_COLOR}\U0001f4ca cost={cost_str}{RESET}")
 
 if response.error:
     err_name = getattr(response.error, "name", "unknown")
@@ -469,6 +473,14 @@ fi
 echo
 echo "Execution finished at: $(date)"
 echo "Exit code: $EXIT_CODE"
+
+# Dump serve log for debugging plugin/server issues
+if [ -f ${SERVE_LOG} ]; then
+  echo
+  echo "=== OpenCode serve log ==="
+  cat ${SERVE_LOG}
+  echo "=== End serve log ==="
+fi
 
 echo
 echo "============================================================"

@@ -59,8 +59,9 @@ ${CONTAINER_CMD} build -t ai-first-pipeline:latest .
 echo "==> Saving image to tar..."
 ${CONTAINER_CMD} save ai-first-pipeline:latest -o /tmp/ai-first-pipeline.tar
 
-# Copy to VM and import
+# Copy to VM and import (remove old image first so containerd doesn't skip the import)
 echo "==> Copying to VM and importing..."
+vagrant ssh -c "sudo k3s ctr images rm docker.io/library/ai-first-pipeline:latest localhost/ai-first-pipeline:latest 2>/dev/null || true" 2>/dev/null
 vagrant ssh -c "sudo k3s ctr images import -" < /tmp/ai-first-pipeline.tar
 
 # Clean up tar file

@@ -22,6 +22,7 @@ if [ -d "${PROJECT_ROOT}/deploy/repos/observatory" ]; then
   cd "${PROJECT_ROOT}/deploy/repos/observatory"
 
   ${CONTAINER_CMD} build -t observatory:latest .
+  sudo k3s ctr images rm docker.io/library/observatory:latest localhost/observatory:latest 2>/dev/null || true
   ${CONTAINER_CMD} save observatory:latest | sudo k3s ctr images import -
   sudo k3s ctr images tag localhost/observatory:latest docker.io/library/observatory:latest 2>/dev/null || true
   echo "Successfully built and imported observatory:latest"

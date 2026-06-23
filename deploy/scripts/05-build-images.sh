@@ -24,8 +24,9 @@ cd ${PROJECT_ROOT}
 
 if [ -f deploy/dashboard/Dockerfile ]; then
   ${CONTAINER_CMD} build -f deploy/dashboard/Dockerfile -t pipeline-dashboard:latest .
-  # Import into k3s
+  # Import into k3s (remove old image first so containerd doesn't skip the import)
   echo "  Importing pipeline-dashboard image into k3s..."
+  sudo k3s ctr images rm docker.io/library/pipeline-dashboard:latest localhost/pipeline-dashboard:latest 2>/dev/null || true
   ${CONTAINER_CMD} save pipeline-dashboard:latest | sudo k3s ctr images import -
   sudo k3s ctr images tag localhost/pipeline-dashboard:latest docker.io/library/pipeline-dashboard:latest 2>/dev/null || true
   echo "  Successfully built and imported pipeline-dashboard:latest"
@@ -56,8 +57,9 @@ if [ -f deploy/pipeline-agent/Dockerfile ]; then
   ${CONTAINER_CMD} build -f deploy/pipeline-agent/Dockerfile -t pipeline-agent:latest .
   rm -f internal-ca.crt
 
-  # Import into k3s
+  # Import into k3s (remove old image first so containerd doesn't skip the import)
   echo "  Importing pipeline-agent image into k3s..."
+  sudo k3s ctr images rm docker.io/library/pipeline-agent:latest localhost/pipeline-agent:latest 2>/dev/null || true
   ${CONTAINER_CMD} save pipeline-agent:latest | sudo k3s ctr images import -
   sudo k3s ctr images tag localhost/pipeline-agent:latest docker.io/library/pipeline-agent:latest 2>/dev/null || true
   echo "  Successfully built and imported pipeline-agent:latest"
@@ -115,6 +117,7 @@ if [ -d ${PROJECT_ROOT}/deploy/repos/github-emulator ]; then
 
   if [ -f Dockerfile.k3s ]; then
     ${CONTAINER_CMD} build -f Dockerfile.k3s -t github-emulator:k3s .
+    sudo k3s ctr images rm docker.io/library/github-emulator:k3s localhost/github-emulator:k3s 2>/dev/null || true
     ${CONTAINER_CMD} save github-emulator:k3s | sudo k3s ctr images import -
     sudo k3s ctr images tag localhost/github-emulator:k3s docker.io/library/github-emulator:k3s 2>/dev/null || true
     echo "Successfully built and imported github-emulator:k3s"
@@ -133,6 +136,7 @@ if [ -d ${PROJECT_ROOT}/deploy/repos/jira-emulator ]; then
 
   if [ -f Dockerfile.k3s ]; then
     ${CONTAINER_CMD} build -f Dockerfile.k3s -t jira-emulator:k3s .
+    sudo k3s ctr images rm docker.io/library/jira-emulator:k3s localhost/jira-emulator:k3s 2>/dev/null || true
     ${CONTAINER_CMD} save jira-emulator:k3s | sudo k3s ctr images import -
     sudo k3s ctr images tag localhost/jira-emulator:k3s docker.io/library/jira-emulator:k3s 2>/dev/null || true
     echo "Successfully built and imported jira-emulator:k3s"
@@ -150,6 +154,7 @@ if [ -d ${PROJECT_ROOT}/deploy/repos/observatory ]; then
   cd ${PROJECT_ROOT}/deploy/repos/observatory
 
   ${CONTAINER_CMD} build -t observatory:latest .
+  sudo k3s ctr images rm docker.io/library/observatory:latest localhost/observatory:latest 2>/dev/null || true
   ${CONTAINER_CMD} save observatory:latest | sudo k3s ctr images import -
   sudo k3s ctr images tag localhost/observatory:latest docker.io/library/observatory:latest 2>/dev/null || true
   echo "Successfully built and imported observatory:latest"
@@ -163,6 +168,7 @@ if [ -d ${PROJECT_ROOT}/deploy/repos/markovd ]; then
   cd ${PROJECT_ROOT}/deploy/repos/markovd
 
   ${CONTAINER_CMD} build -t markovd:latest .
+  sudo k3s ctr images rm docker.io/library/markovd:latest localhost/markovd:latest 2>/dev/null || true
   ${CONTAINER_CMD} save markovd:latest | sudo k3s ctr images import -
   sudo k3s ctr images tag localhost/markovd:latest docker.io/library/markovd:latest 2>/dev/null || true
   echo "Successfully built and imported markovd:latest"

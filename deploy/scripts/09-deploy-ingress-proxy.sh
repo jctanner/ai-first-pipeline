@@ -23,8 +23,9 @@ cd "${PROJECT_ROOT}/deploy/golang-reverse-proxy"
 echo "  Building container image..."
 ${CONTAINER_CMD} build -t ingress-proxy:latest . -q
 
-# Import to k3s
+# Import to k3s (remove old image first so containerd doesn't skip the import)
 echo "  Importing image to k3s..."
+sudo k3s ctr images rm docker.io/library/ingress-proxy:latest localhost/ingress-proxy:latest 2>/dev/null || true
 ${CONTAINER_CMD} save ingress-proxy:latest | sudo k3s ctr images import - > /dev/null
 sudo k3s ctr images tag localhost/ingress-proxy:latest docker.io/library/ingress-proxy:latest 2>/dev/null || true
 

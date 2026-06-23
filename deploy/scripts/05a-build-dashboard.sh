@@ -25,8 +25,9 @@ fi
 
 ${CONTAINER_CMD} build -f deploy/dashboard/Dockerfile -t pipeline-dashboard:latest .
 
-# Import into k3s
+# Import into k3s (remove old image first so containerd doesn't skip the import)
 echo "  Importing pipeline-dashboard image into k3s..."
+sudo k3s ctr images rm docker.io/library/pipeline-dashboard:latest localhost/pipeline-dashboard:latest 2>/dev/null || true
 ${CONTAINER_CMD} save pipeline-dashboard:latest | sudo k3s ctr images import -
 # Ensure image is available under docker.io name (podman tags as localhost/)
 sudo k3s ctr images tag localhost/pipeline-dashboard:latest docker.io/library/pipeline-dashboard:latest 2>/dev/null || true

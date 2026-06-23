@@ -42,7 +42,9 @@ ${CONTAINER_CMD} build ${DOCKER_BUILD_ARGS:-} -f deploy/pipeline-agent/Dockerfil
 # Clean up extracted cert
 rm -f internal-ca.crt
 
-# Import into k3s
+# Import into k3s (remove old image first so containerd doesn't skip the import)
+echo "  Removing old pipeline-agent image from k3s..."
+sudo k3s ctr images rm docker.io/library/pipeline-agent:latest localhost/pipeline-agent:latest 2>/dev/null || true
 echo "  Importing pipeline-agent image into k3s..."
 ${CONTAINER_CMD} save pipeline-agent:latest | sudo k3s ctr images import -
 sudo k3s ctr images tag localhost/pipeline-agent:latest docker.io/library/pipeline-agent:latest 2>/dev/null || true

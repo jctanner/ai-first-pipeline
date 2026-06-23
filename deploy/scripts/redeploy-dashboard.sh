@@ -16,8 +16,9 @@ vagrant ssh -c "cd /vagrant && sudo docker build -f deploy/dashboard/Dockerfile 
 echo "✓ Docker build complete"
 echo
 
-# Step 2: Import image into k3s
+# Step 2: Import image into k3s (remove old image first so containerd doesn't skip the import)
 echo "[2/5] Importing image into k3s..."
+vagrant ssh -c "sudo k3s ctr images rm docker.io/library/pipeline-dashboard:latest localhost/pipeline-dashboard:latest 2>/dev/null || true" > /dev/null 2>&1
 vagrant ssh -c "sudo docker save pipeline-dashboard:latest | sudo k3s ctr images import -" > /dev/null
 echo "✓ Image imported to k3s"
 echo
