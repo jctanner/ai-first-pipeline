@@ -110,6 +110,9 @@ spec:
         volumeMounts:
         - name: data
           mountPath: /data
+        - name: context
+          mountPath: /app/.context
+          readOnly: true
         - name: gcp-credentials
           mountPath: /var/run/secrets/gcp
           readOnly: true
@@ -144,6 +147,9 @@ spec:
       - name: data
         persistentVolumeClaim:
           claimName: observatory-data
+      - name: context
+        persistentVolumeClaim:
+          claimName: pipeline-context
       - name: gcp-credentials
         secret:
           secretName: gcp-credentials
