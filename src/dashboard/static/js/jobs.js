@@ -19,11 +19,31 @@ if (K8S_AVAILABLE) {
     ],
   };
 
+  // Harness-dependent runner options
+  const HARNESS_RUNNERS = {
+    'claude-code': [
+      { value: 'cli', label: 'CLI', selected: true },
+      { value: 'sdk', label: 'SDK' },
+      { value: 'agentic-ci', label: 'agentic-ci' },
+    ],
+    'opencode': [
+      { value: 'cli', label: 'CLI' },
+      { value: 'sdk', label: 'SDK', selected: true },
+      { value: 'agentic-ci', label: 'agentic-ci' },
+    ],
+  };
+
   document.getElementById('harness').addEventListener('change', function() {
     const modelSelect = document.getElementById('model');
     const models = HARNESS_MODELS[this.value] || HARNESS_MODELS['claude-code'];
     modelSelect.innerHTML = models.map(m =>
       `<option value="${m.value}"${m.selected ? ' selected' : ''}>${m.label}</option>`
+    ).join('');
+
+    const runnerSelect = document.getElementById('runner');
+    const runners = HARNESS_RUNNERS[this.value] || HARNESS_RUNNERS['claude-code'];
+    runnerSelect.innerHTML = runners.map(r =>
+      `<option value="${r.value}"${r.selected ? ' selected' : ''}>${r.label}</option>`
     ).join('');
   });
 
@@ -86,7 +106,6 @@ if (K8S_AVAILABLE) {
         document.getElementById('submit-form').reset();
         document.getElementById('harness').value = 'claude-code';
         document.getElementById('harness').dispatchEvent(new Event('change'));
-        document.getElementById('runner').value = 'cli';
         await refreshJobs();
         openJobModal(data.job_name);
       } else {

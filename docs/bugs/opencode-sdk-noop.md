@@ -24,18 +24,14 @@ CLI mode jobs with the same model work fine:
 
 ## What the driver does
 
-`scripts/run_skill_opencode_sdk.sh` runs `opencode serve --port 4096` in the background, then uses an inline Python driver to:
+`scripts/run_skill_opencode_sdk.sh` runs `opencode serve --port 4096` in the background, then uses the `opencode-ai` Python SDK (`opencode_ai` package) to drive a session:
 
-1. `POST /api/session` — create a session with `providerID: "google-vertex-anthropic"`, `id: "claude-haiku-4-5@20251001"` (split from the `--model` flag)
-2. `GET /api/event` — subscribe to SSE events (in a background thread)
-3. `POST /api/session/{id}/prompt` — send the prompt text
-4. Wait for a `session.status` event with `type: "idle"`
+1. `client.session.create()` — create a session
+2. `client.event.list()` — subscribe to SSE events (background thread, typed Pydantic models)
+3. `client.session.chat(session_id, model_id=..., provider_id=..., parts=[...])` — send the prompt (blocks until agent turn completes, returns `AssistantMessage`)
+4. SSE listener watches for `EventSessionIdle` to signal completion
 
-Step 1-3 all return HTTP 200. The SSE stream receives exactly two events, then blocks forever:
-- `server.connected`
-- `session.next.prompt.admitted`
-
-No further events are emitted: no `message.part.updated`, no `session.error`, no `permission.asked`, no `session.status`.
+Before the `Layer.fresh` fix, step 3 would hang indefinitely. The SSE stream received `server.connected` and `session.next.prompt.admitted`, then nothing — no `message.part.updated`, no `session.error`, no `session.status`.
 
 ## Strace evidence
 
@@ -209,7 +205,7 @@ Effect memoizes service instances by tag. When `MoveSession.defaultLayer` is pro
 
 ## Impact
 
-This blocks the MLflow tracing fix. The `@mlflow/opencode` plugin only works reliably in SDK mode (due to the CLI `process.exit()` race), but SDK mode itself doesn't work with Vertex AI. Until this is resolved, OpenCode jobs cannot produce MLflow traces.
+**Resolved.** The `Layer.fresh` fix (Attempt 5) unblocks SDK mode on Vertex AI. The `@mlflow/opencode` plugin can now trace SDK-mode jobs end-to-end.
 
 ## Files involved
 

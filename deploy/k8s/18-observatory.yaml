@@ -27,6 +27,7 @@ stringData:
   OBSERVATORY_GITLAB_TOKEN: ""
   OBSERVATORY_GITHUB_TOKEN: ""
   OBSERVATORY_API_KEY: "observatory-dev-key"
+  OBSERVATORY_CHAT_MODEL: "claude-sonnet-4-5"
 ---
 # Service for Observatory
 apiVersion: v1
@@ -89,6 +90,17 @@ spec:
           containerPort: 8000
           protocol: TCP
 
+        env:
+        - name: GOOGLE_APPLICATION_CREDENTIALS
+          value: /var/run/secrets/gcp/credentials.json
+        - name: OBSERVATORY_ANTHROPIC_VERTEX_PROJECT_ID
+          valueFrom:
+            secretKeyRef:
+              name: pipeline-secrets
+              key: ANTHROPIC_VERTEX_PROJECT_ID
+        - name: OBSERVATORY_CLOUD_ML_REGION
+          value: global
+
         envFrom:
         - configMapRef:
             name: observatory-config
@@ -98,6 +110,9 @@ spec:
         volumeMounts:
         - name: data
           mountPath: /data
+        - name: gcp-credentials
+          mountPath: /var/run/secrets/gcp
+          readOnly: true
 
         resources:
           requests:
@@ -129,3 +144,6 @@ spec:
       - name: data
         persistentVolumeClaim:
           claimName: observatory-data
+      - name: gcp-credentials
+        secret:
+          secretName: gcp-credentials

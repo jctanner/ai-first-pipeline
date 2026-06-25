@@ -21,7 +21,7 @@ COPY deploy/repos/opencode/ .
 RUN bun install --frozen-lockfile || bun install
 ENV OPENCODE_CHANNEL=latest
 ENV OPENCODE_VERSION=0.0.0-local
-RUN cd packages/opencode && bun run script/build.ts --single --skip-embed-web-ui --no-minify
+RUN cd packages/opencode && bun run script/build.ts --single --skip-embed-web-ui
 
 RUN ARCH=$(uname -m | sed 's/x86_64/x64/' | sed 's/aarch64/arm64/') \
     && cp packages/opencode/dist/opencode-linux-${ARCH}/bin/opencode /build/opencode
@@ -81,6 +81,10 @@ USER pipelineagent
 
 # Install Python dependencies (will create .venv owned by pipelineagent)
 RUN uv sync --frozen || uv sync
+
+# Install agentic-ci from local checkout
+COPY --chown=pipelineagent:pipelineagent deploy/repos/agentic-ci /tmp/agentic-ci
+RUN uv pip install /tmp/agentic-ci && rm -rf /tmp/agentic-ci
 
 # Copy only necessary application files
 COPY --chown=pipelineagent:pipelineagent main.py ./

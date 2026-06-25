@@ -205,8 +205,10 @@ class PipelineOrchestrator:
     SCRIPT_MAP = {
         ("claude-code", "cli"): "/app/scripts/run_skill.sh",
         ("claude-code", "sdk"): "/app/scripts/run_skill_sdk.sh",
+        ("claude-code", "agentic-ci"): "/app/scripts/run_skill_agentic_ci.sh",
         ("opencode", "cli"): "/app/scripts/run_skill_opencode.sh",
         ("opencode", "sdk"): "/app/scripts/run_skill_opencode_sdk.sh",
+        ("opencode", "agentic-ci"): "/app/scripts/run_skill_agentic_ci.sh",
     }
 
     def _create_job_manifest(
@@ -365,7 +367,7 @@ fi
                                 image_pull_policy="Never",  # Use local image
                                 command=cmd_args,
 
-                                env=self._build_env_vars(args, job_name=job_name, skill_fqn=skill_fqn),
+                                env=self._build_env_vars(args, job_name=job_name, skill_fqn=skill_fqn, harness=harness, model=model, runner=runner),
                                 volume_mounts=self._build_volume_mounts(),
 
                                 resources=client.V1ResourceRequirements(
@@ -386,7 +388,7 @@ fi
 
         return job
 
-    def _build_env_vars(self, args: dict = None, job_name: str = "", skill_fqn: str = "") -> list:
+    def _build_env_vars(self, args: dict = None, job_name: str = "", skill_fqn: str = "", harness: str = "claude-code", model: str = "", runner: str = "cli") -> list:
         """Build environment variables for agent containers."""
         if args is None:
             args = {}
@@ -473,9 +475,11 @@ fi
                 value="http://mlflow.ai-pipeline.svc.cluster.local:5000"
             ))
             if skill_fqn:
+                model_short = model.split("/")[-1].split("@")[0] if model else "unknown"
+                experiment = f"{skill_fqn}/{harness}/{model_short}/{runner}"
                 env_vars.append(client.V1EnvVar(
                     name="MLFLOW_EXPERIMENT_NAME",
-                    value=skill_fqn
+                    value=experiment
                 ))
 
         if args.get("otel") is not False:
@@ -489,6 +493,11 @@ fi
                 name="ENABLE_STRACE",
                 value="1"
             ))
+
+        env_vars.append(client.V1EnvVar(
+            name="AGENTIC_CI_HARNESS",
+            value=harness
+        ))
 
         return env_vars
 
