@@ -76,3 +76,8 @@ seed_source "Pipeline Artifacts" "artifact_storage" \
   "/app/artifacts" \
   "Local filesystem storing claims, verification logs, explanations, strace output, and K8s job logs" \
   '{"subdirs":["claims","verification","explanations","strace","jobs","apibodies"]}'
+
+seed_source "Architecture Context" "artifact_storage" \
+  "/app/.context" \
+  "Git-cloned architecture docs, component maps, and test recipes for RHOAI subsystems" \
+  '{"readonly":true}'
