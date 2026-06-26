@@ -113,6 +113,9 @@ spec:
         - name: context
           mountPath: /app/.context
           readOnly: true
+        - name: artifacts
+          mountPath: /app/artifacts
+          readOnly: true
         - name: gcp-credentials
           mountPath: /var/run/secrets/gcp
           readOnly: true
@@ -150,6 +153,9 @@ spec:
       - name: context
         persistentVolumeClaim:
           claimName: pipeline-context
+      - name: artifacts
+        persistentVolumeClaim:
+          claimName: pipeline-artifacts
       - name: gcp-credentials
         secret:
           secretName: gcp-credentials
