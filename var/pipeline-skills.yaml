@@ -42,17 +42,14 @@ skill_repos:
     github: ederign/strat-creator
     ref: main
     path: remote_skills/strat-creator
-    registry: strat-creator@pipeline-staging
   strat-creator-fork:
     github: jctanner-opendatahub-io/eder-strat-creator
     ref: reorganize-scripts
     path: remote_skills/strat-creator-fork
-    registry: strat-creator-fork@pipeline-staging
   strat-creator-fix:
     github: jctanner-opendatahub-io/eder-strat-creator
     ref: concurrency_fixes
     path: remote_skills/strat-creator-fix
-    registry: strat-creator-fix@pipeline-staging
 
 skills:
   # === Bug analysis (local skills, templated) ===

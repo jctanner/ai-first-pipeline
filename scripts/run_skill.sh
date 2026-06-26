@@ -151,7 +151,6 @@ echo
 # Register skill marketplaces
 echo "Registering skill marketplaces..."
 claude plugin marketplace add opendatahub-io/skills-registry || true
-claude plugin marketplace add /app/var/pipeline-staging || true
 
 # Install only the plugin needed for the current skill
 REGISTRY=$(python3 -c "
