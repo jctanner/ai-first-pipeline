@@ -258,6 +258,8 @@ class PipelineOrchestrator:
 
         if fqn:
             cmd_args.extend(["--fqn", fqn])
+        elif skill_fqn and skill_fqn.startswith(("github.com/", "gitlab.com/")):
+            cmd_args.extend(["--fqn", skill_fqn])
         else:
             cmd_args.extend(["--skill", phase])
         if issue_key:

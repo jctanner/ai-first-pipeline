@@ -282,14 +282,16 @@ if source:
     print(source)
 " 2>/dev/null)
 
-  if [ -n "$SKILL_SOURCE" ]; then
+  if [ -n "$SKILL_SOURCE" ] && [ -d ~/.claude/plugins/cache ]; then
     PLUGIN_DIR=$(find ~/.claude/plugins/cache -name "$SKILL_SOURCE" -type d | head -1)
     if [ -z "$PLUGIN_DIR" ]; then
-      echo "ERROR: Plugin $SKILL_SOURCE not found in ~/.claude/plugins/cache"
-      exit 1
+      echo "WARNING: Plugin $SKILL_SOURCE not found in cache, continuing without it"
+    else
+      echo "Plugin directory: $PLUGIN_DIR"
+      echo "✓ $SKILL_SOURCE plugin installed"
     fi
-    echo "Plugin directory: $PLUGIN_DIR"
-    echo "✓ $SKILL_SOURCE plugin installed"
+  elif [ -n "$SKILL_SOURCE" ]; then
+    echo "WARNING: No plugin cache, skipping $SKILL_SOURCE lookup"
   else
     echo "Using local skill"
   fi
