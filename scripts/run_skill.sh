@@ -56,8 +56,12 @@ if [ -z "$SKILL" ] && [ -z "$FQN" ]; then
 fi
 
 # Include skill+issue in job tag so strace/apibodies dirs are discoverable by issue key
+SKILL_TAG="${SKILL}"
+if [ -z "$SKILL_TAG" ] && [ -n "$FQN" ]; then
+  SKILL_TAG="${FQN##*:}"
+fi
 if [ -n "$ISSUE_KEY" ]; then
-  export PIPELINE_JOB_NAME="${SKILL}-${ISSUE_KEY}"
+  export PIPELINE_JOB_NAME="${SKILL_TAG}-${ISSUE_KEY}"
 fi
 
 echo "============================================================"
