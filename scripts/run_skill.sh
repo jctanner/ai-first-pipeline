@@ -178,25 +178,27 @@ echo
 echo "Setting up artifact symlinks..."
 
 # Set up symlinks for all installed plugins
-for CACHE_ROOT in ~/.claude/plugins/cache/*/; do
-  for PLUGIN_BASE in "$CACHE_ROOT"*/; do
-    PLUGIN_NAME=$(basename "$PLUGIN_BASE")
-    for VERSION_DIR in "$PLUGIN_BASE"*/; do
-      VERSION_DIR="${VERSION_DIR%/}"
-      if [ -d "$VERSION_DIR" ]; then
-        rm -rf "$VERSION_DIR/artifacts" "$VERSION_DIR/tmp" "$VERSION_DIR/.context"
-        ln -s /app/artifacts "$VERSION_DIR/artifacts"
-        ln -s /app/tmp "$VERSION_DIR/tmp"
-        ln -s /app/.context "$VERSION_DIR/.context"
-        echo "✓ Created symlinks for $PLUGIN_NAME/$(basename $VERSION_DIR)"
-      fi
+if [ -d ~/.claude/plugins/cache ]; then
+  for CACHE_ROOT in ~/.claude/plugins/cache/*/; do
+    for PLUGIN_BASE in "$CACHE_ROOT"*/; do
+      PLUGIN_NAME=$(basename "$PLUGIN_BASE")
+      for VERSION_DIR in "$PLUGIN_BASE"*/; do
+        VERSION_DIR="${VERSION_DIR%/}"
+        if [ -d "$VERSION_DIR" ]; then
+          rm -rf "$VERSION_DIR/artifacts" "$VERSION_DIR/tmp" "$VERSION_DIR/.context"
+          ln -s /app/artifacts "$VERSION_DIR/artifacts"
+          ln -s /app/tmp "$VERSION_DIR/tmp"
+          ln -s /app/.context "$VERSION_DIR/.context"
+          echo "✓ Created symlinks for $PLUGIN_NAME/$(basename $VERSION_DIR)"
+        fi
+      done
     done
   done
-done
 
-# Hotpatch: remove "context: fork" from installed skills so streaming output works
-echo "Patching context:fork from installed skills..."
-find ~/.claude/plugins/cache -name "SKILL.md" -exec sed -i '/^context: *fork/d' {} +
+  # Hotpatch: remove "context: fork" from installed skills so streaming output works
+  echo "Patching context:fork from installed skills..."
+  find ~/.claude/plugins/cache -name "SKILL.md" -exec sed -i '/^context: *fork/d' {} +
+fi
 
 echo
 echo "Running skill..."
