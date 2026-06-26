@@ -267,6 +267,8 @@ fi
 # When --fqn was used, the repo is already cloned by resolve_fqn.sh
 if [ -n "$FQN_CLONE_DIR" ]; then
   echo "Using FQN-cloned repo: $FQN_CLONE_DIR"
+  # Hotpatch: remove "context: fork" so streaming output works
+  find "$FQN_CLONE_DIR" -name "SKILL.md" -exec sed -i '/^context: *fork/d' {} +
 else
   SKILL_SOURCE=$(python3 -c "
 import yaml
