@@ -199,7 +199,7 @@ echo
 
 # Resolve skill name from pipeline-skills.yaml (falls back to dash-to-dot conversion)
 # When --fqn was used, SKILL_NAME is already set by resolve_fqn.sh
-if [ -z "$SKILL_NAME" ]; then
+if [ -z "${SKILL_NAME:-}" ]; then
   SKILL_NAME=$(python3 -c "
 import yaml
 with open('/app/var/pipeline-skills.yaml') as f:
