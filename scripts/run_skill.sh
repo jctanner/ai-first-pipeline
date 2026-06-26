@@ -153,21 +153,27 @@ echo "Registering skill marketplaces..."
 claude plugin marketplace add opendatahub-io/skills-registry || true
 claude plugin marketplace add /app/var/pipeline-staging || true
 
-# Discover and install plugins from pipeline-skills.yaml
-REGISTRIES=$(python3 -c "
+# Install only the plugin needed for the current skill
+REGISTRY=$(python3 -c "
 import yaml
 with open('/app/var/pipeline-skills.yaml') as f:
     cfg = yaml.safe_load(f)
-for repo in (cfg.get('skill_repos') or {}).values():
+skills = cfg.get('skills') or {}
+skill_cfg = skills.get('${SKILL}', {})
+source = skill_cfg.get('source', '')
+if source:
+    repo = (cfg.get('skill_repos') or {}).get(source, {})
     reg = repo.get('registry', '')
     if reg:
         print(reg)
-" 2>/dev/null | sort -u)
+" 2>/dev/null)
 
-for REG in $REGISTRIES; do
-  echo "  Installing plugin: $REG"
-  claude plugin install "$REG" || true
-done
+if [ -n "$REGISTRY" ]; then
+  echo "  Installing plugin: $REGISTRY"
+  claude plugin install "$REGISTRY" || true
+else
+  echo "  No external plugin needed for skill: $SKILL"
+fi
 
 echo
 echo "Setting up artifact symlinks..."
