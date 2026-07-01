@@ -30,6 +30,10 @@ Planning and strategy documents.
 - [local-cluster-plan.md](plans/local-cluster-plan.md) — Move k3s from Vagrant VM to host at /data
 - [new-frontend-plan.md](plans/new-frontend-plan.md) — Dashboard redesign for bugs/RFEs/strategies
 - [arch-context-testing-plan.md](plans/arch-context-testing-plan.md) — A/B benchmark: flat_files vs arch_query
+- [validation-loop-plan.md](plans/validation-loop-plan.md) — Post-fix validation loop with odh-tests-context
+- [agent-runner-v2-plan.md](plans/agent-runner-v2-plan.md) — Pluggable runner system + MLflow for agentic-ci
+- [dynamic-skill-fqn-plan.md](plans/dynamic-skill-fqn-plan.md) — Dynamic skill resolution via URI-style FQNs
+- [agentic-ci-optional-runner-plan.md](plans/agentic-ci-optional-runner-plan.md) — Optional agentic-ci runner in pipeline agent image
 
 ## Reference
 
@@ -41,6 +45,13 @@ Stable reference material.
 - [data-sources-and-access.md](reference/data-sources-and-access.md) — Pipeline data sources, field mappings, access methods
 - [mlflow-basics.md](reference/mlflow-basics.md) — MLflow evaluations with Claude via Vertex API
 - [mlflow-claude.md](reference/mlflow-claude.md) — Claude Code tracing via MLflow autolog
+
+## Bugs
+
+Tracked issues and investigations.
+
+- [opencode-mlflow-issue.md](bugs/opencode-mlflow-issue.md) — OpenCode MLflow trace parity with Claude Code
+- [opencode-sdk-noop.md](bugs/opencode-sdk-noop.md) — OpenCode SDK silently drops prompts
 
 ## Notes
 
@@ -58,6 +69,12 @@ Research, investigations, and dated analysis reports.
 - [claude-mcp-behavior.md](notes/claude-mcp-behavior.md) — MCP tools not exposed via `claude --print`
 - [claude-sdk-mlflow-integration.md](notes/claude-sdk-mlflow-integration.md) — SDK has no built-in MLflow; hooks available
 - [token-usage-report-2026-05-03.md](notes/token-usage-report-2026-05-03.md) — Cost analysis: median $0.86/issue, $2.16K total
+- [agent-parallelism-testing.md](notes/agent-parallelism-testing.md) — Layer 2 agent self-parallelism test notes
+- [AICP-assessment.md](notes/AICP-assessment.md) — AI Core Platform pipeline assessment
+
+## Reference (top-level)
+
+- [vertex-claude-runtime.md](vertex-claude-runtime.md) — Vertex AI Claude runtime wiring
 
 ## Ledger
 
