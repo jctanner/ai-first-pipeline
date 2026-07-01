@@ -162,6 +162,20 @@ else
   echo "WARNING: observatory repo not found at ${PROJECT_ROOT}/deploy/repos/observatory"
 fi
 
+# Build gitlab-emulator if the repo exists
+if [ -d ${PROJECT_ROOT}/deploy/repos/gitlab-emulator ]; then
+  echo "--- Building gitlab-emulator image for k3s ---"
+  cd ${PROJECT_ROOT}/deploy/repos/gitlab-emulator
+
+  ${CONTAINER_CMD} build -t gitlab-emulator:latest .
+  sudo k3s ctr images rm docker.io/library/gitlab-emulator:latest localhost/gitlab-emulator:latest 2>/dev/null || true
+  ${CONTAINER_CMD} save gitlab-emulator:latest | sudo k3s ctr images import -
+  sudo k3s ctr images tag localhost/gitlab-emulator:latest docker.io/library/gitlab-emulator:latest 2>/dev/null || true
+  echo "Successfully built and imported gitlab-emulator:latest"
+else
+  echo "WARNING: gitlab-emulator repo not found at ${PROJECT_ROOT}/deploy/repos/gitlab-emulator"
+fi
+
 # Build markovd if the repo exists
 if [ -d ${PROJECT_ROOT}/deploy/repos/markovd ]; then
   echo "--- Building markovd image for k3s ---"
@@ -179,6 +193,6 @@ fi
 echo "==> Image build complete!"
 echo ""
 echo "Imported images:"
-sudo k3s ctr images ls | grep -E 'ai-first-pipeline|github-emulator|jira-emulator|ingress-proxy|observatory|markovd' || echo "No matching images found"
+sudo k3s ctr images ls | grep -E 'ai-first-pipeline|github-emulator|gitlab-emulator|jira-emulator|ingress-proxy|observatory|markovd' || echo "No matching images found"
 echo ""
 echo "Note: ingress-proxy image is built during the ingress deployment step"

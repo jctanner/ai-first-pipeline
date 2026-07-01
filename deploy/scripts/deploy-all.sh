@@ -34,7 +34,7 @@ if [ ! -f ${PROJECT_ROOT}/.env ]; then
 fi
 
 # Step 1: Install K3s (skip if already running)
-echo "Step 1/17: Installing K3s..."
+echo "Step 1/19: Installing K3s..."
 if kubectl get nodes &>/dev/null; then
   echo "  K3s already running, skipping install"
 elif [ "${PROJECT_ROOT}" != "/vagrant" ] && [ -f "${SCRIPT_DIR}/01-install-k3s-host.sh" ]; then
@@ -45,84 +45,94 @@ fi
 echo ""
 
 # Step 2: Install cert-manager
-echo "Step 2/17: Installing cert-manager..."
+echo "Step 2/19: Installing cert-manager..."
 bash "${SCRIPT_DIR}/02-install-cert-manager.sh"
 echo ""
 
 # Step 3: Setup certificates
-echo "Step 3/17: Setting up certificates..."
+echo "Step 3/19: Setting up certificates..."
 bash "${SCRIPT_DIR}/03-setup-certificates.sh"
 echo ""
 
 # Step 4: Extract CA cert
-echo "Step 4/17: Extracting CA certificate..."
+echo "Step 4/19: Extracting CA certificate..."
 bash "${SCRIPT_DIR}/04-extract-ca-cert.sh"
 echo ""
 
 # Step 5: Create secrets
-echo "Step 5/17: Creating Kubernetes secrets..."
+echo "Step 5/19: Creating Kubernetes secrets..."
 bash "${SCRIPT_DIR}/06-create-secrets.sh"
 echo ""
 
 # Step 6: Build images
-echo "Step 6/17: Building container images..."
+echo "Step 6/19: Building container images..."
 bash "${SCRIPT_DIR}/05-build-images.sh"
 echo ""
 
 # Step 7: Deploy storage
-echo "Step 7/17: Deploying storage..."
+echo "Step 7/19: Deploying storage..."
 kubectl apply -f ${PROJECT_ROOT}/deploy/k8s/03-storage.yaml
 kubectl apply -f ${PROJECT_ROOT}/deploy/k8s/14-pipeline-storage.yaml
 echo ""
 
 # Step 8: Deploy RBAC
-echo "Step 8/17: Deploying RBAC..."
+echo "Step 8/19: Deploying RBAC..."
 kubectl apply -f ${PROJECT_ROOT}/deploy/k8s/16-pipeline-rbac.yaml
 echo ""
 
 # Step 9: Deploy emulator ConfigMaps
-echo "Step 9/17: Deploying emulator configurations..."
+echo "Step 9/19: Deploying emulator configurations..."
 kubectl apply -f ${PROJECT_ROOT}/deploy/k8s/09-github-emulator-config.yaml
 kubectl apply -f ${PROJECT_ROOT}/deploy/k8s/11-jira-emulator-config.yaml
 echo ""
 
 # Step 10: Deploy GitHub emulator
-echo "Step 10/17: Deploying GitHub emulator..."
+echo "Step 10/19: Deploying GitHub emulator..."
 bash "${SCRIPT_DIR}/07-deploy-github-emulator.sh"
 echo ""
 
 # Step 11: Deploy Jira emulator
-echo "Step 11/17: Deploying Jira emulator..."
+echo "Step 11/19: Deploying Jira emulator..."
 bash "${SCRIPT_DIR}/08-deploy-jira-emulator.sh"
 echo ""
 
 # Step 12: Deploy pipeline dashboard
-echo "Step 12/17: Deploying pipeline dashboard..."
+echo "Step 12/19: Deploying pipeline dashboard..."
 kubectl apply -f ${PROJECT_ROOT}/deploy/k8s/20-pipeline-dashboard.yaml
 echo ""
 
 # Step 13: Deploy MLflow
-echo "Step 13/17: Deploying MLflow..."
+echo "Step 13/19: Deploying MLflow..."
 bash "${SCRIPT_DIR}/10-deploy-mlflow.sh"
 echo ""
 
 # Step 14: Deploy markovd
-echo "Step 14/17: Deploying markovd (workflow engine)..."
+echo "Step 14/19: Deploying markovd (workflow engine)..."
 bash "${SCRIPT_DIR}/12-deploy-markovd.sh"
 echo ""
 
 # Step 15: Deploy Observatory
-echo "Step 15/17: Deploying Observatory..."
+echo "Step 15/19: Deploying Observatory..."
 bash "${SCRIPT_DIR}/13-deploy-observatory.sh"
 echo ""
 
-# Step 16: Deploy ingress proxy
-echo "Step 16/17: Deploying ingress proxy (Go reverse proxy)..."
+# Step 16: Deploy GitLab emulator
+echo "Step 16/19: Deploying GitLab emulator..."
+bash "${SCRIPT_DIR}/14-deploy-gitlab-emulator.sh"
+echo ""
+
+# Step 17: Deploy GitLab Runner (in-cluster Kubernetes executor)
+echo "Step 17/19: Deploying GitLab Runner..."
+bash "${SCRIPT_DIR}/15-deploy-gitlab-runner.sh"
+echo ""
+
+# Step 18: Deploy ingress proxy
+echo "Step 18/19: Deploying ingress proxy (Go reverse proxy)..."
 bash "${SCRIPT_DIR}/09-deploy-ingress-proxy.sh"
 echo ""
 
-# Step 17: Wait for all deployments
-echo "Step 17/17: Waiting for all deployments to be ready..."
+# Step 19: Wait for all deployments
+echo "Step 19/19: Waiting for all deployments to be ready..."
 kubectl wait --for=condition=Available --timeout=300s \
   deployment/pipeline-dashboard -n ai-pipeline || true
 kubectl wait --for=condition=Available --timeout=300s \
@@ -133,6 +143,10 @@ kubectl wait --for=condition=Available --timeout=300s \
   deployment/mlflow -n ai-pipeline || true
 kubectl wait --for=condition=Available --timeout=300s \
   deployment/observatory -n ai-pipeline || true
+kubectl wait --for=condition=Available --timeout=300s \
+  deployment/gitlab-emulator -n ai-pipeline || true
+kubectl wait --for=condition=Available --timeout=300s \
+  deployment/gitlab-runner -n gitlab-runner || true
 kubectl wait --for=condition=Available --timeout=300s \
   deployment/ingress-proxy -n ai-pipeline || true
 kubectl wait --for=condition=Available --timeout=300s \
@@ -196,12 +210,18 @@ echo "  - http://${INGRESS_IP} -H 'Host: observatory.local'"
 echo "  - https://${INGRESS_IP} -H 'Host: observatory.local' (TLS)"
 echo ""
 
+echo "GitLab Emulator:"
+echo "  - http://${INGRESS_IP} -H 'Host: gitlab.local'"
+echo "  - https://${INGRESS_IP} -H 'Host: gitlab.local' (TLS)"
+echo ""
+
 echo "Internal Service URLs (from pods):"
 echo "  - GitHub:      https://github-emulator.ai-pipeline.svc.cluster.local:443"
 echo "  - Jira:        https://jira-emulator.ai-pipeline.svc.cluster.local:443"
 echo "  - Dashboard:   http://pipeline-dashboard.ai-pipeline.svc.cluster.local:5000"
 echo "  - MLflow:      http://mlflow.ai-pipeline.svc.cluster.local:5000"
 echo "  - Observatory: http://observatory.ai-pipeline.svc.cluster.local:8000"
+echo "  - GitLab:      https://gitlab-emulator.ai-pipeline.svc.cluster.local:443"
 echo ""
 
 echo "Cluster Status:"

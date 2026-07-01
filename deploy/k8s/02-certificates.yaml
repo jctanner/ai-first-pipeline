@@ -61,6 +61,37 @@ spec:
     name: internal-ca-issuer
     kind: Issuer
 ---
+# Certificate for GitLab Emulator
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: gitlab-emulator-tls
+  namespace: ai-pipeline
+spec:
+  secretName: gitlab-emulator-tls
+  duration: 8760h # 1 year
+  renewBefore: 720h # 30 days
+
+  commonName: gitlab-emulator.ai-pipeline.svc.cluster.local
+
+  dnsNames:
+    - gitlab-emulator
+    - gitlab-emulator.ai-pipeline
+    - gitlab-emulator.ai-pipeline.svc
+    - gitlab-emulator.ai-pipeline.svc.cluster.local
+    - gitlab.local
+
+  ipAddresses:
+    - 192.168.56.10
+
+  privateKey:
+    algorithm: RSA
+    size: 2048
+
+  issuerRef:
+    name: internal-ca-issuer
+    kind: Issuer
+---
 # Certificate for Jira Emulator
 apiVersion: cert-manager.io/v1
 kind: Certificate

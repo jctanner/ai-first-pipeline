@@ -1,0 +1,171 @@
+---
+# ConfigMap for GitLab Emulator Caddyfile
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: gitlab-emulator-config
+  namespace: ai-pipeline
+data:
+  Caddyfile: |
+    {$GITLAB_EMULATOR_HOSTNAME:gitlab-emulator.ai-pipeline.svc.cluster.local} {
+        tls {$TLS_CERT_FILE:/etc/tls/tls.crt} {$TLS_KEY_FILE:/etc/tls/tls.key}
+
+        reverse_proxy 127.0.0.1:8000
+
+        log {
+            output stdout
+            format console
+        }
+    }
+---
+# Service for GitLab Emulator
+apiVersion: v1
+kind: Service
+metadata:
+  name: gitlab-emulator
+  namespace: ai-pipeline
+  labels:
+    app: gitlab-emulator
+spec:
+  type: ClusterIP
+  selector:
+    app: gitlab-emulator
+  ports:
+    - name: https
+      port: 443
+      targetPort: 443
+      protocol: TCP
+    - name: http
+      port: 80
+      targetPort: 80
+      protocol: TCP
+---
+# PersistentVolumeClaim for GitLab Emulator data
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: gitlab-emulator-data
+  namespace: ai-pipeline
+  labels:
+    app: gitlab-emulator
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 2Gi
+  storageClassName: local-path
+---
+# Deployment for GitLab Emulator
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: gitlab-emulator
+  namespace: ai-pipeline
+  labels:
+    app: gitlab-emulator
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: gitlab-emulator
+  template:
+    metadata:
+      labels:
+        app: gitlab-emulator
+    spec:
+      initContainers:
+      - name: setup-ca-trust
+        image: alpine:3.19
+        command:
+        - sh
+        - -c
+        - |
+          set -ex
+          if [ -f /tmp/ca-cert/ca.crt ]; then
+            cp /tmp/ca-cert/ca.crt /shared/internal-ca.crt
+            echo "CA cert copied to shared volume"
+          fi
+        volumeMounts:
+        - name: ca-cert
+          mountPath: /tmp/ca-cert
+          readOnly: true
+        - name: shared-ca
+          mountPath: /shared
+
+      containers:
+      - name: gitlab-emulator
+        image: gitlab-emulator:latest
+        imagePullPolicy: IfNotPresent
+
+        ports:
+        - name: https
+          containerPort: 443
+          protocol: TCP
+        - name: http
+          containerPort: 80
+          protocol: TCP
+
+        env:
+        - name: GITLAB_EMULATOR_PORT
+          value: "8000"
+        - name: GITLAB_EMULATOR_HOST
+          value: "0.0.0.0"
+        - name: GITLAB_EMULATOR_HOSTNAME
+          value: gitlab-emulator.ai-pipeline.svc.cluster.local
+        - name: GITLAB_EMULATOR_BASE_URL
+          value: https://gitlab-emulator.ai-pipeline.svc.cluster.local
+        - name: GITLAB_EMULATOR_DATA_DIR
+          value: /data
+        - name: GITLAB_EMULATOR_DATABASE_URL
+          value: "sqlite+aiosqlite:////data/gitlab_emulator.db"
+        - name: TLS_CERT_FILE
+          value: /etc/tls/tls.crt
+        - name: TLS_KEY_FILE
+          value: /etc/tls/tls.key
+        - name: AUTO_TLS
+          value: "false"
+
+        volumeMounts:
+        - name: tls-cert
+          mountPath: /etc/tls
+          readOnly: true
+        - name: caddy-config
+          mountPath: /etc/caddy/Caddyfile
+          subPath: Caddyfile
+          readOnly: true
+        - name: data
+          mountPath: /data
+        - name: shared-ca
+          mountPath: /etc/ssl/certs/internal
+          readOnly: true
+
+        resources:
+          requests:
+            memory: "256Mi"
+            cpu: "100m"
+          limits:
+            memory: "512Mi"
+            cpu: "500m"
+
+      volumes:
+      - name: tls-cert
+        secret:
+          secretName: gitlab-emulator-tls
+          items:
+          - key: tls.crt
+            path: tls.crt
+          - key: tls.key
+            path: tls.key
+      - name: caddy-config
+        configMap:
+          name: gitlab-emulator-config
+      - name: data
+        persistentVolumeClaim:
+          claimName: gitlab-emulator-data
+      - name: ca-cert
+        configMap:
+          name: internal-ca-cert
+          optional: true
+      - name: shared-ca
+        emptyDir: {}

@@ -27,6 +27,34 @@ spec:
             port:
               number: 8000
 ---
+# Ingress for GitLab Emulator
+# Routes to backend application port (8000), bypassing Caddy
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: gitlab-emulator
+  namespace: ai-pipeline
+  annotations:
+    cert-manager.io/issuer: internal-ca-issuer
+    traefik.ingress.kubernetes.io/router.tls: "true"
+spec:
+  ingressClassName: traefik
+  tls:
+  - hosts:
+    - gitlab-emulator.ai-pipeline.svc.cluster.local
+    secretName: gitlab-emulator-tls
+  rules:
+  - host: gitlab-emulator.ai-pipeline.svc.cluster.local
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: gitlab-emulator-backend
+            port:
+              number: 8000
+---
 # Ingress for Jira Emulator
 # Routes to backend application port (8080), bypassing Caddy
 apiVersion: networking.k8s.io/v1

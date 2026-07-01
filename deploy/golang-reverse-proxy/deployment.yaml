@@ -118,6 +118,8 @@ spec:
     - markovd.local
     - observatory.ai-pipeline.svc.cluster.local
     - observatory.local
+    - gitlab-emulator.ai-pipeline.svc.cluster.local
+    - gitlab.local
   issuerRef:
     name: internal-ca-issuer
     kind: Issuer

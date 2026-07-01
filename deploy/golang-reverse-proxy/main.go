@@ -67,6 +67,14 @@ var routes = []Route{
 		Host:    "observatory.local",
 		Backend: "http://observatory.ai-pipeline.svc.cluster.local:8000",
 	},
+	{
+		Host:    "gitlab-emulator.ai-pipeline.svc.cluster.local",
+		Backend: "https://gitlab-emulator.ai-pipeline.svc.cluster.local:443",
+	},
+	{
+		Host:    "gitlab.local",
+		Backend: "https://gitlab-emulator.ai-pipeline.svc.cluster.local:443",
+	},
 }
 
 var (

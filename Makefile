@@ -64,6 +64,13 @@ vagrant-rebuild-github: ## Rebuild and redeploy GitHub emulator
 	vagrant ssh -c "kubectl rollout status deployment/github-emulator -n ai-pipeline --timeout=60s"
 	@echo "✓ GitHub emulator rebuilt and redeployed"
 
+vagrant-rebuild-gitlab: ## Rebuild and redeploy GitLab emulator
+	@echo "==> Rebuilding GitLab emulator..."
+	vagrant ssh -c "cd /vagrant/deploy/scripts && sudo bash 05f-build-gitlab-emulator.sh"
+	vagrant ssh -c "kubectl rollout restart deployment/gitlab-emulator -n ai-pipeline"
+	vagrant ssh -c "kubectl rollout status deployment/gitlab-emulator -n ai-pipeline --timeout=60s"
+	@echo "✓ GitLab emulator rebuilt and redeployed"
+
 ##@ Vagrant: Secrets Management
 
 GCP_CREDS ?= $(HOME)/.config/gcloud/application_default_credentials.json
@@ -122,7 +129,7 @@ vagrant-status: ## Check cluster and pod status
 	vagrant ssh -c "kubectl get jobs -n ai-pipeline --sort-by=.metadata.creationTimestamp | tail -10"
 
 vagrant-images: ## List imported k3s images
-	vagrant ssh -c "sudo k3s ctr images ls | grep -E 'ai-first-pipeline|pipeline-agent|github-emulator|jira-emulator|ingress-proxy'"
+	vagrant ssh -c "sudo k3s ctr images ls | grep -E 'ai-first-pipeline|pipeline-agent|github-emulator|gitlab-emulator|jira-emulator|ingress-proxy'"
 
 vagrant-logs-dashboard: vagrant-dashboard-logs ## Alias for vagrant-dashboard-logs
 
@@ -131,6 +138,18 @@ vagrant-logs-jira: ## Follow Jira emulator logs
 
 vagrant-logs-github: ## Follow GitHub emulator logs
 	vagrant ssh -c "kubectl logs -n ai-pipeline -l app=github-emulator -f"
+
+vagrant-logs-gitlab: ## Follow GitLab emulator logs
+	vagrant ssh -c "kubectl logs -n ai-pipeline -l app=gitlab-emulator -f"
+
+vagrant-deploy-gitlab-runner: ## Deploy GitLab Runner (in-cluster k8s executor)
+	vagrant ssh -c "cd /vagrant/deploy/scripts && sudo bash 15-deploy-gitlab-runner.sh"
+
+vagrant-logs-gitlab-runner: ## Follow GitLab Runner logs
+	vagrant ssh -c "kubectl logs -n gitlab-runner -l app=gitlab-runner -f"
+
+vagrant-gitlab-runner-status: ## Show GitLab Runner pod status
+	vagrant ssh -c "kubectl get pods -n gitlab-runner -o wide"
 
 vagrant-logs-mlflow: ## Follow MLflow logs
 	vagrant ssh -c "kubectl logs -n ai-pipeline -l app=mlflow -f"
@@ -304,6 +323,13 @@ host-rebuild-github: ## Rebuild and redeploy GitHub emulator on host
 	kubectl rollout status deployment/github-emulator -n ai-pipeline --timeout=60s
 	@echo "✓ GitHub emulator rebuilt and redeployed"
 
+host-rebuild-gitlab: ## Rebuild and redeploy GitLab emulator on host
+	@echo "==> Rebuilding GitLab emulator..."
+	PROJECT_ROOT=$(HOST_PROJECT_ROOT) bash deploy/scripts/05f-build-gitlab-emulator.sh
+	kubectl rollout restart deployment/gitlab-emulator -n ai-pipeline
+	kubectl rollout status deployment/gitlab-emulator -n ai-pipeline --timeout=60s
+	@echo "✓ GitLab emulator rebuilt and redeployed"
+
 host-build-all: ## Build dashboard and agent images on host
 	@echo "==> Building dashboard and agent images..."
 	@$(MAKE) host-build-dashboard
@@ -340,7 +366,7 @@ host-status: ## Check cluster and pod status on host
 	kubectl get jobs -n ai-pipeline --sort-by=.metadata.creationTimestamp | tail -10
 
 host-images: ## List imported k3s images on host
-	sudo k3s ctr images ls | grep -E 'pipeline-agent|pipeline-dashboard|github-emulator|jira-emulator|ingress-proxy|markov' || true
+	sudo k3s ctr images ls | grep -E 'pipeline-agent|pipeline-dashboard|github-emulator|gitlab-emulator|jira-emulator|ingress-proxy|markov' || true
 
 host-rebuild-ingress-proxy: ## Rebuild and redeploy ingress proxy on host
 	@echo "==> Rebuilding ingress proxy..."
@@ -367,6 +393,18 @@ host-logs-jira: ## Follow Jira emulator logs on host
 
 host-logs-github: ## Follow GitHub emulator logs on host
 	kubectl logs -n ai-pipeline -l app=github-emulator -f
+
+host-logs-gitlab: ## Follow GitLab emulator logs on host
+	kubectl logs -n ai-pipeline -l app=gitlab-emulator -f
+
+host-deploy-gitlab-runner: ## Deploy GitLab Runner (in-cluster k8s executor) on host
+	PROJECT_ROOT=$(HOST_PROJECT_ROOT) bash deploy/scripts/15-deploy-gitlab-runner.sh
+
+host-logs-gitlab-runner: ## Follow GitLab Runner logs on host
+	kubectl logs -n gitlab-runner -l app=gitlab-runner -f
+
+host-gitlab-runner-status: ## Show GitLab Runner pod status on host
+	kubectl get pods -n gitlab-runner -o wide
 
 host-logs-mlflow: ## Follow MLflow logs on host
 	kubectl logs -n ai-pipeline -l app=mlflow -f

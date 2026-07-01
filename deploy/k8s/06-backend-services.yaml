@@ -21,6 +21,23 @@ spec:
 apiVersion: v1
 kind: Service
 metadata:
+  name: gitlab-emulator-backend
+  namespace: ai-pipeline
+  labels:
+    app: gitlab-emulator
+spec:
+  type: ClusterIP
+  selector:
+    app: gitlab-emulator
+  ports:
+    - name: http
+      port: 8000
+      targetPort: 8000
+      protocol: TCP
+---
+apiVersion: v1
+kind: Service
+metadata:
   name: jira-emulator-backend
   namespace: ai-pipeline
   labels:
