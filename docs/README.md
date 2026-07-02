@@ -34,6 +34,7 @@ Planning and strategy documents.
 - [agent-runner-v2-plan.md](plans/agent-runner-v2-plan.md) — Pluggable runner system + MLflow for agentic-ci
 - [dynamic-skill-fqn-plan.md](plans/dynamic-skill-fqn-plan.md) — Dynamic skill resolution via URI-style FQNs
 - [agentic-ci-optional-runner-plan.md](plans/agentic-ci-optional-runner-plan.md) — Optional agentic-ci runner in pipeline agent image
+- [skill-factory-demo-plan.md](plans/skill-factory-demo-plan.md) — Closed-loop skill generation demo using full service stack
 
 ## Reference
 

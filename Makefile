@@ -499,6 +499,12 @@ host-restore: ## Restore from backup on host (set BACKUP=<path>)
 host-list-backups: ## List available backups on host
 	PROJECT_ROOT=$(HOST_PROJECT_ROOT) bash deploy/scripts/list-backups.sh
 
+host-clean-all: ## Wipe ALL data from every service (irreversible)
+	PROJECT_ROOT=$(HOST_PROJECT_ROOT) bash deploy/scripts/clean-all.sh
+
+host-clean-all-yes: ## Wipe ALL data without confirmation prompt
+	PROJECT_ROOT=$(HOST_PROJECT_ROOT) bash deploy/scripts/clean-all.sh --yes
+
 host-delete-jobs: ## Delete all completed/failed jobs on host
 	kubectl delete jobs -n ai-pipeline --all
 
@@ -559,3 +565,4 @@ backup: host-backup ## Shortcut
 backup-full: host-backup-full ## Shortcut
 restore: host-restore ## Shortcut
 list-backups: host-list-backups ## Shortcut
+clean-all: host-clean-all ## Shortcut
