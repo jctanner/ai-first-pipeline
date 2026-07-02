@@ -4,6 +4,48 @@ AI-driven pipeline for triaging, analyzing, and fixing RHOAI (Red Hat OpenShift 
 
 The pipeline orchestrates Claude Agent SDK sessions to fetch Jira issues, score bug completeness, map bugs to architecture context, attempt automated code fixes against midstream repos, validate patches in containers, generate test plans, create and review RFEs, and develop implementation strategies. A Flask dashboard provides a web UI for reviewing results across all pipelines.
 
+```mermaid
+graph TB
+    subgraph host["Host Machine"]
+        proxy["Go Reverse Proxy<br/>*.local TLS routing"]
+    end
+
+    subgraph k3s["K3s Cluster"]
+        direction TB
+
+        subgraph core["Core Services"]
+            dashboard["Pipeline Dashboard<br/>dashboard.local"]
+            markov["Markov<br/>markov.local<br/>Workflow Engine"]
+            mlflow["MLflow<br/>mlflow.local<br/>Experiment Tracking"]
+            es["Elasticsearch<br/>Trace Indexing"]
+            observatory["Observatory<br/>observatory.local<br/>Claim Verification"]
+        end
+
+        subgraph emulators["Service Emulators"]
+            github["GitHub Emulator<br/>github.local"]
+            gitlab["GitLab Emulator<br/>gitlab.local"]
+            jira["Jira Emulator<br/>jira.local"]
+            runner["GitLab Runner<br/>K8s Executor"]
+        end
+
+        subgraph infra["Infrastructure"]
+            certmgr["cert-manager<br/>Internal CA"]
+            traefik["Traefik<br/>Ingress Controller"]
+        end
+
+        jobs["Pipeline Agent Jobs<br/>Claude SDK"]
+    end
+
+    proxy --> traefik
+    traefik --> dashboard & mlflow & markov & observatory
+    traefik --> github & gitlab & jira
+    runner --> gitlab
+    dashboard --> jira & mlflow
+    jobs --> jira & github
+    mlflow --> es
+    certmgr -.->|TLS certs| traefik
+```
+
 ## Prerequisites
 
 - Python 3.13+
@@ -11,6 +53,7 @@ The pipeline orchestrates Claude Agent SDK sessions to fetch Jira issues, score 
 - [Podman](https://podman.io/) (for patch validation containers)
 - Git
 - Vertex AI credentials (the Claude Agent SDK connects via Google Cloud)
+- K3s (for the full deployment stack; optional for CLI-only usage)
 
 ### External data directories
 
@@ -282,12 +325,79 @@ python main.py dashboard
 
 Opens a Flask web app at `http://localhost:5000` with:
 
-- **Multi-tab view** — All Issues, Bugs, RFEs, Strategies
+- **Multi-tab view** — All Issues, Bugs, RFEs, Strategies, Epics
 - **Issue detail pages** — full Jira data alongside completeness scores, context maps, fix attempts with patches, validation results, self-corrections, and test plans
 - **RFE detail pages** — task content, reviews, and tabbed sections
 - **Strategy detail pages** — metadata, review summaries, and tabbed content
+- **K8s Jobs page** — submit, monitor, and inspect pipeline jobs running in the cluster
 - **Activity feed** — live pipeline progress via SSE
 - **Stats page** — aggregate statistics across all issues
+- **Admin panel** — service configuration and management
+- **File browser** — browse generated artifacts on disk
+
+When deployed in the K3s stack, the dashboard is available at `https://dashboard.local` with navbar links to all cluster services (MLflow, Markov, GitHub, GitLab, Jira, Observatory).
+
+## K8s Deployment Stack
+
+The project includes a full K3s-based deployment stack for running the pipeline and its supporting services in a single-node Kubernetes cluster.
+
+### Deployed Services
+
+| Service | Namespace | URL | Purpose |
+|---------|-----------|-----|---------|
+| Pipeline Dashboard | ai-pipeline | `https://dashboard.local` | Web UI for bugs, RFEs, strategies, jobs |
+| GitHub Emulator | ai-pipeline | `https://github.local` | Git hosting and GitHub API emulation |
+| GitLab Emulator | ai-pipeline | `https://gitlab.local` | GitLab API emulation with CI/CD pipelines |
+| Jira Emulator | ai-pipeline | `https://jira.local` | Jira REST API emulation for ticket management |
+| GitLab Runner | gitlab-runner | — | In-cluster CI runner (Kubernetes executor) |
+| MLflow | ai-pipeline | `https://mlflow.local` | Experiment tracking and agent trace logging |
+| Markov (markovd) | ai-pipeline | `https://markov.local` | Workflow engine for multi-phase pipelines |
+| Elasticsearch | ai-pipeline | — | Trace indexing and search |
+| Observatory | ai-pipeline | `https://observatory.local` | Claim extraction and verification |
+| Go Reverse Proxy | ai-pipeline | — | Routes `*.local` hostnames to internal services via TLS |
+
+### Infrastructure
+
+- **K3s** — lightweight Kubernetes (single-node)
+- **cert-manager** — automatic TLS certificate provisioning with an internal CA
+- **Traefik** — ingress controller for internal routing
+- **Go reverse proxy** — routes `*.local` DNS names from the host to cluster services with TLS passthrough
+
+### Deployment
+
+```bash
+# Full stack deployment (19 steps)
+make host-deploy-all
+
+# Or step by step
+make host-install-k3s
+make host-images          # Build all container images
+make host-deploy-all      # Apply k8s manifests, wait for readiness
+```
+
+### Makefile Targets
+
+The Makefile provides targets for both Vagrant VM (`vagrant-*`) and bare-metal host (`host-*`) deployment:
+
+| Target Group | Examples | Purpose |
+|-------------|----------|---------|
+| `host-deploy-*` | `host-deploy-all`, `host-deploy-dashboard` | Deploy services |
+| `host-rebuild-*` | `host-rebuild-dashboard`, `host-rebuild-gitlab` | Build image + restart deployment |
+| `host-logs-*` | `host-logs-dashboard`, `host-logs-gitlab` | Tail service logs |
+| `host-images` | | Build all container images |
+| `host-status` | | Cluster pod/service status |
+| `host-es-sync` | | Sync MLflow traces to Elasticsearch |
+| `host-backup` / `host-restore` | | Backup and restore all service data |
+| `host-deploy-gitlab-runner` | | Deploy GitLab Runner with k8s executor |
+
+### Backup and Restore
+
+```bash
+make host-backup                    # Backup all service data
+make host-backup-full               # Include workspace and context PVCs
+make host-restore BACKUP=<path>     # Restore from a backup
+make host-list-backups              # List available backups
+```
 
 ## Project Structure
 
@@ -295,10 +405,11 @@ Opens a Flask web app at `http://localhost:5000` with:
 ai-first-pipeline/
 ├── main.py                  # Entry point (CLI dispatcher)
 ├── pyproject.toml           # Dependencies and project metadata
+├── Makefile                 # Build, deploy, and operational targets
 ├── var/
 │   ├── pipeline-skills.yaml # Phase-to-skill mapping and invocation config
 │   ├── skills-registry.yaml # Staging registry for external skill plugins
-│   └── markov-workflows/    # Markov workflow definitions
+│   └── markov-workflows/    # Markov workflow definitions (batch RFE, strategy, etc.)
 ├── .env                     # Vertex AI and Jira credentials (gitignored)
 ├── CLAUDE.md                # Claude Code project context
 ├── src/
@@ -317,19 +428,31 @@ ai-first-pipeline/
 │       ├── report_data.py   # Dashboard data loading (bugs)
 │       ├── rfe_data.py      # Dashboard data loading (RFEs)
 │       ├── stats.py         # Aggregate statistics
-│       ├── k8s_orchestrator.py # K8s job management
+│       ├── k8s_orchestrator.py # K8s job submission and monitoring
 │       ├── mlflow_client.py # MLflow API client
 │       ├── templates/       # Jinja2 HTML templates
 │       └── static/js/       # Frontend JavaScript
+├── deploy/
+│   ├── k8s/                 # Kubernetes manifests (namespace, certs, services, deployments)
+│   ├── scripts/             # Build and deployment automation (19-step deploy-all.sh)
+│   ├── golang-reverse-proxy/  # Go reverse proxy for *.local TLS routing
+│   └── repos/               # Cloned emulator and service repos (gitignored)
+│       ├── github-emulator/ # GitHub API emulator
+│       ├── jira-emulator/   # Jira API emulator
+│       └── gitlab-emulator/ # GitLab API emulator with CI/CD
 ├── .claude/skills/          # Local agent skill definitions
-│   ├── bug-completeness/
-│   ├── bug-context-map/
-│   ├── bug-fix-attempt/
-│   ├── bug-test-plan/
-│   ├── bug-write-test/
-│   ├── patch-validation/
-│   ├── strat-security-review/
-│   └── strat-submit/
+│   ├── bug-completeness/    # Score bug quality, classify type
+│   ├── bug-context-map/     # Map bug to architecture docs and repos
+│   ├── bug-fix-attempt/     # Analyze root cause, edit source, produce patch
+│   ├── bug-test-plan/       # Design verification strategy
+│   ├── bug-write-test/      # Write QE tests for opendatahub-tests
+│   ├── patch-validation/    # Run lint/tests in containers
+│   ├── strat-security-review/ # Security threat assessment
+│   ├── strat-submit/        # Push strategies to Jira
+│   ├── extract-claims/      # Observatory: extract verifiable claims
+│   ├── verify-claims/       # Observatory: verify claims against evidence
+│   ├── explain-claims/      # Observatory: explain claim verification results
+│   └── doc-*/               # Documentation generation skills
 ├── remote_skills/           # External skill repos (gitignored)
 │   └── rfe-creator/         # RFE/strategy skills, scripts, CLAUDE.md
 ├── .context/                # External context data (gitignored)
@@ -338,15 +461,51 @@ ai-first-pipeline/
 ├── scripts/
 │   ├── fetch_bugs.py        # Standalone Jira fetch script
 │   ├── attach_to_jira.py    # Attach artifacts to Jira tickets
-│   ├── migrate_to_workspace.py  # Data migration utility
 │   └── clean.sh             # Reset workspaces and logs
+├── docs/                    # Architecture docs, plans, notes, reference, bugs
 ├── bugs/                    # Bug analysis notes and summaries
-├── security-reviews/        # Generated security review outputs (gitignored)
+├── artifacts/               # Security reviews and requirements (gitignored)
 ├── issues/                  # Fetched Jira JSON (gitignored)
 ├── workspace/               # Cloned repos and phase outputs per issue (gitignored)
 └── logs/                    # Activity logs and phase logs (gitignored)
     └── activity.jsonl       # Structured event feed for dashboard SSE
 ```
+
+## Service Emulators
+
+The deployment stack includes local emulators for GitHub, GitLab, and Jira so the pipeline can run end-to-end without depending on external services. Each emulator lives in `deploy/repos/` and is built into a container image deployed to the cluster.
+
+| Emulator | URL | API | Purpose |
+|----------|-----|-----|---------|
+| **GitHub Emulator** | `https://github.local` | GitHub REST API | Git hosting, pull requests, issues, `gh` CLI workflows |
+| **GitLab Emulator** | `https://gitlab.local` | GitLab REST API | Git hosting, CI/CD pipelines, merge requests, `glab` CLI workflows |
+| **Jira Emulator** | `https://jira.local` | Jira REST API v2/v3 | Issue tracking, project management, MCP server for Claude integration |
+
+The Jira emulator includes a built-in MCP (Model Context Protocol) server, enabling Claude agents to interact with Jira tickets directly during pipeline runs.
+
+The GitLab emulator supports CI/CD pipeline execution via an in-cluster **GitLab Runner** (Kubernetes executor) that polls for jobs and runs them as pods in the `gitlab-runner` namespace.
+
+Each emulator runs on SQLite — no external database required. Data persists on PVCs within the cluster.
+
+## Markov Workflows
+
+The pipeline integrates with [Markov](https://markov.local), a workflow engine that orchestrates multi-phase pipelines as declarative YAML definitions. Workflow definitions live in `var/markov-workflows/`:
+
+| Workflow | Purpose |
+|----------|---------|
+| `batch-rfe-pipeline.yaml` | Batch RFE processing (create, review, submit) |
+| `batch-rfe-to-strategy.yaml` | Convert batch of RFEs to strategies |
+| `rfe-to-strategy.yaml` | Single RFE to strategy conversion |
+| `rfe-pipeline-with-gates.yaml` | RFE pipeline with approval gates |
+| `arch-context-benchmark.yaml` | Architecture context quality benchmarking |
+
+## Observatory
+
+The Observatory service extracts verifiable claims from pipeline artifacts (RFEs, strategies, security reviews) and checks them against evidence. It runs as a cluster service and has dedicated skills:
+
+- **extract-claims** — parse artifacts into discrete, testable claims
+- **verify-claims** — check each claim against source material and codebase evidence
+- **explain-claims** — produce human-readable verification summaries
 
 ## Jira Projects
 
@@ -355,3 +514,7 @@ ai-first-pipeline/
 | `RHOAIENG` | Engineering bugs |
 | `RHAIRFE` | Requests for Enhancement |
 | `RHAISTRAT` | Implementation strategies |
+
+## Documentation
+
+See [docs/README.md](docs/README.md) for the full documentation index covering architecture, deployment, plans, reference material, notes, and the agentic work ledger methodology.
