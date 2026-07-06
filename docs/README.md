@@ -35,6 +35,8 @@ Planning and strategy documents.
 - [dynamic-skill-fqn-plan.md](plans/dynamic-skill-fqn-plan.md) — Dynamic skill resolution via URI-style FQNs
 - [agentic-ci-optional-runner-plan.md](plans/agentic-ci-optional-runner-plan.md) — Optional agentic-ci runner in pipeline agent image
 - [skill-factory-demo-plan.md](plans/skill-factory-demo-plan.md) — Closed-loop skill generation demo using full service stack
+- [observability-demo-plan.md](plans/observability-demo-plan.md) — RFE-to-strategy pipeline with claim analysis and remediation
+- [evals-dashboard-plan.md](plans/evals-dashboard-plan.md) — Add Evals page to dashboard for agent-eval-harness runs with A/B context comparison
 
 ## Reference
 
@@ -53,6 +55,7 @@ Tracked issues and investigations.
 
 - [opencode-mlflow-issue.md](bugs/opencode-mlflow-issue.md) — OpenCode MLflow trace parity with Claude Code
 - [opencode-sdk-noop.md](bugs/opencode-sdk-noop.md) — OpenCode SDK silently drops prompts
+- [eval-job-143610-bugs.md](bugs/eval-job-143610-bugs.md) — 16 bugs from first eval harness run (dataset config, harness, pipeline)
 
 ## Notes
 

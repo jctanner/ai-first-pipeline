@@ -113,6 +113,7 @@ class PipelineOrchestrator:
             "succeeded": job.status.succeeded or 0,
             "failed": job.status.failed or 0,
             "phase": job.metadata.labels.get("phase"),
+            "category": job.metadata.labels.get("category", ""),
             "issue": job.metadata.labels.get("issue"),
             "model": (job.metadata.annotations or {}).get("model") or job.metadata.labels.get("model"),
             "runner": job.metadata.labels.get("runner", "cli"),
@@ -123,6 +124,13 @@ class PipelineOrchestrator:
             "otel": job.metadata.labels.get("otel", "true") == "true",
             "extra_kwargs": (job.metadata.annotations or {}).get("extra_kwargs", ""),
             "fqn": (job.metadata.annotations or {}).get("fqn", ""),
+            "dataset_fqn": (job.metadata.annotations or {}).get("dataset_fqn", ""),
+            "context_ref": (job.metadata.annotations or {}).get("context_ref", ""),
+            "context_repo": (job.metadata.annotations or {}).get("context_repo", ""),
+            "context_mode": (job.metadata.annotations or {}).get("context_mode", ""),
+            "baseline": (job.metadata.annotations or {}).get("baseline", ""),
+            "eval_harness": (job.metadata.annotations or {}).get("eval_harness", ""),
+            "run_id": (job.metadata.annotations or {}).get("run_id", ""),
         }
 
     def get_job_logs(self, job_name: str) -> str:
@@ -590,6 +598,195 @@ fi
                 empty_dir=client.V1EmptyDirVolumeSource()
             )
         ]
+
+    def submit_eval_job(
+        self,
+        dataset_fqn: str,
+        model: str,
+        context_repo: str = "https://github.com/opendatahub-io/architecture-context",
+        context_ref: str = "main",
+        context_mode: str = "files",
+        baseline: str = "",
+        eval_harness: str = "https://github.com/opendatahub-io/agent-eval-harness",
+        args: dict = None,
+    ) -> client.V1Job:
+        """Submit a K8s Job for an eval-harness run."""
+        if args is None:
+            args = {}
+        job = self._create_eval_job_manifest(
+            dataset_fqn, model, context_repo, context_ref, context_mode, baseline, eval_harness, args
+        )
+        return self.batch_v1.create_namespaced_job(
+            namespace=self.namespace,
+            body=job,
+        )
+
+    def list_eval_jobs(self) -> list:
+        """List eval jobs (category=eval label)."""
+        jobs = self.batch_v1.list_namespaced_job(
+            namespace=self.namespace,
+            label_selector="app=pipeline-agent,category=eval",
+        )
+        return jobs.items
+
+    def _create_eval_job_manifest(
+        self,
+        dataset_fqn: str,
+        model: str,
+        context_repo: str,
+        context_ref: str,
+        context_mode: str,
+        baseline: str,
+        eval_harness: str,
+        args: dict,
+    ) -> client.V1Job:
+        """Generate a K8s Job manifest for an eval-harness run."""
+        import re
+
+        eval_config = dataset_fqn.rsplit(":", 1)[-1] if ":" in dataset_fqn else "eval"
+        model_short = model.split("/")[-1].split("@")[0]
+        model_slug = re.sub(r"[^a-z0-9-]", "-", model_short.lower()).strip("-")[:30]
+        model_label = re.sub(r"[^A-Za-z0-9._-]", "_", model)[:63]
+
+        timestamp = datetime.now().strftime("%m%d-%H%M%S")
+        job_name = f"eval-{eval_config}-{model_slug}-{timestamp}".lower().replace("_", "-")
+        run_id = f"{datetime.now().strftime('%Y-%m-%d')}-{model_short}-{timestamp}"
+
+        skill_fqn = dataset_fqn
+
+        cmd_args = [
+            "/bin/bash", "/app/scripts/run_eval.sh",
+            "--dataset-fqn", dataset_fqn,
+            "--model", model,
+            "--context-repo", context_repo,
+            "--context-ref", context_ref,
+            "--context-mode", context_mode,
+            "--eval-harness", eval_harness,
+            "--run-id", run_id,
+        ]
+        if baseline:
+            cmd_args.extend(["--baseline", baseline])
+
+        job = client.V1Job(
+            api_version="batch/v1",
+            kind="Job",
+            metadata=client.V1ObjectMeta(
+                name=job_name,
+                namespace=self.namespace,
+                annotations={
+                    "dataset_fqn": dataset_fqn,
+                    "model": model,
+                    "context_repo": context_repo,
+                    "context_ref": context_ref,
+                    "context_mode": context_mode,
+                    "baseline": baseline or "",
+                    "eval_harness": eval_harness,
+                    "run_id": run_id,
+                },
+                labels={
+                    "app": "pipeline-agent",
+                    "category": "eval",
+                    "eval-config": re.sub(r"[^A-Za-z0-9._-]", "_", eval_config)[:63],
+                    "model": model_label,
+                    "context-mode": context_mode,
+                    "strace": "true" if args.get("strace") else "false",
+                    "mlflow": "false" if args.get("mlflow") is False else "true",
+                    "otel": "false" if args.get("otel") is False else "true",
+                },
+            ),
+            spec=client.V1JobSpec(
+                ttl_seconds_after_finished=86400,
+                backoff_limit=0,
+                template=client.V1PodTemplateSpec(
+                    metadata=client.V1ObjectMeta(
+                        labels={
+                            "app": "pipeline-agent",
+                            "category": "eval",
+                            "eval-config": re.sub(r"[^A-Za-z0-9._-]", "_", eval_config)[:63],
+                        }
+                    ),
+                    spec=client.V1PodSpec(
+                        restart_policy="Never",
+                        affinity=client.V1Affinity(
+                            pod_affinity=client.V1PodAffinity(
+                                required_during_scheduling_ignored_during_execution=[
+                                    client.V1PodAffinityTerm(
+                                        label_selector=client.V1LabelSelector(
+                                            match_labels={"app": "pipeline-dashboard"}
+                                        ),
+                                        topology_key="kubernetes.io/hostname",
+                                    )
+                                ]
+                            )
+                        ),
+                        init_containers=[
+                            client.V1Container(
+                                name="update-ca-trust",
+                                image="alpine:3.19",
+                                command=["sh", "-c"],
+                                args=[
+                                    """set -ex
+
+apk add --no-cache ca-certificates
+
+if [ -f /tmp/ca-cert/ca.crt ]; then
+  mkdir -p /usr/local/share/ca-certificates
+  cp /tmp/ca-cert/ca.crt /usr/local/share/ca-certificates/internal-ca.crt
+  update-ca-certificates
+  cp /etc/ssl/certs/ca-certificates.crt /shared/ca-certificates.crt
+  echo "CA trust store updated successfully"
+else
+  echo "No CA cert found, skipping"
+  cp /etc/ssl/certs/ca-certificates.crt /shared/ca-certificates.crt || touch /shared/ca-certificates.crt
+fi
+"""
+                                ],
+                                volume_mounts=[
+                                    client.V1VolumeMount(
+                                        name="ca-cert",
+                                        mount_path="/tmp/ca-cert",
+                                        read_only=True,
+                                    ),
+                                    client.V1VolumeMount(
+                                        name="shared-ca",
+                                        mount_path="/shared",
+                                    ),
+                                ],
+                            )
+                        ],
+                        containers=[
+                            client.V1Container(
+                                name="agent",
+                                image="pipeline-agent:latest",
+                                image_pull_policy="Never",
+                                command=cmd_args,
+                                env=self._build_env_vars(
+                                    args,
+                                    job_name=job_name,
+                                    skill_fqn=skill_fqn,
+                                    harness="claude-code",
+                                    model=model,
+                                    runner="cli",
+                                ),
+                                volume_mounts=self._build_volume_mounts(),
+                                resources=client.V1ResourceRequirements(
+                                    requests={"memory": "2Gi", "cpu": "500m"},
+                                    limits={"memory": "8Gi", "cpu": "2000m"},
+                                ),
+                                security_context=client.V1SecurityContext(
+                                    capabilities=client.V1Capabilities(add=["SYS_PTRACE"])
+                                )
+                                if args.get("strace")
+                                else None,
+                            )
+                        ],
+                        volumes=self._build_volumes(),
+                    ),
+                ),
+            ),
+        )
+
+        return job
 
     def _get_job_status(self, job: client.V1Job) -> str:
         """Determine job status from K8s Job object."""

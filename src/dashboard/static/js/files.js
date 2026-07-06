@@ -121,6 +121,10 @@ async function viewFile(path, name) {
     if (data.modified) {
       html += 'Modified: ' + formatDate(data.modified);
     }
+    if (/\.html?$/i.test(name)) {
+      const rawUrl = '/api/files/raw?path=' + encodeURIComponent(path);
+      html += ' | <a href="' + rawUrl + '" target="_blank" style="color:#3b82f6; text-decoration:none; font-weight:500;">Open Raw</a>';
+    }
     html += '</div>';
     html += '</div>';
 

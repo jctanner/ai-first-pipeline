@@ -237,3 +237,209 @@ cat ~/.claude/settings.json
 ```
 
 It should show `apiProvider: vertex`, the expected project ID, and the expected region.
+
+## AnthropicVertex Model IDs
+
+The Anthropic Python SDK's `AnthropicVertex` client expects the Agent Platform
+API model ID, not the provider-prefixed model string used by OpenCode or the
+dashboard UI.
+
+Verified on 2026-07-06 with:
+
+```text
+GCP project: itpc-gcp-ai-eng-claude
+Anthropic SDK: anthropic 0.116.0
+```
+
+### Sonnet
+
+For Claude Sonnet 4.6, use:
+
+```text
+claude-sonnet-4-6
+```
+
+Do not use these forms with `AnthropicVertex.messages.create`:
+
+```text
+claude-sonnet-4-6-20250514
+claude-sonnet-4-6@20250514
+google-vertex-anthropic/claude-sonnet-4-6@default
+```
+
+The dated model ID that was also verified to work is:
+
+```text
+claude-sonnet-4-5@20250929
+```
+
+The current Sonnet family model listed by Anthropic docs was also verified:
+
+```text
+claude-sonnet-5
+```
+
+There is no verified Sonnet 4.7 model ID for this project. The current
+Anthropic Google Cloud docs do not list a Claude Sonnet 4.7 entry, and live
+checks returned 404 in both `global` and `us-east5` for:
+
+```text
+claude-sonnet-4-7
+claude-sonnet-4-7@default
+claude-sonnet-4-7@20260601
+```
+
+Use `claude-sonnet-4-6` or `claude-sonnet-5` instead.
+
+`region="global"` works with the Python SDK. In `anthropic 0.116.0`, the SDK
+special-cases global and constructs:
+
+```text
+https://aiplatform.googleapis.com/v1
+/projects/<project>/locations/global/publishers/anthropic/models/<model>:rawPredict
+```
+
+Regional endpoints use:
+
+```text
+https://<region>-aiplatform.googleapis.com/v1
+```
+
+Multi-region endpoints use:
+
+```text
+https://aiplatform.us.rep.googleapis.com/v1
+https://aiplatform.eu.rep.googleapis.com/v1
+```
+
+Minimal smoke test:
+
+```python
+from anthropic import AnthropicVertex
+
+client = AnthropicVertex(
+    project_id="itpc-gcp-ai-eng-claude",
+    region="global",
+)
+
+resp = client.messages.create(
+    model="claude-sonnet-4-6",
+    max_tokens=10,
+    messages=[{"role": "user", "content": "say hi"}],
+)
+
+print(resp.content[0].text)
+```
+
+Observed successful output:
+
+```text
+Hi there! 👋 How are you
+```
+
+Live verification results:
+
+| Region | Model | Result |
+|--------|-------|--------|
+| `global` | `claude-sonnet-4-6` | OK |
+| `global` | `claude-sonnet-4-5@20250929` | OK |
+| `global` | `claude-sonnet-5` | OK |
+| `global` | `claude-sonnet-4-7` | 404 |
+| `global` | `claude-sonnet-4-7@default` | 404 |
+| `global` | `claude-sonnet-4-7@20260601` | 404 |
+| `us-east5` | `claude-sonnet-4-6` | OK |
+| `us-east5` | `claude-sonnet-4-5@20250929` | OK |
+| `us-east5` | `claude-sonnet-4-7` | 404 |
+| `us-east5` | `claude-sonnet-4-7@default` | 404 |
+| `us-east5` | `claude-sonnet-4-7@20260601` | 404 |
+
+### Opus
+
+For the Opus model currently available to this project, use:
+
+```text
+claude-opus-4-6
+```
+
+The `@default` alias also works with `AnthropicVertex.messages.create` for this
+project:
+
+```text
+claude-opus-4-6@default
+```
+
+Do not use the OpenCode/dashboard provider-prefixed form with
+`AnthropicVertex.messages.create`:
+
+```text
+google-vertex-anthropic/claude-opus-4-6@default
+```
+
+That provider-prefixed form produced a 404 when sent through the Python SDK.
+
+The current Anthropic docs also list newer Opus API IDs:
+
+```text
+claude-opus-4-8
+claude-opus-4-7
+```
+
+Both returned 404 for this project in `global` and `us-east5` during live
+verification. The error body reported that the publisher model was not found or
+that the project does not have access to it. Treat those as documented upstream
+IDs, not currently usable IDs for `itpc-gcp-ai-eng-claude`.
+
+The dated Opus model ID that was also verified to work is:
+
+```text
+claude-opus-4-5@20251101
+```
+
+Minimal Opus smoke test:
+
+```python
+from anthropic import AnthropicVertex
+
+client = AnthropicVertex(
+    project_id="itpc-gcp-ai-eng-claude",
+    region="global",
+)
+
+resp = client.messages.create(
+    model="claude-opus-4-6",
+    max_tokens=10,
+    messages=[{"role": "user", "content": "say hi"}],
+)
+
+print(resp.content[0].text)
+```
+
+Observed successful output:
+
+```text
+Hi there! 👋 How are you
+```
+
+Live Opus verification results:
+
+| Region | Model | Result |
+|--------|-------|--------|
+| `global` | `claude-opus-4-6` | OK |
+| `global` | `claude-opus-4-6@default` | OK |
+| `global` | `claude-opus-4-5@20251101` | OK |
+| `global` | `claude-opus-4-8` | 404 |
+| `global` | `claude-opus-4-7` | 404 |
+| `us-east5` | `claude-opus-4-6` | OK |
+| `us-east5` | `claude-opus-4-6@default` | OK |
+| `us-east5` | `claude-opus-4-5@20251101` | OK |
+| `us-east5` | `claude-opus-4-8` | 404 |
+| `us-east5` | `claude-opus-4-7` | 404 |
+
+The official Anthropic Google Cloud documentation lists `claude-sonnet-4-6` as
+the Agent Platform API model ID for Claude Sonnet 4.6, lists the current Opus
+Agent Platform API IDs, and shows `region = "global"` in the Python
+`AnthropicVertex` example:
+
+```text
+https://platform.claude.com/docs/en/build-with-claude/claude-on-vertex-ai
+```

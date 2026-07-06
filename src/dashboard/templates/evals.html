@@ -1,0 +1,209 @@
+{% extends "layout.html" %}
+{% block title %}Evals{% endblock %}
+{% block content %}
+<style>
+  .status-pending { color: #9ca3af; }
+  .status-running { color: #3b82f6; font-weight: bold; }
+  .status-completed { color: #22c55e; font-weight: bold; }
+  .status-failed { color: #ef4444; font-weight: bold; }
+  html.dark .status-pending { color: #6b7280; }
+  html.dark .status-running { color: #60a5fa; }
+  html.dark .status-completed { color: #4ade80; }
+  html.dark .status-failed { color: #f87171; }
+  .btn-rerun {
+    background: #22c55e; color: white; border: none;
+    padding: 0.2em 0.6em; border-radius: 6px; cursor: pointer; font-size: 0.8rem;
+  }
+  .btn-rerun:hover { background: #16a34a; }
+  .btn-stop {
+    background: #f97316; color: white; border: none;
+    padding: 0.2em 0.6em; border-radius: 6px; cursor: pointer; font-size: 0.8rem;
+  }
+  .btn-stop:hover { background: #ea580c; }
+  .btn-delete {
+    background: #ef4444; color: white; border: none;
+    padding: 0.2em 0.6em; border-radius: 6px; cursor: pointer; font-size: 0.8rem;
+  }
+  .btn-delete:hover { background: #dc2626; }
+  #eval-modal::backdrop { background: rgba(0,0,0,0.5); }
+  #eval-modal { max-width: 80rem; width: calc(100% - 2rem); }
+  .modal-log {
+    background: #0a0a0a; color: #d4d4d4;
+    padding: 1rem; border-radius: 8px;
+    max-height: 60vh; overflow-y: auto;
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    font-size: 0.75rem; line-height: 1.5;
+    white-space: pre-wrap; word-wrap: break-word;
+  }
+</style>
+
+<h1 class="text-xl font-semibold text-gray-900 dark:text-white mb-6">Eval Harness Runs</h1>
+
+{% if not k8s_available %}
+<div class="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-xl p-4 mb-6">
+  <p class="text-sm font-medium text-red-800 dark:text-red-300">Kubernetes orchestration not available</p>
+  <p class="text-sm text-red-600 dark:text-red-400 mt-1">The K8s client library is not installed or the cluster is not accessible.</p>
+</div>
+{% else %}
+
+<div class="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 p-5 mb-6">
+  <h2 class="text-base font-semibold text-gray-900 dark:text-white mb-4">Submit Eval Run</h2>
+  <form id="eval-submit-form">
+    <!-- Row 1: Eval Harness -->
+    <div class="flex flex-wrap gap-4 items-end mb-1">
+      <div class="flex-grow" style="position:relative;">
+        <label for="eval-harness" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Eval Harness</label>
+        <div style="position:relative;">
+          <select id="eval-harness" name="eval_harness" class="w-full rounded-lg border-gray-300 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-200 text-sm py-2 px-3">
+            <option value="https://github.local/opendatahub-io/agent-eval-harness" selected>github.local/opendatahub-io/agent-eval-harness</option>
+            <option value="https://github.com/opendatahub-io/agent-eval-harness">github.com/opendatahub-io/agent-eval-harness</option>
+          </select>
+          <input type="text" id="eval-harness-custom" placeholder="https://github.com/org/eval-harness" class="w-full rounded-lg border-gray-300 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-200 text-sm py-2 px-3" style="display:none; position:absolute; top:0; left:0; right:0;">
+        </div>
+      </div>
+    </div>
+    <div class="mb-3">
+      <button type="button" id="toggle-harness" class="text-xs text-primary-600 dark:text-primary-400 cursor-pointer bg-transparent border-none p-0">or enter URL...</button>
+    </div>
+    <!-- Row 2: Dataset FQN -->
+    <div class="flex flex-wrap gap-4 items-end mb-1">
+      <div class="flex-grow" style="position:relative;">
+        <label for="dataset-fqn" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Dataset FQN</label>
+        <div style="position:relative;">
+          <select id="dataset-fqn" name="dataset_fqn" class="w-full rounded-lg border-gray-300 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-200 text-sm py-2 px-3">
+            <option value="github.local/opendatahub-io/eval-datasets@main:arch-context-accuracy" selected>github.local/opendatahub-io/eval-datasets@main:arch-context-accuracy</option>
+            <option value="github.com/opendatahub-io/eval-datasets@main:arch-context-accuracy">github.com/opendatahub-io/eval-datasets@main:arch-context-accuracy</option>
+          </select>
+          <input type="text" id="dataset-fqn-custom" placeholder="github.local/org/repo@ref:eval-config" class="w-full rounded-lg border-gray-300 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-200 text-sm py-2 px-3" style="display:none; position:absolute; top:0; left:0; right:0;">
+        </div>
+      </div>
+    </div>
+    <div class="mb-3">
+      <button type="button" id="toggle-dataset" class="text-xs text-primary-600 dark:text-primary-400 cursor-pointer bg-transparent border-none p-0">or enter FQN...</button>
+    </div>
+    <!-- Row 3: Context Repo, Context Ref, Context Mode -->
+    <div class="flex flex-wrap gap-4 items-end mb-1">
+      <div class="flex-grow" style="min-width:18rem; position:relative;">
+        <label for="context-repo" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Context Repo</label>
+        <div style="position:relative;">
+          <select id="context-repo" name="context_repo" class="w-full rounded-lg border-gray-300 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-200 text-sm py-2 px-3">
+            <option value="https://github.local/opendatahub-io/architecture-context" selected>github.local/opendatahub-io/architecture-context</option>
+            <option value="https://github.com/opendatahub-io/architecture-context">github.com/opendatahub-io/architecture-context</option>
+          </select>
+          <input type="text" id="context-repo-custom" placeholder="https://github.com/org/architecture-context" class="w-full rounded-lg border-gray-300 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-200 text-sm py-2 px-3" style="display:none; position:absolute; top:0; left:0; right:0;">
+        </div>
+      </div>
+      <div style="width:10rem;">
+        <label for="context-ref" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Context Ref <span class="text-gray-400 text-xs">(optional)</span></label>
+        <input type="text" id="context-ref" name="context_ref" placeholder="main" class="w-full rounded-lg border-gray-300 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-200 text-sm py-2 px-3">
+      </div>
+      <div style="width:8rem;">
+        <label for="context-mode" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Context Mode</label>
+        <select id="context-mode" name="context_mode" class="w-full rounded-lg border-gray-300 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-200 text-sm py-2 px-3">
+          <option value="files" selected>files</option>
+          <option value="arch-query">arch-query</option>
+        </select>
+      </div>
+    </div>
+    <div class="mb-3">
+      <button type="button" id="toggle-context-repo" class="text-xs text-primary-600 dark:text-primary-400 cursor-pointer bg-transparent border-none p-0">or enter URL...</button>
+    </div>
+    <!-- Row 4: Model, Baseline Run ID -->
+    <div class="flex flex-wrap gap-4 items-end mb-3">
+      <div style="width:6rem;">
+        <label for="eval-model" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Model</label>
+        <select id="eval-model" name="model" class="w-full rounded-lg border-gray-300 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-200 text-sm py-2 px-3">
+          <option value="haiku">haiku</option>
+          <option value="sonnet">sonnet</option>
+          <option value="opus" selected>opus</option>
+        </select>
+      </div>
+      <div style="width:14rem;">
+        <label for="baseline" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Baseline Run ID <span class="text-gray-400 text-xs">(optional)</span></label>
+        <input type="text" id="baseline" name="baseline" placeholder="" class="w-full rounded-lg border-gray-300 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-200 text-sm py-2 px-3">
+      </div>
+    </div>
+    <div class="flex items-center gap-6">
+      <label class="flex items-center gap-1.5 text-sm text-gray-700 dark:text-gray-300 cursor-pointer select-none">
+        <input type="checkbox" id="eval-strace" class="rounded border-gray-300 dark:border-gray-600">
+        strace
+      </label>
+      <label class="flex items-center gap-1.5 text-sm text-gray-700 dark:text-gray-300 cursor-pointer select-none">
+        <input type="checkbox" id="eval-mlflow" checked class="rounded border-gray-300 dark:border-gray-600">
+        MLflow
+      </label>
+      <label class="flex items-center gap-1.5 text-sm text-gray-700 dark:text-gray-300 cursor-pointer select-none">
+        <input type="checkbox" id="eval-otel" checked class="rounded border-gray-300 dark:border-gray-600">
+        OTel
+      </label>
+      <button type="submit" class="ml-auto bg-primary-600 hover:bg-primary-700 text-white text-sm font-medium py-2 px-6 rounded-lg transition-colors">Submit Eval</button>
+    </div>
+  </form>
+  <div id="eval-submit-status" class="mt-3 text-sm"></div>
+</div>
+
+<h2 class="text-base font-semibold text-gray-900 dark:text-white mb-3">Eval Runs <span id="eval-count" class="text-gray-400 text-sm font-normal">(0)</span></h2>
+
+<div class="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 overflow-hidden">
+<div class="overflow-x-auto">
+  <table class="w-full text-sm text-left" id="evals-table">
+    <thead class="bg-gray-50 dark:bg-gray-800 text-xs uppercase text-gray-500 dark:text-gray-400">
+      <tr>
+        <th class="px-4 py-3">Name</th>
+        <th class="px-4 py-3">Dataset</th>
+        <th class="px-4 py-3">Model</th>
+        <th class="px-4 py-3">Context</th>
+        <th class="px-4 py-3">Status</th>
+        <th class="px-4 py-3">Created</th>
+        <th class="px-4 py-3">Duration (s)</th>
+      </tr>
+    </thead>
+    <tbody id="evals-tbody" class="divide-y divide-gray-200 dark:divide-gray-700">
+      <tr><td colspan="7" class="px-4 py-8 text-center text-gray-400">Loading evals...</td></tr>
+    </tbody>
+  </table>
+</div>
+</div>
+
+<dialog id="eval-modal" class="rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 p-0">
+  <div class="p-5">
+    <div class="flex items-center justify-between mb-1">
+      <span id="eval-modal-status-badge" class="badge"></span>
+      <button onclick="closeEvalModal()" class="ml-4 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 text-xl leading-none">&times;</button>
+    </div>
+    <h3 class="text-base font-semibold text-gray-900 dark:text-white font-mono mb-4" id="eval-modal-name"></h3>
+
+    <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 text-sm mb-4">
+      <div><span class="text-gray-500 dark:text-gray-400">Dataset</span><div id="eval-modal-dataset" class="font-medium text-gray-900 dark:text-white"></div></div>
+      <div><span class="text-gray-500 dark:text-gray-400">Model</span><div id="eval-modal-model" class="font-medium text-gray-900 dark:text-white"></div></div>
+      <div><span class="text-gray-500 dark:text-gray-400">Context Repo</span><div id="eval-modal-context-repo" class="font-medium text-gray-900 dark:text-white text-xs break-all"></div></div>
+      <div><span class="text-gray-500 dark:text-gray-400">Context Ref</span><div id="eval-modal-context-ref" class="font-medium text-gray-900 dark:text-white"></div></div>
+      <div><span class="text-gray-500 dark:text-gray-400">Context Mode</span><div id="eval-modal-context-mode" class="font-medium text-gray-900 dark:text-white"></div></div>
+      <div><span class="text-gray-500 dark:text-gray-400">Eval Harness</span><div id="eval-modal-harness" class="font-medium text-gray-900 dark:text-white text-xs break-all"></div></div>
+      <div><span class="text-gray-500 dark:text-gray-400">Run ID</span><div id="eval-modal-run-id" class="font-medium text-gray-900 dark:text-white font-mono text-xs"></div></div>
+      <div><span class="text-gray-500 dark:text-gray-400">Baseline</span><div id="eval-modal-baseline" class="font-medium text-gray-900 dark:text-white"></div></div>
+      <div><span class="text-gray-500 dark:text-gray-400">Created</span><div id="eval-modal-created" class="font-medium text-gray-900 dark:text-white"></div></div>
+      <div><span class="text-gray-500 dark:text-gray-400">Started</span><div id="eval-modal-started" class="font-medium text-gray-900 dark:text-white"></div></div>
+      <div><span class="text-gray-500 dark:text-gray-400">Duration</span><div id="eval-modal-duration" class="font-medium text-gray-900 dark:text-white"></div></div>
+      <div><span class="text-gray-500 dark:text-gray-400">Result</span><div id="eval-modal-result" class="font-medium text-gray-900 dark:text-white"></div></div>
+      <div><span class="text-gray-500 dark:text-gray-400">strace</span><div id="eval-modal-strace" class="font-medium text-gray-900 dark:text-white"></div></div>
+      <div><span class="text-gray-500 dark:text-gray-400">MLflow</span><div id="eval-modal-mlflow" class="font-medium text-gray-900 dark:text-white"></div></div>
+      <div><span class="text-gray-500 dark:text-gray-400">OTel</span><div id="eval-modal-otel" class="font-medium text-gray-900 dark:text-white"></div></div>
+    </div>
+
+    <div class="flex gap-2 mb-4" id="eval-modal-actions"></div>
+
+    <div class="modal-log" id="eval-modal-log-content">Loading logs...</div>
+  </div>
+</dialog>
+
+{% endif %}
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+const K8S_AVAILABLE = {{ 'true' if k8s_available else 'false' }};
+</script>
+<script src="/static/js/evals.js"></script>
+{% endblock %}

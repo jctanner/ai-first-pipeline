@@ -504,6 +504,10 @@ def create_app() -> Flask:
             "jobs.html", k8s_available=K8S_AVAILABLE, skills=list_skills()
         )
 
+    @app.route("/evals")
+    def evals():
+        return render_template("evals.html", k8s_available=K8S_AVAILABLE)
+
     @app.route("/files")
     def files():
         return render_template("files.html")
@@ -917,6 +921,111 @@ def create_app() -> Flask:
         except Exception as e:
             return jsonify({"error": str(e)}), 500
 
+    # =========================================================================
+    # Eval Job APIs
+    # =========================================================================
+
+    @app.route("/api/evals/submit", methods=["POST"])
+    def api_submit_eval():
+        """Submit a new eval-harness job to K8s.
+
+        POST body:
+        {
+          "dataset_fqn": "github.local/opendatahub-io/skills@main:claim-fix-validation",
+          "model": "opus",
+          "context_ref": "main",
+          "context_mode": "files",
+          "baseline": "",
+          "strace": true,
+          "mlflow": true,
+          "otel": true
+        }
+        """
+        if not K8S_AVAILABLE:
+            return jsonify({"error": "K8s orchestration not available"}), 503
+
+        try:
+            from src.cli.skill_config import parse_fqn
+
+            data = request.get_json()
+            dataset_fqn = data.get("dataset_fqn", "").strip()
+
+            if not dataset_fqn:
+                return jsonify({"error": "Missing required field: dataset_fqn"}), 400
+
+            parsed = parse_fqn(dataset_fqn)
+            if not parsed:
+                return jsonify({"error": f"Invalid FQN format: {dataset_fqn}. Expected: host/owner/repo@ref:eval-config"}), 400
+
+            model = data.get("model", "opus")
+            context_repo = data.get("context_repo", "https://github.com/opendatahub-io/architecture-context")
+            context_ref = data.get("context_ref", "main")
+            context_mode = data.get("context_mode", "files")
+            baseline = data.get("baseline", "")
+            eval_harness = data.get("eval_harness", "https://github.com/opendatahub-io/agent-eval-harness")
+
+            args = {}
+            if data.get("strace"):
+                args["strace"] = True
+            if data.get("mlflow") is False:
+                args["mlflow"] = False
+            if data.get("otel") is False:
+                args["otel"] = False
+
+            orchestrator = get_orchestrator()
+            job = orchestrator.submit_eval_job(
+                dataset_fqn, model, context_repo, context_ref, context_mode, baseline, eval_harness, args
+            )
+
+            return jsonify({
+                "job_name": job.metadata.name,
+                "status": "pending",
+            })
+        except Exception as e:
+            return jsonify({"error": str(e)}), 500
+
+    @app.route("/api/evals")
+    def api_list_evals():
+        """List all eval jobs."""
+        if not K8S_AVAILABLE:
+            return jsonify({"error": "K8s orchestration not available"}), 503
+
+        try:
+            orchestrator = get_orchestrator()
+            jobs = orchestrator.list_eval_jobs()
+
+            results = []
+            for job in jobs:
+                job_status = orchestrator._get_job_status(job)
+                annotations = job.metadata.annotations or {}
+                labels = job.metadata.labels or {}
+
+                duration = None
+                if job.status.start_time:
+                    end_time = job.status.completion_time or datetime.now(job.status.start_time.tzinfo)
+                    duration = (end_time - job.status.start_time).total_seconds()
+
+                results.append({
+                    "name": job.metadata.name,
+                    "dataset_fqn": annotations.get("dataset_fqn", ""),
+                    "model": annotations.get("model") or labels.get("model", ""),
+                    "context_repo": annotations.get("context_repo", ""),
+                    "context_ref": annotations.get("context_ref", "main"),
+                    "context_mode": annotations.get("context_mode", "files"),
+                    "baseline": annotations.get("baseline", ""),
+                    "eval_harness": annotations.get("eval_harness", ""),
+                    "status": job_status,
+                    "created": job.metadata.creation_timestamp.isoformat() if job.metadata.creation_timestamp else None,
+                    "duration": duration,
+                    "strace": labels.get("strace", "false") == "true",
+                    "mlflow": labels.get("mlflow", "true") == "true",
+                    "otel": labels.get("otel", "true") == "true",
+                })
+
+            return jsonify(results)
+        except Exception as e:
+            return jsonify({"error": str(e)}), 500
+
     @app.route("/api/observatory/clear", methods=["POST"])
     def api_clear_observatory():
         """Delete all hallucination data from Observatory."""
@@ -1069,5 +1178,32 @@ def create_app() -> Flask:
             return jsonify({"error": "Permission denied"}), 403
         except Exception as e:
             return jsonify({"error": f"Error reading file: {e}"}), 500
+
+    @app.route("/api/files/raw")
+    def api_raw_file():
+        """Serve a file with its native MIME type."""
+        from flask import send_file as flask_send_file
+
+        path = request.args.get("path", "")
+
+        allowed_bases = ["/app/artifacts", "/app/issues", "/app/workspace", "/app/logs", "/app/.context", "/app/tmp"]
+
+        try:
+            resolved_path = Path(path).resolve()
+        except Exception as e:
+            return jsonify({"error": f"Invalid path: {e}"}), 400
+
+        allowed = any(
+            str(resolved_path).startswith(base)
+            for base in allowed_bases
+        )
+
+        if not allowed:
+            return jsonify({"error": "Access denied - path outside allowed directories"}), 403
+
+        if not resolved_path.exists() or not resolved_path.is_file():
+            return jsonify({"error": "File not found"}), 404
+
+        return flask_send_file(resolved_path)
 
     return app
