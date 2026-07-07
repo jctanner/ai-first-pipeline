@@ -27,7 +27,5 @@ repos:
   # Content / target repos
   - name: architecture-context
     upstream: https://github.com/opendatahub-io/architecture-context
-  - name: odh-dashboard
-    upstream: https://github.com/opendatahub-io/odh-dashboard
   - name: odh-cli
     upstream: https://github.com/opendatahub-io/odh-cli
