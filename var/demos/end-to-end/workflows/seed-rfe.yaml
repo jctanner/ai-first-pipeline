@@ -2,9 +2,9 @@
 # Seed Demo RFE
 # ====================================================================
 #
-# Creates a placeholder RFE ticket in the RHAIRFE project.
-# The description is a placeholder — replace with the selected
-# candidate RFE (Option A/B/C) before the actual demo run.
+# Creates the demo RFE ticket (Option A: rhai-cli diagnose) in the
+# RHAIRFE project with a full problem statement and desired outcome
+# so it passes the rfe-creator rubric review.
 
 name: seed-rfe
 description: "Create the demo RFE ticket in RHAIRFE"
@@ -22,8 +22,39 @@ steps:
             key: RHAIRFE
           issuetype:
             name: "Feature Request"
-          summary: "[DEMO] New rhai-cli subcommand for RHOAI cluster operations"
-          description: "This is a demo RFE for the closed-loop hallucination remediation demo.\n\nSelect one of the candidate RFEs from docs/plans/closed-loop-hallucination-remediation-demo-plan.md:\n  - Option A: rhai-cli diagnose (deployment health checks)\n  - Option B: rhai-cli resources (resource utilization)\n  - Option C: rhai-cli validate (pre-flight workload validation)\n\nReplace this description with the full RFE text before running the demo pipeline."
+          summary: "Add rhai-cli diagnose subcommand for RHOAI deployment health checks"
+          description: |
+            h2. Problem Statement
+
+            RHOAI administrators troubleshooting deployment issues must manually inspect multiple OpenShift resources — operator status, CRD conditions, component pod health, route availability, and certificate expiry. There is no single command that checks the health of an RHOAI deployment and reports actionable findings. Administrators end up running ad-hoc `oc get` and `oc describe` commands across namespaces, which is slow and error-prone.
+
+            h2. Desired Outcome
+
+            `rhai-cli diagnose` connects to an RHOAI cluster and runs a suite of health checks: operator deployment status, DSC/DSCI conditions, component readiness (dashboard, model controller, workbenches, pipelines, model registry), route accessibility, certificate validity, and version consistency. Output is a structured report with pass/fail/warning per check and remediation hints for failures.
+
+            h2. Acceptance Criteria
+
+            * The `rhai-cli diagnose` subcommand connects to the active OpenShift cluster context
+            * Checks operator deployment status (rhods-operator pod health, CSV phase)
+            * Inspects DataScienceCluster and DSCInitialization CR conditions
+            * Validates component readiness for: dashboard, model-controller, workbenches, data-science-pipelines, model-registry
+            * Tests route accessibility and TLS certificate validity for exposed endpoints
+            * Detects version mismatches between operator, DSC, and component images
+            * Outputs a structured report (JSON and human-readable) with pass/fail/warning per check
+            * Provides remediation hints for common failure modes
+            * Exits with non-zero status if any critical check fails (suitable for CI/CD gating)
+
+            h2. User Stories
+
+            * As an RHOAI administrator, I want to run a single command to check my deployment health so I can quickly identify issues after an upgrade
+            * As a support engineer, I want a structured diagnostic report I can attach to a support case so the customer doesn't need to manually gather cluster state
+            * As a CI/CD pipeline operator, I want to gate deployments on a health check so broken upgrades are caught before rollout completes
+
+            h2. Technical Notes
+
+            The implementation should follow the existing `rhai-cli lint` subcommand pattern for command registration, flag handling, and output formatting. Health checks should be pluggable (each check is a function that returns a CheckResult) so new checks can be added without modifying the command dispatcher.
           priority:
             name: Major
+          components:
+            - name: "CLI"
     register: rfe_result
