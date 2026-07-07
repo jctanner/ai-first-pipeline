@@ -25,7 +25,7 @@ repos:
   - name: agent-eval-harness
     upstream: https://github.com/opendatahub-io/agent-eval-harness
   # Content / target repos
-  - name: architecture-context
-    upstream: https://github.com/opendatahub-io/architecture-context
+  # - name: architecture-context
+  #   upstream: https://github.com/opendatahub-io/architecture-context
   - name: odh-cli
     upstream: https://github.com/opendatahub-io/odh-cli
