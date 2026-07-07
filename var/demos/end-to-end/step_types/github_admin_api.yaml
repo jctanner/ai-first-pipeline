@@ -1,0 +1,5 @@
+github_admin_api:
+  base: http_request
+  description: "GitHub admin API (unauthenticated bootstrap endpoints)"
+  params:
+    base_url: "{{ github_base }}/api/v3/admin"

@@ -1,0 +1,29 @@
+# ====================================================================
+# Seed Demo RFE
+# ====================================================================
+#
+# Creates a placeholder RFE ticket in the RHAIRFE project.
+# The description is a placeholder — replace with the selected
+# candidate RFE (Option A/B/C) before the actual demo run.
+
+name: seed-rfe
+description: "Create the demo RFE ticket in RHAIRFE"
+
+steps:
+
+  - name: create_rfe
+    type: jira_api
+    params:
+      path: /rest/api/2/issue
+      method: POST
+      body:
+        fields:
+          project:
+            key: RHAIRFE
+          issuetype:
+            name: "Feature Request"
+          summary: "[DEMO] New rhai-cli subcommand for RHOAI cluster operations"
+          description: "This is a demo RFE for the closed-loop hallucination remediation demo.\n\nSelect one of the candidate RFEs from docs/plans/closed-loop-hallucination-remediation-demo-plan.md:\n  - Option A: rhai-cli diagnose (deployment health checks)\n  - Option B: rhai-cli resources (resource utilization)\n  - Option C: rhai-cli validate (pre-flight workload validation)\n\nReplace this description with the full RFE text before running the demo pipeline."
+          priority:
+            name: Major
+    register: rfe_result

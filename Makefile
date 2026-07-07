@@ -552,6 +552,14 @@ security: ## Run security scans (gitleaks)
 	fi
 	@echo "✓ No secrets detected"
 
+##@ Demos
+
+demo-reset: ## Full demo reset via Markov (jira + github repos + seed RFE)
+	markov run var/demos/end-to-end/
+
+vagrant-demo-reset: ## Full demo reset via Markov (vagrant)
+	vagrant ssh -c "cd /vagrant && markov run var/demos/end-to-end/"
+
 ##@ Shortcuts (point to host-* targets; change to vagrant-* if using VM)
 
 rebuild-dashboard: host-rebuild-dashboard ## Shortcut

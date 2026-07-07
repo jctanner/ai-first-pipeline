@@ -1,0 +1,43 @@
+# ====================================================================
+# Reset Services
+# ====================================================================
+#
+# Wipes observatory runtime data, clears MLflow experiments/runs,
+# and empties the artifacts and .context volumes.
+
+name: reset-services
+description: "Reset observatory, MLflow, and pipeline volumes"
+
+steps:
+
+  # Step 1: Wipe observatory runtime data (preserves config tables)
+  - name: wipe_observatory
+    type: observatory_api
+    params:
+      path: /api/admin/wipe-runtime-data
+      method: POST
+
+  # Step 2: Re-seed observatory pipeline definitions
+  - name: seed_observatory
+    type: observatory_api
+    params:
+      path: /api/admin/seed
+      method: POST
+
+  # Step 3: Clear all MLflow experiments, runs, and traces
+  - name: clear_mlflow
+    type: dashboard_api
+    params:
+      path: /api/mlflow/clear
+      method: POST
+
+  # Step 4: Clear artifacts and .context volumes
+  - name: clear_volumes
+    type: dashboard_api
+    params:
+      path: /api/volumes/clear
+      method: POST
+      body:
+        volumes:
+          - artifacts
+          - context

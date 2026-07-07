@@ -1,0 +1,35 @@
+github_base: https://github-emulator.ai-pipeline.svc.cluster.local
+jira_base: https://jira-emulator.ai-pipeline.svc.cluster.local
+observatory_base: http://observatory.ai-pipeline.svc.cluster.local:8000
+dashboard_base: http://pipeline-dashboard.ai-pipeline.svc.cluster.local:5000
+org: opendatahub-io
+github_token: ""
+github_api_token: ""
+seed_rfe: true
+run_pipeline: true
+rfe_issue: RHAIRFE-1
+
+repos:
+  # Planning skill repos
+  - name: rfe-creator
+    upstream: https://github.com/opendatahub-io/rfe-creator
+  - name: strat-creator
+    upstream: https://github.com/opendatahub-io/strat-creator
+  - name: epic-creator
+    upstream: https://github.com/jwforres/epic-creator
+  - name: epic-investigator
+    upstream: https://github.com/jwforres/epic-investigator
+  - name: epic-code-gen
+    upstream: https://github.com/ederign/epic-code-gen
+  # Quality and observability skill repos
+  - name: agent-eval-harness
+    upstream: https://github.com/opendatahub-io/agent-eval-harness
+  - name: eval-datasets
+    upstream: https://github.com/opendatahub-io/eval-datasets
+  # Content / target repos
+  - name: architecture-context
+    upstream: https://github.com/opendatahub-io/architecture-context
+  - name: odh-dashboard
+    upstream: https://github.com/opendatahub-io/odh-dashboard
+  - name: odh-cli
+    upstream: https://github.com/opendatahub-io/odh-cli

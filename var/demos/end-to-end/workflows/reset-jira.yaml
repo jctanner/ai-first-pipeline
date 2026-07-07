@@ -1,0 +1,76 @@
+# ====================================================================
+# Reset Jira
+# ====================================================================
+#
+# Wipes all Jira data, re-seeds default projects (RHAIRFE, RHAISTRAT,
+# RHOAIENG, AIPCC, TEST), then creates the RHAIFIRST project via
+# stub issue import.
+
+name: reset-jira
+description: "Wipe Jira and create RHAIFIRST project"
+
+steps:
+
+  # Step 1: Full reset — drops all tables, re-seeds defaults
+  - name: reset_database
+    type: jira_api
+    params:
+      path: /api/admin/reset
+      method: POST
+
+  # Step 2: Check if RHAIFIRST already exists
+  - name: check_rhaifirst
+    type: jira_api
+    params:
+      path: /rest/api/2/project/RHAIFIRST
+      method: GET
+      ignore_status: [404]
+    register: rhaifirst_check
+
+  # Step 3: Create RHAIFIRST via stub issue import (auto-creates the project)
+  - name: create_rhaifirst
+    type: jira_api
+    when: "{{ rhaifirst_check.status_code == 404 }}"
+    params:
+      path: /api/admin/import
+      method: POST
+      body:
+        issues:
+          - key: "RHAIFIRST-1"
+            fields:
+              project:
+                key: RHAIFIRST
+                name: "Red Hat AI First"
+              issuetype:
+                name: Epic
+              summary: "Bootstrap issue (auto-created by demo setup)"
+              status:
+                name: Open
+
+  # Step 4: Clean up the stub issue
+  - name: cleanup_stub
+    type: jira_api
+    when: "{{ rhaifirst_check.status_code == 404 }}"
+    params:
+      path: /rest/api/2/issue/RHAIFIRST-1
+      method: DELETE
+      ignore_status: [404]
+
+  # Step 5: Verify all required projects exist
+  - name: verify_rhairfe
+    type: jira_api
+    params:
+      path: /rest/api/2/project/RHAIRFE
+      method: GET
+
+  - name: verify_rhaistrat
+    type: jira_api
+    params:
+      path: /rest/api/2/project/RHAISTRAT
+      method: GET
+
+  - name: verify_rhaifirst
+    type: jira_api
+    params:
+      path: /rest/api/2/project/RHAIFIRST
+      method: GET

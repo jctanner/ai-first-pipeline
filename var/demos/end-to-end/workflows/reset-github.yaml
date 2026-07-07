@@ -1,0 +1,122 @@
+# ====================================================================
+# Reset GitHub Repos
+# ====================================================================
+#
+# Bootstraps an admin API token, ensures the opendatahub-io org exists,
+# creates the skills repo (no upstream), then deletes and re-imports
+# every repo listed in the repos variable.
+
+name: reset-github
+description: "Delete and re-import all repos on github.local"
+
+steps:
+
+  # Step 1: Bootstrap an admin API token (unauthenticated admin endpoint)
+  - name: bootstrap_token
+    type: github_admin_api
+    params:
+      path: /tokens
+      method: POST
+      body:
+        login: admin
+        name: demo-reset
+    register: token_result
+
+  - name: set_auth
+    type: set_fact
+    vars:
+      github_api_token: "{{ token_result.body.token }}"
+
+  # Step 2: Ensure the org exists
+  - name: ensure_org
+    type: github_api
+    params:
+      path: /orgs
+      method: POST
+      body:
+        login: "{{ org }}"
+      ignore_status: [422, 409]
+
+  # Step 3: Create the skills repo (no upstream — created empty)
+  - name: delete_skills
+    type: github_api
+    params:
+      path: /repos/{{ org }}/skills
+      method: DELETE
+      ignore_status: [404]
+
+  - name: create_skills
+    type: github_api
+    params:
+      path: /orgs/{{ org }}/repos
+      method: POST
+      body:
+        name: skills
+        auto_init: true
+        description: "Claim analysis and remediation skills"
+
+  # Step 4: Delete and re-import each repo from upstream
+  - name: process_repos
+    for_each: "{{ repos }}"
+    for_each_key: "name"
+    for_each_sort: "name"
+    as: repo
+    concurrency: 3
+    workflow: import-repo
+    vars:
+      repo_name: "{{ repo.name }}"
+      upstream: "{{ repo.upstream }}"
+
+  # ── Per-repo sub-workflow ──────────────────────────────────────
+
+  - name: import-repo
+    description: "Delete and re-import a single repo from upstream"
+
+    steps:
+
+      - name: delete_repo
+        type: github_api
+        params:
+          path: /repos/{{ org }}/{{ repo_name }}
+          method: DELETE
+          ignore_status: [404]
+
+      - name: start_import
+        type: github_admin_api
+        params:
+          path: /repos/import
+          method: POST
+          body:
+            url: "{{ upstream }}"
+            owner: "{{ org }}"
+        register: import_result
+
+      - name: poll_import
+        type: shell_exec
+        params:
+          command: |
+            job_id="{{ import_result.body.job_id }}"
+            if [ -z "$job_id" ]; then
+              echo "FAILED: no job_id in import response"
+              exit 1
+            fi
+            echo "Import job: $job_id"
+            elapsed=0
+            while [ $elapsed -lt 300 ]; do
+              status=$(curl -sfk "{{ github_base }}/api/v3/admin/repos/import/$job_id" 2>/dev/null \
+                | python3 -c "import json,sys; print(json.load(sys.stdin).get('status',''))" 2>/dev/null || echo "")
+              case "$status" in
+                completed)
+                  echo "Imported successfully"
+                  exit 0
+                  ;;
+                failed)
+                  echo "FAILED"
+                  exit 1
+                  ;;
+              esac
+              sleep 2
+              elapsed=$((elapsed + 2))
+            done
+            echo "TIMEOUT: import did not complete within 300s"
+            exit 1

@@ -1,0 +1,10 @@
+jira_api:
+  base: http_request
+  description: "Jira REST API call with basic auth"
+  params:
+    base_url: "{{ jira_base }}"
+    basic_auth:
+      username: admin
+      password: admin
+    headers:
+      Accept: "application/json"

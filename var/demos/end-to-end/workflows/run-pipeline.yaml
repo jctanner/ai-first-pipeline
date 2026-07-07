@@ -1,0 +1,144 @@
+# ====================================================================
+# Run Pipeline: RFE → Strategy
+# ====================================================================
+#
+# Runs the A→B→C→D pipeline on a seeded RFE:
+#   1. rfe-speedrun  — create, review, fix, submit the RFE
+#   2. Label          — add strat-creator-3.6 to mark ready for strategy
+#   3. strat-create   — create a RHAISTRAT ticket from the RFE
+#   4. strat-refine   — add HOW, dependencies, NFRs
+#   5. strat-review   — adversarial review
+#
+# Requires: rfe_issue set (default RHAIRFE-1 from seed-rfe)
+
+name: run-pipeline
+description: "Run the RFE-to-strategy pipeline"
+
+steps:
+
+  # ── Phase A: RFE Speedrun ────────────────────────────────────
+
+  - name: rfe_speedrun
+    description: "Run rfe-speedrun on {{ rfe_issue }}"
+    workflow: run-skill
+    vars:
+      skill_command: rfe-speedrun
+      skill_issue: "{{ rfe_issue }}"
+
+  # ── Label for strategy creation ──────────────────────────────
+
+  - name: add_strat_label
+    type: jira_api
+    params:
+      path: /rest/api/2/issue/{{ rfe_issue }}
+      method: PUT
+      body:
+        update:
+          labels:
+            - add: "strat-creator-3.6"
+
+  # ── Phase B: Strategy Create ─────────────────────────────────
+
+  - name: strat_create
+    description: "Run strat-create on {{ rfe_issue }}"
+    workflow: run-skill
+    vars:
+      skill_command: strat-create
+      skill_issue: "{{ rfe_issue }}"
+
+  # ── Discover the created RHAISTRAT key ───────────────────────
+
+  - name: discover_strat_key
+    type: shell_exec
+    params:
+      command: |
+        result=$(curl -sf -u "admin:admin" \
+          "{{ jira_base }}/rest/api/2/issue/{{ rfe_issue }}?fields=issuelinks" 2>/dev/null)
+        strat_key=$(echo "$result" | python3 -c "
+        import json, sys
+        data = json.load(sys.stdin)
+        for link in data.get('fields', {}).get('issuelinks', []):
+            if link.get('type', {}).get('name') == 'Cloners':
+                for d in ['inwardIssue', 'outwardIssue']:
+                    issue = link.get(d, {})
+                    if issue.get('key', '').startswith('RHAISTRAT'):
+                        print(issue['key'])
+                        sys.exit(0)
+        print('ERROR: no RHAISTRAT link found on {{ rfe_issue }}', file=sys.stderr)
+        sys.exit(1)
+        ")
+        echo "$strat_key"
+    register: strat_discovery
+
+  - name: set_strat_issue
+    type: set_fact
+    vars:
+      strat_issue: "{{ strat_discovery.stdout | trim }}"
+
+  # ── Phase C: Strategy Refine ─────────────────────────────────
+
+  - name: strat_refine
+    description: "Run strat-refine on {{ strat_issue }}"
+    workflow: run-skill
+    vars:
+      skill_command: strat-refine
+      skill_issue: "{{ strat_issue }}"
+
+  # ── Phase D: Strategy Review ─────────────────────────────────
+
+  - name: strat_review
+    description: "Run strat-review on {{ strat_issue }}"
+    workflow: run-skill
+    vars:
+      skill_command: strat-review
+      skill_issue: "{{ strat_issue }}"
+
+  # ── Reusable sub-workflow: submit + poll ─────────────────────
+
+  - name: run-skill
+    description: "Submit a skill job and wait for completion"
+
+    steps:
+
+      - name: submit
+        type: agent_job
+        params:
+          body:
+            command: "{{ skill_command }}"
+            args:
+              issue: "{{ skill_issue }}"
+              model: opus
+              runner: cli
+              harness: claude-code
+              strace: true
+              mlflow: true
+              otel: true
+        register: submitted_job
+
+      - name: wait_for_completion
+        type: shell_exec
+        params:
+          command: |
+            job_name="{{ submitted_job.body.job_name }}"
+            echo "Waiting for job: $job_name"
+            elapsed=0
+            while [ $elapsed -lt 3600 ]; do
+              status=$(curl -sf \
+                "{{ dashboard_base }}/api/jobs/$job_name" 2>/dev/null \
+                | python3 -c "import json,sys; print(json.load(sys.stdin).get('status',''))" \
+                2>/dev/null || echo "")
+              case "$status" in
+                completed)
+                  echo "Job $job_name completed successfully"
+                  exit 0
+                  ;;
+                failed)
+                  echo "Job $job_name failed"
+                  exit 1
+                  ;;
+              esac
+              sleep 15
+              elapsed=$((elapsed + 15))
+            done
+            echo "TIMEOUT: job $job_name did not complete within 3600s"
+            exit 1

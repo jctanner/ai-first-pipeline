@@ -36,6 +36,7 @@ Planning and strategy documents.
 - [agentic-ci-optional-runner-plan.md](plans/agentic-ci-optional-runner-plan.md) — Optional agentic-ci runner in pipeline agent image
 - [skill-factory-demo-plan.md](plans/skill-factory-demo-plan.md) — Closed-loop skill generation demo using full service stack
 - [observability-demo-plan.md](plans/observability-demo-plan.md) — RFE-to-strategy pipeline with claim analysis and remediation
+- [closed-loop-hallucination-remediation-demo-plan.md](plans/closed-loop-hallucination-remediation-demo-plan.md) — End-to-end RFE/STRAT/EPIC claim loop with fix-and-rerun validation
 - [evals-dashboard-plan.md](plans/evals-dashboard-plan.md) — Add Evals page to dashboard for agent-eval-harness runs with A/B context comparison
 
 ## Reference

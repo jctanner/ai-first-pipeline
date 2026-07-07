@@ -1,0 +1,39 @@
+# ====================================================================
+# End-to-End Demo — Main Workflow
+# ====================================================================
+#
+# Resets all local services to a clean demo state, seeds an RFE ticket,
+# then runs the A→B→C→D pipeline (RFE → Strategy).
+#
+# Usage:
+#   markov run var/demos/end-to-end/
+#   markov run var/demos/end-to-end/ --var run_pipeline=false   # reset only
+#   markov run var/demos/end-to-end/ --var seed_rfe=false
+#   markov run var/demos/end-to-end/ --var github_token=ghp_xxx
+
+name: main
+description: "End-to-end demo: reset services, seed RFE, run pipeline"
+
+steps:
+
+  - name: reset_jira
+    description: "Wipe Jira and create required projects"
+    workflow: reset-jira
+
+  - name: reset_github
+    description: "Delete and re-import all repos on github.local"
+    workflow: reset-github
+
+  - name: reset_services
+    description: "Wipe observatory, MLflow, artifacts, and .context"
+    workflow: reset-services
+
+  - name: seed_rfe
+    description: "Create the demo RFE ticket"
+    when: "seed_rfe"
+    workflow: seed-rfe
+
+  - name: run_pipeline
+    description: "Run RFE-to-strategy pipeline on {{ rfe_issue }}"
+    when: "run_pipeline"
+    workflow: run-pipeline
