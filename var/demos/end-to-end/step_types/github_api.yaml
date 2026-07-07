@@ -3,6 +3,7 @@ github_api:
   description: "GitHub API call with token auth"
   params:
     base_url: "{{ github_base }}/api/v3"
+    tls_insecure: true
     headers:
       Authorization: "token {{ github_api_token }}"
       Accept: "application/json"

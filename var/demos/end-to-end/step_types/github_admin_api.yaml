@@ -3,3 +3,4 @@ github_admin_api:
   description: "GitHub admin API (unauthenticated bootstrap endpoints)"
   params:
     base_url: "{{ github_base }}/api/v3/admin"
+    tls_insecure: true

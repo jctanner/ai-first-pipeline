@@ -3,6 +3,7 @@ jira_api:
   description: "Jira REST API call with basic auth"
   params:
     base_url: "{{ jira_base }}"
+    tls_insecure: true
     basic_auth:
       username: admin
       password: admin
