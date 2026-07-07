@@ -37,7 +37,7 @@ steps:
         login: "{{ org }}"
       ignore_status: [422, 409]
 
-  # Step 3: Create the skills repo (no upstream — created empty)
+  # Step 3: Create local-only repos (no upstream — created empty)
   - name: delete_skills
     type: github_api
     params:
@@ -54,6 +54,23 @@ steps:
         name: skills
         auto_init: true
         description: "Claim analysis and remediation skills"
+
+  - name: delete_eval_datasets
+    type: github_api
+    params:
+      path: /repos/{{ org }}/eval-datasets
+      method: DELETE
+      ignore_status: [404]
+
+  - name: create_eval_datasets
+    type: github_api
+    params:
+      path: /orgs/{{ org }}/repos
+      method: POST
+      body:
+        name: eval-datasets
+        auto_init: true
+        description: "Evaluation datasets for agent-eval-harness"
 
   # Step 4: Delete and re-import each repo from upstream
   - name: process_repos

@@ -24,8 +24,6 @@ repos:
   # Quality and observability skill repos
   - name: agent-eval-harness
     upstream: https://github.com/opendatahub-io/agent-eval-harness
-  - name: eval-datasets
-    upstream: https://github.com/opendatahub-io/eval-datasets
   # Content / target repos
   - name: architecture-context
     upstream: https://github.com/opendatahub-io/architecture-context
