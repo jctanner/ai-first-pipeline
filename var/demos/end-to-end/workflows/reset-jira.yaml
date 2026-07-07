@@ -30,7 +30,7 @@ steps:
   # Step 3: Create RHAIFIRST via stub issue import (auto-creates the project)
   - name: create_rhaifirst
     type: jira_api
-    when: "{{ rhaifirst_check.status_code == 404 }}"
+    when: "rhaifirst_check.status_code == 404"
     params:
       path: /api/admin/import
       method: POST
@@ -50,7 +50,7 @@ steps:
   # Step 4: Clean up the stub issue
   - name: cleanup_stub
     type: jira_api
-    when: "{{ rhaifirst_check.status_code == 404 }}"
+    when: "rhaifirst_check.status_code == 404"
     params:
       path: /rest/api/2/issue/RHAIFIRST-1
       method: DELETE
