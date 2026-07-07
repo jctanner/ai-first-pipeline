@@ -22,7 +22,7 @@ steps:
     description: "Run rfe-speedrun on {{ rfe_issue }}"
     workflow: run-skill
     vars:
-      skill_command: rfe-speedrun
+      skill_fqn: "github.local/{{ org }}/rfe-creator@main:rfe.speedrun"
       skill_issue: "{{ rfe_issue }}"
 
   # ── Label for strategy creation ──────────────────────────────
@@ -40,10 +40,10 @@ steps:
   # ── Phase B: Strategy Create ─────────────────────────────────
 
   - name: strat_create
-    description: "Run strat-create on {{ rfe_issue }}"
+    description: "Run strategy-create on {{ rfe_issue }}"
     workflow: run-skill
     vars:
-      skill_command: strat-create
+      skill_fqn: "github.local/{{ org }}/strat-creator@main:strategy-create"
       skill_issue: "{{ rfe_issue }}"
 
   # ── Discover the created RHAISTRAT key ───────────────────────
@@ -78,18 +78,18 @@ steps:
   # ── Phase C: Strategy Refine ─────────────────────────────────
 
   - name: strat_refine
-    description: "Run strat-refine on {{ strat_issue }}"
+    description: "Run strategy-refine on {{ strat_issue }}"
     workflow: run-skill
     vars:
-      skill_command: strat-refine
+      skill_fqn: "github.local/{{ org }}/strat-creator@main:strategy-refine"
       skill_issue: "{{ strat_issue }}"
 
   # ── Phase D: Strategy Review ─────────────────────────────────
 
   - name: strat_review
-    description: "Run strat-review on {{ strat_issue }}"
+    description: "Run strategy-review on {{ strat_issue }}"
     workflow: run-skill
     vars:
-      skill_command: strat-review
+      skill_fqn: "github.local/{{ org }}/strat-creator@main:strategy-review"
       skill_issue: "{{ strat_issue }}"
 

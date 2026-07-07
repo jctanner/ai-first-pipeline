@@ -6,8 +6,8 @@
 # K8s job reaches "completed" or "failed" status.
 #
 # Required vars:
-#   skill_command  — skill name (e.g. "rfe-speedrun", "strat-create")
-#   skill_issue    — Jira issue key (e.g. "RHAIRFE-1")
+#   skill_fqn   — fully-qualified skill name (e.g. "github.local/opendatahub-io/rfe-creator@main:rfe.speedrun")
+#   skill_issue — Jira issue key (e.g. "RHAIRFE-1")
 
 name: run-skill
 description: "Submit a skill job and wait for completion"
@@ -18,7 +18,7 @@ steps:
     type: agent_job
     params:
       body:
-        command: "{{ skill_command }}"
+        fqn: "{{ skill_fqn }}"
         args:
           issue: "{{ skill_issue }}"
           model: opus
