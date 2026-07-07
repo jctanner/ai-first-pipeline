@@ -25,6 +25,23 @@ steps:
       skill_fqn: "github.local/{{ org }}/rfe-creator@main:rfe.speedrun"
       skill_issue: "{{ rfe_issue }}"
 
+  # ── Gate: RFE must have passed rubric review ─────────────────
+
+  - name: check_rubric_pass
+    type: shell_exec
+    params:
+      command: |
+        labels=$(curl -sf -u "admin:admin" \
+          "{{ jira_base }}/rest/api/2/issue/{{ rfe_issue }}?fields=labels" \
+          | python3 -c "import json,sys; print(' '.join(json.load(sys.stdin)['fields']['labels']))")
+        echo "Labels on {{ rfe_issue }}: $labels"
+        if echo "$labels" | grep -q "rfe-creator-autofix-rubric-pass"; then
+          echo "GATE PASSED: rfe-creator-autofix-rubric-pass found"
+          exit 0
+        fi
+        echo "GATE FAILED: rfe-creator-autofix-rubric-pass not found — RFE did not pass rubric review"
+        exit 1
+
   # ── Label for strategy creation ──────────────────────────────
 
   - name: add_strat_label
