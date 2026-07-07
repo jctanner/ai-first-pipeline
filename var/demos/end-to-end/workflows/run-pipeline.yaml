@@ -83,9 +83,9 @@ steps:
         curl -vk -u "admin:admin" \
           -o /tmp/rfe_links.json \
           "{{ jira_base }}/rest/api/2/issue/{{ rfe_issue }}?fields=issuelinks"
-        echo "--- Response body ---"
-        cat /tmp/rfe_links.json
-        echo ""
+        echo "--- Response body ---" >&2
+        cat /tmp/rfe_links.json >&2
+        echo "" >&2
         python3 -c "
         import json, sys
         data = json.load(open('/tmp/rfe_links.json'))
