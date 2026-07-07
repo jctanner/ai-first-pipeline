@@ -122,4 +122,5 @@ Defined in `step_types/` (one file per type):
 | `workflows/reset-github.yaml` | GitHub repo deletion and import |
 | `workflows/reset-services.yaml` | Observatory, MLflow, and volume reset |
 | `workflows/seed-rfe.yaml` | Demo RFE ticket creation |
-| `workflows/run-pipeline.yaml` | RFE-to-strategy pipeline with run-skill sub-workflow |
+| `workflows/run-pipeline.yaml` | RFE-to-strategy pipeline |
+| `workflows/run-skill.yaml` | Reusable submit + poll wrapper for agent jobs |
