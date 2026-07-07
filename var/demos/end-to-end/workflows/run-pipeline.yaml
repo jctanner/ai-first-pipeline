@@ -38,9 +38,13 @@ steps:
     type: shell_exec
     params:
       command: |
-        labels=$(curl -sf -u "admin:admin" \
-          "{{ jira_base }}/rest/api/2/issue/{{ rfe_issue }}?fields=labels" \
-          | python3 -c "import json,sys; print(' '.join(json.load(sys.stdin)['fields']['labels']))")
+        curl -vk -u "admin:admin" \
+          -o /tmp/rfe_labels.json \
+          "{{ jira_base }}/rest/api/2/issue/{{ rfe_issue }}?fields=labels"
+        echo "--- Response body ---"
+        cat /tmp/rfe_labels.json
+        echo ""
+        labels=$(python3 -c "import json; print(' '.join(json.load(open('/tmp/rfe_labels.json'))['fields']['labels']))")
         echo "Labels on {{ rfe_issue }}: $labels"
         if echo "$labels" | grep -q "rfe-creator-autofix-rubric-pass"; then
           echo "GATE PASSED: rfe-creator-autofix-rubric-pass found"
@@ -76,11 +80,15 @@ steps:
     type: shell_exec
     params:
       command: |
-        result=$(curl -sf -u "admin:admin" \
-          "{{ jira_base }}/rest/api/2/issue/{{ rfe_issue }}?fields=issuelinks" 2>/dev/null)
-        strat_key=$(echo "$result" | python3 -c "
+        curl -vk -u "admin:admin" \
+          -o /tmp/rfe_links.json \
+          "{{ jira_base }}/rest/api/2/issue/{{ rfe_issue }}?fields=issuelinks"
+        echo "--- Response body ---"
+        cat /tmp/rfe_links.json
+        echo ""
+        python3 -c "
         import json, sys
-        data = json.load(sys.stdin)
+        data = json.load(open('/tmp/rfe_links.json'))
         for link in data.get('fields', {}).get('issuelinks', []):
             if link.get('type', {}).get('name') == 'Cloners':
                 for d in ['inwardIssue', 'outwardIssue']:
@@ -90,8 +98,7 @@ steps:
                         sys.exit(0)
         print('ERROR: no RHAISTRAT link found on {{ rfe_issue }}', file=sys.stderr)
         sys.exit(1)
-        ")
-        echo "$strat_key"
+        "
     register: strat_discovery
 
   - name: set_strat_issue
