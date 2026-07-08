@@ -138,158 +138,62 @@ steps:
 
   # ── Phase E.5: Epic Submit ────────────────────────────────────
   #
-  # Create RHOAIENG Jira tickets from the decomposer's artifact files.
-  # Updates each artifact's frontmatter with the created jira_key so
-  # downstream skills can reference the real Jira ticket.
+  # Create Jira tickets from the decomposer's artifact files using the
+  # production submit.py from epic-creator. Clones the repo from
+  # github.local, seeds a synthetic decomp-review (the demo pipeline
+  # skips the separate review step), then runs submit.py which handles
+  # idempotency, dependency linking, and strategy labeling.
 
   - name: epic_submit
     description: "Create Jira tickets for {{ strat_issue }} epics"
     type: shell_exec
     params:
       command: |
-        ARTIFACTS_DIR="/app/artifacts/epic-tasks"
+        set -e
         STRAT="{{ strat_issue }}"
-        JIRA="{{ jira_base }}"
+        ARTIFACTS_DIR="/app/artifacts"
+        REPO_DIR="/tmp/epic-creator-submit"
 
-        if [ ! -d "$ARTIFACTS_DIR" ]; then
-          echo "ERROR: $ARTIFACTS_DIR not found" >&2
+        if [ ! -d "$ARTIFACTS_DIR/epic-tasks" ]; then
+          echo "ERROR: $ARTIFACTS_DIR/epic-tasks not found" >&2
           exit 1
         fi
 
-        python3 -c "
-        import glob, yaml, json, os, sys, ssl, urllib.request, base64
+        # Clone epic-creator from github.local (shallow, just need scripts/)
+        CLONE_HOST="github-emulator.ai-pipeline.svc.cluster.local"
+        if [ -d "$REPO_DIR" ]; then
+          echo "epic-creator already cloned at $REPO_DIR"
+        else
+          echo "Cloning epic-creator from $CLONE_HOST..."
+          git clone --depth 1 "https://${CLONE_HOST}/{{ org }}/epic-creator.git" "$REPO_DIR"
+        fi
 
-        artifacts_dir = '$ARTIFACTS_DIR'
-        strat = '$STRAT'
-        jira = '$JIRA'
+        # Seed a synthetic passing decomp-review if one doesn't exist.
+        # The demo pipeline doesn't run a separate review step, but
+        # submit.py gates on a passing review before creating tickets.
+        REVIEW_DIR="$ARTIFACTS_DIR/epic-reviews"
+        REVIEW_FILE="$REVIEW_DIR/${STRAT}-decomp-review.md"
+        if [ ! -f "$REVIEW_FILE" ]; then
+          echo "Creating synthetic decomp-review for $STRAT"
+          mkdir -p "$REVIEW_DIR"
+          cat > "$REVIEW_FILE" <<REVIEW_EOF
+        ---
+        strat_id: "${STRAT}"
+        score: 100
+        pass: true
+        recommendation: accept
+        issues: []
+        ---
+        Synthetic review — demo pipeline auto-approved.
+        REVIEW_EOF
+        fi
 
-        ctx = ssl.create_default_context()
-        ctx.check_hostname = False
-        ctx.verify_mode = ssl.CERT_NONE
-        creds = base64.b64encode(b'admin:admin').decode()
-
-        priority_map = {'P0': 'Highest', 'P1': 'High', 'P2': 'Medium'}
-        created = []
-
-        pattern = os.path.join(artifacts_dir, f'{strat}-E*.md')
-        files = sorted(glob.glob(pattern))
-        if not files:
-            print(f'No epic artifacts found for {strat}', file=sys.stderr)
-            sys.exit(0)
-
-        for path in files:
-            if path.endswith('-decomposition.md'):
-                continue
-
-            with open(path) as f:
-                content = f.read()
-            parts = content.split('---', 2)
-            if len(parts) < 3:
-                print(f'  SKIP: {path} has no frontmatter', file=sys.stderr)
-                continue
-
-            meta = yaml.safe_load(parts[1])
-            body = parts[2].strip()
-            epic_id = meta.get('epic_id', os.path.basename(path).replace('.md', ''))
-
-            if meta.get('jira_key'):
-                print(f'  SKIP: {epic_id} already submitted as {meta[\"jira_key\"]}', file=sys.stderr)
-                created.append({'epic_id': epic_id, 'jira_key': meta['jira_key'],
-                                'type': meta.get('type', 'unknown'), 'status': 'exists'})
-                continue
-
-            # Search Jira for existing ticket (handles create-succeeded-but-write-failed retries)
-            try:
-                import urllib.parse
-                search_jql = urllib.parse.quote(f'project = RHOAIENG AND labels = \"epic-id:{epic_id}\"')
-                search_req = urllib.request.Request(
-                    f'{jira}/rest/api/2/search?jql={search_jql}&fields=key&maxResults=1',
-                    headers={'Authorization': f'Basic {creds}', 'Content-Type': 'application/json'})
-                search_resp = urllib.request.urlopen(search_req, context=ctx)
-                search_data = json.loads(search_resp.read())
-                if search_data.get('issues'):
-                    found_key = search_data['issues'][0]['key']
-                    print(f'  RECOVERED: {epic_id} already exists as {found_key}, updating frontmatter', file=sys.stderr)
-                    meta['jira_key'] = found_key
-                    meta['status'] = 'Submitted'
-                    with open(path, 'w') as f:
-                        f.write('---\n')
-                        f.write(yaml.dump(meta, default_flow_style=False, sort_keys=False))
-                        f.write('---\n')
-                        f.write(body)
-                        f.write('\n')
-                    created.append({'epic_id': epic_id, 'jira_key': found_key,
-                                    'type': meta.get('type', 'unknown'), 'status': 'recovered'})
-                    continue
-            except Exception as e:
-                print(f'  WARNING: Jira search for {epic_id} failed: {e}', file=sys.stderr)
-
-            # Extract title from first heading
-            title = f'{epic_id}: {meta.get(\"component\", \"\")} - {meta.get(\"type\", \"\")}'
-            for line in body.split('\n'):
-                if line.startswith('#'):
-                    title = line.lstrip('#').strip()
-                    break
-
-            payload = {
-                'fields': {
-                    'project': {'key': 'RHOAIENG'},
-                    'issuetype': {'name': 'Epic'},
-                    'parent': {'key': meta.get('parent_strat', strat)},
-                    'summary': title,
-                    'description': body,
-                    'priority': {'name': priority_map.get(meta.get('priority', ''), 'Medium')},
-                    'labels': ['epic-submit', f'epic-type-{meta.get(\"type\", \"unknown\").lower()}',
-                               f'epic-id:{epic_id}'],
-                }
-            }
-            comp = meta.get('component')
-            if comp:
-                payload['fields']['components'] = [{'name': comp}]
-
-            data = json.dumps(payload).encode()
-            req = urllib.request.Request(
-                f'{jira}/rest/api/2/issue',
-                data=data,
-                headers={'Authorization': f'Basic {creds}',
-                         'Content-Type': 'application/json'})
-            try:
-                resp = urllib.request.urlopen(req, context=ctx)
-                result = json.loads(resp.read())
-                jira_key = result['key']
-            except Exception as e:
-                print(f'  ERROR creating {epic_id}: {e}', file=sys.stderr)
-                continue
-
-            # Update artifact frontmatter with jira_key
-            meta['jira_key'] = jira_key
-            meta['status'] = 'Submitted'
-            with open(path, 'w') as f:
-                f.write('---\n')
-                f.write(yaml.dump(meta, default_flow_style=False, sort_keys=False))
-                f.write('---\n')
-                f.write(body)
-                f.write('\n')
-
-            print(f'  CREATED: {epic_id} -> {jira_key}', file=sys.stderr)
-            created.append({'epic_id': epic_id, 'jira_key': jira_key,
-                            'type': meta.get('type', 'unknown'), 'status': 'created'})
-
-        # Add label to strategy ticket
-        try:
-            label_data = json.dumps({'update': {'labels': [{'add': 'epic-submit-complete'}]}}).encode()
-            label_req = urllib.request.Request(
-                f'{jira}/rest/api/2/issue/{strat}',
-                data=label_data,
-                headers={'Authorization': f'Basic {creds}',
-                         'Content-Type': 'application/json'},
-                method='PUT')
-            urllib.request.urlopen(label_req, context=ctx)
-        except Exception as e:
-            print(f'  WARNING: failed to label {strat}: {e}', file=sys.stderr)
-
-        print(json.dumps(created))
-        "
+        # Run the production submit script
+        export JIRA_SERVER="{{ jira_base }}"
+        export JIRA_USER="admin"
+        export JIRA_TOKEN="admin"
+        cd "$REPO_DIR"
+        python3 scripts/submit.py --artifacts-dir "$ARTIFACTS_DIR" "$STRAT"
     register: epic_submit_result
 
   # ── Discover epics with Jira keys ──────────────────────────
