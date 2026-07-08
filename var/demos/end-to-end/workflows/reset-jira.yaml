@@ -22,50 +22,16 @@ steps:
   - name: seed_projects
     for_each: jira_projects
     as: proj
-    steps:
-
-      - name: "check_{{ proj.key }}"
-        type: jira_api
-        params:
-          path: "/rest/api/2/project/{{ proj.key }}"
-          method: GET
-          ignore_status: [404]
-        register: project_check
-
-      - name: "create_{{ proj.key }}"
-        type: jira_api
-        when: "project_check.status_code == 404"
-        params:
-          path: /api/admin/import
-          method: POST
-          body:
-            issues:
-              - key: "{{ proj.key }}-1"
-                fields:
-                  project:
-                    key: "{{ proj.key }}"
-                    name: "{{ proj.name }}"
-                  issuetype:
-                    name: Epic
-                  summary: "Bootstrap issue (auto-created by demo setup)"
-                  status:
-                    name: Open
-
-      - name: "cleanup_stub_{{ proj.key }}"
-        type: jira_api
-        when: "project_check.status_code == 404"
-        params:
-          path: "/rest/api/2/issue/{{ proj.key }}-1"
-          method: DELETE
-          ignore_status: [404]
+    workflow: seed-jira-project
+    vars:
+      proj_key: "{{ proj.key }}"
+      proj_name: "{{ proj.name }}"
 
   # Step 3: Verify all projects exist
   - name: verify_projects
     for_each: jira_projects
     as: proj
-    steps:
-      - name: "verify_{{ proj.key }}"
-        type: jira_api
-        params:
-          path: "/rest/api/2/project/{{ proj.key }}"
-          method: GET
+    type: jira_api
+    params:
+      path: "/rest/api/2/project/{{ proj.key }}"
+      method: GET

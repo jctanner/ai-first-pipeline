@@ -1,0 +1,42 @@
+# Seed a single Jira project if it doesn't already exist.
+# Called by reset-jira with proj_key and proj_name.
+
+name: seed-jira-project
+description: "Ensure Jira project {{ proj_key }} exists"
+
+steps:
+
+  - name: check_project
+    type: jira_api
+    params:
+      path: "/rest/api/2/project/{{ proj_key }}"
+      method: GET
+      ignore_status: [404]
+    register: project_check
+
+  - name: create_project
+    type: jira_api
+    when: "project_check.status_code == 404"
+    params:
+      path: /api/admin/import
+      method: POST
+      body:
+        issues:
+          - key: "{{ proj_key }}-1"
+            fields:
+              project:
+                key: "{{ proj_key }}"
+                name: "{{ proj_name }}"
+              issuetype:
+                name: Epic
+              summary: "Bootstrap issue (auto-created by demo setup)"
+              status:
+                name: Open
+
+  - name: cleanup_stub
+    type: jira_api
+    when: "project_check.status_code == 404"
+    params:
+      path: "/rest/api/2/issue/{{ proj_key }}-1"
+      method: DELETE
+      ignore_status: [404]
