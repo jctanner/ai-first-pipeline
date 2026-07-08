@@ -201,7 +201,7 @@ steps:
 
   - name: run_investigations
     description: "Run Investigation epics"
-    for_each: "{{ epic_lists.investigation }}"
+    for_each: epic_lists.investigation
     as: epic_id
     workflow: run-skill
     vars:
@@ -214,7 +214,7 @@ steps:
 
   - name: run_codegen
     description: "Run codegen for Implementation epics"
-    for_each: "{{ epic_lists.implementation }}"
+    for_each: epic_lists.implementation
     as: epic_id
     workflow: run-skill
     vars:

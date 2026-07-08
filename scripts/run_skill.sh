@@ -303,7 +303,40 @@ if source:
   fi
 fi
 
-mkdir -p /app/artifacts/rfe-tasks /app/artifacts/strat-tasks /app/tmp /app/.context
+mkdir -p \
+  /app/artifacts/rfe-tasks \
+  /app/artifacts/strat-tasks \
+  /app/artifacts/epic-tasks \
+  /app/artifacts/epic-reviews \
+  /app/artifacts/decompose-runs \
+  /app/artifacts/investigations \
+  /app/tmp \
+  /app/.context
+
+# Claude Code subagents spawned by the Agent tool do not always inherit the
+# parent process cwd. Keep common fallback working directories pointed at the
+# shared PVC so relative writes like artifacts/epic-tasks/... do not disappear
+# into the container filesystem.
+setup_shared_links() {
+  local base="$1"
+  [ -n "$base" ] || return 0
+  mkdir -p "$base" 2>/dev/null || true
+
+  for name in artifacts tmp .context; do
+    local target="/app/$name"
+    local link="$base/$name"
+    if [ -L "$link" ]; then
+      ln -sfn "$target" "$link"
+    elif [ ! -e "$link" ]; then
+      ln -s "$target" "$link" 2>/dev/null || true
+    else
+      echo "WARNING: $link exists and is not a symlink; leaving it unchanged"
+    fi
+  done
+}
+
+setup_shared_links "/home/pipelineagent"
+setup_shared_links "$HOME"
 
 # Change to FQN clone directory if applicable
 if [ -n "$FQN_CLONE_DIR" ]; then
@@ -371,6 +404,16 @@ claude_pid=$!
 python3 -u /app/scripts/stream-claude.py --claude-pid "$claude_pid" < "$claude_fifo"
 
 EXIT_CODE=$?
+
+# Best-effort recovery for any local artifact directories created before the
+# fallback symlinks existed, or by tools that intentionally bypass symlinks.
+for candidate in "/home/pipelineagent/artifacts" "$HOME/artifacts"; do
+  if [ -d "$candidate" ] && [ ! -L "$candidate" ] && [ "$candidate" != "/app/artifacts" ]; then
+    echo "Recovering local artifacts from $candidate to /app/artifacts"
+    cp -a "$candidate"/. /app/artifacts/ 2>/dev/null || true
+  fi
+done
+
 echo
 echo "Execution finished at: $(date)"
 echo "Exit code: $EXIT_CODE"
