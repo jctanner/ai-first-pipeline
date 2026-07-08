@@ -165,7 +165,7 @@ steps:
           echo "epic-creator already cloned at $REPO_DIR"
         else
           echo "Cloning epic-creator from $CLONE_HOST..."
-          git clone --depth 1 "https://${CLONE_HOST}/{{ org }}/epic-creator.git" "$REPO_DIR"
+          GIT_SSL_NO_VERIFY=1 git clone --depth 1 "https://${CLONE_HOST}/{{ org }}/epic-creator.git" "$REPO_DIR"
         fi
 
         # Seed a synthetic passing decomp-review if one doesn't exist.
