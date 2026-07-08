@@ -1,9 +1,9 @@
 # ====================================================================
-# Run Skill: Submit + Poll
+# Run Skill: Submit + Wait
 # ====================================================================
 #
-# Submits a skill job via the dashboard API, then polls until the
-# K8s job reaches "completed" or "failed" status.
+# Submits a skill job via the dashboard API, then watches the K8s job
+# natively until it completes or fails, capturing pod logs.
 #
 # Required vars:
 #   skill_fqn   — fully-qualified skill name (e.g. "github.local/opendatahub-io/rfe-creator@main:rfe.speedrun")
@@ -30,29 +30,7 @@ steps:
     register: submitted_job
 
   - name: wait_for_completion
-    type: shell_exec
+    type: agent_job_wait
     params:
-      command: |
-        job_name="{{ submitted_job.body.job_name }}"
-        echo "Waiting for job: $job_name"
-        elapsed=0
-        while [ $elapsed -lt 3600 ]; do
-          status=$(curl -sf \
-            "{{ dashboard_base }}/api/jobs/$job_name" 2>/dev/null \
-            | python3 -c "import json,sys; print(json.load(sys.stdin).get('status',''))" \
-            2>/dev/null || echo "")
-          case "$status" in
-            completed)
-              echo "Job $job_name completed successfully"
-              exit 0
-              ;;
-            failed)
-              echo "Job $job_name failed"
-              exit 1
-              ;;
-          esac
-          sleep 15
-          elapsed=$((elapsed + 15))
-        done
-        echo "TIMEOUT: job $job_name did not complete within 3600s"
-        exit 1
+      job_name: "{{ submitted_job.body.job_name }}"
+    register: skill_result
