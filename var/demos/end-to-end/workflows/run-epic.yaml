@@ -177,4 +177,4 @@ steps:
     workflow: run-skill
     vars:
       skill_fqn: "github.local/{{ org }}/epic-code-gen@main:epic-codegen"
-      skill_issue: "{{ epic.jira_key }}"
+      skill_issue: "{{ epic.epic_id }}"
