@@ -192,9 +192,14 @@ steps:
         export JIRA_SERVER="{{ jira_base }}"
         export JIRA_USER="{{ jira_user }}"
         export JIRA_TOKEN="{{ jira_token }}"
-        export PYTHONHTTPSVERIFY=0
         cd "$REPO_DIR"
-        python3 scripts/submit.py --artifacts-dir "$ARTIFACTS_DIR" "$STRAT"
+        python3 -c "
+        import ssl, urllib.request
+        ssl._create_default_https_context = ssl._create_unverified_context
+        import runpy, sys
+        sys.argv = ['scripts/submit.py', '--artifacts-dir', '$ARTIFACTS_DIR', '$STRAT']
+        runpy.run_path('scripts/submit.py', run_name='__main__')
+        "
     register: epic_submit_result
 
   # ── Discover epics with Jira keys ──────────────────────────
