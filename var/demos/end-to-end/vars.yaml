@@ -11,6 +11,18 @@ seed_rfe: true
 run_pipeline: true
 rfe_issue: RHAIRFE-1
 
+jira_projects:
+  - key: RHOAIENG
+    name: "Red Hat OpenShift AI Engineering"
+  - key: RHAIRFE
+    name: "Red Hat AI RFEs"
+  - key: RHAISTRAT
+    name: "Red Hat AI Strategy"
+  - key: RHAI
+    name: "Red Hat AI"
+  - key: RHAIFIRST
+    name: "Red Hat AI First"
+
 repos:
   # Planning skill repos
   - name: rfe-creator

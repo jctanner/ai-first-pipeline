@@ -2,12 +2,12 @@
 # Reset Jira
 # ====================================================================
 #
-# Wipes all Jira data, re-seeds default projects (RHAIRFE, RHAISTRAT,
-# RHOAIENG, AIPCC, TEST), then creates the RHAIFIRST project via
-# stub issue import.
+# Wipes all Jira data, re-seeds default projects, then creates any
+# additional projects listed in vars.yaml that aren't part of the
+# emulator's built-in seed set.
 
 name: reset-jira
-description: "Wipe Jira and create RHAIFIRST project"
+description: "Wipe Jira and seed all projects from vars.yaml"
 
 steps:
 
@@ -18,59 +18,54 @@ steps:
       path: /api/admin/reset
       method: POST
 
-  # Step 2: Check if RHAIFIRST already exists
-  - name: check_rhaifirst
-    type: jira_api
-    params:
-      path: /rest/api/2/project/RHAIFIRST
-      method: GET
-      ignore_status: [404]
-    register: rhaifirst_check
+  # Step 2: Ensure every project in jira_projects exists
+  - name: seed_projects
+    for_each: jira_projects
+    as: proj
+    steps:
 
-  # Step 3: Create RHAIFIRST via stub issue import (auto-creates the project)
-  - name: create_rhaifirst
-    type: jira_api
-    when: "rhaifirst_check.status_code == 404"
-    params:
-      path: /api/admin/import
-      method: POST
-      body:
-        issues:
-          - key: "RHAIFIRST-1"
-            fields:
-              project:
-                key: RHAIFIRST
-                name: "Red Hat AI First"
-              issuetype:
-                name: Epic
-              summary: "Bootstrap issue (auto-created by demo setup)"
-              status:
-                name: Open
+      - name: "check_{{ proj.key }}"
+        type: jira_api
+        params:
+          path: "/rest/api/2/project/{{ proj.key }}"
+          method: GET
+          ignore_status: [404]
+        register: project_check
 
-  # Step 4: Clean up the stub issue
-  - name: cleanup_stub
-    type: jira_api
-    when: "rhaifirst_check.status_code == 404"
-    params:
-      path: /rest/api/2/issue/RHAIFIRST-1
-      method: DELETE
-      ignore_status: [404]
+      - name: "create_{{ proj.key }}"
+        type: jira_api
+        when: "project_check.status_code == 404"
+        params:
+          path: /api/admin/import
+          method: POST
+          body:
+            issues:
+              - key: "{{ proj.key }}-1"
+                fields:
+                  project:
+                    key: "{{ proj.key }}"
+                    name: "{{ proj.name }}"
+                  issuetype:
+                    name: Epic
+                  summary: "Bootstrap issue (auto-created by demo setup)"
+                  status:
+                    name: Open
 
-  # Step 5: Verify all required projects exist
-  - name: verify_rhairfe
-    type: jira_api
-    params:
-      path: /rest/api/2/project/RHAIRFE
-      method: GET
+      - name: "cleanup_stub_{{ proj.key }}"
+        type: jira_api
+        when: "project_check.status_code == 404"
+        params:
+          path: "/rest/api/2/issue/{{ proj.key }}-1"
+          method: DELETE
+          ignore_status: [404]
 
-  - name: verify_rhaistrat
-    type: jira_api
-    params:
-      path: /rest/api/2/project/RHAISTRAT
-      method: GET
-
-  - name: verify_rhaifirst
-    type: jira_api
-    params:
-      path: /rest/api/2/project/RHAIFIRST
-      method: GET
+  # Step 3: Verify all projects exist
+  - name: verify_projects
+    for_each: jira_projects
+    as: proj
+    steps:
+      - name: "verify_{{ proj.key }}"
+        type: jira_api
+        params:
+          path: "/rest/api/2/project/{{ proj.key }}"
+          method: GET

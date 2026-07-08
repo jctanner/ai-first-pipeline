@@ -1,5 +1,6 @@
 # Environment and secrets
 .env
+.markovd-cli-config.toml
 .env.*
 !.env.template
 *credentials.json
