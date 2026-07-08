@@ -129,6 +129,8 @@ steps:
             if len(parts) < 3:
                 continue
             meta = yaml.safe_load(parts[1])
+            if not meta:
+                continue
             epic_id = meta.get('epic_id', os.path.basename(path).replace('.md', ''))
             jira_key = meta.get('jira_key', '')
             epic_type = meta.get('type', 'unknown')
