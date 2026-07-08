@@ -1,5 +1,7 @@
 github_base: https://github-emulator.ai-pipeline.svc.cluster.local
 jira_base: https://jira-emulator.ai-pipeline.svc.cluster.local
+jira_user: admin
+jira_token: admin
 observatory_base: http://observatory.ai-pipeline.svc.cluster.local:8000
 dashboard_base: http://pipeline-dashboard.ai-pipeline.svc.cluster.local:5000
 org: opendatahub-io

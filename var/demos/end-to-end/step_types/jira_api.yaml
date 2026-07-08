@@ -5,7 +5,7 @@ jira_api:
     base_url: "{{ jira_base }}"
     tls_insecure: true
     basic_auth:
-      username: admin
-      password: admin
+      username: "{{ jira_user }}"
+      password: "{{ jira_token }}"
     headers:
       Accept: "application/json"

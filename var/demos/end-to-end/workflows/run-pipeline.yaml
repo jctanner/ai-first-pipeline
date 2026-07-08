@@ -41,7 +41,7 @@ steps:
     type: shell_exec
     params:
       command: |
-        curl -vk -u "admin:admin" \
+        curl -vk -u "{{ jira_user }}:{{ jira_token }}" \
           -o /tmp/rfe_labels.json \
           "{{ jira_base }}/rest/api/2/issue/{{ rfe_issue }}?fields=labels"
         echo "--- Response body ---"
@@ -83,7 +83,7 @@ steps:
     type: shell_exec
     params:
       command: |
-        curl -vk -u "admin:admin" \
+        curl -vk -u "{{ jira_user }}:{{ jira_token }}" \
           -o /tmp/rfe_links.json \
           "{{ jira_base }}/rest/api/2/issue/{{ rfe_issue }}?fields=issuelinks"
         echo "--- Response body ---" >&2
@@ -190,8 +190,8 @@ steps:
 
         # Run the production submit script
         export JIRA_SERVER="{{ jira_base }}"
-        export JIRA_USER="admin"
-        export JIRA_TOKEN="admin"
+        export JIRA_USER="{{ jira_user }}"
+        export JIRA_TOKEN="{{ jira_token }}"
         cd "$REPO_DIR"
         python3 scripts/submit.py --artifacts-dir "$ARTIFACTS_DIR" "$STRAT"
     register: epic_submit_result
