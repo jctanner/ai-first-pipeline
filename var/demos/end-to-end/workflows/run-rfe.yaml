@@ -1,0 +1,60 @@
+# ====================================================================
+# Run RFE: speedrun → submit → gate → label
+# ====================================================================
+#
+# Runs the RFE phase: create/review/fix, submit to Jira, verify the
+# rubric passed, then label for strategy creation.
+#
+# Requires: rfe_issue
+
+name: run-rfe
+description: "Run RFE speedrun, submit, and gate for {{ rfe_issue }}"
+
+steps:
+
+  - name: rfe_speedrun
+    description: "Run rfe-speedrun on {{ rfe_issue }}"
+    workflow: run-skill
+    vars:
+      skill_fqn: "github.local/{{ org }}/rfe-creator@main:rfe.speedrun"
+      skill_issue: "{{ rfe_issue }}"
+
+  - name: rfe_submit
+    description: "Run rfe-submit on {{ rfe_issue }}"
+    workflow: run-skill
+    vars:
+      skill_fqn: "github.local/{{ org }}/rfe-creator@main:rfe.submit"
+      skill_issue: "{{ rfe_issue }}"
+
+  # ── Gate: RFE must have passed rubric review ─────────────────
+
+  - name: check_rubric_pass
+    type: shell_exec
+    params:
+      command: |
+        curl -vk -u "{{ jira_user }}:{{ jira_token }}" \
+          -o /tmp/rfe_labels.json \
+          "{{ jira_base }}/rest/api/2/issue/{{ rfe_issue }}?fields=labels"
+        echo "--- Response body ---"
+        cat /tmp/rfe_labels.json
+        echo ""
+        labels=$(python3 -c "import json; print(' '.join(json.load(open('/tmp/rfe_labels.json'))['fields']['labels']))")
+        echo "Labels on {{ rfe_issue }}: $labels"
+        if echo "$labels" | grep -q "rfe-creator-autofix-rubric-pass"; then
+          echo "GATE PASSED: rfe-creator-autofix-rubric-pass found"
+          exit 0
+        fi
+        echo "GATE FAILED: rfe-creator-autofix-rubric-pass not found — RFE did not pass rubric review"
+        exit 1
+
+  # ── Label for strategy creation ──────────────────────────────
+
+  - name: add_strat_label
+    type: jira_api
+    params:
+      path: /rest/api/2/issue/{{ rfe_issue }}
+      method: PUT
+      body:
+        update:
+          labels:
+            - add: "strat-creator-3.6"

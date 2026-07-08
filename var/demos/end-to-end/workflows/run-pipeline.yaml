@@ -2,82 +2,43 @@
 # Run Pipeline: RFE → Strategy → Epic → Code
 # ====================================================================
 #
-# Runs the full pipeline on a seeded RFE:
-#   1. rfe-speedrun    — create, review, fix, submit the RFE
-#   2. Label           — add strat-creator-3.6 to mark ready for strategy
-#   3. strat-create    — create a RHAISTRAT ticket from the RFE
-#   4. strat-refine    — add HOW, dependencies, NFRs
-#   5. strat-review    — adversarial review
-#   6. epic-decompose  — decompose RHAISTRAT into epic DAG
-#   7. epic-investigate — run Investigation epics
-#   8. epic-codegen    — generate code for Implementation epics
+# Orchestrates the full pipeline by chaining sub-workflows:
+#   1. run-rfe   — speedrun, submit, gate, label
+#   2. run-strat — create, discover key, refine, review
+#   3. run-epic  — decompose, submit to Jira, investigate, codegen
 #
-# Requires: rfe_issue set (default RHAIRFE-1 from seed-rfe)
+# Each sub-workflow can also be run independently:
+#   markov run --workflow run-rfe   --var rfe_issue=RHAIRFE-1
+#   markov run --workflow run-strat --var rfe_issue=RHAIRFE-1
+#   markov run --workflow run-epic  --var strat_issue=RHAISTRAT-1
+#
+# Requires: rfe_issue (default RHAIRFE-1 from seed-rfe)
 
 name: run-pipeline
 description: "Run the full RFE → Strategy → Epic → Code pipeline"
 
 steps:
 
-  # ── Phase A: RFE Speedrun ────────────────────────────────────
+  # ── Phase A: RFE ────────────────────────────────────────────
 
-  - name: rfe_speedrun
-    description: "Run rfe-speedrun on {{ rfe_issue }}"
-    workflow: run-skill
+  - name: rfe
+    description: "RFE speedrun, submit, and gate for {{ rfe_issue }}"
+    workflow: run-rfe
     vars:
-      skill_fqn: "github.local/{{ org }}/rfe-creator@main:rfe.speedrun"
-      skill_issue: "{{ rfe_issue }}"
+      rfe_issue: "{{ rfe_issue }}"
 
-  - name: rfe_submit
-    description: "Run rfe-submit on {{ rfe_issue }}"
-    workflow: run-skill
+  # ── Phase B–D: Strategy ─────────────────────────────────────
+
+  - name: strategy
+    description: "Strategy create, refine, and review for {{ rfe_issue }}"
+    workflow: run-strat
     vars:
-      skill_fqn: "github.local/{{ org }}/rfe-creator@main:rfe.submit"
-      skill_issue: "{{ rfe_issue }}"
+      rfe_issue: "{{ rfe_issue }}"
 
-  # ── Gate: RFE must have passed rubric review ─────────────────
-
-  - name: check_rubric_pass
-    type: shell_exec
-    params:
-      command: |
-        curl -vk -u "{{ jira_user }}:{{ jira_token }}" \
-          -o /tmp/rfe_labels.json \
-          "{{ jira_base }}/rest/api/2/issue/{{ rfe_issue }}?fields=labels"
-        echo "--- Response body ---"
-        cat /tmp/rfe_labels.json
-        echo ""
-        labels=$(python3 -c "import json; print(' '.join(json.load(open('/tmp/rfe_labels.json'))['fields']['labels']))")
-        echo "Labels on {{ rfe_issue }}: $labels"
-        if echo "$labels" | grep -q "rfe-creator-autofix-rubric-pass"; then
-          echo "GATE PASSED: rfe-creator-autofix-rubric-pass found"
-          exit 0
-        fi
-        echo "GATE FAILED: rfe-creator-autofix-rubric-pass not found — RFE did not pass rubric review"
-        exit 1
-
-  # ── Label for strategy creation ──────────────────────────────
-
-  - name: add_strat_label
-    type: jira_api
-    params:
-      path: /rest/api/2/issue/{{ rfe_issue }}
-      method: PUT
-      body:
-        update:
-          labels:
-            - add: "strat-creator-3.6"
-
-  # ── Phase B: Strategy Create ─────────────────────────────────
-
-  - name: strat_create
-    description: "Run strategy-create on {{ rfe_issue }}"
-    workflow: run-skill
-    vars:
-      skill_fqn: "github.local/{{ org }}/strat-creator@main:strategy-create"
-      skill_issue: "{{ rfe_issue }}"
-
-  # ── Discover the created RHAISTRAT key ───────────────────────
+  # ── Discover strat key for epic phase ───────────────────────
+  #
+  # run-strat sets strat_issue internally but set_fact doesn't
+  # propagate back to the parent. Re-discover here.
 
   - name: discover_strat_key
     type: shell_exec
@@ -109,185 +70,10 @@ steps:
     vars:
       strat_issue: "{{ strat_discovery.stdout | trim }}"
 
-  # ── Phase C: Strategy Refine ─────────────────────────────────
+  # ── Phase E–G: Epic ─────────────────────────────────────────
 
-  - name: strat_refine
-    description: "Run strategy-refine on {{ strat_issue }}"
-    workflow: run-skill
+  - name: epic
+    description: "Epic decompose, submit, investigate, and codegen for {{ strat_issue }}"
+    workflow: run-epic
     vars:
-      skill_fqn: "github.local/{{ org }}/strat-creator@main:strategy-refine"
-      skill_issue: "{{ strat_issue }}"
-
-  # ── Phase D: Strategy Review ─────────────────────────────────
-
-  - name: strat_review
-    description: "Run strategy-review on {{ strat_issue }}"
-    workflow: run-skill
-    vars:
-      skill_fqn: "github.local/{{ org }}/strat-creator@main:strategy-review"
-      skill_issue: "{{ strat_issue }}"
-
-  # ── Phase E: Epic Decompose ─────────────────────────────────
-
-  - name: epic_decompose
-    description: "Decompose {{ strat_issue }} into epic DAG"
-    workflow: run-skill
-    vars:
-      skill_fqn: "github.local/{{ org }}/epic-creator@main:epic-decompose"
-      skill_issue: "{{ strat_issue }}"
-
-  # ── Phase E.5: Epic Submit ────────────────────────────────────
-  #
-  # Create Jira tickets from the decomposer's artifact files using the
-  # production submit.py from epic-creator. Clones the repo from
-  # github.local, seeds a synthetic decomp-review (the demo pipeline
-  # skips the separate review step), then runs submit.py which handles
-  # idempotency, dependency linking, and strategy labeling.
-
-  - name: epic_submit
-    description: "Create Jira tickets for {{ strat_issue }} epics"
-    type: shell_exec
-    params:
-      command: |
-        set -e
-        STRAT="{{ strat_issue }}"
-        ARTIFACTS_DIR="/app/artifacts"
-        REPO_DIR="/tmp/epic-creator-submit"
-
-        if [ ! -d "$ARTIFACTS_DIR/epic-tasks" ]; then
-          echo "ERROR: $ARTIFACTS_DIR/epic-tasks not found" >&2
-          exit 1
-        fi
-
-        # Clone epic-creator from github.local (shallow, just need scripts/)
-        CLONE_HOST="github-emulator.ai-pipeline.svc.cluster.local"
-        if [ -d "$REPO_DIR" ]; then
-          echo "epic-creator already cloned at $REPO_DIR"
-        else
-          echo "Cloning epic-creator from $CLONE_HOST..."
-          GIT_SSL_NO_VERIFY=1 git clone --depth 1 "https://${CLONE_HOST}/{{ org }}/epic-creator.git" "$REPO_DIR"
-        fi
-
-        # Seed a synthetic passing decomp-review if one doesn't exist.
-        # The demo pipeline doesn't run a separate review step, but
-        # submit.py gates on a passing review before creating tickets.
-        REVIEW_DIR="$ARTIFACTS_DIR/epic-reviews"
-        REVIEW_FILE="$REVIEW_DIR/${STRAT}-decomp-review.md"
-        if [ ! -f "$REVIEW_FILE" ]; then
-          echo "Creating synthetic decomp-review for $STRAT"
-          mkdir -p "$REVIEW_DIR"
-          cat > "$REVIEW_FILE" <<REVIEW_EOF
-        ---
-        strat_id: "${STRAT}"
-        score: 100
-        pass: true
-        recommendation: accept
-        issues: []
-        ---
-        Synthetic review — demo pipeline auto-approved.
-        REVIEW_EOF
-        fi
-
-        # Create empty component list so submit.py skips validation
-        # (production populates this via fetch_components.py against RHAI)
-        mkdir -p "$REPO_DIR/.context"
-        touch "$REPO_DIR/.context/rhai-components.txt"
-
-        # Run the production submit script
-        export JIRA_SERVER="{{ jira_base }}"
-        export JIRA_USER="{{ jira_user }}"
-        export JIRA_TOKEN="{{ jira_token }}"
-        cd "$REPO_DIR"
-        python3 -c "
-        import ssl, urllib.request
-        ssl._create_default_https_context = ssl._create_unverified_context
-        import runpy, sys
-        sys.argv = ['scripts/submit.py', '--artifacts-dir', '$ARTIFACTS_DIR', '$STRAT']
-        runpy.run_path('scripts/submit.py', run_name='__main__')
-        "
-    register: epic_submit_result
-
-  # ── Discover epics with Jira keys ──────────────────────────
-  #
-  # Re-read artifact files after epic-submit. Now each file has
-  # jira_key in frontmatter. Split by type and include both
-  # epic_id and jira_key for downstream skills.
-
-  - name: discover_epics
-    type: shell_exec
-    params:
-      command: |
-        ARTIFACTS_DIR="/app/artifacts/epic-tasks"
-        STRAT="{{ strat_issue }}"
-
-        if [ ! -d "$ARTIFACTS_DIR" ]; then
-          echo "ERROR: $ARTIFACTS_DIR not found" >&2
-          exit 1
-        fi
-
-        python3 -c "
-        import glob, yaml, json, os, sys
-
-        artifacts_dir = '$ARTIFACTS_DIR'
-        strat = '$STRAT'
-        investigation = []
-        implementation = []
-
-        pattern = os.path.join(artifacts_dir, f'{strat}-E*.md')
-        for path in sorted(glob.glob(pattern)):
-            if path.endswith('-decomposition.md'):
-                continue
-            with open(path) as f:
-                content = f.read()
-            parts = content.split('---', 2)
-            if len(parts) < 3:
-                continue
-            meta = yaml.safe_load(parts[1])
-            epic_id = meta.get('epic_id', os.path.basename(path).replace('.md', ''))
-            jira_key = meta.get('jira_key', '')
-            epic_type = meta.get('type', 'unknown')
-            entry = {'epic_id': epic_id, 'jira_key': jira_key}
-            print(f'  Found: {epic_id} key={jira_key} type={epic_type}', file=sys.stderr)
-            if epic_type == 'Investigation':
-                investigation.append(entry)
-            elif epic_type == 'Implementation':
-                implementation.append(entry)
-            else:
-                print(f'  Skipping unknown type: {epic_type}', file=sys.stderr)
-
-        print(json.dumps({'investigation': investigation, 'implementation': implementation}))
-        "
-    register: epic_discovery
-
-  - name: set_epic_lists
-    type: set_fact
-    vars:
-      epic_lists: "{{ epic_discovery.stdout | fromjson }}"
-
-  # ── Phase F: Epic Investigate ───────────────────────────────
-  #
-  # Run Investigation epics to resolve unknowns that gate sibling
-  # Implementation epics.
-
-  - name: run_investigations
-    description: "Run Investigation epics"
-    for_each: epic_lists.investigation
-    as: epic
-    workflow: run-skill
-    vars:
-      skill_fqn: "github.local/{{ org }}/epic-investigator@main:epic-investigate"
-      skill_issue: "{{ epic.jira_key }}"
-
-  # ── Phase G: Epic Codegen ───────────────────────────────────
-  #
-  # Generate implementation code for each Implementation epic.
-
-  - name: run_codegen
-    description: "Run codegen for Implementation epics"
-    for_each: epic_lists.implementation
-    as: epic
-    workflow: run-skill
-    vars:
-      skill_fqn: "github.local/{{ org }}/epic-code-gen@main:epic-codegen"
-      skill_issue: "{{ epic.jira_key }}"
-
+      strat_issue: "{{ strat_issue }}"

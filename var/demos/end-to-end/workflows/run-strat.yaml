@@ -1,0 +1,71 @@
+# ====================================================================
+# Run Strategy: create → discover key → refine → review
+# ====================================================================
+#
+# Runs the strategy phase: create RHAISTRAT from the RFE, discover
+# the created key, then refine and review.
+#
+# Requires: rfe_issue
+# Produces: strat_issue (via set_fact from discovered RHAISTRAT key)
+
+name: run-strat
+description: "Run strategy create, refine, and review for {{ rfe_issue }}"
+
+steps:
+
+  - name: strat_create
+    description: "Run strategy-create on {{ rfe_issue }}"
+    workflow: run-skill
+    vars:
+      skill_fqn: "github.local/{{ org }}/strat-creator@main:strategy-create"
+      skill_issue: "{{ rfe_issue }}"
+
+  # ── Discover the created RHAISTRAT key ───────────────────────
+
+  - name: discover_strat_key
+    type: shell_exec
+    params:
+      command: |
+        curl -vk -u "{{ jira_user }}:{{ jira_token }}" \
+          -o /tmp/rfe_links.json \
+          "{{ jira_base }}/rest/api/2/issue/{{ rfe_issue }}?fields=issuelinks"
+        echo "--- Response body ---" >&2
+        cat /tmp/rfe_links.json >&2
+        echo "" >&2
+        python3 -c "
+        import json, sys
+        data = json.load(open('/tmp/rfe_links.json'))
+        for link in data.get('fields', {}).get('issuelinks', []):
+            if link.get('type', {}).get('name') == 'Cloners':
+                for d in ['inwardIssue', 'outwardIssue']:
+                    issue = link.get(d, {})
+                    if issue.get('key', '').startswith('RHAISTRAT'):
+                        print(issue['key'])
+                        sys.exit(0)
+        print('ERROR: no RHAISTRAT link found on {{ rfe_issue }}', file=sys.stderr)
+        sys.exit(1)
+        "
+    register: strat_discovery
+
+  - name: set_strat_issue
+    type: set_fact
+    vars:
+      strat_issue: "{{ strat_discovery.stdout | trim }}"
+
+  # ── Strategy Refine ─────────────────────────────────────────
+
+  - name: strat_refine
+    description: "Run strategy-refine on {{ strat_issue }}"
+    workflow: run-skill
+    vars:
+      skill_fqn: "github.local/{{ org }}/strat-creator@main:strategy-refine"
+      skill_issue: "{{ strat_issue }}"
+
+  # ── Strategy Review ─────────────────────────────────────────
+
+  - name: strat_review
+    description: "Run strategy-review on {{ strat_issue }}"
+    workflow: run-skill
+    vars:
+      skill_fqn: "github.local/{{ org }}/strat-creator@main:strategy-review"
+      skill_issue: "{{ strat_issue }}"
