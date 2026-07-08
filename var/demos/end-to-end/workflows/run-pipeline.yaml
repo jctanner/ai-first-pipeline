@@ -188,6 +188,11 @@ steps:
         REVIEW_EOF
         fi
 
+        # Create empty component list so submit.py skips validation
+        # (production populates this via fetch_components.py against RHAI)
+        mkdir -p "$REPO_DIR/.context"
+        touch "$REPO_DIR/.context/rhai-components.txt"
+
         # Run the production submit script
         export JIRA_SERVER="{{ jira_base }}"
         export JIRA_USER="{{ jira_user }}"
