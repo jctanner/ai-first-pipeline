@@ -202,10 +202,11 @@ steps:
   - name: run_investigations
     description: "Run Investigation epics"
     for_each: "{{ epic_lists.investigation }}"
+    as: epic_id
     workflow: run-skill
     vars:
       skill_fqn: "github.local/{{ org }}/epic-investigator@main:epic-investigate"
-      skill_issue: "{{ item }}"
+      skill_issue: "{{ epic_id }}"
 
   # ── Phase G: Epic Codegen ───────────────────────────────────
   #
@@ -214,8 +215,9 @@ steps:
   - name: run_codegen
     description: "Run codegen for Implementation epics"
     for_each: "{{ epic_lists.implementation }}"
+    as: epic_id
     workflow: run-skill
     vars:
       skill_fqn: "github.local/{{ org }}/epic-code-gen@main:epic-codegen"
-      skill_issue: "{{ item }}"
+      skill_issue: "{{ epic_id }}"
 
