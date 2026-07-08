@@ -136,11 +136,167 @@ steps:
       skill_fqn: "github.local/{{ org }}/epic-creator@main:epic-decompose"
       skill_issue: "{{ strat_issue }}"
 
-  # ── Discover created epics from artifacts ───────────────────
+  # ── Phase E.5: Epic Submit ────────────────────────────────────
   #
-  # epic-decompose writes per-epic markdown files to artifacts/epic-tasks/.
-  # Each file has YAML frontmatter with a "type:" field (Investigation or
-  # Implementation). We list them and split by type.
+  # Create RHOAIENG Jira tickets from the decomposer's artifact files.
+  # Updates each artifact's frontmatter with the created jira_key so
+  # downstream skills can reference the real Jira ticket.
+
+  - name: epic_submit
+    description: "Create Jira tickets for {{ strat_issue }} epics"
+    type: shell_exec
+    params:
+      command: |
+        ARTIFACTS_DIR="/app/artifacts/epic-tasks"
+        STRAT="{{ strat_issue }}"
+        JIRA="{{ jira_base }}"
+
+        if [ ! -d "$ARTIFACTS_DIR" ]; then
+          echo "ERROR: $ARTIFACTS_DIR not found" >&2
+          exit 1
+        fi
+
+        python3 -c "
+        import glob, yaml, json, os, sys, ssl, urllib.request, base64
+
+        artifacts_dir = '$ARTIFACTS_DIR'
+        strat = '$STRAT'
+        jira = '$JIRA'
+
+        ctx = ssl.create_default_context()
+        ctx.check_hostname = False
+        ctx.verify_mode = ssl.CERT_NONE
+        creds = base64.b64encode(b'admin:admin').decode()
+
+        priority_map = {'P0': 'Highest', 'P1': 'High', 'P2': 'Medium'}
+        created = []
+
+        pattern = os.path.join(artifacts_dir, f'{strat}-E*.md')
+        files = sorted(glob.glob(pattern))
+        if not files:
+            print(f'No epic artifacts found for {strat}', file=sys.stderr)
+            sys.exit(0)
+
+        for path in files:
+            if path.endswith('-decomposition.md'):
+                continue
+
+            with open(path) as f:
+                content = f.read()
+            parts = content.split('---', 2)
+            if len(parts) < 3:
+                print(f'  SKIP: {path} has no frontmatter', file=sys.stderr)
+                continue
+
+            meta = yaml.safe_load(parts[1])
+            body = parts[2].strip()
+            epic_id = meta.get('epic_id', os.path.basename(path).replace('.md', ''))
+
+            if meta.get('jira_key'):
+                print(f'  SKIP: {epic_id} already submitted as {meta[\"jira_key\"]}', file=sys.stderr)
+                created.append({'epic_id': epic_id, 'jira_key': meta['jira_key'],
+                                'type': meta.get('type', 'unknown'), 'status': 'exists'})
+                continue
+
+            # Search Jira for existing ticket (handles create-succeeded-but-write-failed retries)
+            try:
+                import urllib.parse
+                search_jql = urllib.parse.quote(f'project = RHOAIENG AND labels = \"epic-id:{epic_id}\"')
+                search_req = urllib.request.Request(
+                    f'{jira}/rest/api/2/search?jql={search_jql}&fields=key&maxResults=1',
+                    headers={'Authorization': f'Basic {creds}', 'Content-Type': 'application/json'})
+                search_resp = urllib.request.urlopen(search_req, context=ctx)
+                search_data = json.loads(search_resp.read())
+                if search_data.get('issues'):
+                    found_key = search_data['issues'][0]['key']
+                    print(f'  RECOVERED: {epic_id} already exists as {found_key}, updating frontmatter', file=sys.stderr)
+                    meta['jira_key'] = found_key
+                    meta['status'] = 'Submitted'
+                    with open(path, 'w') as f:
+                        f.write('---\n')
+                        f.write(yaml.dump(meta, default_flow_style=False, sort_keys=False))
+                        f.write('---\n')
+                        f.write(body)
+                        f.write('\n')
+                    created.append({'epic_id': epic_id, 'jira_key': found_key,
+                                    'type': meta.get('type', 'unknown'), 'status': 'recovered'})
+                    continue
+            except Exception as e:
+                print(f'  WARNING: Jira search for {epic_id} failed: {e}', file=sys.stderr)
+
+            # Extract title from first heading
+            title = f'{epic_id}: {meta.get(\"component\", \"\")} - {meta.get(\"type\", \"\")}'
+            for line in body.split('\n'):
+                if line.startswith('#'):
+                    title = line.lstrip('#').strip()
+                    break
+
+            payload = {
+                'fields': {
+                    'project': {'key': 'RHOAIENG'},
+                    'issuetype': {'name': 'Epic'},
+                    'parent': {'key': meta.get('parent_strat', strat)},
+                    'summary': title,
+                    'description': body,
+                    'priority': {'name': priority_map.get(meta.get('priority', ''), 'Medium')},
+                    'labels': ['epic-submit', f'epic-type-{meta.get(\"type\", \"unknown\").lower()}',
+                               f'epic-id:{epic_id}'],
+                }
+            }
+            comp = meta.get('component')
+            if comp:
+                payload['fields']['components'] = [{'name': comp}]
+
+            data = json.dumps(payload).encode()
+            req = urllib.request.Request(
+                f'{jira}/rest/api/2/issue',
+                data=data,
+                headers={'Authorization': f'Basic {creds}',
+                         'Content-Type': 'application/json'})
+            try:
+                resp = urllib.request.urlopen(req, context=ctx)
+                result = json.loads(resp.read())
+                jira_key = result['key']
+            except Exception as e:
+                print(f'  ERROR creating {epic_id}: {e}', file=sys.stderr)
+                continue
+
+            # Update artifact frontmatter with jira_key
+            meta['jira_key'] = jira_key
+            meta['status'] = 'Submitted'
+            with open(path, 'w') as f:
+                f.write('---\n')
+                f.write(yaml.dump(meta, default_flow_style=False, sort_keys=False))
+                f.write('---\n')
+                f.write(body)
+                f.write('\n')
+
+            print(f'  CREATED: {epic_id} -> {jira_key}', file=sys.stderr)
+            created.append({'epic_id': epic_id, 'jira_key': jira_key,
+                            'type': meta.get('type', 'unknown'), 'status': 'created'})
+
+        # Add label to strategy ticket
+        try:
+            label_data = json.dumps({'update': {'labels': [{'add': 'epic-submit-complete'}]}}).encode()
+            label_req = urllib.request.Request(
+                f'{jira}/rest/api/2/issue/{strat}',
+                data=label_data,
+                headers={'Authorization': f'Basic {creds}',
+                         'Content-Type': 'application/json'},
+                method='PUT')
+            urllib.request.urlopen(label_req, context=ctx)
+        except Exception as e:
+            print(f'  WARNING: failed to label {strat}: {e}', file=sys.stderr)
+
+        print(json.dumps(created))
+        "
+    register: epic_submit_result
+
+  # ── Discover epics with Jira keys ──────────────────────────
+  #
+  # Re-read artifact files after epic-submit. Now each file has
+  # jira_key in frontmatter. Split by type and include both
+  # epic_id and jira_key for downstream skills.
 
   - name: discover_epics
     type: shell_exec
@@ -154,37 +310,37 @@ steps:
           exit 1
         fi
 
-        investigation_ids=""
-        implementation_ids=""
-
-        for f in "$ARTIFACTS_DIR"/${STRAT}-E*.md; do
-          [ -f "$f" ] || continue
-          epic_id=$(basename "$f" .md)
-          epic_type=$(python3 -c "
-        import yaml, sys
-        with open('$f') as fh:
-            content = fh.read()
-        if content.startswith('---'):
-            fm = content.split('---', 2)[1]
-            meta = yaml.safe_load(fm)
-            print(meta.get('type', 'unknown'))
-        else:
-            print('unknown')
-        ")
-          echo "  Found: $epic_id (type=$epic_type)" >&2
-          case "$epic_type" in
-            Investigation) investigation_ids="$investigation_ids $epic_id" ;;
-            Implementation) implementation_ids="$implementation_ids $epic_id" ;;
-            *) echo "  Skipping unknown type: $epic_type" >&2 ;;
-          esac
-        done
-
-        # Output as JSON for downstream steps
         python3 -c "
-        import json
-        inv = '${investigation_ids}'.split()
-        imp = '${implementation_ids}'.split()
-        print(json.dumps({'investigation': inv, 'implementation': imp}))
+        import glob, yaml, json, os, sys
+
+        artifacts_dir = '$ARTIFACTS_DIR'
+        strat = '$STRAT'
+        investigation = []
+        implementation = []
+
+        pattern = os.path.join(artifacts_dir, f'{strat}-E*.md')
+        for path in sorted(glob.glob(pattern)):
+            if path.endswith('-decomposition.md'):
+                continue
+            with open(path) as f:
+                content = f.read()
+            parts = content.split('---', 2)
+            if len(parts) < 3:
+                continue
+            meta = yaml.safe_load(parts[1])
+            epic_id = meta.get('epic_id', os.path.basename(path).replace('.md', ''))
+            jira_key = meta.get('jira_key', '')
+            epic_type = meta.get('type', 'unknown')
+            entry = {'epic_id': epic_id, 'jira_key': jira_key}
+            print(f'  Found: {epic_id} key={jira_key} type={epic_type}', file=sys.stderr)
+            if epic_type == 'Investigation':
+                investigation.append(entry)
+            elif epic_type == 'Implementation':
+                implementation.append(entry)
+            else:
+                print(f'  Skipping unknown type: {epic_type}', file=sys.stderr)
+
+        print(json.dumps({'investigation': investigation, 'implementation': implementation}))
         "
     register: epic_discovery
 
@@ -196,17 +352,16 @@ steps:
   # ── Phase F: Epic Investigate ───────────────────────────────
   #
   # Run Investigation epics to resolve unknowns that gate sibling
-  # Implementation epics. Each investigation uses --from-file to
-  # read from the shared artifacts directory.
+  # Implementation epics.
 
   - name: run_investigations
     description: "Run Investigation epics"
     for_each: epic_lists.investigation
-    as: epic_id
+    as: epic
     workflow: run-skill
     vars:
       skill_fqn: "github.local/{{ org }}/epic-investigator@main:epic-investigate"
-      skill_issue: "{{ epic_id }}"
+      skill_issue: "{{ epic.jira_key }}"
 
   # ── Phase G: Epic Codegen ───────────────────────────────────
   #
@@ -215,9 +370,9 @@ steps:
   - name: run_codegen
     description: "Run codegen for Implementation epics"
     for_each: epic_lists.implementation
-    as: epic_id
+    as: epic
     workflow: run-skill
     vars:
       skill_fqn: "github.local/{{ org }}/epic-code-gen@main:epic-codegen"
-      skill_issue: "{{ epic_id }}"
+      skill_issue: "{{ epic.jira_key }}"
 
