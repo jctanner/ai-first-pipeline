@@ -191,7 +191,7 @@ steps:
   - name: set_epic_lists
     type: set_fact
     vars:
-      epic_lists: "{{ epic_discovery.stdout | trim | fromjson }}"
+      epic_lists: "{{ epic_discovery.stdout | fromjson }}"
 
   # ── Phase F: Epic Investigate ───────────────────────────────
   #
