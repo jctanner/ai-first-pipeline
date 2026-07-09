@@ -13,51 +13,64 @@ description: "Run codegen for Implementation epics of {{ strat_issue }}"
 
 steps:
 
-  # Discover epics inline (set_fact doesn't propagate from sub-workflows)
+  # Discover epics by querying Jira for children of the strategy.
+  # Codegen is self-contained — it doesn't read decomposer artifacts.
+  # Classification uses labels applied by submit.py:
+  #   epic-creator-investigation → Investigation
+  #   otherwise                  → Implementation
   - name: discover_epics
     type: shell_exec
     params:
       command: |
-        ARTIFACTS_DIR="/app/artifacts/epic-tasks"
-        STRAT="{{ strat_issue }}"
-
-        if [ ! -d "$ARTIFACTS_DIR" ]; then
-          echo "ERROR: $ARTIFACTS_DIR not found" >&2
-          exit 1
-        fi
-
         python3 -c "
-        import glob, yaml, json, os, sys
+        import json, os, sys, ssl, urllib.request, urllib.error
 
-        artifacts_dir = '$ARTIFACTS_DIR'
-        strat = '$STRAT'
+        ssl._create_default_https_context = ssl._create_unverified_context
+
+        server = '{{ jira_base }}'.rstrip('/')
+        strat = '{{ strat_issue }}'
+        auth = '{{ jira_user }}:{{ jira_token }}'
+
+        import base64
+        auth_header = 'Basic ' + base64.b64encode(auth.encode()).decode()
+
+        body = json.dumps({
+            'jql': f'parent = {strat}',
+            'fields': ['key', 'summary', 'labels'],
+            'maxResults': 100,
+        }).encode()
+
+        req = urllib.request.Request(
+            f'{server}/rest/api/2/search',
+            data=body,
+            headers={
+                'Content-Type': 'application/json',
+                'Authorization': auth_header,
+            },
+        )
+        resp = urllib.request.urlopen(req)
+        data = json.loads(resp.read())
+
         investigation = []
         implementation = []
 
-        pattern = os.path.join(artifacts_dir, f'{strat}-E*.md')
-        for path in sorted(glob.glob(pattern)):
-            if path.endswith('-decomposition.md'):
-                continue
-            with open(path) as f:
-                content = f.read()
-            parts = content.split('---', 2)
-            if len(parts) < 3:
-                continue
-            meta = yaml.safe_load(parts[1])
-            if not meta:
-                continue
-            epic_id = meta.get('epic_id', os.path.basename(path).replace('.md', ''))
-            jira_key = meta.get('jira_key', '')
-            epic_type = meta.get('type', 'unknown')
-            entry = {'epic_id': epic_id, 'jira_key': jira_key}
-            print(f'  Found: {epic_id} key={jira_key} type={epic_type}', file=sys.stderr)
-            if epic_type == 'Investigation':
-                investigation.append(entry)
-            elif epic_type == 'Implementation':
-                implementation.append(entry)
-            else:
-                print(f'  Skipping unknown type: {epic_type}', file=sys.stderr)
+        for issue in data.get('issues', []):
+            key = issue['key']
+            fields = issue.get('fields', {})
+            title = fields.get('summary', key)
+            labels = fields.get('labels', [])
 
+            entry = {'jira_key': key, 'title': title}
+            print(f'  Found: {key} — {title}', file=sys.stderr)
+
+            if 'epic-creator-investigation' in labels:
+                investigation.append(entry)
+                print(f'    → Investigation', file=sys.stderr)
+            else:
+                implementation.append(entry)
+                print(f'    → Implementation', file=sys.stderr)
+
+        print(f'  Total: {len(investigation)} investigation, {len(implementation)} implementation', file=sys.stderr)
         print(json.dumps({'investigation': investigation, 'implementation': implementation}))
         "
     register: epic_discovery
