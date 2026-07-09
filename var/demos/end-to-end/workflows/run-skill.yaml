@@ -36,7 +36,7 @@ steps:
           mlflow: true
           otel: true
           extra_kwargs: "{{ skill_extra_kwargs }}"
-          extra_env: "{{ skill_extra_env }}"
+          extra_env: "{{ skill_extra_env | tojson }}"
     register: submitted_job
 
   - name: wait_for_completion
