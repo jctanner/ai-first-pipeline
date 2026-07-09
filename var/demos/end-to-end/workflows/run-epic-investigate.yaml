@@ -13,9 +13,59 @@ description: "Run Investigation epics for {{ strat_issue }}"
 
 steps:
 
-  - name: discover
-    description: "Discover epics for {{ strat_issue }}"
-    workflow: discover-epics
+  # Discover epics inline (set_fact doesn't propagate from sub-workflows)
+  - name: discover_epics
+    type: shell_exec
+    params:
+      command: |
+        ARTIFACTS_DIR="/app/artifacts/epic-tasks"
+        STRAT="{{ strat_issue }}"
+
+        if [ ! -d "$ARTIFACTS_DIR" ]; then
+          echo "ERROR: $ARTIFACTS_DIR not found" >&2
+          exit 1
+        fi
+
+        python3 -c "
+        import glob, yaml, json, os, sys
+
+        artifacts_dir = '$ARTIFACTS_DIR'
+        strat = '$STRAT'
+        investigation = []
+        implementation = []
+
+        pattern = os.path.join(artifacts_dir, f'{strat}-E*.md')
+        for path in sorted(glob.glob(pattern)):
+            if path.endswith('-decomposition.md'):
+                continue
+            with open(path) as f:
+                content = f.read()
+            parts = content.split('---', 2)
+            if len(parts) < 3:
+                continue
+            meta = yaml.safe_load(parts[1])
+            if not meta:
+                continue
+            epic_id = meta.get('epic_id', os.path.basename(path).replace('.md', ''))
+            jira_key = meta.get('jira_key', '')
+            epic_type = meta.get('type', 'unknown')
+            entry = {'epic_id': epic_id, 'jira_key': jira_key}
+            print(f'  Found: {epic_id} key={jira_key} type={epic_type}', file=sys.stderr)
+            if epic_type == 'Investigation':
+                investigation.append(entry)
+            elif epic_type == 'Implementation':
+                implementation.append(entry)
+            else:
+                print(f'  Skipping unknown type: {epic_type}', file=sys.stderr)
+
+        print(json.dumps({'investigation': investigation, 'implementation': implementation}))
+        "
+    register: epic_discovery
+
+  - name: set_epic_lists
+    type: set_fact
+    vars:
+      epic_lists: "{{ epic_discovery.stdout | fromjson }}"
 
   - name: run_investigations
     description: "Run Investigation epics"
