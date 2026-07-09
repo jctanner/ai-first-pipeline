@@ -90,6 +90,11 @@ spec:
         # Disable self-signed cert generation if supported
         - name: AUTO_TLS
           value: "false"
+        # Seed default admin user and PAT on startup
+        - name: GITHUB_EMULATOR_SEED_DATA
+          value: "true"
+        - name: GITHUB_EMULATOR_DEFAULT_ADMIN_TOKEN
+          value: "ghp_admin_default_token"
         # GitHub token for authentication (optional)
         - name: GH_TOKEN
           valueFrom:
