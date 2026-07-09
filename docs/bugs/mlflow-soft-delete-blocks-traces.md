@@ -33,6 +33,19 @@ $ kubectl exec mlflow-pod -- mlflow experiments search --view deleted_only | gre
 
 `mlflow gc --experiment-ids 28` fails with `FOREIGN KEY constraint failed` because it tries to delete the experiment record without first deleting traces and spans that reference it. This appears to be a bug in `mlflow gc` itself — it handles runs but not traces.
 
+```
+$ mlflow gc --experiment-ids 28 --backend-store-uri sqlite:///data/mlflow.db
+
+sqlalchemy.exc.IntegrityError: (sqlite3.IntegrityError) FOREIGN KEY constraint failed
+[SQL: DELETE FROM experiments WHERE experiments.experiment_id = ?]
+[parameters: (28,)]
+
+  File ".../mlflow/cli/__init__.py", line 913, in _gc_tracking_resources
+    backend_store._hard_delete_experiment(experiment_id)
+  File ".../mlflow/store/tracking/sqlalchemy_store.py", line 721, in _hard_delete_experiment
+    with self.ManagedSessionMaker() as session:
+```
+
 ## Verified fix: manual SQL delete in FK order
 
 Tested and confirmed working:
