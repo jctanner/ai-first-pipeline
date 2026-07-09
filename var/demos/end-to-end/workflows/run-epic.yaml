@@ -178,3 +178,4 @@ steps:
     vars:
       skill_fqn: "github.local/{{ org }}/epic-code-gen@main:epic-codegen"
       skill_issue: "{{ epic.epic_id }}"
+      skill_extra_kwargs: "github_api_token={{ github_api_token }} fork_owner={{ fork_owner }}"

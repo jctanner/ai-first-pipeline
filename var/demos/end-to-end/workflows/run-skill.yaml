@@ -27,6 +27,7 @@ steps:
           strace: true
           mlflow: true
           otel: true
+          extra_kwargs: "{{ skill_extra_kwargs | default('') }}"
     register: submitted_job
 
   - name: wait_for_completion

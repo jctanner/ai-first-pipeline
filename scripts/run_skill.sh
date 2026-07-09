@@ -267,12 +267,38 @@ if [ ${#EXTRA_VARS[@]} -gt 0 ]; then
   done
 fi
 
+# Export well-known extra-vars as environment variables so downstream
+# scripts can read them (e.g. EPIC_CODEGEN_GITHUB_TOKEN for PR creation)
+for VAR in "${EXTRA_VARS[@]}"; do
+  KEY="${VAR%%=*}"
+  VALUE="${VAR#*=}"
+  case "$KEY" in
+    github_api_token)
+      export EPIC_CODEGEN_GITHUB_TOKEN="$VALUE"
+      echo "✓ EPIC_CODEGEN_GITHUB_TOKEN set from extra-vars"
+      ;;
+  esac
+done
+
 # Resolve which plugin source this skill needs
 # When --fqn was used, the repo is already cloned by resolve_fqn.sh
 if [ -n "$FQN_CLONE_DIR" ]; then
   echo "Using FQN-cloned repo: $FQN_CLONE_DIR"
   # Hotpatch: remove "context: fork" so streaming output works
   find "$FQN_CLONE_DIR" -name "SKILL.md" -exec sed -i '/^context: *fork/d' {} +
+
+  # Hotpatch: replace hardcoded github.com with emulator hostname
+  # Skills like epic-code-gen have API_BASE, git URLs, and slug parsing
+  # that reference github.com. Replace with the resolved clone host so
+  # they talk to the in-cluster GitHub emulator instead.
+  if [ -n "$CLONE_HOST" ] && [ "$CLONE_HOST" != "github.com" ]; then
+    echo "Hotpatching github.com → $CLONE_HOST in skill scripts"
+    find "$FQN_CLONE_DIR" -name "*.py" -not -path "*/__pycache__/*" -exec \
+      sed -i \
+        -e "s|api\.github\.com|${CLONE_HOST}/api/v3|g" \
+        -e "s|github\.com|${CLONE_HOST}|g" \
+      {} +
+  fi
 else
   SKILL_SOURCE=$(python3 -c "
 import yaml
