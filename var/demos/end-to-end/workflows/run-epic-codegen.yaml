@@ -104,14 +104,23 @@ steps:
         python3 -c "
         import ssl
         ssl._create_default_https_context = ssl._create_unverified_context
+
         import sys
+        sys.path.insert(0, 'scripts')
+
+        # jira_utils creates a module-level ssl_ctx that verifies certs;
+        # patch it to skip verification for the local Jira emulator.
+        import jira_utils
+        jira_utils.ssl_ctx = ssl.create_default_context()
+        jira_utils.ssl_ctx.check_hostname = False
+        jira_utils.ssl_ctx.verify_mode = ssl.CERT_NONE
+
         sys.argv = [
             'fetch_jira_epics.py', '{{ strat_issue }}',
             '--output-dir', '/app/artifacts/epic-tasks',
             '--strategies-dir', '/app/artifacts/strategies',
             '--no-report',
         ]
-        sys.path.insert(0, 'scripts')
         from fetch_jira_epics import main
         main()
         "
