@@ -18,7 +18,7 @@ description: "Submit a skill job and wait for completion"
 
 vars:
   skill_extra_kwargs: ""
-  skill_extra_env: "{}"
+  skill_extra_env: {}
 
 steps:
 
