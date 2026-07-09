@@ -747,6 +747,9 @@ def create_app() -> Flask:
             runner = args.get("runner", "cli")
             harness = args.get("harness", "claude-code")
 
+            if args.get("skill_load_mode") not in (None, "auto", "plugin", "skill"):
+                return jsonify({"error": f"Invalid skill_load_mode: {args['skill_load_mode']}. Must be auto, plugin, or skill"}), 400
+
             if fqn:
                 parsed = parse_fqn(fqn)
                 if not parsed:

@@ -233,7 +233,7 @@ Before running claim analysis, confirm data reached each backend:
 
 | Check | How | Expected |
 |-------|-----|----------|
-| OTEL traces visible | `curl observatory.local/api/hallucinations/summary` | Responds (0 claims — extraction hasn't run yet) |
+| OTEL traces visible | `curl observatory.local/api/traces/summary` | Shows trace spans from the phase jobs (nonzero span count) |
 | MLflow experiments logged | `curl mlflow.local/api/2.0/mlflow/experiments/search -d '{"max_results": 10}'` | Experiments for each FQN/harness/model/runner combo |
 | Strace files present | `kubectl exec -n ai-pipeline deploy/pipeline-dashboard -- ls /app/artifacts/strace/` | One directory per phase (e.g., `rfe.speedrun-RHAIRFE-1`, `strategy-create-RHAIRFE-1`) |
 | API bodies dumped | `kubectl exec -n ai-pipeline deploy/pipeline-dashboard -- ls /app/artifacts/apibodies/` | Same directories as strace |
@@ -244,7 +244,7 @@ This is a manual gate — verify before proceeding.
 
 ### Phase 5: Extract claims → Observatory
 
-> **Lesson learned:** In this demo run, Phases 5-7 used `"command": "extract-claims"` etc., which invokes the skills as local commands. In a production demo, these should use `"fqn": "github.local/opendatahub-io/skills@main:extract-claims"` so the job manifests are self-contained and the skills are versioned in git. This requires importing `opendatahub-io/skills` to github.local first (see Phase 8d prerequisites). The FQN approach also means skill prompt fixes in Phase 8d can be tested by re-running the same FQN against the updated repo.
+> **Note:** Phases 5-7 use `"command": "extract-claims"` etc., which invokes the skills as local commands from the pipeline agent image. Once `opendatahub-io/skills` is created on github.local (see Phase 8d prerequisites), these can be switched to FQN form (`"fqn": "github.local/opendatahub-io/skills@main:extract-claims"`) so the job manifests are self-contained and skill prompt fixes can be tested by re-running the same FQN against the updated repo. However, `opendatahub-io/skills` does not exist until Phase 8d creates it — do NOT use the FQN form in Phases 5-7 without creating the repo first.
 
 Run the `extract-claims` skill against the strategy and RFE artifacts produced in phases 2–3.
 
@@ -443,41 +443,57 @@ Before committing architecture-context or skill prompt fixes, use the [agent-eva
 
 **Concept:** Build an eval dataset from the refuted/insufficient claims, run `verify-claims` against the BEFORE architecture-context (expecting failures), apply the fix, re-run against the AFTER architecture-context (expecting passes), and compare.
 
-**Prerequisites: Import agent-eval-harness to github.local**
+**Prerequisites: Import agent-eval-harness and eval-datasets to github.local**
+
+The agent-eval-harness and eval-datasets repos should already be on github.local from the `arch-context-accuracy` eval work. If not:
 
 ```bash
 curl -s -X POST http://github.local/api/v3/admin/repos/import \
   -H "Content-Type: application/json" \
-  -d '{
-    "url": "https://github.com/opendatahub-io/agent-eval-harness",
-    "owner": "opendatahub-io"
-  }'
+  -d '{"url": "https://github.com/opendatahub-io/agent-eval-harness", "owner": "opendatahub-io"}'
+
+curl -s -X POST http://github.local/api/v3/admin/repos/import \
+  -H "Content-Type: application/json" \
+  -d '{"url": "https://github.com/opendatahub-io/eval-datasets", "owner": "opendatahub-io"}'
 ```
+
+**Lessons from the arch-context-accuracy eval (2026-07-06)**
+
+The `arch-context-accuracy` eval in `eval-datasets` was the first end-to-end eval run. It validated that an agent can answer architecture questions using architecture-context docs without hallucinating. Key lessons that inform this phase:
+
+1. **`dataset.path` is relative to the eval.yaml file's directory**, not the repo root. The harness's `resolve_path` in `agent_eval/config.py` prepends the config file's parent directory. If the eval.yaml is at `claim-fix-validation/eval.yaml`, then `dataset/cases` resolves to `claim-fix-validation/dataset/cases/`.
+
+2. **Judge prompt template variables**: `score.py` populates `outputs["input"]` from `input.yaml` and `outputs["stdout"]` from execution output. To reference input fields in judge prompts, use `{{ outputs["input"]["question"] }}`, NOT `{{ outputs["question"] }}`. The latter renders empty because input.yaml fields are nested under `outputs["input"]`, not at the top level.
+
+3. **Judge prompt wording must be extremely specific about failure criteria.** The `arch-context-accuracy` no-hallucination judge initially scored 1.0 (pass) on a case where it identified hallucination in its own rationale — because the prompt said "reasonable inference" was acceptable. The fix was to enumerate explicit fail conditions (specific dependency names, version numbers, port numbers, etc.) and add "when uncertain, score 0."
+
+4. **Use model aliases (`opus`, `sonnet`) not full Vertex IDs.** The harness has a `VERTEX_MODEL_ALIASES` map in `score.py` that resolves aliases to the correct Vertex model IDs (`opus` → `claude-opus-4-6`, `sonnet` → `claude-sonnet-4-6`). Full model IDs like `claude-sonnet-4-6-20250514` do NOT work on Vertex.
+
+5. **Known harness bugs add ~60s of agent friction per run.** BUG-11 (preflight marks fresh state as stale — agent uses `--clean --force`) and BUG-14 (agent must manually discover eval venv python for scoring). These are documented in `docs/bugs/eval-job-143610-bugs.md`.
+
+6. **The dashboard Evals page is the best way to run and monitor evals.** The evals tab at `/evals` has a submit form with select-with-toggle fields for harness/dataset/context repos, live log polling in the detail modal, and a re-run button that pre-fills the form. Use it instead of raw CLI commands for the demo.
 
 **Building the eval dataset**
 
-Each test case maps to one claim from the 8a triage. The dataset structure follows the harness convention:
+Each test case maps to one claim from the 8a triage. The dataset lives in `eval-datasets` alongside `arch-context-accuracy`:
 
 ```
-eval/dataset/cases/
-├── case-001-react-query/
-│   ├── input.yaml          # claim text, source file, jira key
-│   └── reference.md        # expected verdict + evidence after fix
-├── case-002-dcgm-metrics/
-│   ├── input.yaml
-│   └── reference.md
-├── case-003-cpu-metrics/
-│   ├── input.yaml
-│   └── reference.md
-├── case-004-gpu-alloc-metrics/
-│   ├── input.yaml
-│   └── reference.md
-├── case-005-memory-metrics/
-│   ├── input.yaml
-│   └── reference.md
-└── case-006-source-attribution/
-    ├── input.yaml
-    └── reference.md
+claim-fix-validation/
+├── eval.yaml
+└── dataset/
+    └── cases/
+        ├── case-001-react-query/
+        │   └── input.yaml
+        ├── case-002-dcgm-metrics/
+        │   └── input.yaml
+        ├── case-003-cpu-metrics/
+        │   └── input.yaml
+        ├── case-004-gpu-alloc-metrics/
+        │   └── input.yaml
+        ├── case-005-memory-metrics/
+        │   └── input.yaml
+        └── case-006-source-attribution/
+            └── input.yaml
 ```
 
 Each `input.yaml` contains:
@@ -488,19 +504,15 @@ claim_text: "The odh-dashboard frontend already uses React Query for client-side
 claim_type: architectural
 source_file: strat-tasks/RHAISTRAT-1.md
 jira_key: RHAISTRAT-1
-expected_verdict_before: insufficient    # what verify-claims should say with current arch-context
-expected_verdict_after: supported         # what it should say after the fix
+expected_verdict_before: insufficient
+expected_verdict_after: supported
 fix_ticket: RHAIFIRST-1
 ```
-
-Each `reference.md` contains the expected verdict and evidence summary after the fix is applied.
 
 **eval.yaml for claim verification validation**
 
 ```yaml
-name: claim-fix-validation
-description: Validate that architecture-context fixes correct claim verification verdicts
-skill: verify-claims
+skill: claim-fix-validation
 
 execution:
   mode: case
@@ -517,101 +529,108 @@ runner:
     --model {model}
 
 models:
-  skill: claude-opus-4-6
-  judge: claude-opus-4-6
+  skill: opus
+  judge: sonnet
 
 dataset:
-  path: eval/dataset/cases
-  schema: |
-    Each case directory contains:
-    - input.yaml: claim_id, claim_text, claim_type, source_file,
-      jira_key, expected_verdict_before, expected_verdict_after, fix_ticket
-    - reference.md: Expected verdict and evidence summary after fix
-
-outputs:
-  - path: artifacts/verification
-    schema: |
-      One markdown file per claim: {claim_id}.md with verdict,
-      confidence, and evidence_summary.
-
-traces:
-  metrics: true
-  stdout: true
+  path: dataset/cases
 
 judges:
-  - name: verdict_correct
-    description: |
-      Check that the claim received the expected verdict.
+  - name: verdict-correct
     check: |
-      import yaml
-      expected = outputs["annotations"].get("expected_verdict_after", "supported")
-      content = outputs["main_content"]
-      verdict_match = expected.lower() in content.lower()
-      if not verdict_match:
-          return False, f"Expected verdict '{expected}' not found in output"
-      return True, f"Verdict matches expected: {expected}"
+      expected = outputs["input"].get("expected_verdict_after", "supported")
+      stdout = outputs.get("stdout", "")
+      if expected.lower() in stdout.lower():
+          return True, f"Verdict matches expected: {expected}"
+      return False, f"Expected verdict '{expected}' not found in output"
 
-  - name: evidence_quality
-    description: |
-      Evaluate whether the verification evidence is specific and
-      grounded in architecture-context documentation.
+  - name: evidence-quality
     prompt: |
-      The claim was: {claim_text}
-      The expected verdict is: {expected_verdict_after}
+      You are evaluating whether an AI agent's claim verification is well-evidenced.
 
-      Does the verification output cite specific architecture-context
-      documentation? Is the evidence concrete (file paths, section names,
-      quoted text) rather than vague? Score 1-5.
+      ## Claim
+      {{ outputs["input"]["claim_text"] }}
 
-  - name: no_hallucinated_evidence
-    description: |
-      Check that the verification doesn't cite documents or sections
-      that don't exist.
+      ## Expected Verdict
+      {{ outputs["input"]["expected_verdict_after"] }}
+
+      ## Agent's Verification Output
+      {{ outputs["stdout"] }}
+
+      ## Scoring Rules
+
+      Score 1 (pass) ONLY when ALL of these are true:
+      - The output cites at least one specific architecture-context file by name
+      - The output quotes or closely paraphrases the relevant section
+      - The evidence directly supports or refutes the claim
+
+      Score 0 (fail) if ANY of these are true:
+      - The output contains no specific file paths or section names from architecture-context
+      - The output makes vague references like "the docs mention" without citing which doc
+      - The verdict is stated without supporting evidence
+
+      Return a JSON object: {"score": 0 or 1, "reasoning": "brief explanation"}
+
+  - name: no-hallucinated-evidence
     prompt: |
-      Review the verification output. Does it reference specific files
-      or sections in architecture-context? Could any of these references
-      be fabricated? Score 1-5 where 5 means all references appear genuine.
+      You are a strict evidence auditor. Check whether an AI agent fabricated
+      any references in its claim verification output.
+
+      ## Agent's Verification Output
+      {{ outputs["stdout"] }}
+
+      ## Scoring Rules
+
+      Score 0 (fail) if the output references ANY of these that you cannot
+      verify exist in a typical architecture-context repo:
+      - File paths that look invented (e.g., specific version numbers in paths)
+      - Section headings that seem fabricated
+      - Quoted text that appears made up rather than extracted
+
+      Score 1 (pass) ONLY when all cited files, sections, and quotes appear
+      to be genuine references to architecture documentation.
+
+      When uncertain whether a reference is real, score 0. False negatives
+      (missing a fabricated reference) are worse than false positives.
+
+      Return a JSON object: {"score": 0 or 1, "reasoning": "brief explanation"}
 
 thresholds:
-  verdict_correct:
-    min_pass_rate: 0.8        # 80% of claims should get the right verdict after fix
-  evidence_quality:
-    min_mean: 3.5
+  verdict-correct:
+    min_pass_rate: 0.8
+  evidence-quality:
+    min_mean: 0.7
+  no-hallucinated-evidence:
+    min_mean: 0.8
 ```
 
-**Running the A/B comparison**
+**Running the A/B comparison via the Evals dashboard**
 
-1. **BEFORE run** — baseline with current architecture-context (claims should stay insufficient/refuted):
-   ```bash
-   /eval-run --model opus --run-id before-fix
-   ```
+Submit both runs from the dashboard Evals page at `/evals`. The FQN for this eval is `github.local/opendatahub-io/eval-datasets@main:claim-fix-validation`.
 
-2. **Apply the fix** — merge the architecture-context PR from step 8d (or apply changes to a branch):
-   ```bash
-   # In the architecture-context clone, apply fixes from RHAIFIRST-1 and RHAIFIRST-2
-   ```
+1. **BEFORE run** — baseline with current architecture-context. Submit with Context Ref = `main`. Claims should stay insufficient/refuted.
 
-3. **AFTER run** — with fixed architecture-context (claims should flip to supported):
-   ```bash
-   /eval-run --model opus --run-id after-fix --baseline before-fix
-   ```
+2. **Apply the fix** — merge the architecture-context PR from step 8d to a branch (e.g., `fix/monitoring-docs`).
+
+3. **AFTER run** — submit with Context Ref = `fix/monitoring-docs`. Use the BEFORE run's run-id as the Baseline Run ID field. Claims should flip to supported.
 
 4. **Compare** — the `--baseline` flag produces a regression report showing:
    - Which claims changed verdict (expected: insufficient → supported)
    - Whether evidence quality improved
    - Any regressions (claims that were supported before but broke)
 
-5. **Log to MLflow** — track the before/after as experiment runs:
+5. **Verify MLflow** — eval jobs with `mlflow: true` automatically log results to MLflow. Confirm both runs appear:
    ```bash
-   /eval-mlflow --run-id before-fix --action log-results
-   /eval-mlflow --run-id after-fix --action log-results
+   curl -s "mlflow.local/api/2.0/mlflow/experiments/search" \
+     -d '{"max_results": 10}' | python3 -m json.tool
    ```
+   Both the BEFORE and AFTER runs should appear as separate MLflow runs under the same experiment, with metrics (judge scores, duration, token usage) logged automatically.
 
 **What this proves:**
 - The architecture-context fix is sufficient to change the model's verdict
 - The model doesn't introduce new hallucinations when given better context
 - The fix can be quantified (e.g., "4 of 5 insufficient claims flipped to supported")
-- Results are logged in MLflow for audit trail
+- Results are logged in MLflow automatically for audit trail
 
 **Skill prompt fixes (RHAIFIRST-3)** follow the same pattern but testing `strategy-refine` instead of `verify-claims`:
 - BEFORE: strategy output contains conflated source citations
@@ -677,44 +696,54 @@ This makes all skills addressable via FQN: `github.local/opendatahub-io/skills@m
 | rfe-creator prompt issues | `opendatahub-io/rfe-creator` | `fix-skill-prompt` |
 | claim skill issues | `opendatahub-io/skills` | `fix-skill-prompt` |
 
+**GitHub token for PRs:** The remediation skills need a GitHub token to push branches and open PRs on github.local. The dashboard's `extra_kwargs` forwards `key=value` tokens as `--extra-vars` to the entrypoint. Pass the token in that format:
+
+```bash
+"extra_kwargs": "github_token=YOUR_TOKEN_HERE"
+```
+
+The skill scripts then receive it via `--extra-vars github_token=...` and use it for git push and PR creation. Replace `YOUR_TOKEN_HERE` with the actual token from the github.local setup (Phase 0 prerequisites).
+
 **For architecture-context fixes (RHAIFIRST-1, RHAIFIRST-2):**
 
 ```bash
+ODH_TOKEN="ghp_..."  # from prerequisites
+
 curl -s -X POST "http://dashboard.local/api/jobs/submit" \
   -H "Content-Type: application/json" \
-  -d '{
-    "fqn": "github.local/opendatahub-io/skills@main:fix-arch-docs",
-    "args": {
-      "issue": "RHAIFIRST-1",
-      "model": "opus",
-      "runner": "cli",
-      "strace": true,
-      "mlflow": true,
-      "otel": true,
-      "extra_kwargs": "--github-token ${ODH_TOKEN}"
+  -d "{
+    \"fqn\": \"github.local/opendatahub-io/skills@main:fix-arch-docs\",
+    \"args\": {
+      \"issue\": \"RHAIFIRST-1\",
+      \"model\": \"opus\",
+      \"runner\": \"cli\",
+      \"strace\": true,
+      \"mlflow\": true,
+      \"otel\": true,
+      \"extra_kwargs\": \"github_token=${ODH_TOKEN}\"
     }
-  }'
+  }"
 ```
 
-The skill's `scripts/gather-context.py` fetches the Jira ticket, queries Observatory for related claims, verifies ground truth against source repos (e.g., checking `package.json` to confirm a dependency exists), and outputs a JSON manifest. The agent then clones architecture-context, makes the doc fix, and `scripts/open-pr.py` handles branch/commit/push/PR creation.
+The skill's `scripts/gather-context.py` fetches the Jira ticket, queries Observatory for related claims, verifies ground truth against source repos (e.g., checking `package.json` to confirm a dependency exists), and outputs a JSON manifest. The agent then clones architecture-context, makes the doc fix, and `scripts/open-pr.py` handles branch/commit/push/PR creation using the token from `--extra-vars`.
 
 **For strategy/RFE skill prompt fixes (RHAIFIRST-3):**
 
 ```bash
 curl -s -X POST "http://dashboard.local/api/jobs/submit" \
   -H "Content-Type: application/json" \
-  -d '{
-    "fqn": "github.local/opendatahub-io/skills@main:fix-skill-prompt",
-    "args": {
-      "issue": "RHAIFIRST-3",
-      "model": "opus",
-      "runner": "cli",
-      "strace": true,
-      "mlflow": true,
-      "otel": true,
-      "extra_kwargs": "--github-token ${ODH_TOKEN}"
+  -d "{
+    \"fqn\": \"github.local/opendatahub-io/skills@main:fix-skill-prompt\",
+    \"args\": {
+      \"issue\": \"RHAIFIRST-3\",
+      \"model\": \"opus\",
+      \"runner\": \"cli\",
+      \"strace\": true,
+      \"mlflow\": true,
+      \"otel\": true,
+      \"extra_kwargs\": \"github_token=${ODH_TOKEN}\"
     }
-  }'
+  }"
 ```
 
 The skill's `scripts/gather-context.py` resolves the target repo from ticket labels (e.g., `strat-creator` label → `opendatahub-io/strat-creator`) and identifies which SKILL.md files to edit. The agent reads the current SKILL.md, adds guardrails based on the root cause category (citation requirements for `source_misinterpretation`, source fidelity rules for `training_data_hallucination`), and `scripts/open-pr.py` opens the PR.

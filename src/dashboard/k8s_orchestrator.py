@@ -279,6 +279,10 @@ class PipelineOrchestrator:
         if args.get("force"):
             cmd_args.append("--force")
 
+        skill_load_mode = args.get("skill_load_mode", "auto")
+        if skill_load_mode and skill_load_mode != "auto":
+            cmd_args.extend(["--skill-load-mode", skill_load_mode])
+
         for kv in (args.get("extra_kwargs") or "").split():
             if "=" in kv:
                 cmd_args.extend(["--extra-vars", kv])
@@ -294,6 +298,7 @@ class PipelineOrchestrator:
                     "extra_env": json.dumps(args.get("extra_env") or {}),
                     "fqn": fqn or "",
                     "model": model,
+                    "skill_load_mode": skill_load_mode,
                 },
                 labels={
                     "app": "pipeline-agent",

@@ -152,4 +152,49 @@ if [ -d "$FQN_CLONE_DIR" ]; then
   echo "Artifact symlinks created in $FQN_CLONE_DIR"
 fi
 
+# ---------------------------------------------------------------------------
+# Plugin detection: check if the cloned repo is plugin-shaped
+# ---------------------------------------------------------------------------
+# Honour an explicit override from the caller (e.g. --skill-load-mode plugin|skill)
+SKILL_LOAD_MODE="${SKILL_LOAD_MODE:-auto}"
+
+if [ "$SKILL_LOAD_MODE" = "auto" ]; then
+  if [ -f "$FQN_CLONE_DIR/.claude-plugin/plugin.json" ]; then
+    FQN_LOAD_MODE_RESOLVED="plugin"
+  else
+    FQN_LOAD_MODE_RESOLVED="skill"
+  fi
+elif [ "$SKILL_LOAD_MODE" = "plugin" ]; then
+  if [ ! -f "$FQN_CLONE_DIR/.claude-plugin/plugin.json" ]; then
+    echo "ERROR: skill_load_mode=plugin but $FQN_CLONE_DIR/.claude-plugin/plugin.json not found"
+    return 1 2>/dev/null || exit 1
+  fi
+  FQN_LOAD_MODE_RESOLVED="plugin"
+else
+  FQN_LOAD_MODE_RESOLVED="skill"
+fi
+
+FQN_PLUGIN_DIR=""
+FQN_PLUGIN_NAME=""
+if [ "$FQN_LOAD_MODE_RESOLVED" = "plugin" ]; then
+  FQN_PLUGIN_DIR="$FQN_CLONE_DIR"
+  FQN_PLUGIN_NAME=$(python3 -c "
+import json, sys
+try:
+    with open('$FQN_CLONE_DIR/.claude-plugin/plugin.json') as f:
+        print(json.load(f)['name'])
+except Exception as e:
+    print(f'ERROR: Failed to parse plugin.json: {e}', file=sys.stderr)
+    sys.exit(1)
+")
+  if [ $? -ne 0 ] || [ -z "$FQN_PLUGIN_NAME" ]; then
+    echo "ERROR: Could not read plugin name from $FQN_CLONE_DIR/.claude-plugin/plugin.json"
+    return 1 2>/dev/null || exit 1
+  fi
+  echo "Plugin detected: $FQN_PLUGIN_NAME (mode: $FQN_LOAD_MODE_RESOLVED)"
+else
+  echo "No plugin metadata found (mode: $FQN_LOAD_MODE_RESOLVED)"
+fi
+
 export FQN_HOST FQN_OWNER FQN_REPO FQN_REF FQN_SKILL FQN_CLONE_DIR SKILL_NAME CLONE_HOST
+export FQN_LOAD_MODE_RESOLVED FQN_PLUGIN_DIR FQN_PLUGIN_NAME

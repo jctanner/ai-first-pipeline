@@ -1,0 +1,19 @@
+# Seed RHAI project components into the Jira emulator.
+# Called by reset-jira after projects have been created.
+
+name: seed-jira-components
+description: "Create RHAI components in Jira emulator"
+
+steps:
+
+  - name: create_components
+    for_each: rhai_components
+    as: component_name
+    type: jira_api
+    params:
+      path: /rest/api/2/component
+      method: POST
+      body:
+        name: "{{ component_name }}"
+        project: RHAI
+      ignore_status: [400]

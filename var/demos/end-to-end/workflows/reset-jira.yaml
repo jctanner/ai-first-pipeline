@@ -35,3 +35,8 @@ steps:
     params:
       path: "/rest/api/2/project/{{ proj.key }}"
       method: GET
+
+  # Step 4: Seed RHAI project components
+  - name: seed_components
+    description: "Seed RHAI components for epic-creator"
+    workflow: seed-jira-components

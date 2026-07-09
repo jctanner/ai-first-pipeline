@@ -42,12 +42,19 @@ while [[ $# -gt 0 ]]; do
       EXTRA_VARS+=("$2")
       shift 2
       ;;
+    --skill-load-mode)
+      SKILL_LOAD_MODE="$2"
+      shift 2
+      ;;
     *)
       echo "Unknown argument: $1"
       exit 1
       ;;
   esac
 done
+
+# Export SKILL_LOAD_MODE so resolve_fqn.sh can pick it up (defaults to auto)
+export SKILL_LOAD_MODE="${SKILL_LOAD_MODE:-auto}"
 
 if [ -z "$SKILL" ] && [ -z "$FQN" ]; then
   echo "Usage: $0 --skill <skill-name> [--issue <issue-key>] [--model <model>] [--force]"
@@ -255,7 +262,11 @@ done
 # Skills accept issue keys as positional arguments, not flags
 # Example: /rfe.review --headless RHAIRFE-953
 # --headless flag suppresses interactive prompts and end-of-run summary
-PROMPT="/$SKILL_NAME --headless${FORCE:+ $FORCE}${ISSUE_KEY:+ $ISSUE_KEY}"
+if [ "${FQN_LOAD_MODE_RESOLVED:-}" = "plugin" ] && [ -n "${FQN_PLUGIN_NAME:-}" ]; then
+  PROMPT="/${FQN_PLUGIN_NAME}:${SKILL_NAME} --headless${FORCE:+ $FORCE}${ISSUE_KEY:+ $ISSUE_KEY}"
+else
+  PROMPT="/$SKILL_NAME --headless${FORCE:+ $FORCE}${ISSUE_KEY:+ $ISSUE_KEY}"
+fi
 
 # Append extra vars as prompt context
 if [ ${#EXTRA_VARS[@]} -gt 0 ]; then
@@ -356,8 +367,16 @@ if [ -n "$FQN_CLONE_DIR" ]; then
   cd "$FQN_CLONE_DIR"
 fi
 
+# Build plugin args for Claude CLI
+PLUGIN_ARGS=()
+if [ "${FQN_LOAD_MODE_RESOLVED:-}" = "plugin" ] && [ -n "${FQN_PLUGIN_DIR:-}" ]; then
+  PLUGIN_ARGS=(--plugin-dir "$FQN_PLUGIN_DIR")
+fi
+
+echo "Resolved skill load mode: ${FQN_LOAD_MODE_RESOLVED:-skill}"
+
 # Debug: Show what we're about to run
-echo "Executing: claude --model $MODEL --print \"$PROMPT\""
+echo "Executing: claude --model $MODEL --print ${PLUGIN_ARGS[*]:+${PLUGIN_ARGS[*]} }\"$PROMPT\""
 echo "Working directory: $(pwd)"
 echo "Starting execution at: $(date)"
 echo
@@ -410,7 +429,7 @@ fi
 # --verbose: Required for stream-json with --print
 $STRACE_CMD claude --model "$MODEL" --print --dangerously-skip-permissions \
   --output-format stream-json --include-partial-messages \
-  --include-hook-events --verbose "$PROMPT" 2>/tmp/claude-stderr.log > "$claude_fifo" &
+  --include-hook-events --verbose "${PLUGIN_ARGS[@]}" "$PROMPT" 2>/tmp/claude-stderr.log > "$claude_fifo" &
 claude_pid=$!
 
 # Parse stream with dedicated parser (shows tool use, thinking, token counts)

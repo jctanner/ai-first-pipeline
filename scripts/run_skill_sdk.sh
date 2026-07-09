@@ -42,12 +42,19 @@ while [[ $# -gt 0 ]]; do
       EXTRA_VARS+=("$2")
       shift 2
       ;;
+    --skill-load-mode)
+      SKILL_LOAD_MODE="$2"
+      shift 2
+      ;;
     *)
       echo "Unknown argument: $1"
       exit 1
       ;;
   esac
 done
+
+# Export SKILL_LOAD_MODE so resolve_fqn.sh can pick it up (defaults to auto)
+export SKILL_LOAD_MODE="${SKILL_LOAD_MODE:-auto}"
 
 if [ -z "$SKILL" ] && [ -z "$FQN" ]; then
   echo "Usage: $0 --skill <skill-name> [--issue <issue-key>] [--model <model>] [--force]"
@@ -153,6 +160,16 @@ else:
 fi
 
 echo "Skill name: $SKILL_NAME"
+echo "Resolved skill load mode: ${FQN_LOAD_MODE_RESOLVED:-skill}"
+
+# SDK runner does not support --plugin-dir; fail clearly for plugin mode
+if [ "${FQN_LOAD_MODE_RESOLVED:-}" = "plugin" ]; then
+  echo "ERROR: skill_load_mode=plugin is not supported with the SDK runner."
+  echo "  The SDK runner cannot pass --plugin-dir to the agent."
+  echo "  Use runner=cli for plugin-shaped repos, or force skill_load_mode=skill."
+  exit 1
+fi
+
 echo "Working directory: /app"
 echo "Starting execution at: $(date)"
 echo
