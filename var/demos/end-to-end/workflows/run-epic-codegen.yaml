@@ -134,5 +134,4 @@ steps:
       skill_fqn: "github.local/{{ org }}/epic-code-gen@main:epic-codegen"
       skill_issue: "{{ epic.jira_key }}"
       skill_extra_kwargs: "fork_owner={{ fork_owner }}"
-      skill_extra_env:
-        EPIC_CODEGEN_GITHUB_TOKEN: "{{ github_api_token }}"
+      skill_extra_env: '{"EPIC_CODEGEN_GITHUB_TOKEN": "{{ github_api_token }}"}'

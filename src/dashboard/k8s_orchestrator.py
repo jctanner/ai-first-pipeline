@@ -54,6 +54,8 @@ class PipelineOrchestrator:
         """
         if args is None:
             args = {}
+        args = dict(args)
+        args["extra_env"] = self._normalize_extra_env(args.get("extra_env"))
         job = self._create_job_manifest(phase, issue_key, model, runner, args, fqn=fqn, harness=harness)
         return self.batch_v1.create_namespaced_job(
             namespace=self.namespace,
@@ -517,16 +519,31 @@ fi
             value=harness
         ))
 
-        extra_env = args.get("extra_env") or {}
-        if isinstance(extra_env, str):
-            try:
-                extra_env = json.loads(extra_env) if extra_env else {}
-            except (json.JSONDecodeError, TypeError):
-                extra_env = {}
+        extra_env = self._normalize_extra_env(args.get("extra_env"))
         for k, v in extra_env.items():
-            env_vars.append(client.V1EnvVar(name=k, value=str(v)))
+            env_vars.append(client.V1EnvVar(name=k, value=v))
 
         return env_vars
+
+    @staticmethod
+    def _normalize_extra_env(extra_env) -> dict:
+        """Accept extra_env as an object or JSON object string."""
+        if extra_env in (None, ""):
+            return {}
+        if isinstance(extra_env, str):
+            try:
+                extra_env = json.loads(extra_env)
+            except json.JSONDecodeError as exc:
+                raise ValueError("extra_env must be a JSON object string") from exc
+        if not isinstance(extra_env, dict):
+            raise ValueError("extra_env must be an object")
+
+        normalized = {}
+        for key, value in extra_env.items():
+            if not isinstance(key, str) or not key:
+                raise ValueError("extra_env keys must be non-empty strings")
+            normalized[key] = "" if value is None else str(value)
+        return normalized
 
     def _build_volume_mounts(self) -> list:
         """Build volume mounts for agent containers."""

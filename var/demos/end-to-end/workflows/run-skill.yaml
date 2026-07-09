@@ -11,14 +11,14 @@
 #
 # Optional vars:
 #   skill_extra_kwargs — space-separated key=value pairs for prompt inputs
-#   skill_extra_env    — JSON string of env vars to inject into the pod
+#   skill_extra_env    — JSON object string of env vars to inject into the pod
 
 name: run-skill
 description: "Submit a skill job and wait for completion"
 
 vars:
   skill_extra_kwargs: ""
-  skill_extra_env: {}
+  skill_extra_env: "{}"
 
 steps:
 

@@ -165,6 +165,25 @@ def _get_queue_snapshot() -> dict:
             "jobs": jobs_list,
         }
 
+
+def _normalize_extra_env(value):
+    """Accept extra_env as an object or JSON object string."""
+    if value in (None, ""):
+        return {}
+    if isinstance(value, str):
+        try:
+            value = json.loads(value)
+        except json.JSONDecodeError as exc:
+            raise ValueError("extra_env must be a JSON object string") from exc
+    if not isinstance(value, dict):
+        raise ValueError("extra_env must be an object")
+    normalized = {}
+    for key, item in value.items():
+        if not isinstance(key, str) or not key:
+            raise ValueError("extra_env keys must be non-empty strings")
+        normalized[key] = "" if item is None else str(item)
+    return normalized
+
 # ---------------------------------------------------------------------------
 # Flask app factory
 # ---------------------------------------------------------------------------
@@ -741,6 +760,13 @@ def create_app() -> Flask:
             fqn = data.get("fqn", "").strip()
             phase = data.get("command", "").strip()
             args = data.get("args", {})
+            if not isinstance(args, dict):
+                return jsonify({"error": "args must be an object"}), 400
+
+            try:
+                args["extra_env"] = _normalize_extra_env(args.get("extra_env"))
+            except ValueError as e:
+                return jsonify({"error": str(e)}), 400
 
             issue_key = args.get("issue", "")
             model = args.get("model", "opus")

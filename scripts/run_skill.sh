@@ -78,6 +78,12 @@ echo "Model: $MODEL"
 echo "============================================================"
 echo
 
+# Debug: dump full environment so we can verify extra_env injection
+echo "=== Environment ==="
+env | sort
+echo "=== End environment ==="
+echo
+
 # Configure SSL certificate bundle for Python requests
 if [ -f /shared/ca-certificates.crt ]; then
   export SSL_CERT_FILE=/shared/ca-certificates.crt
