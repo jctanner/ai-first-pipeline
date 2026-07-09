@@ -93,6 +93,10 @@
         <label for="extra-kwargs" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Extra kwargs <span class="text-gray-400 text-xs">(optional)</span></label>
         <input type="text" id="extra-kwargs" name="extra_kwargs" placeholder="key=value key2=value2" class="w-full rounded-lg border-gray-300 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-200 text-sm py-2 px-3">
       </div>
+      <div class="flex-grow" style="min-width:10rem;">
+        <label for="extra-env" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Env vars <span class="text-gray-400 text-xs">(optional)</span></label>
+        <input type="text" id="extra-env" name="extra_env" placeholder="KEY=value KEY2=value2" class="w-full rounded-lg border-gray-300 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-200 text-sm py-2 px-3">
+      </div>
     </div>
     <div class="mb-3">
       <button type="button" id="toggle-fqn" class="text-xs text-primary-600 dark:text-primary-400 cursor-pointer bg-transparent border-none p-0">or enter FQN...</button>
@@ -171,6 +175,10 @@
     <div id="modal-extra-kwargs-row" class="text-sm mb-4" style="display:none;">
       <span class="text-gray-500 dark:text-gray-400">Extra kwargs</span>
       <div id="modal-extra-kwargs" class="font-medium font-mono text-gray-900 dark:text-white"></div>
+    </div>
+    <div id="modal-extra-env-row" class="text-sm mb-4" style="display:none;">
+      <span class="text-gray-500 dark:text-gray-400">Env vars</span>
+      <div id="modal-extra-env" class="font-medium font-mono text-gray-900 dark:text-white"></div>
     </div>
 
     <div class="flex gap-2 mb-4" id="modal-actions"></div>

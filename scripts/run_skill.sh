@@ -267,19 +267,6 @@ if [ ${#EXTRA_VARS[@]} -gt 0 ]; then
   done
 fi
 
-# Export well-known extra-vars as environment variables so downstream
-# scripts can read them (e.g. EPIC_CODEGEN_GITHUB_TOKEN for PR creation)
-for VAR in "${EXTRA_VARS[@]}"; do
-  KEY="${VAR%%=*}"
-  VALUE="${VAR#*=}"
-  case "$KEY" in
-    github_api_token)
-      export EPIC_CODEGEN_GITHUB_TOKEN="$VALUE"
-      echo "✓ EPIC_CODEGEN_GITHUB_TOKEN set from extra-vars"
-      ;;
-  esac
-done
-
 # Resolve which plugin source this skill needs
 # When --fqn was used, the repo is already cloned by resolve_fqn.sh
 if [ -n "$FQN_CLONE_DIR" ]; then

@@ -87,6 +87,14 @@ if (K8S_AVAILABLE) {
       if (issue) args.issue = issue;
       const extraKwargs = document.getElementById('extra-kwargs').value.trim();
       if (extraKwargs) args.extra_kwargs = extraKwargs;
+      const extraEnvStr = document.getElementById('extra-env').value.trim();
+      if (extraEnvStr) {
+        args.extra_env = {};
+        extraEnvStr.split(/\s+/).forEach(kv => {
+          const eq = kv.indexOf('=');
+          if (eq > 0) args.extra_env[kv.slice(0, eq)] = kv.slice(eq + 1);
+        });
+      }
       if (document.getElementById('enable-force').checked) args.force = true;
       if (document.getElementById('enable-strace').checked) args.strace = true;
       if (!document.getElementById('enable-mlflow').checked) args.mlflow = false;
@@ -228,6 +236,18 @@ if (K8S_AVAILABLE) {
         ekRow.style.display = 'none';
       }
 
+      const eeRow = document.getElementById('modal-extra-env-row');
+      if (eeRow) {
+        const envObj = job.extra_env || {};
+        const envStr = Object.entries(envObj).map(([k,v]) => `${k}=${v}`).join(' ');
+        if (envStr) {
+          document.getElementById('modal-extra-env').textContent = envStr;
+          eeRow.style.display = '';
+        } else {
+          eeRow.style.display = 'none';
+        }
+      }
+
       // Store job opts for re-run
       window._rerunOpts = {
         phase: job.phase,
@@ -237,6 +257,7 @@ if (K8S_AVAILABLE) {
         runner: job.runner || 'cli',
         harness: job.harness || 'claude-code',
         extra_kwargs: job.extra_kwargs || '',
+        extra_env: job.extra_env || {},
         force: !!job.force,
         strace: !!job.strace,
         mlflow: job.mlflow !== false,
@@ -246,7 +267,7 @@ if (K8S_AVAILABLE) {
       // Action buttons
       const actionsEl = document.getElementById('modal-actions');
       let btns = '';
-      btns += `<button class="btn-rerun" onclick="modalRerun(window._rerunOpts.phase, window._rerunOpts.issue, window._rerunOpts.model, window._rerunOpts.runner, {fqn: window._rerunOpts.fqn, harness: window._rerunOpts.harness, extra_kwargs: window._rerunOpts.extra_kwargs, force: window._rerunOpts.force, strace: window._rerunOpts.strace, mlflow: window._rerunOpts.mlflow, otel: window._rerunOpts.otel})">Re-run</button>`;
+      btns += `<button class="btn-rerun" onclick="modalRerun(window._rerunOpts.phase, window._rerunOpts.issue, window._rerunOpts.model, window._rerunOpts.runner, {fqn: window._rerunOpts.fqn, harness: window._rerunOpts.harness, extra_kwargs: window._rerunOpts.extra_kwargs, extra_env: window._rerunOpts.extra_env, force: window._rerunOpts.force, strace: window._rerunOpts.strace, mlflow: window._rerunOpts.mlflow, otel: window._rerunOpts.otel})">Re-run</button>`;
       if (job.status === 'running' || job.status === 'pending') {
         btns += `<button class="btn-stop" onclick="modalStop('${jobName}')">Stop</button>`;
       }
@@ -302,7 +323,7 @@ if (K8S_AVAILABLE) {
           // Update actions (remove Stop button)
           const actionsEl = document.getElementById('modal-actions');
           let btns = '';
-          btns += `<button class="btn-rerun" onclick="modalRerun(window._rerunOpts.phase, window._rerunOpts.issue, window._rerunOpts.model, window._rerunOpts.runner, {fqn: window._rerunOpts.fqn, harness: window._rerunOpts.harness, extra_kwargs: window._rerunOpts.extra_kwargs, force: window._rerunOpts.force, strace: window._rerunOpts.strace, mlflow: window._rerunOpts.mlflow, otel: window._rerunOpts.otel})">Re-run</button>`;
+          btns += `<button class="btn-rerun" onclick="modalRerun(window._rerunOpts.phase, window._rerunOpts.issue, window._rerunOpts.model, window._rerunOpts.runner, {fqn: window._rerunOpts.fqn, harness: window._rerunOpts.harness, extra_kwargs: window._rerunOpts.extra_kwargs, extra_env: window._rerunOpts.extra_env, force: window._rerunOpts.force, strace: window._rerunOpts.strace, mlflow: window._rerunOpts.mlflow, otel: window._rerunOpts.otel})">Re-run</button>`;
           btns += `<button class="btn-delete" onclick="modalDelete('${jobName}')">Delete</button>`;
           actionsEl.innerHTML = btns;
 
@@ -369,6 +390,7 @@ if (K8S_AVAILABLE) {
     const args = { model, runner, harness: opts.harness || 'claude-code' };
     if (issue && issue !== 'all') args.issue = issue.toUpperCase();
     if (opts.extra_kwargs) args.extra_kwargs = opts.extra_kwargs;
+    if (opts.extra_env && Object.keys(opts.extra_env).length) args.extra_env = opts.extra_env;
     if (opts.force) args.force = true;
     if (opts.strace) args.strace = true;
     if (opts.mlflow === false) args.mlflow = false;

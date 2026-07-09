@@ -3,6 +3,7 @@
 from kubernetes import client, config
 from kubernetes.client.rest import ApiException
 from pathlib import Path
+import json
 import os
 from datetime import datetime
 
@@ -123,6 +124,7 @@ class PipelineOrchestrator:
             "mlflow": job.metadata.labels.get("mlflow", "true") == "true",
             "otel": job.metadata.labels.get("otel", "true") == "true",
             "extra_kwargs": (job.metadata.annotations or {}).get("extra_kwargs", ""),
+            "extra_env": json.loads((job.metadata.annotations or {}).get("extra_env", "{}")),
             "fqn": (job.metadata.annotations or {}).get("fqn", ""),
             "dataset_fqn": (job.metadata.annotations or {}).get("dataset_fqn", ""),
             "context_ref": (job.metadata.annotations or {}).get("context_ref", ""),
@@ -289,6 +291,7 @@ class PipelineOrchestrator:
                 namespace=self.namespace,
                 annotations={
                     "extra_kwargs": args.get("extra_kwargs") or "",
+                    "extra_env": json.dumps(args.get("extra_env") or {}),
                     "fqn": fqn or "",
                     "model": model,
                 },
@@ -508,6 +511,15 @@ fi
             name="AGENTIC_CI_HARNESS",
             value=harness
         ))
+
+        extra_env = args.get("extra_env") or {}
+        if isinstance(extra_env, str):
+            try:
+                extra_env = json.loads(extra_env) if extra_env else {}
+            except (json.JSONDecodeError, TypeError):
+                extra_env = {}
+        for k, v in extra_env.items():
+            env_vars.append(client.V1EnvVar(name=k, value=str(v)))
 
         return env_vars
 
