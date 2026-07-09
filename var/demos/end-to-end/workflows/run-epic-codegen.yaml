@@ -80,6 +80,42 @@ steps:
     vars:
       epic_lists: "{{ epic_discovery.stdout | fromjson }}"
 
+  # Create codegen-format epic-task files by running fetch_jira_epics.py
+  # from the epic-code-gen repo. This replicates what run_pipeline.py does
+  # in production before invoking /epic-codegen.
+  - name: prepare_artifacts
+    description: "Create codegen-format epic-task files from Jira"
+    type: shell_exec
+    params:
+      command: |
+        REPO_DIR="/tmp/epic-code-gen-prepare"
+        CLONE_HOST="github-emulator.ai-pipeline.svc.cluster.local"
+
+        if [ ! -d "$REPO_DIR" ]; then
+          GIT_SSL_NO_VERIFY=1 git clone --depth 1 \
+            "https://${CLONE_HOST}/{{ org }}/epic-code-gen.git" "$REPO_DIR"
+        fi
+
+        export JIRA_SERVER="{{ jira_base }}"
+        export JIRA_USER="{{ jira_user }}"
+        export JIRA_TOKEN="{{ jira_token }}"
+
+        cd "$REPO_DIR"
+        python3 -c "
+        import ssl
+        ssl._create_default_https_context = ssl._create_unverified_context
+        import sys
+        sys.argv = [
+            'fetch_jira_epics.py', '{{ strat_issue }}',
+            '--output-dir', '/app/artifacts/epic-tasks',
+            '--strategies-dir', '/app/artifacts/strategies',
+            '--no-report',
+        ]
+        sys.path.insert(0, 'scripts')
+        from fetch_jira_epics import main
+        main()
+        "
+
   - name: run_codegen
     description: "Run codegen for Implementation epics"
     for_each: epic_lists.implementation
