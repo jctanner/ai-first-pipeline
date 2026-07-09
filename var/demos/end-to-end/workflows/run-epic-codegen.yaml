@@ -1,0 +1,30 @@
+# ====================================================================
+# Run Epic Codegen
+# ====================================================================
+#
+# Discovers Implementation epics for a strategy and fans out the
+# epic-code-gen skill for each one.
+#
+# Requires: strat_issue (e.g. RHAISTRAT-1)
+# Prerequisite: run-epic-decompose must have completed first.
+
+name: run-epic-codegen
+description: "Run codegen for Implementation epics of {{ strat_issue }}"
+
+steps:
+
+  - name: discover
+    description: "Discover epics for {{ strat_issue }}"
+    workflow: discover-epics
+
+  - name: run_codegen
+    description: "Run codegen for Implementation epics"
+    for_each: epic_lists.implementation
+    as: epic
+    workflow: run-skill
+    vars:
+      skill_fqn: "github.local/{{ org }}/epic-code-gen@main:epic-codegen"
+      skill_issue: "{{ epic.epic_id }}"
+      skill_extra_kwargs: "fork_owner={{ fork_owner }}"
+      skill_extra_env:
+        EPIC_CODEGEN_GITHUB_TOKEN: "{{ github_api_token }}"

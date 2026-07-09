@@ -1,0 +1,27 @@
+# ====================================================================
+# Run Epic Investigate
+# ====================================================================
+#
+# Discovers Investigation epics for a strategy and fans out the
+# epic-investigator skill for each one.
+#
+# Requires: strat_issue (e.g. RHAISTRAT-1)
+# Prerequisite: run-epic-decompose must have completed first.
+
+name: run-epic-investigate
+description: "Run Investigation epics for {{ strat_issue }}"
+
+steps:
+
+  - name: discover
+    description: "Discover epics for {{ strat_issue }}"
+    workflow: discover-epics
+
+  - name: run_investigations
+    description: "Run Investigation epics"
+    for_each: epic_lists.investigation
+    as: epic
+    workflow: run-skill
+    vars:
+      skill_fqn: "github.local/{{ org }}/epic-investigator@main:epic-investigate"
+      skill_issue: "{{ epic.jira_key }}"
