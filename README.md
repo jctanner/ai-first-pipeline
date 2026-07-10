@@ -81,7 +81,7 @@ uv sync
 # Create .env with Vertex AI credentials
 cat > .env <<'EOF'
 CLAUDE_CODE_USE_VERTEX=1
-CLOUD_ML_REGION=us-east5
+CLOUD_ML_REGION=global
 ANTHROPIC_VERTEX_PROJECT_ID=<your-project-id>
 
 # For Jira access (fetch phase + rfe-creator skills)

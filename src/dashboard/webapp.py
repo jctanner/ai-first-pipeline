@@ -507,7 +507,7 @@ def create_app() -> Flask:
             },
             {
                 'name': 'Vertex AI',
-                'url': f"https://{os.getenv('CLOUD_ML_REGION', 'us-east5')}-aiplatform.googleapis.com",
+                'url': f"https://{os.getenv('CLOUD_ML_REGION', 'global')}-aiplatform.googleapis.com",
                 'status': 'available' if os.getenv('CLAUDE_CODE_USE_VERTEX') == '1' else 'unknown',
             },
         ]

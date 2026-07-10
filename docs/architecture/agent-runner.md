@@ -150,7 +150,7 @@ All secrets come from a single K8s Secret named `pipeline-secrets` in the
 | Env var | Secret key | Purpose |
 |---------|-----------|---------|
 | `CLAUDE_CODE_USE_VERTEX` | `CLAUDE_CODE_USE_VERTEX` | Enable Vertex AI provider (`1`) |
-| `CLOUD_ML_REGION` | `CLOUD_ML_REGION` | GCP region (e.g., `us-east5`) |
+| `CLOUD_ML_REGION` | `CLOUD_ML_REGION` | Vertex location (default: `global`) |
 | `ANTHROPIC_VERTEX_PROJECT_ID` | `ANTHROPIC_VERTEX_PROJECT_ID` | GCP project ID |
 | `JIRA_SERVER` | `JIRA_SERVER` | Jira base URL |
 | `JIRA_USER` | `JIRA_USER` | Jira username/email |

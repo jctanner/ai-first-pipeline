@@ -88,7 +88,7 @@ The `deploy-all.sh` script runs the following steps:
 ```bash
 # Vertex AI Configuration
 CLAUDE_CODE_USE_VERTEX=1
-CLOUD_ML_REGION=us-east5
+CLOUD_ML_REGION=global
 ANTHROPIC_VERTEX_PROJECT_ID=your-gcp-project
 
 # Jira Emulator (in-cluster)

@@ -23,7 +23,7 @@ google-vertex-anthropic/claude-opus-4-6@default
 | Secret key | Runtime env var | Purpose |
 |------------|-----------------|---------|
 | `CLAUDE_CODE_USE_VERTEX` | `CLAUDE_CODE_USE_VERTEX` | Enables Claude Code's Vertex provider path. Defaults to `1`. |
-| `CLOUD_ML_REGION` | `CLOUD_ML_REGION` | Vertex region. Defaults to `us-east5`. |
+| `CLOUD_ML_REGION` | `CLOUD_ML_REGION` | Vertex region. Defaults to `global`. |
 | `ANTHROPIC_VERTEX_PROJECT_ID` | `ANTHROPIC_VERTEX_PROJECT_ID` | GCP project used for Anthropic-on-Vertex calls. |
 
 The same script can create `gcp-credentials` when `GOOGLE_APPLICATION_CREDENTIALS` points at a local credentials file. `deploy/scripts/11-create-gcp-credentials-secret.sh` is the explicit helper for creating that secret from Google ADC credentials.
@@ -126,7 +126,7 @@ OpenCode uses Google/Vertex env vars directly. Both `scripts/run_skill_opencode.
 ```bash
 export GOOGLE_CLOUD_PROJECT="${ANTHROPIC_VERTEX_PROJECT_ID:-}"
 export GOOGLE_VERTEX_PROJECT="${ANTHROPIC_VERTEX_PROJECT_ID:-}"
-export GOOGLE_VERTEX_LOCATION="${CLOUD_ML_REGION:-us-east5}"
+export GOOGLE_VERTEX_LOCATION="${CLOUD_ML_REGION:-global}"
 ```
 
 They also inherit:
@@ -152,7 +152,7 @@ Before invoking agentic-ci, the wrapper exports the same OpenCode-compatible Ver
 ```bash
 export GOOGLE_CLOUD_PROJECT="${ANTHROPIC_VERTEX_PROJECT_ID:-}"
 export GOOGLE_VERTEX_PROJECT="${ANTHROPIC_VERTEX_PROJECT_ID:-}"
-export GOOGLE_VERTEX_LOCATION="${CLOUD_ML_REGION:-us-east5}"
+export GOOGLE_VERTEX_LOCATION="${CLOUD_ML_REGION:-global}"
 ```
 
 For OpenCode, it also enables native OpenTelemetry in `opencode.json` and removes the `@mlflow/opencode` plugin so agentic-ci owns trace capture and MLflow push. This is separate from Vertex auth, but it matters because this runner is intended to test OpenCode CLI with native OTel rather than the plugin path.

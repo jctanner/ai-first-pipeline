@@ -72,7 +72,7 @@ echo "   vagrant ssh -c \"kubectl delete -f /vagrant/deploy/claude-agent/deploym
 echo
 echo "Environment variables configured:"
 echo "  - CLAUDE_CODE_USE_VERTEX=1"
-echo "  - CLOUD_ML_REGION=us-east5"
+echo "  - CLOUD_ML_REGION=global"
 echo "  - ANTHROPIC_VERTEX_PROJECT_ID (from pipeline-secrets)"
 echo "  - GOOGLE_APPLICATION_CREDENTIALS=/home/agent/.config/gcloud/credentials.json"
 echo

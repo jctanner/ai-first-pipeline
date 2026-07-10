@@ -24,7 +24,7 @@ Create `.env` in the project root (gitignored):
 
 ```
 CLAUDE_CODE_USE_VERTEX=1
-CLOUD_ML_REGION=us-east5
+CLOUD_ML_REGION=global
 ANTHROPIC_VERTEX_PROJECT_ID=<gcp-project-id>
 JIRA_SERVER=https://issues.redhat.com
 JIRA_USER=<email>

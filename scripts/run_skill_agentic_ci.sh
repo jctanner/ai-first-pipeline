@@ -133,7 +133,7 @@ fi
 # Vertex AI env vars (used by both OpenCode and Claude Code with Vertex)
 export GOOGLE_CLOUD_PROJECT="${ANTHROPIC_VERTEX_PROJECT_ID:-}"
 export GOOGLE_VERTEX_PROJECT="${ANTHROPIC_VERTEX_PROJECT_ID:-}"
-export GOOGLE_VERTEX_LOCATION="${CLOUD_ML_REGION:-us-east5}"
+export GOOGLE_VERTEX_LOCATION="${CLOUD_ML_REGION:-global}"
 
 # Resolve skill name from pipeline-skills.yaml
 if [ -z "$SKILL_NAME" ]; then

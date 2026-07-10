@@ -18,7 +18,7 @@ The company-simulator project uses containerized agents running Claude Code CLI 
 │                                                  │
 │  Environment Variables:                         │
 │  ├─ CLAUDE_CODE_USE_VERTEX=1                   │
-│  ├─ CLOUD_ML_REGION=us-east5                   │
+│  ├─ CLOUD_ML_REGION=global                     │
 │  ├─ ANTHROPIC_VERTEX_PROJECT_ID=<project>      │
 │  └─ GOOGLE_APPLICATION_CREDENTIALS=/secrets/gcp/credentials.json
 │                                                  │

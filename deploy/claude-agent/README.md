@@ -108,7 +108,7 @@ Automatically configured from Kubernetes Secrets:
 | Variable | Source | Value |
 |----------|--------|-------|
 | `CLAUDE_CODE_USE_VERTEX` | `pipeline-secrets` | `1` |
-| `CLOUD_ML_REGION` | `pipeline-secrets` | `us-east5` |
+| `CLOUD_ML_REGION` | `pipeline-secrets` | `global` |
 | `ANTHROPIC_VERTEX_PROJECT_ID` | `pipeline-secrets` | Your GCP project |
 | `GOOGLE_APPLICATION_CREDENTIALS` | Hardcoded | `/home/agent/.config/gcloud/credentials.json` |
 | `AGENT_NAME` | Pod metadata | Pod name (unique per replica) |

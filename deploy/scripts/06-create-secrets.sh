@@ -20,7 +20,7 @@ source "${PROJECT_ROOT}/.env"
 kubectl create secret generic pipeline-secrets \
   -n ai-pipeline \
   --from-literal=CLAUDE_CODE_USE_VERTEX="${CLAUDE_CODE_USE_VERTEX:-1}" \
-  --from-literal=CLOUD_ML_REGION="${CLOUD_ML_REGION:-us-east5}" \
+  --from-literal=CLOUD_ML_REGION="${CLOUD_ML_REGION:-global}" \
   --from-literal=ANTHROPIC_VERTEX_PROJECT_ID="${ANTHROPIC_VERTEX_PROJECT_ID:-}" \
   --from-literal=JIRA_SERVER="${JIRA_SERVER:-https://issues.redhat.com}" \
   --from-literal=JIRA_USER="${JIRA_USER:-}" \

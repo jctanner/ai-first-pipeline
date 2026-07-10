@@ -211,7 +211,7 @@ if os.path.exists(settings_file):
 
 settings['apiProvider'] = 'vertex'
 settings['vertexProjectId'] = os.environ.get('ANTHROPIC_VERTEX_PROJECT_ID', '')
-settings['vertexRegion'] = os.environ.get('CLOUD_ML_REGION', 'us-east5')
+settings['vertexRegion'] = os.environ.get('CLOUD_ML_REGION', 'global')
 
 with open(settings_file, 'w') as f:
     json.dump(settings, f, indent=2)

@@ -127,7 +127,7 @@ if os.path.exists(settings_file):
 # Add Vertex AI configuration
 settings['apiProvider'] = 'vertex'
 settings['vertexProjectId'] = os.environ.get('ANTHROPIC_VERTEX_PROJECT_ID', '')
-settings['vertexRegion'] = os.environ.get('CLOUD_ML_REGION', 'us-east5')
+settings['vertexRegion'] = os.environ.get('CLOUD_ML_REGION', 'global')
 
 # Add Atlassian MCP server if configured
 atlassian_mcp_url = os.environ.get('ATLASSIAN_MCP_URL', '')

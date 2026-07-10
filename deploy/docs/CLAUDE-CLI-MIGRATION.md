@@ -82,7 +82,7 @@ python -u main.py rfe-review --issue RHAIRFE-953 --model opus
 Jobs still receive:
 - `MLFLOW_TRACKING_URI=http://mlflow.ai-pipeline.svc.cluster.local:5000`
 - `CLAUDE_CODE_USE_VERTEX=1`
-- `CLOUD_ML_REGION=us-east5`
+- `CLOUD_ML_REGION=global`
 - `ANTHROPIC_VERTEX_PROJECT_ID=<project>`
 - `JIRA_SERVER`, `JIRA_USER`, `JIRA_TOKEN`
 - `GOOGLE_APPLICATION_CREDENTIALS=/app/.gcloud/credentials.json`

@@ -26,7 +26,7 @@ else:
             "Create a .env file with at minimum:\n"
             "\n"
             "  CLAUDE_CODE_USE_VERTEX=1\n"
-            "  CLOUD_ML_REGION=us-east5\n"
+            "  CLOUD_ML_REGION=global\n"
             "  ANTHROPIC_VERTEX_PROJECT_ID=<your-project>\n"
             "\n"
             "The Claude Agent SDK requires valid Vertex AI credentials.",

@@ -25,7 +25,7 @@ if [ ! -f ${PROJECT_ROOT}/.env ]; then
   echo ""
   echo "Required variables:"
   echo "  CLAUDE_CODE_USE_VERTEX=1"
-  echo "  CLOUD_ML_REGION=us-east5"
+  echo "  CLOUD_ML_REGION=global"
   echo "  ANTHROPIC_VERTEX_PROJECT_ID=your-project-id"
   echo "  JIRA_SERVER=https://issues.redhat.com"
   echo "  JIRA_USER=your-email"

@@ -76,7 +76,7 @@ export MLFLOW_TRACKING_URI=http://127.0.0.1:5000
 
 # Vertex AI credentials (for Claude scorer)
 export ANTHROPIC_VERTEX_PROJECT_ID=your-gcp-project-id
-export CLOUD_ML_REGION=us-east5
+export CLOUD_ML_REGION=global
 export CLAUDE_CODE_USE_VERTEX=1
 ```
 
@@ -116,7 +116,7 @@ from mlflow.entities import Feedback
 def get_anthropic_client():
     """Get Anthropic client configured for Vertex AI or direct API."""
     project_id = os.environ.get("ANTHROPIC_VERTEX_PROJECT_ID")
-    region = os.environ.get("CLOUD_ML_REGION", "us-east5")
+    region = os.environ.get("CLOUD_ML_REGION", "global")
 
     if project_id:
         from anthropic import AnthropicVertex
@@ -1087,7 +1087,7 @@ See `agent-eval-harness/CLAUDE.md` for the full architecture.
 ```python
 def _get_anthropic_client():
     project_id = os.environ.get("ANTHROPIC_VERTEX_PROJECT_ID")
-    region = os.environ.get("CLOUD_ML_REGION", "us-east5")
+    region = os.environ.get("CLOUD_ML_REGION", "global")
     if project_id:
         from anthropic import AnthropicVertex
         return AnthropicVertex(project_id=project_id, region=region)
@@ -1106,7 +1106,7 @@ This is the same pattern we used in `claude_scorer.py`.
 |----------|---------|---------|
 | `MLFLOW_TRACKING_URI` | MLflow server endpoint | `http://127.0.0.1:5000` |
 | `ANTHROPIC_VERTEX_PROJECT_ID` | GCP project for Vertex AI | `your-gcp-project` |
-| `CLOUD_ML_REGION` | Vertex AI region | `us-east5` |
+| `CLOUD_ML_REGION` | Vertex AI region | `global` |
 | `CLAUDE_CODE_USE_VERTEX` | Enable Vertex in Claude Code | `1` |
 | `ANTHROPIC_API_KEY` | Direct API (fallback) | `sk-ant-...` |
 | `EVAL_JUDGE_MODEL` | Default judge model | `claude-sonnet-4-6` |
