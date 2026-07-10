@@ -167,10 +167,12 @@ def _get_queue_snapshot() -> dict:
 
 
 def _normalize_extra_env(value):
-    """Accept extra_env as an object or JSON object string."""
+    """Accept extra_env as an object or JSON object string (possibly multi-wrapped)."""
     if value in (None, ""):
         return {}
-    if isinstance(value, str):
+    for _ in range(5):
+        if not isinstance(value, str):
+            break
         try:
             value = json.loads(value)
         except json.JSONDecodeError as exc:

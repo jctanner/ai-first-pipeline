@@ -527,10 +527,12 @@ fi
 
     @staticmethod
     def _normalize_extra_env(extra_env) -> dict:
-        """Accept extra_env as an object or JSON object string."""
+        """Accept extra_env as an object or JSON object string (possibly multi-wrapped)."""
         if extra_env in (None, ""):
             return {}
-        if isinstance(extra_env, str):
+        for _ in range(5):
+            if not isinstance(extra_env, str):
+                break
             try:
                 extra_env = json.loads(extra_env)
             except json.JSONDecodeError as exc:

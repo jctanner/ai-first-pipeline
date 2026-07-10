@@ -8,6 +8,7 @@ org: opendatahub-io
 github_token: ""
 github_api_token: "ghp_admin_default_token"
 fork_owner: opendatahub-io
+codegen_target_repo: odh-cli
 seed_rfe: true
 run_pipeline: true
 rfe_issue: RHAIRFE-1
