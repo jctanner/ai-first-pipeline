@@ -942,6 +942,49 @@ fi
 
         return job
 
+    _MLFLOW_HARD_DELETE_SCRIPT_PATH = Path(__file__).resolve().parent.parent.parent / "scripts" / "mlflow_hard_delete.py"
+
+    def exec_mlflow_hard_delete(self) -> dict:
+        """Hard-delete all MLflow data by exec-ing a cleanup script into the MLflow pod."""
+        from kubernetes.stream import stream as k8s_stream
+
+        pods = self.core_v1.list_namespaced_pod(
+            namespace=self.namespace,
+            label_selector="app=mlflow",
+            field_selector="status.phase=Running",
+        )
+        running = [p for p in pods.items if p.status.phase == "Running"]
+        if not running:
+            raise RuntimeError("No running MLflow pod found (label app=mlflow)")
+        if len(running) > 1:
+            raise RuntimeError(f"Expected 1 MLflow pod, found {len(running)}")
+
+        pod_name = running[0].metadata.name
+
+        script = self._MLFLOW_HARD_DELETE_SCRIPT_PATH.read_text()
+
+        resp = k8s_stream(
+            self.core_v1.connect_get_namespaced_pod_exec,
+            pod_name,
+            self.namespace,
+            command=["python3", "-c", script],
+            container="mlflow",
+            stderr=True,
+            stdout=True,
+            stdin=False,
+            tty=False,
+        )
+
+        try:
+            result = json.loads(resp)
+        except (json.JSONDecodeError, TypeError):
+            raise RuntimeError(f"Unexpected output from cleanup script: {resp}")
+
+        if result.get("error"):
+            raise RuntimeError(result["error"])
+
+        return result
+
     def _get_job_status(self, job: client.V1Job) -> str:
         """Determine job status from K8s Job object."""
         if job.status.succeeded:

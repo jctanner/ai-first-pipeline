@@ -1,6 +1,6 @@
 # MLflow soft-deleted experiments block future trace ingestion
 
-## Status: Open
+## Status: Fixed (hard-delete endpoint)
 
 ## Symptom
 
@@ -142,8 +142,21 @@ conn.commit()
 
 After this, creating a new experiment with the same name succeeds (reuses the ID).
 
-## Workarounds for the reset workflow
+## Implemented fix: dashboard hard-delete endpoint
 
-1. **SQL-based hard delete** — add a step that connects to the SQLite DB and deletes spans → traces → experiment in FK order. Most complete but couples to the DB schema.
-2. **Restore before reuse** — call `POST /api/2.0/mlflow/experiments/restore` on soft-deleted experiments so they're active when the next run starts. Simplest API-based fix.
-3. **Don't delete experiments during reset** — leave them active and let new runs append. Avoids the problem entirely but historical data accumulates.
+`POST /api/mlflow/hard-clear` execs a schema-aware Python cleanup script into
+the running MLflow pod. The script discovers FK relationships from
+`sqlite_master`, deletes all experiment data in child-before-parent order, runs
+`PRAGMA foreign_key_check` before commit, and clears `/data/artifacts`. The
+Default experiment (ID 0) is preserved but emptied.
+
+The end-to-end reset workflow (`var/demos/end-to-end/workflows/reset-services.yaml`)
+uses this endpoint instead of the soft-delete `/api/mlflow/clear`.
+
+The admin UI exposes both options: "Clear MLflow" (soft delete via API) for
+lower-risk testing, and "Hard Delete MLflow" (SQL exec) for demo resets.
+
+## Alternative workarounds (not used)
+
+1. **Restore before reuse** — call `POST /api/2.0/mlflow/experiments/restore` on soft-deleted experiments so they're active when the next run starts. Simplest API-based fix.
+2. **Don't delete experiments during reset** — leave them active and let new runs append. Avoids the problem entirely but historical data accumulates.

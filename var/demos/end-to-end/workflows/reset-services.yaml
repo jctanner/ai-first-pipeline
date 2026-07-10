@@ -24,11 +24,11 @@ steps:
       path: /api/admin/seed
       method: POST
 
-  # Step 3: Clear all MLflow experiments, runs, and traces
+  # Step 3: Hard-delete all MLflow data (SQL exec into MLflow pod)
   - name: clear_mlflow
     type: dashboard_api
     params:
-      path: /api/mlflow/clear
+      path: /api/mlflow/hard-clear
       method: POST
 
   # Step 4: Clear artifacts and .context volumes (launches a K8s Job)

@@ -587,6 +587,21 @@ def create_app() -> Flask:
             return jsonify(results), 502
         return jsonify(results)
 
+    @app.route("/api/mlflow/hard-clear", methods=["POST"])
+    def api_mlflow_hard_clear():
+        """Hard-delete all MLflow data via SQL exec into the MLflow pod."""
+        if not K8S_AVAILABLE:
+            return jsonify({"error": "K8s orchestration not available"}), 503
+
+        try:
+            orchestrator = get_orchestrator()
+            result = orchestrator.exec_mlflow_hard_delete()
+            return jsonify(result)
+        except RuntimeError as e:
+            return jsonify({"error": str(e)}), 502
+        except Exception as e:
+            return jsonify({"error": f"MLflow hard-clear failed: {e}"}), 500
+
     @app.route("/api/pipeline/status")
     def api_pipeline_status():
         return jsonify(load_pipeline_status())

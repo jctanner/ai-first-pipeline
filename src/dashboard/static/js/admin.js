@@ -169,7 +169,7 @@ function confirmClearMlflow() {
 }
 
 function executeClearMlflow() {
-  const btn = document.querySelector('#clear-mlflow-modal button:last-child');
+  const btn = document.getElementById('clear-mlflow-confirm-btn');
   btn.textContent = 'Clearing...';
   btn.disabled = true;
   fetch('/api/mlflow/clear', {
@@ -182,7 +182,7 @@ function executeClearMlflow() {
     document.getElementById('clear-mlflow-modal').close();
     btn.textContent = 'Confirm & Clear';
     btn.disabled = false;
-    let msg = 'MLflow data cleared:\n' +
+    let msg = 'MLflow data cleared (soft delete):\n' +
       data.traces_deleted + ' trace(s) deleted\n' +
       data.runs_deleted + ' run(s) deleted\n' +
       data.experiments_deleted + ' experiment(s) deleted';
@@ -193,5 +193,46 @@ function executeClearMlflow() {
     btn.textContent = 'Confirm & Clear';
     btn.disabled = false;
     alert('Clear failed: ' + err);
+  });
+}
+
+function confirmHardDeleteMlflow() {
+  document.getElementById('hard-delete-mlflow-modal').showModal();
+}
+
+function executeHardDeleteMlflow() {
+  const btn = document.getElementById('hard-delete-mlflow-confirm-btn');
+  btn.textContent = 'Deleting...';
+  btn.disabled = true;
+  fetch('/api/mlflow/hard-clear', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({})
+  })
+  .then(r => r.json())
+  .then(data => {
+    document.getElementById('hard-delete-mlflow-modal').close();
+    btn.textContent = 'Confirm & Hard Delete';
+    btn.disabled = false;
+    if (data.error) {
+      alert('Hard delete failed: ' + data.error);
+      return;
+    }
+    let msg = 'MLflow hard delete complete:\n' +
+      data.experiments_deleted + ' experiment(s) deleted\n' +
+      data.runs_deleted + ' run(s) deleted\n' +
+      data.traces_deleted + ' trace(s) deleted\n' +
+      data.spans_deleted + ' span(s) deleted\n' +
+      data.artifacts_deleted + ' artifact(s) deleted';
+    if (data.tables_cleared && data.tables_cleared.length)
+      msg += '\n\nTables touched: ' + data.tables_cleared.join(', ');
+    if (data.errors && data.errors.length)
+      msg += '\n\nErrors:\n' + data.errors.join('\n');
+    alert(msg);
+  })
+  .catch(err => {
+    btn.textContent = 'Confirm & Hard Delete';
+    btn.disabled = false;
+    alert('Hard delete failed: ' + err);
   });
 }
