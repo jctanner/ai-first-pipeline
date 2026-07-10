@@ -2,34 +2,91 @@ function toggleVolSelectAll(master) {
   document.querySelectorAll('.vol-select').forEach(cb => cb.checked = master.checked);
 }
 
-function confirmClearVolumes() {
+let _clearMode = 'local';
+
+function confirmClearVolumes(mode) {
   const checked = document.querySelectorAll('.vol-select:checked');
   if (checked.length === 0) { alert('No volumes selected.'); return; }
+  _clearMode = mode;
   const names = Array.from(checked).map(cb => cb.value);
   document.getElementById('clear-volumes-list').innerHTML =
     names.map(n => '<code>' + n + '</code>').join('<br>');
+  document.getElementById('clear-volumes-mode-label').textContent = mode === 'job' ? 'K8s Job' : 'Local';
   document.getElementById('clear-volumes-modal').showModal();
 }
 
 function executeClearVolumes() {
   const checked = document.querySelectorAll('.vol-select:checked');
   const volumes = Array.from(checked).map(cb => cb.value);
+  const btn = document.getElementById('clear-volumes-confirm-btn');
+  btn.textContent = 'Clearing...';
+  btn.disabled = true;
+
   fetch('/api/volumes/clear', {
     method: 'POST',
     headers: {'Content-Type': 'application/json'},
-    body: JSON.stringify({volumes})
+    body: JSON.stringify({volumes, mode: _clearMode})
   })
   .then(r => r.json())
   .then(data => {
-    document.getElementById('clear-volumes-modal').close();
-    const cleared = Object.entries(data.results)
-      .map(([k,v]) => k + ': ' + v.status + ' (' + v.deleted + ' items)')
-      .join('\\n');
-    let msg = 'Clear complete:\\n' + cleared;
-    if (data.errors.length) msg += '\\n\\nErrors:\\n' + data.errors.join('\\n');
-    alert(msg);
+    if (data.error) {
+      document.getElementById('clear-volumes-modal').close();
+      btn.textContent = 'Confirm & Clear';
+      btn.disabled = false;
+      alert('Clear failed: ' + data.error);
+      return;
+    }
+
+    if (data.mode === 'job') {
+      btn.textContent = 'Waiting for job...';
+      pollCleanupJob(data.job_name, btn);
+    } else {
+      document.getElementById('clear-volumes-modal').close();
+      btn.textContent = 'Confirm & Clear';
+      btn.disabled = false;
+      const cleared = Object.entries(data.results)
+        .map(([k,v]) => k + ': ' + v.status + ' (' + v.deleted + ' items)')
+        .join('\n');
+      let msg = 'Clear complete:\n' + cleared;
+      if (data.errors && data.errors.length) msg += '\n\nErrors:\n' + data.errors.join('\n');
+      alert(msg);
+    }
   })
-  .catch(err => alert('Clear failed: ' + err));
+  .catch(err => {
+    document.getElementById('clear-volumes-modal').close();
+    btn.textContent = 'Confirm & Clear';
+    btn.disabled = false;
+    alert('Clear failed: ' + err);
+  });
+}
+
+function pollCleanupJob(jobName, btn) {
+  const interval = setInterval(() => {
+    fetch('/api/jobs/' + jobName + '/status')
+      .then(r => r.json())
+      .then(data => {
+        if (data.status === 'completed') {
+          clearInterval(interval);
+          document.getElementById('clear-volumes-modal').close();
+          btn.textContent = 'Confirm & Clear';
+          btn.disabled = false;
+          alert('Cleanup job completed: ' + jobName);
+        } else if (data.status === 'failed') {
+          clearInterval(interval);
+          document.getElementById('clear-volumes-modal').close();
+          btn.textContent = 'Confirm & Clear';
+          btn.disabled = false;
+          alert('Cleanup job failed: ' + jobName);
+        }
+      })
+      .catch(() => {
+        clearInterval(interval);
+        document.getElementById('clear-volumes-modal').close();
+        btn.textContent = 'Confirm & Clear';
+        btn.disabled = false;
+        alert('Lost contact with cleanup job: ' + jobName);
+      });
+  }, 2000);
 }
 
 function loadJobCount() {

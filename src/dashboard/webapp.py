@@ -670,9 +670,34 @@ def create_app() -> Flask:
 
     @app.route("/api/volumes/clear", methods=["POST"])
     def api_clear_volumes():
-        """Clear contents of shared data volumes."""
+        """Clear contents of shared data volumes.
+
+        Accepts ``"mode": "job"`` (default) to launch a K8s cleanup Job, or
+        ``"mode": "local"`` to delete in-process.  Falls back to local
+        automatically when K8s is unavailable.
+        """
         data = request.get_json()
         requested = data.get("volumes", [])
+        if not requested:
+            return jsonify({"error": "No volumes specified"}), 400
+
+        mode = data.get("mode", "job")
+
+        if mode == "job" and K8S_AVAILABLE:
+            try:
+                orchestrator = get_orchestrator()
+                job = orchestrator.submit_cleanup_job(requested)
+                return jsonify({
+                    "mode": "job",
+                    "job_name": job.metadata.name,
+                    "status": "pending",
+                })
+            except ValueError as e:
+                return jsonify({"error": str(e)}), 400
+            except Exception as e:
+                return jsonify({"error": f"Failed to submit cleanup job: {e}"}), 500
+
+        # Local (in-process) clear
         volume_map = {
             "issues": "/app/issues",
             "workspace": "/app/workspace",
@@ -719,7 +744,7 @@ def create_app() -> Flask:
             except Exception as e:
                 errors.append(f"{vol}: {str(e)}")
                 results[vol] = {"status": "error", "deleted": count}
-        return jsonify({"results": results, "errors": errors})
+        return jsonify({"mode": "local", "results": results, "errors": errors})
 
     # =========================================================================
     # K8s Job Management APIs

@@ -81,6 +81,8 @@ spec:
       labels:
         app: observatory
     spec:
+      securityContext:
+        fsGroup: 1000
       containers:
       - name: observatory
         image: observatory:latest

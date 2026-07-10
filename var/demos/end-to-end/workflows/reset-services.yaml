@@ -31,7 +31,7 @@ steps:
       path: /api/mlflow/clear
       method: POST
 
-  # Step 4: Clear artifacts and .context volumes
+  # Step 4: Clear artifacts and .context volumes (launches a K8s Job)
   - name: clear_volumes
     type: dashboard_api
     params:
@@ -41,3 +41,9 @@ steps:
         volumes:
           - artifacts
           - context
+    register: clear_result
+
+  - name: wait_for_clear
+    type: agent_job_wait
+    params:
+      job_name: "{{ clear_result.body.job_name }}"

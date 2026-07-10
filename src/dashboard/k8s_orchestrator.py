@@ -329,6 +329,10 @@ class PipelineOrchestrator:
                     spec=client.V1PodSpec(
                         restart_policy="Never",
 
+                        security_context=client.V1PodSecurityContext(
+                            fs_group=1000,
+                        ),
+
                         # Pod affinity: schedule on same node as dashboard
                         affinity=client.V1Affinity(
                             pod_affinity=client.V1PodAffinity(
@@ -635,6 +639,117 @@ fi
             )
         ]
 
+    CLEANUP_VOLUME_DEFS = {
+        "issues": ("pipeline-issues", "/data/issues", "/data/issues"),
+        "workspace": ("pipeline-workspace", "/data/workspace", "/data/workspace"),
+        "logs": ("pipeline-logs", "/data/logs", "/data/logs"),
+        "artifacts": ("pipeline-artifacts", "/data/artifacts", "/data/artifacts"),
+        "context": ("pipeline-context", "/data/context", "/data/context"),
+        "job-logs": ("pipeline-artifacts", "/data/artifacts", "/data/artifacts/jobs"),
+        "strace": ("pipeline-artifacts", "/data/artifacts", "/data/artifacts/strace"),
+        "apibodies": ("pipeline-artifacts", "/data/artifacts", "/data/artifacts/apibodies"),
+    }
+
+    def submit_cleanup_job(self, volumes: list[str]) -> client.V1Job:
+        """Submit a K8s Job to clear contents of shared data volumes.
+
+        Returns the created K8s Job object.
+        """
+        pvc_mounts = {}
+        clear_paths = []
+        unknown = []
+
+        for vol in volumes:
+            defn = self.CLEANUP_VOLUME_DEFS.get(vol)
+            if not defn:
+                unknown.append(vol)
+                continue
+            pvc_name, mount_path, clear_path = defn
+            pvc_mounts[pvc_name] = mount_path
+            clear_paths.append(clear_path)
+
+        if unknown:
+            raise ValueError(f"Unknown volumes: {', '.join(unknown)}")
+
+        rm_lines = []
+        for path in clear_paths:
+            rm_lines.append(f'echo "Clearing {path}"')
+            rm_lines.append(f'rm -rf {path}/*')
+        rm_lines.append('echo "Cleanup complete"')
+        script = "\n".join(rm_lines)
+
+        timestamp = datetime.now().strftime("%m%d-%H%M%S")
+        job_name = f"cleanup-volumes-{timestamp}"
+
+        volume_mounts = []
+        k8s_volumes = []
+        for pvc_name, mount_path in pvc_mounts.items():
+            vol_name = pvc_name.replace("pipeline-", "")
+            volume_mounts.append(client.V1VolumeMount(
+                name=vol_name,
+                mount_path=mount_path,
+            ))
+            k8s_volumes.append(client.V1Volume(
+                name=vol_name,
+                persistent_volume_claim=client.V1PersistentVolumeClaimVolumeSource(
+                    claim_name=pvc_name,
+                ),
+            ))
+
+        job = client.V1Job(
+            api_version="batch/v1",
+            kind="Job",
+            metadata=client.V1ObjectMeta(
+                name=job_name,
+                namespace=self.namespace,
+                labels={
+                    "app": "pipeline-cleanup",
+                    "category": "cleanup",
+                },
+            ),
+            spec=client.V1JobSpec(
+                ttl_seconds_after_finished=3600,
+                backoff_limit=0,
+                template=client.V1PodTemplateSpec(
+                    metadata=client.V1ObjectMeta(
+                        labels={
+                            "app": "pipeline-cleanup",
+                            "category": "cleanup",
+                        },
+                    ),
+                    spec=client.V1PodSpec(
+                        restart_policy="Never",
+                        affinity=client.V1Affinity(
+                            pod_affinity=client.V1PodAffinity(
+                                required_during_scheduling_ignored_during_execution=[
+                                    client.V1PodAffinityTerm(
+                                        label_selector=client.V1LabelSelector(
+                                            match_labels={"app": "pipeline-dashboard"}
+                                        ),
+                                        topology_key="kubernetes.io/hostname",
+                                    )
+                                ]
+                            )
+                        ),
+                        containers=[
+                            client.V1Container(
+                                name="cleanup",
+                                image="alpine:3.19",
+                                command=["sh", "-c", script],
+                                volume_mounts=volume_mounts,
+                            ),
+                        ],
+                        volumes=k8s_volumes,
+                    ),
+                ),
+            ),
+        )
+
+        return self.batch_v1.create_namespaced_job(
+            namespace=self.namespace,
+            body=job,
+        )
+
     def submit_eval_job(
         self,
         dataset_fqn: str,
@@ -743,6 +858,9 @@ fi
                     ),
                     spec=client.V1PodSpec(
                         restart_policy="Never",
+                        security_context=client.V1PodSecurityContext(
+                            fs_group=1000,
+                        ),
                         affinity=client.V1Affinity(
                             pod_affinity=client.V1PodAffinity(
                                 required_during_scheduling_ignored_during_execution=[

@@ -36,6 +36,8 @@ spec:
         app: pipeline-dashboard
     spec:
       serviceAccountName: pipeline-dashboard  # For K8s API access
+      securityContext:
+        fsGroup: 1000
 
       containers:
       - name: dashboard

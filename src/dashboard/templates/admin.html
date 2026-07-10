@@ -55,9 +55,12 @@
       </tbody>
     </table>
     </div>
-    <div class="px-5 py-3 border-t border-gray-200 dark:border-gray-700">
+    <div class="px-5 py-3 border-t border-gray-200 dark:border-gray-700 flex items-center gap-3">
       <button class="bg-red-600 hover:bg-red-700 text-white text-sm font-medium py-2 px-4 rounded-lg transition-colors"
-              onclick="confirmClearVolumes()">Clear Selected</button>
+              onclick="confirmClearVolumes('local')">Clear Local</button>
+      <button class="bg-orange-600 hover:bg-orange-700 text-white text-sm font-medium py-2 px-4 rounded-lg transition-colors"
+              onclick="confirmClearVolumes('job')">Clear via Job</button>
+      <span class="text-xs text-gray-400 dark:text-gray-500">Local runs in-process; Job launches a K8s pod with full permissions</span>
     </div>
   </div>
 
@@ -110,11 +113,12 @@
   <dialog id="clear-volumes-modal" class="rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 p-0 backdrop:bg-black/50">
     <div class="p-6 max-w-md">
       <h3 class="text-lg font-semibold text-gray-900 dark:text-white mb-3">Clear Data Volumes</h3>
+      <p class="text-sm text-gray-600 dark:text-gray-400 mb-1">Mode: <strong id="clear-volumes-mode-label" class="text-gray-900 dark:text-white">local</strong></p>
       <p class="text-sm text-gray-600 dark:text-gray-400 mb-3">This will <strong class="text-gray-900 dark:text-white">permanently delete</strong> all contents from the following volumes:</p>
       <div id="clear-volumes-list" class="max-h-48 overflow-y-auto text-xs text-gray-600 dark:text-gray-400 mb-4"></div>
       <div class="flex justify-end gap-3">
         <button class="px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 bg-gray-100 dark:bg-gray-800 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors" onclick="document.getElementById('clear-volumes-modal').close()">Cancel</button>
-        <button class="px-4 py-2 text-sm font-medium text-white bg-red-600 rounded-lg hover:bg-red-700 transition-colors" onclick="executeClearVolumes()">Confirm &amp; Clear</button>
+        <button id="clear-volumes-confirm-btn" class="px-4 py-2 text-sm font-medium text-white bg-red-600 rounded-lg hover:bg-red-700 transition-colors" onclick="executeClearVolumes()">Confirm &amp; Clear</button>
       </div>
     </div>
   </dialog>
