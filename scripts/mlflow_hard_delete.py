@@ -3,9 +3,12 @@
 
 Designed to run inside the MLflow pod via ``kubectl exec`` or the dashboard's
 ``/api/mlflow/hard-clear`` endpoint.  Schema-aware: discovers foreign-key
-relationships from ``sqlite_master`` and deletes in child-before-parent order.
+relationships from ``sqlite_master`` and walks them transitively so grandchild+
+tables are covered.  Deletes in topological (child-before-parent) order.
 
 Outputs a single JSON object to stdout with counts and any errors.
+Exits non-zero on any DB or artifact error so the caller can detect partial
+failures.
 """
 
 import json
@@ -30,9 +33,7 @@ tables = {r[0] for r in conn.execute(
     "SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%'"
 ).fetchall()}
 
-# parent -> set(child)
 children = defaultdict(set)
-# child -> set(parent)
 parents = defaultdict(set)
 
 for tbl in tables:
@@ -59,24 +60,36 @@ def visit(t):
 for t in tables:
     visit(t)
 
-# --- find which tables have experiment_id or reference runs/trace_info ---
-exp_tables = []
+# --- build delete predicates transitively ---
+# Each entry maps a table name to a SQL WHERE clause (with a single ? for
+# experiment_id) that scopes rows to a given experiment.  Seed tables have
+# experiment_id directly; child tables inherit the predicate through FK
+# subqueries, walking as many hops as needed.
+
+predicate_map = {}
+
 for tbl in order:
     cols = {r[1] for r in conn.execute(f"PRAGMA table_info([{tbl}])").fetchall()}
     if "experiment_id" in cols:
-        exp_tables.append((tbl, "experiment_id"))
-        continue
-    # tables that FK to a table with experiment_id (e.g. spans -> trace_info)
-    for p in parents.get(tbl, set()):
-        pcols = {r[1] for r in conn.execute(f"PRAGMA table_info([{p}])").fetchall()}
-        if "experiment_id" in pcols:
-            for fk in conn.execute(f"PRAGMA foreign_key_list([{tbl}])").fetchall():
-                if fk[2] == p:
-                    fk_from = fk[3]  # column in child
-                    fk_to = fk[4]    # column in parent
-                    exp_tables.append((tbl, None, p, fk_from, fk_to))
-                    break
-            break
+        predicate_map[tbl] = "[experiment_id] = ?"
+
+changed = True
+while changed:
+    changed = False
+    for tbl in order:
+        if tbl in predicate_map:
+            continue
+        for fk in conn.execute(f"PRAGMA foreign_key_list([{tbl}])").fetchall():
+            parent_tbl = fk[2]
+            fk_from = fk[3]
+            fk_to = fk[4]
+            if parent_tbl in predicate_map:
+                predicate_map[tbl] = (
+                    f"[{fk_from}] IN "
+                    f"(SELECT [{fk_to}] FROM [{parent_tbl}] WHERE {predicate_map[parent_tbl]})"
+                )
+                changed = True
+                break
 
 result = {
     "experiments_deleted": 0,
@@ -86,14 +99,15 @@ result = {
     "spans_deleted": 0,
     "artifacts_deleted": 0,
     "tables_cleared": [],
-    "errors": [],
+    "db_errors": [],
+    "artifact_errors": [],
 }
 
 # --- get all experiment IDs ---
 try:
     all_exps = conn.execute("SELECT experiment_id FROM experiments").fetchall()
 except Exception as e:
-    result["errors"].append(f"query experiments: {e}")
+    result["db_errors"].append(f"query experiments: {e}")
     print(json.dumps(result))
     sys.exit(1)
 
@@ -102,23 +116,15 @@ exp_ids = [r[0] for r in all_exps]
 # --- delete data for each experiment ---
 for exp_id in exp_ids:
     is_default = str(exp_id) == "0"
-    for entry in exp_tables:
-        tbl = entry[0]
+    for tbl in order:
         if tbl == "experiments":
             continue
+        if tbl not in predicate_map:
+            continue
         try:
-            if len(entry) == 2:
-                col = entry[1]
-                cur = conn.execute(f"DELETE FROM [{tbl}] WHERE [{col}] = ?", (exp_id,))
-            elif len(entry) == 5:
-                _, _, parent, fk_from, fk_to = entry
-                cur = conn.execute(
-                    f"DELETE FROM [{tbl}] WHERE [{fk_from}] IN "
-                    f"(SELECT [{fk_to}] FROM [{parent}] WHERE experiment_id = ?)",
-                    (exp_id,),
-                )
-            else:
-                continue
+            cur = conn.execute(
+                f"DELETE FROM [{tbl}] WHERE {predicate_map[tbl]}", (exp_id,)
+            )
             deleted = cur.rowcount
             if deleted > 0:
                 if tbl not in result["tables_cleared"]:
@@ -127,24 +133,30 @@ for exp_id in exp_ids:
                     result["spans_deleted"] += deleted
                 elif "trace" in tbl.lower():
                     result["traces_deleted"] += deleted
-                elif "run" in tbl.lower() and tbl != "experiments":
+                elif "run" in tbl.lower():
                     result["runs_deleted"] += deleted
         except Exception as e:
-            result["errors"].append(f"delete from {tbl} exp {exp_id}: {e}")
+            result["db_errors"].append(f"delete from {tbl} exp {exp_id}: {e}")
 
     if not is_default:
         try:
             conn.execute("DELETE FROM experiments WHERE experiment_id = ?", (exp_id,))
             result["experiments_deleted"] += 1
         except Exception as e:
-            result["errors"].append(f"delete experiment {exp_id}: {e}")
+            result["db_errors"].append(f"delete experiment {exp_id}: {e}")
     else:
         result["default_experiment_cleared"] = True
+
+# --- bail on any DB errors ---
+if result["db_errors"]:
+    conn.rollback()
+    print(json.dumps(result))
+    sys.exit(1)
 
 # --- FK integrity check ---
 violations = conn.execute("PRAGMA foreign_key_check").fetchall()
 if violations:
-    result["errors"].append(f"FK violations after delete: {violations}")
+    result["db_errors"].append(f"FK violations after delete: {violations}")
     conn.rollback()
     print(json.dumps(result))
     sys.exit(1)
@@ -152,7 +164,7 @@ if violations:
 conn.commit()
 conn.close()
 
-# --- clear artifact files ---
+# --- clear artifact files (after DB commit) ---
 if os.path.isdir(ARTIFACT_DIR):
     count = 0
     for child in os.listdir(ARTIFACT_DIR):
@@ -164,7 +176,9 @@ if os.path.isdir(ARTIFACT_DIR):
                 os.unlink(p)
             count += 1
         except Exception as e:
-            result["errors"].append(f"artifact {p}: {e}")
+            result["artifact_errors"].append(f"{p}: {e}")
     result["artifacts_deleted"] = count
 
 print(json.dumps(result))
+if result["artifact_errors"]:
+    sys.exit(1)

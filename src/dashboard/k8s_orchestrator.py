@@ -982,6 +982,14 @@ fi
 
         if result.get("error"):
             raise RuntimeError(result["error"])
+        if result.get("db_errors"):
+            raise RuntimeError(
+                f"DB cleanup failed (rolled back): {'; '.join(result['db_errors'])}"
+            )
+        if result.get("artifact_errors"):
+            result["warning"] = (
+                "DB cleanup committed but artifact deletion had errors"
+            )
 
         return result
 

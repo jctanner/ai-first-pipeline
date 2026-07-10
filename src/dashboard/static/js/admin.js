@@ -226,8 +226,10 @@ function executeHardDeleteMlflow() {
       data.artifacts_deleted + ' artifact(s) deleted';
     if (data.tables_cleared && data.tables_cleared.length)
       msg += '\n\nTables touched: ' + data.tables_cleared.join(', ');
-    if (data.errors && data.errors.length)
-      msg += '\n\nErrors:\n' + data.errors.join('\n');
+    if (data.warning)
+      msg += '\n\nWarning: ' + data.warning;
+    if (data.artifact_errors && data.artifact_errors.length)
+      msg += '\n\nArtifact errors:\n' + data.artifact_errors.join('\n');
     alert(msg);
   })
   .catch(err => {
