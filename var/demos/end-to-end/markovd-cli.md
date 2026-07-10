@@ -15,18 +15,13 @@ Use the repo-local CLI binary:
 CLI=deploy/repos/markovd/bin/markovd-cli
 ```
 
-If your local markovd uses the default demo credentials and a self-signed
-certificate, either pass the global flags on each command:
+The project root contains `.markovd-cli-config.toml` with server URL, credentials,
+TLS settings, default project, volumes, and secret volumes already configured.
+The CLI picks this up automatically when run from the project directory — no
+environment variables or global flags needed.
 
-```bash
-$CLI --server https://markovd.local \
-  --insecure-skip-tls-verify \
-  --username admin \
-  --password admin \
-  health
-```
-
-or export the equivalent environment variables once:
+If you need to override settings for a different environment, either pass global
+flags on each command or export environment variables:
 
 ```bash
 export MARKOVD_URL=https://markovd.local
@@ -35,7 +30,8 @@ export MARKOVD_PASSWORD=admin
 export MARKOVD_INSECURE_SKIP_TLS_VERIFY=true
 ```
 
-The examples below assume those environment variables are set.
+The examples below assume the config file is present or the equivalent
+environment variables are set.
 
 ## Sync the Project
 

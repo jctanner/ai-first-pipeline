@@ -33,7 +33,7 @@ rules:
   verbs: ["get"]
 - apiGroups: [""]
   resources: ["pods/exec"]
-  verbs: ["create"]
+  verbs: ["create", "get"]
 # ConfigMap management (for workflow definitions)
 - apiGroups: [""]
   resources: ["configmaps"]

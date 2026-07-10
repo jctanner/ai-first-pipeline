@@ -963,7 +963,7 @@ fi
 
         script = self._MLFLOW_HARD_DELETE_SCRIPT_PATH.read_text()
 
-        resp = k8s_stream(
+        ws = k8s_stream(
             self.core_v1.connect_get_namespaced_pod_exec,
             pod_name,
             self.namespace,
@@ -973,12 +973,20 @@ fi
             stdout=True,
             stdin=False,
             tty=False,
+            _preload_content=False,
         )
+        ws.run_forever(timeout=60)
+        stdout = ws.read_stdout()
+        stderr = ws.read_stderr()
+        ws.close()
 
         try:
-            result = json.loads(resp)
+            result = json.loads(stdout)
         except (json.JSONDecodeError, TypeError):
-            raise RuntimeError(f"Unexpected output from cleanup script: {resp}")
+            raise RuntimeError(
+                f"Unexpected output from cleanup script: {stdout}"
+                + (f"\nstderr: {stderr}" if stderr else "")
+            )
 
         if result.get("error"):
             raise RuntimeError(result["error"])
