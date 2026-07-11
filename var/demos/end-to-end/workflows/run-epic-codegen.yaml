@@ -126,7 +126,7 @@ steps:
         "
 
         TARGET_REPO_URL="{{ github_base }}/{{ org }}/{{ codegen_target_repo }}.git"
-        for epic_file in /app/artifacts/epic-tasks/*.md; do
+        for epic_file in /app/artifacts/epic-tasks/RHAI-*.md; do
           [ -e "$epic_file" ] || continue
           python3 scripts/frontmatter.py set "$epic_file" \
             target_repo="$TARGET_REPO_URL"
