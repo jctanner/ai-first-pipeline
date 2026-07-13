@@ -4,8 +4,10 @@ from kubernetes import client, config
 from kubernetes.client.rest import ApiException
 from pathlib import Path
 import json
-import os
+import re
 from datetime import datetime
+
+from src.dashboard.job_names import build_job_name
 
 
 class PipelineOrchestrator:
@@ -237,16 +239,11 @@ class PipelineOrchestrator:
         """Generate a K8s Job manifest for a pipeline phase."""
 
         # Sanitize model for K8s naming: strip provider prefix and version, replace illegal chars
-        import re
         model_short = model.split("/")[-1].split("@")[0]  # "google-vertex-anthropic/claude-haiku-4-5@20251001" -> "claude-haiku-4-5"
         model_slug = re.sub(r"[^a-z0-9-]", "-", model_short.lower()).strip("-")[:30]
         model_label = re.sub(r"[^A-Za-z0-9._-]", "_", model)[:63]
 
-        timestamp = datetime.now().strftime("%m%d-%H%M%S")
-        if issue_key:
-            job_name = f"{phase}-{issue_key}-{model_slug}-{timestamp}".lower().replace("_", "-")
-        else:
-            job_name = f"{phase}-all-{model_slug}-{timestamp}".lower().replace("_", "-")
+        job_name = build_job_name(phase, issue_key, model_slug)
 
         # Resolve fully-qualified skill name for MLflow experiment
         if fqn:
