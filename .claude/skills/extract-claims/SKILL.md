@@ -58,7 +58,8 @@ Search the artifacts directory for `.md` files matching the input criteria.
 **File filtering rules (must match `extract-claims.py` behavior):**
 - Skip hidden files and anything under `.git/`
 - Skip files with `-strat-text.md` in the name (these are source inputs, not agent outputs)
-- Skip files under `strat-originals/` directories (source RFE texts)
+- Skip files under `rfe-originals/` and `strat-originals/` directories
+  (human/source inputs rather than generated pipeline outputs)
 - Skip files under `ci-jobs/` directories (duplicates of data-repo files)
 - Skip files under `claims/`, `verification/`, and `explanations/` directories
   (derived outputs from this claim-analysis pipeline)

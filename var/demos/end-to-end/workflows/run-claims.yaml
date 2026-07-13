@@ -301,7 +301,7 @@ steps:
                        for issue in issues):
                 continue
             for unit in data.get('units', []):
-                if unit.get('ambiguity', {}).get('status') == 'unresolved':
+                if (unit.get('ambiguity') or {}).get('status') == 'unresolved':
                     totals['unresolved_units'] += 1
                 for claim in unit.get('claims', []):
                     if claim.get('accepted', True):

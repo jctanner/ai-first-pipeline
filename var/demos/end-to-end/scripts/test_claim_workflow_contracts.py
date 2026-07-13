@@ -156,6 +156,36 @@ def test_force_claims_reaches_each_agent_skill():
     assert "force={{ force_claims }}" in run_stage["vars"]["skill_extra_kwargs"]
 
 
+def test_extraction_excludes_human_owned_original_inputs():
+    check = step_command("workflows/run-claim-extraction.yaml", "check_receipt")
+    write = step_command("workflows/run-claim-extraction.yaml", "write_receipt")
+    for command in (check, write):
+        assert "'rfe-originals'" in command
+        assert "'strat-originals'" in command
+        assert "'ci-jobs'" in command
+
+
+def test_extraction_quality_accepts_null_ambiguity_for_unselected_units(tmp_path):
+    staged = tmp_path / "claims" / "rfe-tasks" / "RFE-1.extraction.json"
+    staged.parent.mkdir(parents=True)
+    staged.write_text(json.dumps({
+        "source_file": "rfe-tasks/RFE-1.md",
+        "units": [{"ambiguity": None, "claims": []}],
+    }))
+    assess = step_command("workflows/run-claims.yaml", "assess_extraction_quality")
+    metrics = run_embedded(
+        assess,
+        tmp_path,
+        {"all_issues | tojson": '[{"key":"RFE-1"}]'},
+    )
+    assert metrics == {
+        "entailment_failures": 0,
+        "unresolved_units": 0,
+        "low_coverage_units": 0,
+        "accepted_claims": 0,
+    }
+
+
 def test_dataset_fqn_matches_workflow_default():
     dataset = json.loads((ROOT / "eval-datasets/claim-assurance-v1.json").read_text())
     workflow = load("workflows/run-claims.yaml")
