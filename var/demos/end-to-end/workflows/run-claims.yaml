@@ -598,7 +598,7 @@ steps:
       body:
         dataset_fqn: "{{ claim_regression_dataset_fqn }}"
         model: "{{ claims_model }}"
-        context_ref: "{{ resolved_claims_repository_revision }}"
+        context_ref: "{{ resolved_claims_evidence_revision }}"
         context_mode: files
         strace: true
         mlflow: true

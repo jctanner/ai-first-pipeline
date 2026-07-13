@@ -76,6 +76,9 @@ def test_claim_workflow_has_both_assurance_gates_and_regression_replay():
     assert steps["wait_for_claim_regression"]["type"] == "agent_job_wait"
     assert steps["record_claim_regression_pass"]["type"] == "shell_exec"
     assert steps["submit_claim_regression"]["params"]["path"] == "/api/evals/submit"
+    assert steps["submit_claim_regression"]["params"]["body"]["context_ref"] == (
+        "{{ resolved_claims_evidence_revision }}"
+    )
 
     rules = {rule["name"]: rule for rule in load("rules.yaml")}
     assert rules["extraction_entailment_block"]["action"] == "pause"
