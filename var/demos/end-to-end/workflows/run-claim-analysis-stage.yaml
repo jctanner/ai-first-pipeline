@@ -56,7 +56,8 @@ steps:
         context_repo = root.parent / '.context' / 'architecture-context'
         if (context_repo / '.git').exists():
             actual_evidence_revision = subprocess.run(
-                ['git', '-C', str(context_repo), 'rev-parse', 'HEAD'],
+                ['git', '-c', f'safe.directory={context_repo}',
+                 '-C', str(context_repo), 'rev-parse', 'HEAD'],
                 check=True, capture_output=True, text=True).stdout.strip()
         evidence_context = hashlib.sha256(
             actual_evidence_revision.encode())

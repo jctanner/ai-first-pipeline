@@ -140,6 +140,11 @@ def test_stage_output_directories_remain_writable_across_receipt_runs():
     assert "os.chmod(path, 0o666)" in analysis_receipt
     assert "os.chmod(base, 0o777)" in analysis_receipt
 
+    analysis_check = step_command(
+        "workflows/run-claim-analysis-stage.yaml", "check_stage_receipt"
+    )
+    assert "f'safe.directory={context_repo}'" in analysis_check
+
 
 def test_dataset_fqn_matches_workflow_default():
     dataset = json.loads((ROOT / "eval-datasets/claim-assurance-v1.json").read_text())
