@@ -1,0 +1,14 @@
+case_id: ca-v1-001
+artifact_type: rfe
+selection: verifiable
+ambiguity_status: none
+acceptable_claims:
+  - "RFE currently overwrites the previous verification result."
+required_qualifiers:
+  - "currently"
+verifiable_elements:
+  - "RFE currently overwrites the previous verification result."
+unverifiable_elements:
+  []
+tags:
+  - "current-state"

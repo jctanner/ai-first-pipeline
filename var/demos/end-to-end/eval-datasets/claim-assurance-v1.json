@@ -1,0 +1,1162 @@
+{
+  "dataset_fqn": "github.local/opendatahub-io/eval-datasets@main:claim-assurance",
+  "schema_version": 1,
+  "rubric_revision": "claimify-aligned-v1",
+  "description": "Regression corpus for selection, ambiguity, decomposition, extraction entailment, coverage, and decontextualization.",
+  "artifact_types": [
+    "rfe",
+    "strategy",
+    "security_review",
+    "epic",
+    "investigation",
+    "code_generation"
+  ],
+  "units": [
+    {
+      "id": "ca-v1-001",
+      "artifact_type": "rfe",
+      "source_unit": "RFE currently persists verification results by overwriting the previous row.",
+      "annotation": {
+        "selection": "verifiable",
+        "ambiguity_status": "none",
+        "acceptable_claims": [
+          "RFE currently overwrites the previous verification result."
+        ],
+        "required_qualifiers": [
+          "currently"
+        ],
+        "verifiable_elements": [
+          "RFE currently overwrites the previous verification result."
+        ],
+        "unverifiable_elements": [],
+        "tags": [
+          "current-state"
+        ]
+      }
+    },
+    {
+      "id": "ca-v1-002",
+      "artifact_type": "rfe",
+      "source_unit": "RFE must preserve every verification result as an immutable run.",
+      "annotation": {
+        "selection": "verifiable",
+        "ambiguity_status": "none",
+        "acceptable_claims": [
+          "RFE must preserve every verification result as an immutable run."
+        ],
+        "required_qualifiers": [
+          "must"
+        ],
+        "verifiable_elements": [
+          "RFE must preserve every verification result as an immutable run."
+        ],
+        "unverifiable_elements": [],
+        "tags": [
+          "requirement"
+        ]
+      }
+    },
+    {
+      "id": "ca-v1-003",
+      "artifact_type": "rfe",
+      "source_unit": "We propose adding a review queue to RFE; it is not available in the current release.",
+      "annotation": {
+        "selection": "verifiable",
+        "ambiguity_status": "none",
+        "acceptable_claims": [
+          "A review queue is proposed for RFE.",
+          "The review queue is not available in the current release of RFE."
+        ],
+        "required_qualifiers": [
+          "proposed",
+          "current release"
+        ],
+        "verifiable_elements": [
+          "A review queue is proposed for RFE.",
+          "The review queue is not available in the current release of RFE."
+        ],
+        "unverifiable_elements": [],
+        "tags": [
+          "proposal-current-state"
+        ]
+      }
+    },
+    {
+      "id": "ca-v1-004",
+      "artifact_type": "rfe",
+      "source_unit": "RFE does not treat a missing document as evidence that a claim is false.",
+      "annotation": {
+        "selection": "verifiable",
+        "ambiguity_status": "none",
+        "acceptable_claims": [
+          "RFE does not treat a missing document as evidence that a claim is false."
+        ],
+        "required_qualifiers": [
+          "does not"
+        ],
+        "verifiable_elements": [
+          "RFE does not treat a missing document as evidence that a claim is false."
+        ],
+        "unverifiable_elements": [],
+        "tags": [
+          "negation"
+        ]
+      }
+    },
+    {
+      "id": "ca-v1-005",
+      "artifact_type": "rfe",
+      "source_unit": "In version 2.1, RFE uses the v2 claim-occurrence API; version 2.0 uses the legacy claims API.",
+      "annotation": {
+        "selection": "verifiable",
+        "ambiguity_status": "none",
+        "acceptable_claims": [
+          "RFE version 2.1 uses the v2 claim-occurrence API.",
+          "RFE version 2.0 uses the legacy claims API."
+        ],
+        "required_qualifiers": [
+          "version 2.1",
+          "version 2.0"
+        ],
+        "verifiable_elements": [
+          "RFE version 2.1 uses the v2 claim-occurrence API.",
+          "RFE version 2.0 uses the legacy claims API."
+        ],
+        "unverifiable_elements": [],
+        "tags": [
+          "cross-version"
+        ]
+      }
+    },
+    {
+      "id": "ca-v1-006",
+      "artifact_type": "rfe",
+      "source_unit": "It stores the verdict after the evaluator returns.",
+      "annotation": {
+        "selection": "verifiable",
+        "ambiguity_status": "unresolved",
+        "acceptable_claims": [],
+        "required_qualifiers": [],
+        "verifiable_elements": [],
+        "unverifiable_elements": [],
+        "tags": [
+          "referential ambiguity"
+        ]
+      }
+    },
+    {
+      "id": "ca-v1-007",
+      "artifact_type": "rfe",
+      "source_unit": "RFE records evidence digests, which is a wonderfully elegant design.",
+      "annotation": {
+        "selection": "mixed",
+        "ambiguity_status": "none",
+        "acceptable_claims": [
+          "RFE records evidence digests."
+        ],
+        "required_qualifiers": [],
+        "verifiable_elements": [
+          "RFE records evidence digests."
+        ],
+        "unverifiable_elements": [
+          "which is a wonderfully elegant design"
+        ],
+        "tags": [
+          "subjective tail"
+        ]
+      }
+    },
+    {
+      "id": "ca-v1-008",
+      "artifact_type": "rfe",
+      "source_unit": "For RFE, retain the source locator with each extracted occurrence.",
+      "annotation": {
+        "selection": "verifiable",
+        "ambiguity_status": "none",
+        "acceptable_claims": [
+          "RFE retains the source locator with each extracted occurrence."
+        ],
+        "required_qualifiers": [],
+        "verifiable_elements": [
+          "RFE retains the source locator with each extracted occurrence."
+        ],
+        "unverifiable_elements": [],
+        "tags": [
+          "list-preamble"
+        ]
+      }
+    },
+    {
+      "id": "ca-v1-009",
+      "artifact_type": "rfe",
+      "source_unit": "RFE will probably become the industry's favorite assurance service.",
+      "annotation": {
+        "selection": "unverifiable",
+        "ambiguity_status": "none",
+        "acceptable_claims": [],
+        "required_qualifiers": [],
+        "verifiable_elements": [],
+        "unverifiable_elements": [
+          "probably",
+          "favorite"
+        ],
+        "tags": []
+      }
+    },
+    {
+      "id": "ca-v1-010",
+      "artifact_type": "strategy",
+      "source_unit": "Strategy currently persists verification results by overwriting the previous row.",
+      "annotation": {
+        "selection": "verifiable",
+        "ambiguity_status": "none",
+        "acceptable_claims": [
+          "Strategy currently overwrites the previous verification result."
+        ],
+        "required_qualifiers": [
+          "currently"
+        ],
+        "verifiable_elements": [
+          "Strategy currently overwrites the previous verification result."
+        ],
+        "unverifiable_elements": [],
+        "tags": [
+          "current-state"
+        ]
+      }
+    },
+    {
+      "id": "ca-v1-011",
+      "artifact_type": "strategy",
+      "source_unit": "Strategy must preserve every verification result as an immutable run.",
+      "annotation": {
+        "selection": "verifiable",
+        "ambiguity_status": "none",
+        "acceptable_claims": [
+          "Strategy must preserve every verification result as an immutable run."
+        ],
+        "required_qualifiers": [
+          "must"
+        ],
+        "verifiable_elements": [
+          "Strategy must preserve every verification result as an immutable run."
+        ],
+        "unverifiable_elements": [],
+        "tags": [
+          "requirement"
+        ]
+      }
+    },
+    {
+      "id": "ca-v1-012",
+      "artifact_type": "strategy",
+      "source_unit": "We propose adding a review queue to Strategy; it is not available in the current release.",
+      "annotation": {
+        "selection": "verifiable",
+        "ambiguity_status": "none",
+        "acceptable_claims": [
+          "A review queue is proposed for Strategy.",
+          "The review queue is not available in the current release of Strategy."
+        ],
+        "required_qualifiers": [
+          "proposed",
+          "current release"
+        ],
+        "verifiable_elements": [
+          "A review queue is proposed for Strategy.",
+          "The review queue is not available in the current release of Strategy."
+        ],
+        "unverifiable_elements": [],
+        "tags": [
+          "proposal-current-state"
+        ]
+      }
+    },
+    {
+      "id": "ca-v1-013",
+      "artifact_type": "strategy",
+      "source_unit": "Strategy does not treat a missing document as evidence that a claim is false.",
+      "annotation": {
+        "selection": "verifiable",
+        "ambiguity_status": "none",
+        "acceptable_claims": [
+          "Strategy does not treat a missing document as evidence that a claim is false."
+        ],
+        "required_qualifiers": [
+          "does not"
+        ],
+        "verifiable_elements": [
+          "Strategy does not treat a missing document as evidence that a claim is false."
+        ],
+        "unverifiable_elements": [],
+        "tags": [
+          "negation"
+        ]
+      }
+    },
+    {
+      "id": "ca-v1-014",
+      "artifact_type": "strategy",
+      "source_unit": "In version 2.1, Strategy uses the v2 claim-occurrence API; version 2.0 uses the legacy claims API.",
+      "annotation": {
+        "selection": "verifiable",
+        "ambiguity_status": "none",
+        "acceptable_claims": [
+          "Strategy version 2.1 uses the v2 claim-occurrence API.",
+          "Strategy version 2.0 uses the legacy claims API."
+        ],
+        "required_qualifiers": [
+          "version 2.1",
+          "version 2.0"
+        ],
+        "verifiable_elements": [
+          "Strategy version 2.1 uses the v2 claim-occurrence API.",
+          "Strategy version 2.0 uses the legacy claims API."
+        ],
+        "unverifiable_elements": [],
+        "tags": [
+          "cross-version"
+        ]
+      }
+    },
+    {
+      "id": "ca-v1-015",
+      "artifact_type": "strategy",
+      "source_unit": "It stores the verdict after the evaluator returns.",
+      "annotation": {
+        "selection": "verifiable",
+        "ambiguity_status": "unresolved",
+        "acceptable_claims": [],
+        "required_qualifiers": [],
+        "verifiable_elements": [],
+        "unverifiable_elements": [],
+        "tags": [
+          "referential ambiguity"
+        ]
+      }
+    },
+    {
+      "id": "ca-v1-016",
+      "artifact_type": "strategy",
+      "source_unit": "Strategy records evidence digests, which is a wonderfully elegant design.",
+      "annotation": {
+        "selection": "mixed",
+        "ambiguity_status": "none",
+        "acceptable_claims": [
+          "Strategy records evidence digests."
+        ],
+        "required_qualifiers": [],
+        "verifiable_elements": [
+          "Strategy records evidence digests."
+        ],
+        "unverifiable_elements": [
+          "which is a wonderfully elegant design"
+        ],
+        "tags": [
+          "subjective tail"
+        ]
+      }
+    },
+    {
+      "id": "ca-v1-017",
+      "artifact_type": "strategy",
+      "source_unit": "For Strategy, retain the source locator with each extracted occurrence.",
+      "annotation": {
+        "selection": "verifiable",
+        "ambiguity_status": "none",
+        "acceptable_claims": [
+          "Strategy retains the source locator with each extracted occurrence."
+        ],
+        "required_qualifiers": [],
+        "verifiable_elements": [
+          "Strategy retains the source locator with each extracted occurrence."
+        ],
+        "unverifiable_elements": [],
+        "tags": [
+          "list-preamble"
+        ]
+      }
+    },
+    {
+      "id": "ca-v1-018",
+      "artifact_type": "strategy",
+      "source_unit": "Strategy will probably become the industry's favorite assurance service.",
+      "annotation": {
+        "selection": "unverifiable",
+        "ambiguity_status": "none",
+        "acceptable_claims": [],
+        "required_qualifiers": [],
+        "verifiable_elements": [],
+        "unverifiable_elements": [
+          "probably",
+          "favorite"
+        ],
+        "tags": []
+      }
+    },
+    {
+      "id": "ca-v1-019",
+      "artifact_type": "security_review",
+      "source_unit": "Security review currently persists verification results by overwriting the previous row.",
+      "annotation": {
+        "selection": "verifiable",
+        "ambiguity_status": "none",
+        "acceptable_claims": [
+          "Security review currently overwrites the previous verification result."
+        ],
+        "required_qualifiers": [
+          "currently"
+        ],
+        "verifiable_elements": [
+          "Security review currently overwrites the previous verification result."
+        ],
+        "unverifiable_elements": [],
+        "tags": [
+          "current-state"
+        ]
+      }
+    },
+    {
+      "id": "ca-v1-020",
+      "artifact_type": "security_review",
+      "source_unit": "Security review must preserve every verification result as an immutable run.",
+      "annotation": {
+        "selection": "verifiable",
+        "ambiguity_status": "none",
+        "acceptable_claims": [
+          "Security review must preserve every verification result as an immutable run."
+        ],
+        "required_qualifiers": [
+          "must"
+        ],
+        "verifiable_elements": [
+          "Security review must preserve every verification result as an immutable run."
+        ],
+        "unverifiable_elements": [],
+        "tags": [
+          "requirement"
+        ]
+      }
+    },
+    {
+      "id": "ca-v1-021",
+      "artifact_type": "security_review",
+      "source_unit": "We propose adding a review queue to Security review; it is not available in the current release.",
+      "annotation": {
+        "selection": "verifiable",
+        "ambiguity_status": "none",
+        "acceptable_claims": [
+          "A review queue is proposed for Security review.",
+          "The review queue is not available in the current release of Security review."
+        ],
+        "required_qualifiers": [
+          "proposed",
+          "current release"
+        ],
+        "verifiable_elements": [
+          "A review queue is proposed for Security review.",
+          "The review queue is not available in the current release of Security review."
+        ],
+        "unverifiable_elements": [],
+        "tags": [
+          "proposal-current-state"
+        ]
+      }
+    },
+    {
+      "id": "ca-v1-022",
+      "artifact_type": "security_review",
+      "source_unit": "Security review does not treat a missing document as evidence that a claim is false.",
+      "annotation": {
+        "selection": "verifiable",
+        "ambiguity_status": "none",
+        "acceptable_claims": [
+          "Security review does not treat a missing document as evidence that a claim is false."
+        ],
+        "required_qualifiers": [
+          "does not"
+        ],
+        "verifiable_elements": [
+          "Security review does not treat a missing document as evidence that a claim is false."
+        ],
+        "unverifiable_elements": [],
+        "tags": [
+          "negation"
+        ]
+      }
+    },
+    {
+      "id": "ca-v1-023",
+      "artifact_type": "security_review",
+      "source_unit": "In version 2.1, Security review uses the v2 claim-occurrence API; version 2.0 uses the legacy claims API.",
+      "annotation": {
+        "selection": "verifiable",
+        "ambiguity_status": "none",
+        "acceptable_claims": [
+          "Security review version 2.1 uses the v2 claim-occurrence API.",
+          "Security review version 2.0 uses the legacy claims API."
+        ],
+        "required_qualifiers": [
+          "version 2.1",
+          "version 2.0"
+        ],
+        "verifiable_elements": [
+          "Security review version 2.1 uses the v2 claim-occurrence API.",
+          "Security review version 2.0 uses the legacy claims API."
+        ],
+        "unverifiable_elements": [],
+        "tags": [
+          "cross-version"
+        ]
+      }
+    },
+    {
+      "id": "ca-v1-024",
+      "artifact_type": "security_review",
+      "source_unit": "It stores the verdict after the evaluator returns.",
+      "annotation": {
+        "selection": "verifiable",
+        "ambiguity_status": "unresolved",
+        "acceptable_claims": [],
+        "required_qualifiers": [],
+        "verifiable_elements": [],
+        "unverifiable_elements": [],
+        "tags": [
+          "referential ambiguity"
+        ]
+      }
+    },
+    {
+      "id": "ca-v1-025",
+      "artifact_type": "security_review",
+      "source_unit": "Security review records evidence digests, which is a wonderfully elegant design.",
+      "annotation": {
+        "selection": "mixed",
+        "ambiguity_status": "none",
+        "acceptable_claims": [
+          "Security review records evidence digests."
+        ],
+        "required_qualifiers": [],
+        "verifiable_elements": [
+          "Security review records evidence digests."
+        ],
+        "unverifiable_elements": [
+          "which is a wonderfully elegant design"
+        ],
+        "tags": [
+          "subjective tail"
+        ]
+      }
+    },
+    {
+      "id": "ca-v1-026",
+      "artifact_type": "security_review",
+      "source_unit": "For Security review, retain the source locator with each extracted occurrence.",
+      "annotation": {
+        "selection": "verifiable",
+        "ambiguity_status": "none",
+        "acceptable_claims": [
+          "Security review retains the source locator with each extracted occurrence."
+        ],
+        "required_qualifiers": [],
+        "verifiable_elements": [
+          "Security review retains the source locator with each extracted occurrence."
+        ],
+        "unverifiable_elements": [],
+        "tags": [
+          "list-preamble"
+        ]
+      }
+    },
+    {
+      "id": "ca-v1-027",
+      "artifact_type": "security_review",
+      "source_unit": "Security review will probably become the industry's favorite assurance service.",
+      "annotation": {
+        "selection": "unverifiable",
+        "ambiguity_status": "none",
+        "acceptable_claims": [],
+        "required_qualifiers": [],
+        "verifiable_elements": [],
+        "unverifiable_elements": [
+          "probably",
+          "favorite"
+        ],
+        "tags": []
+      }
+    },
+    {
+      "id": "ca-v1-028",
+      "artifact_type": "epic",
+      "source_unit": "Epic currently persists verification results by overwriting the previous row.",
+      "annotation": {
+        "selection": "verifiable",
+        "ambiguity_status": "none",
+        "acceptable_claims": [
+          "Epic currently overwrites the previous verification result."
+        ],
+        "required_qualifiers": [
+          "currently"
+        ],
+        "verifiable_elements": [
+          "Epic currently overwrites the previous verification result."
+        ],
+        "unverifiable_elements": [],
+        "tags": [
+          "current-state"
+        ]
+      }
+    },
+    {
+      "id": "ca-v1-029",
+      "artifact_type": "epic",
+      "source_unit": "Epic must preserve every verification result as an immutable run.",
+      "annotation": {
+        "selection": "verifiable",
+        "ambiguity_status": "none",
+        "acceptable_claims": [
+          "Epic must preserve every verification result as an immutable run."
+        ],
+        "required_qualifiers": [
+          "must"
+        ],
+        "verifiable_elements": [
+          "Epic must preserve every verification result as an immutable run."
+        ],
+        "unverifiable_elements": [],
+        "tags": [
+          "requirement"
+        ]
+      }
+    },
+    {
+      "id": "ca-v1-030",
+      "artifact_type": "epic",
+      "source_unit": "We propose adding a review queue to Epic; it is not available in the current release.",
+      "annotation": {
+        "selection": "verifiable",
+        "ambiguity_status": "none",
+        "acceptable_claims": [
+          "A review queue is proposed for Epic.",
+          "The review queue is not available in the current release of Epic."
+        ],
+        "required_qualifiers": [
+          "proposed",
+          "current release"
+        ],
+        "verifiable_elements": [
+          "A review queue is proposed for Epic.",
+          "The review queue is not available in the current release of Epic."
+        ],
+        "unverifiable_elements": [],
+        "tags": [
+          "proposal-current-state"
+        ]
+      }
+    },
+    {
+      "id": "ca-v1-031",
+      "artifact_type": "epic",
+      "source_unit": "Epic does not treat a missing document as evidence that a claim is false.",
+      "annotation": {
+        "selection": "verifiable",
+        "ambiguity_status": "none",
+        "acceptable_claims": [
+          "Epic does not treat a missing document as evidence that a claim is false."
+        ],
+        "required_qualifiers": [
+          "does not"
+        ],
+        "verifiable_elements": [
+          "Epic does not treat a missing document as evidence that a claim is false."
+        ],
+        "unverifiable_elements": [],
+        "tags": [
+          "negation"
+        ]
+      }
+    },
+    {
+      "id": "ca-v1-032",
+      "artifact_type": "epic",
+      "source_unit": "In version 2.1, Epic uses the v2 claim-occurrence API; version 2.0 uses the legacy claims API.",
+      "annotation": {
+        "selection": "verifiable",
+        "ambiguity_status": "none",
+        "acceptable_claims": [
+          "Epic version 2.1 uses the v2 claim-occurrence API.",
+          "Epic version 2.0 uses the legacy claims API."
+        ],
+        "required_qualifiers": [
+          "version 2.1",
+          "version 2.0"
+        ],
+        "verifiable_elements": [
+          "Epic version 2.1 uses the v2 claim-occurrence API.",
+          "Epic version 2.0 uses the legacy claims API."
+        ],
+        "unverifiable_elements": [],
+        "tags": [
+          "cross-version"
+        ]
+      }
+    },
+    {
+      "id": "ca-v1-033",
+      "artifact_type": "epic",
+      "source_unit": "It stores the verdict after the evaluator returns.",
+      "annotation": {
+        "selection": "verifiable",
+        "ambiguity_status": "unresolved",
+        "acceptable_claims": [],
+        "required_qualifiers": [],
+        "verifiable_elements": [],
+        "unverifiable_elements": [],
+        "tags": [
+          "referential ambiguity"
+        ]
+      }
+    },
+    {
+      "id": "ca-v1-034",
+      "artifact_type": "epic",
+      "source_unit": "Epic records evidence digests, which is a wonderfully elegant design.",
+      "annotation": {
+        "selection": "mixed",
+        "ambiguity_status": "none",
+        "acceptable_claims": [
+          "Epic records evidence digests."
+        ],
+        "required_qualifiers": [],
+        "verifiable_elements": [
+          "Epic records evidence digests."
+        ],
+        "unverifiable_elements": [
+          "which is a wonderfully elegant design"
+        ],
+        "tags": [
+          "subjective tail"
+        ]
+      }
+    },
+    {
+      "id": "ca-v1-035",
+      "artifact_type": "epic",
+      "source_unit": "For Epic, retain the source locator with each extracted occurrence.",
+      "annotation": {
+        "selection": "verifiable",
+        "ambiguity_status": "none",
+        "acceptable_claims": [
+          "Epic retains the source locator with each extracted occurrence."
+        ],
+        "required_qualifiers": [],
+        "verifiable_elements": [
+          "Epic retains the source locator with each extracted occurrence."
+        ],
+        "unverifiable_elements": [],
+        "tags": [
+          "list-preamble"
+        ]
+      }
+    },
+    {
+      "id": "ca-v1-036",
+      "artifact_type": "epic",
+      "source_unit": "Epic will probably become the industry's favorite assurance service.",
+      "annotation": {
+        "selection": "unverifiable",
+        "ambiguity_status": "none",
+        "acceptable_claims": [],
+        "required_qualifiers": [],
+        "verifiable_elements": [],
+        "unverifiable_elements": [
+          "probably",
+          "favorite"
+        ],
+        "tags": []
+      }
+    },
+    {
+      "id": "ca-v1-037",
+      "artifact_type": "investigation",
+      "source_unit": "Investigation currently persists verification results by overwriting the previous row.",
+      "annotation": {
+        "selection": "verifiable",
+        "ambiguity_status": "none",
+        "acceptable_claims": [
+          "Investigation currently overwrites the previous verification result."
+        ],
+        "required_qualifiers": [
+          "currently"
+        ],
+        "verifiable_elements": [
+          "Investigation currently overwrites the previous verification result."
+        ],
+        "unverifiable_elements": [],
+        "tags": [
+          "current-state"
+        ]
+      }
+    },
+    {
+      "id": "ca-v1-038",
+      "artifact_type": "investigation",
+      "source_unit": "Investigation must preserve every verification result as an immutable run.",
+      "annotation": {
+        "selection": "verifiable",
+        "ambiguity_status": "none",
+        "acceptable_claims": [
+          "Investigation must preserve every verification result as an immutable run."
+        ],
+        "required_qualifiers": [
+          "must"
+        ],
+        "verifiable_elements": [
+          "Investigation must preserve every verification result as an immutable run."
+        ],
+        "unverifiable_elements": [],
+        "tags": [
+          "requirement"
+        ]
+      }
+    },
+    {
+      "id": "ca-v1-039",
+      "artifact_type": "investigation",
+      "source_unit": "We propose adding a review queue to Investigation; it is not available in the current release.",
+      "annotation": {
+        "selection": "verifiable",
+        "ambiguity_status": "none",
+        "acceptable_claims": [
+          "A review queue is proposed for Investigation.",
+          "The review queue is not available in the current release of Investigation."
+        ],
+        "required_qualifiers": [
+          "proposed",
+          "current release"
+        ],
+        "verifiable_elements": [
+          "A review queue is proposed for Investigation.",
+          "The review queue is not available in the current release of Investigation."
+        ],
+        "unverifiable_elements": [],
+        "tags": [
+          "proposal-current-state"
+        ]
+      }
+    },
+    {
+      "id": "ca-v1-040",
+      "artifact_type": "investigation",
+      "source_unit": "Investigation does not treat a missing document as evidence that a claim is false.",
+      "annotation": {
+        "selection": "verifiable",
+        "ambiguity_status": "none",
+        "acceptable_claims": [
+          "Investigation does not treat a missing document as evidence that a claim is false."
+        ],
+        "required_qualifiers": [
+          "does not"
+        ],
+        "verifiable_elements": [
+          "Investigation does not treat a missing document as evidence that a claim is false."
+        ],
+        "unverifiable_elements": [],
+        "tags": [
+          "negation"
+        ]
+      }
+    },
+    {
+      "id": "ca-v1-041",
+      "artifact_type": "investigation",
+      "source_unit": "In version 2.1, Investigation uses the v2 claim-occurrence API; version 2.0 uses the legacy claims API.",
+      "annotation": {
+        "selection": "verifiable",
+        "ambiguity_status": "none",
+        "acceptable_claims": [
+          "Investigation version 2.1 uses the v2 claim-occurrence API.",
+          "Investigation version 2.0 uses the legacy claims API."
+        ],
+        "required_qualifiers": [
+          "version 2.1",
+          "version 2.0"
+        ],
+        "verifiable_elements": [
+          "Investigation version 2.1 uses the v2 claim-occurrence API.",
+          "Investigation version 2.0 uses the legacy claims API."
+        ],
+        "unverifiable_elements": [],
+        "tags": [
+          "cross-version"
+        ]
+      }
+    },
+    {
+      "id": "ca-v1-042",
+      "artifact_type": "investigation",
+      "source_unit": "It stores the verdict after the evaluator returns.",
+      "annotation": {
+        "selection": "verifiable",
+        "ambiguity_status": "unresolved",
+        "acceptable_claims": [],
+        "required_qualifiers": [],
+        "verifiable_elements": [],
+        "unverifiable_elements": [],
+        "tags": [
+          "referential ambiguity"
+        ]
+      }
+    },
+    {
+      "id": "ca-v1-043",
+      "artifact_type": "investigation",
+      "source_unit": "Investigation records evidence digests, which is a wonderfully elegant design.",
+      "annotation": {
+        "selection": "mixed",
+        "ambiguity_status": "none",
+        "acceptable_claims": [
+          "Investigation records evidence digests."
+        ],
+        "required_qualifiers": [],
+        "verifiable_elements": [
+          "Investigation records evidence digests."
+        ],
+        "unverifiable_elements": [
+          "which is a wonderfully elegant design"
+        ],
+        "tags": [
+          "subjective tail"
+        ]
+      }
+    },
+    {
+      "id": "ca-v1-044",
+      "artifact_type": "investigation",
+      "source_unit": "For Investigation, retain the source locator with each extracted occurrence.",
+      "annotation": {
+        "selection": "verifiable",
+        "ambiguity_status": "none",
+        "acceptable_claims": [
+          "Investigation retains the source locator with each extracted occurrence."
+        ],
+        "required_qualifiers": [],
+        "verifiable_elements": [
+          "Investigation retains the source locator with each extracted occurrence."
+        ],
+        "unverifiable_elements": [],
+        "tags": [
+          "list-preamble"
+        ]
+      }
+    },
+    {
+      "id": "ca-v1-045",
+      "artifact_type": "investigation",
+      "source_unit": "Investigation will probably become the industry's favorite assurance service.",
+      "annotation": {
+        "selection": "unverifiable",
+        "ambiguity_status": "none",
+        "acceptable_claims": [],
+        "required_qualifiers": [],
+        "verifiable_elements": [],
+        "unverifiable_elements": [
+          "probably",
+          "favorite"
+        ],
+        "tags": []
+      }
+    },
+    {
+      "id": "ca-v1-046",
+      "artifact_type": "code_generation",
+      "source_unit": "Code generation currently persists verification results by overwriting the previous row.",
+      "annotation": {
+        "selection": "verifiable",
+        "ambiguity_status": "none",
+        "acceptable_claims": [
+          "Code generation currently overwrites the previous verification result."
+        ],
+        "required_qualifiers": [
+          "currently"
+        ],
+        "verifiable_elements": [
+          "Code generation currently overwrites the previous verification result."
+        ],
+        "unverifiable_elements": [],
+        "tags": [
+          "current-state"
+        ]
+      }
+    },
+    {
+      "id": "ca-v1-047",
+      "artifact_type": "code_generation",
+      "source_unit": "Code generation must preserve every verification result as an immutable run.",
+      "annotation": {
+        "selection": "verifiable",
+        "ambiguity_status": "none",
+        "acceptable_claims": [
+          "Code generation must preserve every verification result as an immutable run."
+        ],
+        "required_qualifiers": [
+          "must"
+        ],
+        "verifiable_elements": [
+          "Code generation must preserve every verification result as an immutable run."
+        ],
+        "unverifiable_elements": [],
+        "tags": [
+          "requirement"
+        ]
+      }
+    },
+    {
+      "id": "ca-v1-048",
+      "artifact_type": "code_generation",
+      "source_unit": "We propose adding a review queue to Code generation; it is not available in the current release.",
+      "annotation": {
+        "selection": "verifiable",
+        "ambiguity_status": "none",
+        "acceptable_claims": [
+          "A review queue is proposed for Code generation.",
+          "The review queue is not available in the current release of Code generation."
+        ],
+        "required_qualifiers": [
+          "proposed",
+          "current release"
+        ],
+        "verifiable_elements": [
+          "A review queue is proposed for Code generation.",
+          "The review queue is not available in the current release of Code generation."
+        ],
+        "unverifiable_elements": [],
+        "tags": [
+          "proposal-current-state"
+        ]
+      }
+    },
+    {
+      "id": "ca-v1-049",
+      "artifact_type": "code_generation",
+      "source_unit": "Code generation does not treat a missing document as evidence that a claim is false.",
+      "annotation": {
+        "selection": "verifiable",
+        "ambiguity_status": "none",
+        "acceptable_claims": [
+          "Code generation does not treat a missing document as evidence that a claim is false."
+        ],
+        "required_qualifiers": [
+          "does not"
+        ],
+        "verifiable_elements": [
+          "Code generation does not treat a missing document as evidence that a claim is false."
+        ],
+        "unverifiable_elements": [],
+        "tags": [
+          "negation"
+        ]
+      }
+    },
+    {
+      "id": "ca-v1-050",
+      "artifact_type": "code_generation",
+      "source_unit": "In version 2.1, Code generation uses the v2 claim-occurrence API; version 2.0 uses the legacy claims API.",
+      "annotation": {
+        "selection": "verifiable",
+        "ambiguity_status": "none",
+        "acceptable_claims": [
+          "Code generation version 2.1 uses the v2 claim-occurrence API.",
+          "Code generation version 2.0 uses the legacy claims API."
+        ],
+        "required_qualifiers": [
+          "version 2.1",
+          "version 2.0"
+        ],
+        "verifiable_elements": [
+          "Code generation version 2.1 uses the v2 claim-occurrence API.",
+          "Code generation version 2.0 uses the legacy claims API."
+        ],
+        "unverifiable_elements": [],
+        "tags": [
+          "cross-version"
+        ]
+      }
+    },
+    {
+      "id": "ca-v1-051",
+      "artifact_type": "code_generation",
+      "source_unit": "It stores the verdict after the evaluator returns.",
+      "annotation": {
+        "selection": "verifiable",
+        "ambiguity_status": "unresolved",
+        "acceptable_claims": [],
+        "required_qualifiers": [],
+        "verifiable_elements": [],
+        "unverifiable_elements": [],
+        "tags": [
+          "referential ambiguity"
+        ]
+      }
+    },
+    {
+      "id": "ca-v1-052",
+      "artifact_type": "code_generation",
+      "source_unit": "Code generation records evidence digests, which is a wonderfully elegant design.",
+      "annotation": {
+        "selection": "mixed",
+        "ambiguity_status": "none",
+        "acceptable_claims": [
+          "Code generation records evidence digests."
+        ],
+        "required_qualifiers": [],
+        "verifiable_elements": [
+          "Code generation records evidence digests."
+        ],
+        "unverifiable_elements": [
+          "which is a wonderfully elegant design"
+        ],
+        "tags": [
+          "subjective tail"
+        ]
+      }
+    },
+    {
+      "id": "ca-v1-053",
+      "artifact_type": "code_generation",
+      "source_unit": "For Code generation, retain the source locator with each extracted occurrence.",
+      "annotation": {
+        "selection": "verifiable",
+        "ambiguity_status": "none",
+        "acceptable_claims": [
+          "Code generation retains the source locator with each extracted occurrence."
+        ],
+        "required_qualifiers": [],
+        "verifiable_elements": [
+          "Code generation retains the source locator with each extracted occurrence."
+        ],
+        "unverifiable_elements": [],
+        "tags": [
+          "list-preamble"
+        ]
+      }
+    },
+    {
+      "id": "ca-v1-054",
+      "artifact_type": "code_generation",
+      "source_unit": "Code generation will probably become the industry's favorite assurance service.",
+      "annotation": {
+        "selection": "unverifiable",
+        "ambiguity_status": "none",
+        "acceptable_claims": [],
+        "required_qualifiers": [],
+        "verifiable_elements": [],
+        "unverifiable_elements": [
+          "probably",
+          "favorite"
+        ],
+        "tags": []
+      }
+    }
+  ]
+}

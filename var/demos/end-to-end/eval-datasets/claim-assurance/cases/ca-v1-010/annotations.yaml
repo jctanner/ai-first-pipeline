@@ -1,0 +1,14 @@
+case_id: ca-v1-010
+artifact_type: strategy
+selection: verifiable
+ambiguity_status: none
+acceptable_claims:
+  - "Strategy currently overwrites the previous verification result."
+required_qualifiers:
+  - "currently"
+verifiable_elements:
+  - "Strategy currently overwrites the previous verification result."
+unverifiable_elements:
+  []
+tags:
+  - "current-state"

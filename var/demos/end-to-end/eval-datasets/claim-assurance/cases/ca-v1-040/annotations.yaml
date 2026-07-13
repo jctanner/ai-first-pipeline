@@ -1,0 +1,14 @@
+case_id: ca-v1-040
+artifact_type: investigation
+selection: verifiable
+ambiguity_status: none
+acceptable_claims:
+  - "Investigation does not treat a missing document as evidence that a claim is false."
+required_qualifiers:
+  - "does not"
+verifiable_elements:
+  - "Investigation does not treat a missing document as evidence that a claim is false."
+unverifiable_elements:
+  []
+tags:
+  - "negation"

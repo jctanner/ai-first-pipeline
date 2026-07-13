@@ -13,6 +13,7 @@ import subprocess
 import sys
 import urllib.request
 import urllib.error
+from pathlib import Path
 
 ISSUE_KEY = sys.argv[1] if len(sys.argv) > 1 else None
 if not ISSUE_KEY:
@@ -183,22 +184,34 @@ def find_strace_dirs():
     return entries
 
 
-def find_artifacts():
+def find_artifacts(claim_ids=None):
     """Find source artifact files related to the issue."""
     found = []
+    claim_ids = {str(value) for value in (claim_ids or []) if value is not None}
 
-    # Pipeline outputs
-    for subdir in ["strat-pipeline", "strat-tasks", "security-reviews",
-                   "strat-reviews", "rfe-assessor"]:
-        search_dir = os.path.join(ARTIFACTS_DIR, subdir)
-        if not os.path.isdir(search_dir):
-            continue
-        for f in sorted(os.listdir(search_dir)):
-            if ISSUE_KEY.upper() in f.upper() and f.endswith(".md"):
-                found.append({
-                    "type": "pipeline_output",
-                    "path": os.path.join(search_dir, f),
-                })
+    def report_matches(path):
+        if path.stem in claim_ids:
+            return True
+        try:
+            return ISSUE_KEY.upper() in path.read_text(errors="ignore").upper()
+        except OSError:
+            return False
+
+    # Pipeline outputs across RFE, strategy, epic, investigation, and codegen
+    # directories. Exclude outputs produced by the claim-analysis stages.
+    artifacts_root = Path(ARTIFACTS_DIR)
+    derived_dirs = {"claims", "verification", "explanations"}
+    if artifacts_root.is_dir():
+        for path in sorted(artifacts_root.rglob("*.md")):
+            relative = path.relative_to(artifacts_root)
+            if any(part.startswith(".") or part in derived_dirs for part in relative.parts):
+                continue
+            if ISSUE_KEY.upper() not in relative.as_posix().upper():
+                continue
+            found.append({
+                "type": "pipeline_output",
+                "path": str(path),
+            })
 
     # Claims JSON
     claims_dir = os.path.join(ARTIFACTS_DIR, "claims")
@@ -215,20 +228,22 @@ def find_artifacts():
     verif_dir = os.path.join(ARTIFACTS_DIR, "verification")
     if os.path.isdir(verif_dir):
         for f in sorted(os.listdir(verif_dir)):
-            if f.endswith(".md"):
+            path = os.path.join(verif_dir, f)
+            if f.endswith(".md") and report_matches(Path(path)):
                 found.append({
                     "type": "verification_log",
-                    "path": os.path.join(verif_dir, f),
+                    "path": path,
                 })
 
     # Existing explanations
     explain_dir = os.path.join(ARTIFACTS_DIR, "explanations")
     if os.path.isdir(explain_dir):
         for f in sorted(os.listdir(explain_dir)):
-            if f.endswith(".md"):
+            path = os.path.join(explain_dir, f)
+            if f.endswith(".md") and report_matches(Path(path)):
                 found.append({
                     "type": "existing_explanation",
-                    "path": os.path.join(explain_dir, f),
+                    "path": path,
                 })
 
     return found
@@ -246,7 +261,10 @@ def find_otel_logs():
     logs = []
     for log in data.get("logs", []):
         raw_attrs = log.get("attributes", "{}")
-        attrs = json.loads(raw_attrs) if isinstance(raw_attrs, str) else raw_attrs
+        try:
+            attrs = json.loads(raw_attrs) if isinstance(raw_attrs, str) else raw_attrs
+        except (TypeError, json.JSONDecodeError):
+            attrs = {}
         logs.append({
             "id": log.get("id"),
             "event_name": attrs.get("event.name"),
@@ -299,26 +317,75 @@ def find_api_bodies():
 
 
 def find_observatory_claims():
-    """Get claim count and IDs from Observatory."""
+    """Get v2 occurrences and immutable verification histories."""
     try:
-        url = f"{OBSERVATORY_URL}/api/hallucinations/claims?jira_key={ISSUE_KEY}&limit=200"
+        url = (
+            f"{OBSERVATORY_URL}/api/v2/claims/occurrences"
+            f"?jira_key={ISSUE_KEY}&pending_only=false&limit=200"
+        )
         resp = urllib.request.urlopen(url, timeout=10)
         data = json.loads(resp.read())
     except Exception:
-        return {"reachable": False, "total": 0, "claims": []}
+        try:
+            url = f"{OBSERVATORY_URL}/api/hallucinations/claims?jira_key={ISSUE_KEY}&limit=200"
+            resp = urllib.request.urlopen(url, timeout=10)
+            data = json.loads(resp.read())
+        except Exception:
+            return {"reachable": False, "total": 0, "claims": []}
+        return {
+            "reachable": True,
+            "legacy_fallback": True,
+            "total": data.get("total", 0),
+            "api_url": url,
+            "claims": data.get("claims", []),
+        }
+
+    if not data.get("occurrences"):
+        try:
+            legacy_url = (
+                f"{OBSERVATORY_URL}/api/hallucinations/claims"
+                f"?jira_key={ISSUE_KEY}&limit=200"
+            )
+            legacy = json.loads(urllib.request.urlopen(legacy_url, timeout=10).read())
+            if legacy.get("total", 0):
+                return {
+                    "reachable": True,
+                    "legacy_fallback": True,
+                    "total": legacy["total"],
+                    "api_url": legacy_url,
+                    "claims": legacy.get("claims", []),
+                }
+        except Exception:
+            pass
 
     claims = []
-    for c in data.get("claims", []):
+    for c in data.get("occurrences", []):
+        history = {}
+        try:
+            history_url = (
+                f"{OBSERVATORY_URL}/api/v2/claims/occurrences/{c.get('id')}/history"
+            )
+            history = json.loads(urllib.request.urlopen(history_url, timeout=10).read())
+        except Exception:
+            pass
+        runs = history.get("verification_runs", [])
+        latest = runs[-1] if runs else {}
         claims.append({
             "id": c.get("id"),
-            "claim_text": c.get("claim_text", "")[:120],
+            "claim_text": c.get("claim_text", ""),
             "claim_type": c.get("claim_type"),
-            "verdict": c["verdict"]["verdict"] if isinstance(c.get("verdict"), dict) else None,
-            "url": f"{OBSERVATORY_URL}/api/hallucinations/claims/{c.get('id')}",
+            "verdict": latest.get("verdict"),
+            "confidence": latest.get("confidence"),
+            "verification_run_id": latest.get("id"),
+            "verification_history": runs,
+            "source_file": c.get("source_file"),
+            "source_locator": c.get("source_locator"),
+            "url": f"{OBSERVATORY_URL}/api/v2/claims/occurrences/{c.get('id')}/history",
         })
 
     return {
         "reachable": True,
+        "legacy_fallback": False,
         "total": data.get("total", len(claims)),
         "api_url": url,
         "claims": claims,
@@ -337,7 +404,10 @@ if __name__ == "__main__":
     strace = find_strace_dirs()
     print(f"  Strace dirs: {len(strace)}", file=sys.stderr)
 
-    artifacts = find_artifacts()
+    observatory = find_observatory_claims()
+    print(f"  Observatory claims: {observatory['total']} (reachable={observatory['reachable']})", file=sys.stderr)
+
+    artifacts = find_artifacts(c.get("id") for c in observatory["claims"])
     by_type = {}
     for a in artifacts:
         by_type.setdefault(a["type"], []).append(a)
@@ -349,9 +419,6 @@ if __name__ == "__main__":
 
     api_bodies = find_api_bodies()
     print(f"  API body dirs: {len(api_bodies)} ({sum(e['request_files'] for e in api_bodies)} requests)", file=sys.stderr)
-
-    observatory = find_observatory_claims()
-    print(f"  Observatory claims: {observatory['total']} (reachable={observatory['reachable']})", file=sys.stderr)
 
     manifest = {
         "issue_key": ISSUE_KEY,

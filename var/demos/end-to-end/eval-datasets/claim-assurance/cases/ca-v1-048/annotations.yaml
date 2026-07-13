@@ -1,0 +1,17 @@
+case_id: ca-v1-048
+artifact_type: code_generation
+selection: verifiable
+ambiguity_status: none
+acceptable_claims:
+  - "A review queue is proposed for Code generation."
+  - "The review queue is not available in the current release of Code generation."
+required_qualifiers:
+  - "proposed"
+  - "current release"
+verifiable_elements:
+  - "A review queue is proposed for Code generation."
+  - "The review queue is not available in the current release of Code generation."
+unverifiable_elements:
+  []
+tags:
+  - "proposal-current-state"

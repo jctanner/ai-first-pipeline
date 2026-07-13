@@ -18,8 +18,29 @@ name: run-claims
 description: "Extract, verify, and explain claims for {{ rfe_issue }} and its descendants"
 
 vars:
-  # Override this to compare a fork, local-forge copy, or immutable revision.
-  claims_skill_repo: "github.com/jctanner/ai-first-pipeline@main"
+  # Override this to compare a fork or local-forge copy. Pin a commit instead
+  # of @main when receipts must remain reproducible across upstream updates.
+  claims_skill_repo: "github.local/jctanner/ai-first-pipeline@main"
+  # Ignore current extraction receipts and run every issue again.
+  force_claims: false
+  # Pin these in reproducible/evaluation runs. "unresolved" and
+  # "runtime-default" deliberately invalidate receipts once resolved values
+  # are supplied.
+  claims_skill_revision: "unresolved"
+  claims_model: "claude-opus-4-6"
+  claims_harness: "claude-code"
+  claims_configuration_digest: "auto"
+  claims_segmentation_version: "claim-segmentation-v1"
+  claims_preceding_context_units: 1
+  claims_following_context_units: 1
+  claims_evidence_revision: "runtime-default"
+  claims_evidence_repo: "github.local/opendatahub-io/architecture-context@main"
+  claim_human_override: false
+  claim_override_actor: ""
+  claim_override_rationale: ""
+  claim_assurance_enforce: true
+  run_claim_regression: false
+  claim_regression_dataset_fqn: "github.local/opendatahub-io/eval-datasets@main:claim-assurance"
 
 steps:
 
@@ -114,43 +135,528 @@ steps:
     vars:
       all_issues: "{{ discovered.all_issues }}"
 
+  - name: resolve_claim_skill_revision
+    description: "Resolve the claim repository and each skill to immutable revisions"
+    type: shell_exec
+    params:
+      command: |
+        CONFIGURED="{{ claims_skill_revision }}" FQN="{{ claims_skill_repo }}" python3 - <<'PY'
+        import json, os, subprocess, tempfile
+        configured = os.environ['CONFIGURED']
+        repository, ref = os.environ['FQN'].rsplit('@', 1)
+        host, path = repository.split('/', 1)
+        if host == 'github.local':
+            host = 'github-emulator.ai-pipeline.svc.cluster.local'
+        url = f'https://{host}/{path}.git'
+        with tempfile.TemporaryDirectory(prefix='claim-skills-') as directory:
+            subprocess.run(['git', 'init', '-q', directory], check=True)
+            subprocess.run(
+                ['git', '-C', directory, 'remote', 'add', 'origin', url], check=True)
+            target = configured if configured != 'unresolved' else ref
+            subprocess.run(
+                ['git', '-c', 'http.sslVerify=false', '-C', directory,
+                 'fetch', '-q', '--depth', '1',
+                 'origin', target], check=True)
+            commit = subprocess.run(
+                ['git', '-C', directory, 'rev-parse', 'FETCH_HEAD'], check=True,
+                capture_output=True, text=True).stdout.strip()
+            revisions = {}
+            for stage in ('extract-claims', 'verify-claims', 'explain-claims'):
+                tree = subprocess.run(
+                    ['git', '-C', directory, 'rev-parse',
+                     f'{commit}:.claude/skills/{stage}'], check=True,
+                    capture_output=True, text=True).stdout.strip()
+                revisions[stage] = 'git-tree:' + tree
+        print(json.dumps({
+            'repository_revision': commit,
+            'execution_repo': repository + '@' + commit,
+            'stage_revisions': revisions,
+        }))
+        PY
+    register: claim_skill_resolution
+
+  - name: set_resolved_claim_skill_revision
+    type: set_fact
+    vars:
+      claim_skill_identity: "{{ claim_skill_resolution.stdout | fromjson }}"
+
+  - name: set_resolved_claim_skill_identities
+    type: set_fact
+    vars:
+      resolved_claims_repository_revision: "{{ claim_skill_identity.repository_revision }}"
+      resolved_claims_execution_repo: "{{ claim_skill_identity.execution_repo }}"
+      resolved_extract_claims_revision: "{{ claim_skill_identity.stage_revisions['extract-claims'] }}"
+      resolved_verify_claims_revision: "{{ claim_skill_identity.stage_revisions['verify-claims'] }}"
+      resolved_explain_claims_revision: "{{ claim_skill_identity.stage_revisions['explain-claims'] }}"
+
+  - name: resolve_claim_evidence_revision
+    description: "Resolve the architecture evidence context to an immutable commit"
+    type: shell_exec
+    params:
+      command: |
+        CONFIGURED="{{ claims_evidence_revision }}" FQN="{{ claims_evidence_repo }}" python3 - <<'PY'
+        import os, subprocess
+        configured = os.environ['CONFIGURED']
+        if configured != 'runtime-default':
+            print(configured)
+            raise SystemExit(0)
+        repository, ref = os.environ['FQN'].rsplit('@', 1)
+        host, path = repository.split('/', 1)
+        if host == 'github.local':
+            host = 'github-emulator.ai-pipeline.svc.cluster.local'
+        result = subprocess.run(
+            ['git', '-c', 'http.sslVerify=false', 'ls-remote',
+             f'https://{host}/{path}.git',
+             f'refs/heads/{ref}', f'refs/tags/{ref}'],
+            check=True, capture_output=True, text=True)
+        lines = [line for line in result.stdout.splitlines() if line.strip()]
+        if not lines:
+            raise SystemExit(f'cannot resolve {os.environ["FQN"]}')
+        print(lines[0].split()[0])
+        PY
+    register: claim_evidence_resolution
+
+  - name: set_resolved_claim_evidence_revision
+    type: set_fact
+    vars:
+      resolved_claims_evidence_revision: "{{ claim_evidence_resolution.stdout | trim }}"
+
+  - name: resolve_claim_configuration
+    description: "Resolve the staged extraction configuration to a stable digest"
+    type: shell_exec
+    params:
+      command: |
+        CONFIGURED="{{ claims_configuration_digest }}" \
+        SEGMENTATION_VERSION="{{ claims_segmentation_version }}" \
+        PRECEDING="{{ claims_preceding_context_units }}" \
+        FOLLOWING="{{ claims_following_context_units }}" python3 - <<'PY'
+        import hashlib, json, os
+        configured = os.environ['CONFIGURED']
+        if configured != 'auto':
+            print(configured)
+            raise SystemExit(0)
+        configuration = {
+            'contract_version': 2,
+            'segmentation_version': os.environ['SEGMENTATION_VERSION'],
+            'preceding_context_units': int(os.environ['PRECEDING']),
+            'following_context_units': int(os.environ['FOLLOWING']),
+        }
+        encoded = json.dumps(
+            configuration, sort_keys=True, separators=(',', ':')).encode()
+        print('sha256:' + hashlib.sha256(encoded).hexdigest())
+        PY
+    register: claim_configuration_resolution
+
+  - name: set_resolved_claim_configuration
+    type: set_fact
+    vars:
+      resolved_claims_configuration_digest: "{{ claim_configuration_resolution.stdout | trim }}"
+
   # ── Phase 1: Extract claims ──────────────────────────────────
 
   - name: extract_claims
-    description: "Extract claims from artifacts"
+    description: "Extract claims from stale or unprocessed artifacts"
     for_each: all_issues
     for_each_key: "key"
     for_each_sort: "key"
     as: issue
-    workflow: run-skill
+    workflow: run-claim-extraction
     vars:
-      skill_fqn: "{{ claims_skill_repo }}:extract-claims"
-      skill_issue: "{{ issue.key }}"
+      claim_issue: "{{ issue.key }}"
+      claims_skill_repo: "{{ claims_skill_repo }}"
+      claims_skill_execution_repo: "{{ resolved_claims_execution_repo }}"
+      force_claims: "{{ force_claims }}"
+      claims_skill_revision: "{{ resolved_extract_claims_revision }}"
+      claims_repository_revision: "{{ resolved_claims_repository_revision }}"
+      claims_model: "{{ claims_model }}"
+      claims_harness: "{{ claims_harness }}"
+      claims_configuration_digest: "{{ resolved_claims_configuration_digest }}"
+      claims_segmentation_version: "{{ claims_segmentation_version }}"
+      claims_preceding_context_units: "{{ claims_preceding_context_units }}"
+      claims_following_context_units: "{{ claims_following_context_units }}"
+      claims_git_extra_env: '{"GIT_SSL_NO_VERIFY":"1"}'
+
+  - name: assess_extraction_quality
+    description: "Aggregate staged extraction outcomes for the assurance gate"
+    type: shell_exec
+    params:
+      command: |
+        python3 - <<'PY'
+        import json
+        from pathlib import Path
+
+        issues = {item['key'].upper() for item in json.loads(r'''{{ all_issues | tojson }}''')}
+        totals = {'entailment_failures': 0, 'unresolved_units': 0,
+                  'low_coverage_units': 0, 'accepted_claims': 0}
+        for path in Path('/app/artifacts/claims').rglob('*.extraction.json'):
+            data = json.loads(path.read_text())
+            if not any(issue in str(data.get('source_file', '')).upper()
+                       for issue in issues):
+                continue
+            for unit in data.get('units', []):
+                if unit.get('ambiguity', {}).get('status') == 'unresolved':
+                    totals['unresolved_units'] += 1
+                for claim in unit.get('claims', []):
+                    if claim.get('accepted', True):
+                        totals['accepted_claims'] += 1
+                    evaluation = claim.get('evaluation', {})
+                    if evaluation.get('entailed') is not True:
+                        totals['entailment_failures'] += 1
+                    if evaluation.get('coverage_result') not in {
+                            'complete', 'explicit', 'implicit'}:
+                        totals['low_coverage_units'] += 1
+        print(json.dumps(totals))
+        PY
+    register: extraction_quality
+
+  - name: set_extraction_metrics
+    type: set_fact
+    vars:
+      extraction_metrics: "{{ extraction_quality.stdout | fromjson }}"
+
+  - name: gate_extraction_quality
+    type: gate
+    rules:
+      - extraction_shadow
+      - extraction_entailment_block
+      - extraction_review
+      - extraction_pass
+    facts:
+      entailment_failures: "{{ extraction_metrics.entailment_failures }}"
+      unresolved_units: "{{ extraction_metrics.unresolved_units }}"
+      low_coverage_units: "{{ extraction_metrics.low_coverage_units }}"
+      claim_assurance_enforce: "{{ claim_assurance_enforce }}"
+    on_pause:
+      notify: "claim-assurance-review"
+      message: "Extraction assurance requires review before factual verification"
+      timeout: 24h
+      on_timeout: skip
 
   # ── Phase 2: Verify claims ──────────────────────────────────
 
   - name: verify_claims
     description: "Verify extracted claims against evidence"
+    when: "claims_ready_for_verification"
     for_each: all_issues
     for_each_key: "key"
     for_each_sort: "key"
     concurrency: 1
     as: issue
-    workflow: run-skill
+    workflow: run-claim-analysis-stage
     vars:
-      skill_fqn: "{{ claims_skill_repo }}:verify-claims"
-      skill_issue: "{{ issue.key }}"
+      claim_stage: verify-claims
+      claim_issue: "{{ issue.key }}"
+      claims_skill_repo: "{{ claims_skill_repo }}"
+      claims_skill_execution_repo: "{{ resolved_claims_execution_repo }}"
+      force_claims: "{{ force_claims }}"
+      claims_skill_revision: "{{ resolved_verify_claims_revision }}"
+      claims_repository_revision: "{{ resolved_claims_repository_revision }}"
+      claims_model: "{{ claims_model }}"
+      claims_harness: "{{ claims_harness }}"
+      claims_configuration_digest: "{{ resolved_claims_configuration_digest }}"
+      claims_evidence_revision: "{{ resolved_claims_evidence_revision }}"
+      claims_git_extra_env: '{"GIT_SSL_NO_VERIFY":"1"}'
+
+  - name: assess_verification_quality
+    description: "Detect blocking contradictions, missing structure, and verifier disagreement"
+    when: "claims_ready_for_verification"
+    type: shell_exec
+    params:
+      command: |
+        python3 - <<'PY'
+        import json
+        from collections import defaultdict
+        from pathlib import Path
+
+        issues = {item['key'].upper() for item in json.loads(r'''{{ all_issues | tojson }}''')}
+        root = Path('/app/artifacts/verification')
+        structured, legacy = [], []
+        if root.is_dir():
+            for path in root.rglob('*'):
+                if not path.is_file() or '.receipts' in path.parts:
+                    continue
+                text = path.read_text(errors='ignore')
+                if not any(issue in (path.as_posix() + text).upper() for issue in issues):
+                    continue
+                if path.name.endswith('.verification.json'):
+                    structured.append(json.loads(text))
+                elif path.suffix == '.md':
+                    legacy.append(path)
+        verdicts = defaultdict(set)
+        blocking = set()
+        for run in structured:
+            occurrence = run.get('claim_occurrence_id')
+            verdicts[occurrence].add(run.get('verdict'))
+            if run.get('verdict') in {'contradicted', 'refuted'} and run.get('severity') in {'high', 'critical'}:
+                blocking.add(occurrence)
+        disagreements = {
+            occurrence for occurrence, values in verdicts.items()
+            if occurrence is not None and len(values) > 1
+        }
+        print(json.dumps({
+            'high_severity_contradictions': len(blocking),
+            'verifier_disagreements': len(disagreements),
+            'unstructured_verifications': max(0, len(legacy) - len(structured)),
+            'blocking_occurrences': sorted(value for value in blocking if value is not None),
+            'review_occurrences': sorted(blocking | disagreements),
+        }))
+        PY
+    register: verification_quality
+
+  - name: set_verification_metrics
+    when: "claims_ready_for_verification"
+    type: set_fact
+    vars:
+      verification_metrics: "{{ verification_quality.stdout | fromjson }}"
+
+  - name: audit_human_override
+    when: "claims_ready_for_verification and claim_human_override"
+    type: shell_exec
+    params:
+      command: |
+        ACTOR="{{ claim_override_actor }}" RATIONALE="{{ claim_override_rationale }}" \
+        OCCURRENCES='{{ verification_metrics.review_occurrences | tojson }}' \
+        OBSERVATORY_URL="{{ observatory_base }}" python3 - <<'PY'
+        import json, os, urllib.request
+        if not os.environ['ACTOR'].strip() or not os.environ['RATIONALE'].strip():
+            raise SystemExit('override requires claim_override_actor and claim_override_rationale')
+        for occurrence in json.loads(os.environ['OCCURRENCES']):
+            body = json.dumps({
+                'claim_occurrence_id': occurrence, 'actor': os.environ['ACTOR'],
+                'decision': 'allow_workflow_progression',
+                'rationale': os.environ['RATIONALE'],
+            }).encode()
+            request = urllib.request.Request(
+                os.environ['OBSERVATORY_URL'].rstrip('/') + '/api/v2/claims/human-overrides',
+                data=body, headers={'Content-Type': 'application/json'}, method='POST')
+            with urllib.request.urlopen(request, timeout=30) as response:
+                if response.status // 100 != 2:
+                    raise SystemExit(f'override audit failed: HTTP {response.status}')
+        print(json.dumps({'audited': len(json.loads(os.environ['OCCURRENCES']))}))
+        PY
+
+  - name: gate_verification_quality
+    when: "claims_ready_for_verification"
+    type: gate
+    rules:
+      - verification_shadow
+      - verification_severity_block
+      - verification_structure_block
+      - verification_disagreement
+      - verification_pass
+    facts:
+      high_severity_contradictions: "{{ verification_metrics.high_severity_contradictions }}"
+      verifier_disagreements: "{{ verification_metrics.verifier_disagreements }}"
+      unstructured_verifications: "{{ verification_metrics.unstructured_verifications }}"
+      claim_human_override: "{{ claim_human_override }}"
+      claim_assurance_enforce: "{{ claim_assurance_enforce }}"
+    on_pause:
+      notify: "claim-assurance-review"
+      message: "Verification assurance requires review or an audited override"
+      timeout: 24h
+      on_timeout: skip
 
   # ── Phase 3: Explain claims ─────────────────────────────────
 
   - name: explain_claims
     description: "Root-cause analysis on verified claims"
+    when: "claims_ready_for_explanation"
     for_each: all_issues
     for_each_key: "key"
     for_each_sort: "key"
     concurrency: 1
     as: issue
-    workflow: run-skill
+    workflow: run-claim-analysis-stage
     vars:
-      skill_fqn: "{{ claims_skill_repo }}:explain-claims"
-      skill_issue: "{{ issue.key }}"
+      claim_stage: explain-claims
+      claim_issue: "{{ issue.key }}"
+      claims_skill_repo: "{{ claims_skill_repo }}"
+      claims_skill_execution_repo: "{{ resolved_claims_execution_repo }}"
+      force_claims: "{{ force_claims }}"
+      claims_skill_revision: "{{ resolved_explain_claims_revision }}"
+      claims_repository_revision: "{{ resolved_claims_repository_revision }}"
+      claims_model: "{{ claims_model }}"
+      claims_harness: "{{ claims_harness }}"
+      claims_configuration_digest: "{{ resolved_claims_configuration_digest }}"
+      claims_evidence_revision: "{{ resolved_claims_evidence_revision }}"
+      claims_git_extra_env: '{"GIT_SSL_NO_VERIFY":"1"}'
+
+  - name: assess_explanation_routes
+    description: "Require an improvement target and replay, or explicit unknown review"
+    when: "claims_ready_for_explanation"
+    type: shell_exec
+    params:
+      command: |
+        python3 - <<'PY'
+        import json
+        from pathlib import Path
+
+        issues = {item['key'].upper() for item in json.loads(r'''{{ all_issues | tojson }}''')}
+        root = Path('/app/artifacts/explanations')
+        invalid = structured = legacy = human_review = 0
+        explained_runs = set()
+        if root.is_dir():
+            for path in root.rglob('*'):
+                if not path.is_file() or '.receipts' in path.parts:
+                    continue
+                text = path.read_text(errors='ignore')
+                if not any(issue in (path.as_posix() + text).upper() for issue in issues):
+                    continue
+                if path.name.endswith('.explanation.json'):
+                    structured += 1
+                    data = json.loads(text)
+                    if data.get('verification_run_id') is not None:
+                        explained_runs.add(data['verification_run_id'])
+                    category = data.get('category')
+                    if category == 'unknown':
+                        if data.get('human_review_required') is not True:
+                            invalid += 1
+                        else:
+                            human_review += 1
+                    else:
+                        invalid += not all(data.get(field) for field in (
+                            'improvement_target', 'remediation', 'regression_test'))
+                elif path.suffix == '.md':
+                    legacy += 1
+        expected_runs = set()
+        verification_root = Path('/app/artifacts/verification')
+        if verification_root.is_dir():
+            for path in verification_root.rglob('*.verification.json'):
+                text = path.read_text(errors='ignore')
+                if not any(issue in (path.as_posix() + text).upper() for issue in issues):
+                    continue
+                data = json.loads(text)
+                if data.get('verdict') in {
+                        'contradicted', 'refuted', 'insufficient_evidence',
+                        'insufficient', 'inconclusive'}:
+                    run_id = data.get('observatory_run_id', data.get('id'))
+                    if run_id is not None:
+                        expected_runs.add(run_id)
+        print(json.dumps({
+            'invalid_explanation_routes': invalid,
+            'human_review_explanations': human_review,
+            'unstructured_explanations': (
+                max(0, legacy - structured) + len(expected_runs - explained_runs)),
+        }))
+        PY
+    register: explanation_quality
+
+  - name: set_explanation_metrics
+    when: "claims_ready_for_explanation"
+    type: set_fact
+    vars:
+      explanation_metrics: "{{ explanation_quality.stdout | fromjson }}"
+
+  - name: gate_explanation_routes
+    when: "claims_ready_for_explanation"
+    type: gate
+    rules:
+      - explanation_route_block
+      - explanation_human_review
+      - explanation_route_pass
+    facts:
+      invalid_explanation_routes: "{{ explanation_metrics.invalid_explanation_routes }}"
+      unstructured_explanations: "{{ explanation_metrics.unstructured_explanations }}"
+      human_review_explanations: "{{ explanation_metrics.human_review_explanations }}"
+    on_pause:
+      notify: "claim-assurance-review"
+      message: "Explanation requires an improvement route or explicit human review"
+      timeout: 24h
+      on_timeout: skip
+
+  # ── Phase 4: Replay targeted assurance corpus ───────────────
+
+  - name: submit_claim_regression
+    description: "Replay the versioned claim-assurance corpus after an improvement"
+    when: "claim_improvement_loop_ready and run_claim_regression"
+    type: dashboard_api
+    params:
+      path: /api/evals/submit
+      method: POST
+      body:
+        dataset_fqn: "{{ claim_regression_dataset_fqn }}"
+        model: "{{ claims_model }}"
+        context_ref: "{{ resolved_claims_repository_revision }}"
+        context_mode: files
+        strace: true
+        mlflow: true
+        otel: true
+    register: claim_regression_submission
+
+  - name: record_claim_regression
+    description: "Attach the queued replay to each routed explanation"
+    when: "claim_improvement_loop_ready and run_claim_regression"
+    type: shell_exec
+    params:
+      command: |
+        JOB_NAME="{{ claim_regression_submission.body.job_name }}" \
+        DATASET_FQN="{{ claim_regression_dataset_fqn }}" \
+        IMPLEMENTATION_REVISION="{{ resolved_claims_repository_revision }}" \
+        OBSERVATORY_URL="{{ observatory_base }}" python3 - <<'PY'
+        import json, os, urllib.request
+        from pathlib import Path
+
+        recorded = 0
+        for path in Path('/app/artifacts/explanations').rglob('*.explanation.json'):
+            data = json.loads(path.read_text())
+            explanation_id = data.get('observatory_run_id')
+            if explanation_id is None:
+                continue
+            payload = json.dumps({
+                'explanation_run_id': explanation_id,
+                'dataset_fqn': os.environ['DATASET_FQN'],
+                'implementation_revision': os.environ['IMPLEMENTATION_REVISION'],
+                'status': 'queued',
+                'run_uri': 'dashboard://eval/' + os.environ['JOB_NAME'],
+            }).encode()
+            request = urllib.request.Request(
+                os.environ['OBSERVATORY_URL'].rstrip('/') +
+                '/api/v2/claims/regression-runs', data=payload,
+                headers={'Content-Type': 'application/json'}, method='POST')
+            with urllib.request.urlopen(request, timeout=30) as response:
+                if response.status // 100 != 2:
+                    raise SystemExit(f'regression audit failed: HTTP {response.status}')
+            recorded += 1
+        print(json.dumps({'job_name': os.environ['JOB_NAME'], 'recorded': recorded}))
+        PY
+
+  - name: wait_for_claim_regression
+    when: "claim_improvement_loop_ready and run_claim_regression"
+    type: agent_job_wait
+    params:
+      job_name: "{{ claim_regression_submission.body.job_name }}"
+    register: claim_regression_result
+
+  - name: record_claim_regression_pass
+    description: "Record the successful improvement replay"
+    when: "claim_improvement_loop_ready and run_claim_regression"
+    type: shell_exec
+    params:
+      command: |
+        JOB_NAME="{{ claim_regression_submission.body.job_name }}" \
+        DATASET_FQN="{{ claim_regression_dataset_fqn }}" \
+        IMPLEMENTATION_REVISION="{{ resolved_claims_repository_revision }}" \
+        OBSERVATORY_URL="{{ observatory_base }}" python3 - <<'PY'
+        import json, os, urllib.request
+        from pathlib import Path
+
+        recorded = 0
+        for path in Path('/app/artifacts/explanations').rglob('*.explanation.json'):
+            explanation_id = json.loads(path.read_text()).get('observatory_run_id')
+            if explanation_id is None:
+                continue
+            payload = json.dumps({
+                'explanation_run_id': explanation_id,
+                'dataset_fqn': os.environ['DATASET_FQN'],
+                'implementation_revision': os.environ['IMPLEMENTATION_REVISION'],
+                'status': 'passed',
+                'run_uri': 'dashboard://eval/' + os.environ['JOB_NAME'],
+            }).encode()
+            request = urllib.request.Request(
+                os.environ['OBSERVATORY_URL'].rstrip('/') +
+                '/api/v2/claims/regression-runs', data=payload,
+                headers={'Content-Type': 'application/json'}, method='POST')
+            urllib.request.urlopen(request, timeout=30).read()
+            recorded += 1
+        print(json.dumps({'job_name': os.environ['JOB_NAME'], 'passed': recorded}))
+        PY

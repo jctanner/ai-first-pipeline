@@ -125,6 +125,7 @@ class PipelineOrchestrator:
             "strace": job.metadata.labels.get("strace", "false") == "true",
             "mlflow": job.metadata.labels.get("mlflow", "true") == "true",
             "otel": job.metadata.labels.get("otel", "true") == "true",
+            "api_dump": job.metadata.labels.get("api-dump", "true") == "true",
             "extra_kwargs": (job.metadata.annotations or {}).get("extra_kwargs", ""),
             "extra_env": json.loads((job.metadata.annotations or {}).get("extra_env", "{}")),
             "fqn": (job.metadata.annotations or {}).get("fqn", ""),
@@ -313,6 +314,7 @@ class PipelineOrchestrator:
                     "strace": "true" if args.get("strace") else "false",
                     "mlflow": "false" if args.get("mlflow") is False else "true",
                     "otel": "false" if args.get("otel") is False else "true",
+                    "api-dump": "false" if args.get("api_dump") is False else "true",
                 }
             ),
             spec=client.V1JobSpec(
@@ -516,6 +518,12 @@ fi
             env_vars.append(client.V1EnvVar(
                 name="ENABLE_STRACE",
                 value="1"
+            ))
+
+        if args.get("api_dump") is not False:
+            env_vars.append(client.V1EnvVar(
+                name="ANTHROPIC_LOG",
+                value=f"/app/artifacts/apibodies/{job_name}"
             ))
 
         env_vars.append(client.V1EnvVar(
@@ -843,6 +851,7 @@ fi
                     "strace": "true" if args.get("strace") else "false",
                     "mlflow": "false" if args.get("mlflow") is False else "true",
                     "otel": "false" if args.get("otel") is False else "true",
+                    "api-dump": "false" if args.get("api_dump") is False else "true",
                 },
             ),
             spec=client.V1JobSpec(

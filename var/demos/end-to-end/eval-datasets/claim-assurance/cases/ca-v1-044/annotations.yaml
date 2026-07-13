@@ -1,0 +1,14 @@
+case_id: ca-v1-044
+artifact_type: investigation
+selection: verifiable
+ambiguity_status: none
+acceptable_claims:
+  - "Investigation retains the source locator with each extracted occurrence."
+required_qualifiers:
+  []
+verifiable_elements:
+  - "Investigation retains the source locator with each extracted occurrence."
+unverifiable_elements:
+  []
+tags:
+  - "list-preamble"

@@ -1,0 +1,14 @@
+case_id: ca-v1-049
+artifact_type: code_generation
+selection: verifiable
+ambiguity_status: none
+acceptable_claims:
+  - "Code generation does not treat a missing document as evidence that a claim is false."
+required_qualifiers:
+  - "does not"
+verifiable_elements:
+  - "Code generation does not treat a missing document as evidence that a claim is false."
+unverifiable_elements:
+  []
+tags:
+  - "negation"

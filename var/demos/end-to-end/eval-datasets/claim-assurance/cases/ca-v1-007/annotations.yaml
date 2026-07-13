@@ -1,0 +1,14 @@
+case_id: ca-v1-007
+artifact_type: rfe
+selection: mixed
+ambiguity_status: none
+acceptable_claims:
+  - "RFE records evidence digests."
+required_qualifiers:
+  []
+verifiable_elements:
+  - "RFE records evidence digests."
+unverifiable_elements:
+  - "which is a wonderfully elegant design"
+tags:
+  - "subjective tail"

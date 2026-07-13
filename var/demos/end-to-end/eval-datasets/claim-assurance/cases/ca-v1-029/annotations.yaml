@@ -1,0 +1,14 @@
+case_id: ca-v1-029
+artifact_type: epic
+selection: verifiable
+ambiguity_status: none
+acceptable_claims:
+  - "Epic must preserve every verification result as an immutable run."
+required_qualifiers:
+  - "must"
+verifiable_elements:
+  - "Epic must preserve every verification result as an immutable run."
+unverifiable_elements:
+  []
+tags:
+  - "requirement"

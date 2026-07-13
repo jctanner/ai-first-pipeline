@@ -136,6 +136,10 @@
         <input type="checkbox" id="eval-otel" checked class="rounded border-gray-300 dark:border-gray-600">
         OTel
       </label>
+      <label class="flex items-center gap-1.5 text-sm text-gray-700 dark:text-gray-300 cursor-pointer select-none">
+        <input type="checkbox" id="eval-api-dump" checked class="rounded border-gray-300 dark:border-gray-600">
+        API dump
+      </label>
       <button type="submit" class="ml-auto bg-primary-600 hover:bg-primary-700 text-white text-sm font-medium py-2 px-6 rounded-lg transition-colors">Submit Eval</button>
     </div>
   </form>
@@ -189,6 +193,7 @@
       <div><span class="text-gray-500 dark:text-gray-400">strace</span><div id="eval-modal-strace" class="font-medium text-gray-900 dark:text-white"></div></div>
       <div><span class="text-gray-500 dark:text-gray-400">MLflow</span><div id="eval-modal-mlflow" class="font-medium text-gray-900 dark:text-white"></div></div>
       <div><span class="text-gray-500 dark:text-gray-400">OTel</span><div id="eval-modal-otel" class="font-medium text-gray-900 dark:text-white"></div></div>
+      <div><span class="text-gray-500 dark:text-gray-400">API dump</span><div id="eval-modal-api-dump" class="font-medium text-gray-900 dark:text-white"></div></div>
     </div>
 
     <div class="flex gap-2 mb-4" id="eval-modal-actions"></div>

@@ -72,6 +72,30 @@ steps:
         auto_init: true
         description: "Evaluation datasets for agent-eval-harness"
 
+  - name: seed_claim_assurance_dataset
+    description: "Publish the executable claim-assurance corpus and current extraction skill"
+    type: shell_exec
+    params:
+      command: |
+        set -euo pipefail
+        rm -rf /tmp/claim-eval-source /tmp/claim-eval-target
+        git clone --depth 1 --branch main \
+          https://github.com/jctanner/ai-first-pipeline /tmp/claim-eval-source
+        git clone \
+          "https://x-access-token:{{ github_api_token }}@github-emulator.ai-pipeline.svc.cluster.local/{{ org }}/eval-datasets.git" \
+          /tmp/claim-eval-target
+        cp -a /tmp/claim-eval-source/var/demos/end-to-end/eval-datasets/claim-assurance \
+          /tmp/claim-eval-target/claim-assurance
+        mkdir -p /tmp/claim-eval-target/.claude/skills
+        cp -a /tmp/claim-eval-source/.claude/skills/extract-claims \
+          /tmp/claim-eval-target/.claude/skills/extract-claims
+        cd /tmp/claim-eval-target
+        git config user.name "AI Pipeline Demo"
+        git config user.email "demo@ai-pipeline.local"
+        git add claim-assurance .claude/skills/extract-claims
+        git commit -m "Seed claim assurance evaluation corpus"
+        git push origin main
+
   # Step 4: Delete and re-import each repo from upstream
   - name: process_repos
     for_each: repos

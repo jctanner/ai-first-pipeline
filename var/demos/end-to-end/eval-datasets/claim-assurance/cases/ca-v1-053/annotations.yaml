@@ -1,0 +1,14 @@
+case_id: ca-v1-053
+artifact_type: code_generation
+selection: verifiable
+ambiguity_status: none
+acceptable_claims:
+  - "Code generation retains the source locator with each extracted occurrence."
+required_qualifiers:
+  []
+verifiable_elements:
+  - "Code generation retains the source locator with each extracted occurrence."
+unverifiable_elements:
+  []
+tags:
+  - "list-preamble"

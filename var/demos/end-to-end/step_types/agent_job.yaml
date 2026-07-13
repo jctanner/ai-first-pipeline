@@ -16,3 +16,4 @@ agent_job:
         strace: true
         mlflow: true
         otel: true
+        api_dump: true

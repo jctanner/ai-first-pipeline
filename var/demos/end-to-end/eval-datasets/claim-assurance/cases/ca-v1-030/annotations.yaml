@@ -1,0 +1,17 @@
+case_id: ca-v1-030
+artifact_type: epic
+selection: verifiable
+ambiguity_status: none
+acceptable_claims:
+  - "A review queue is proposed for Epic."
+  - "The review queue is not available in the current release of Epic."
+required_qualifiers:
+  - "proposed"
+  - "current release"
+verifiable_elements:
+  - "A review queue is proposed for Epic."
+  - "The review queue is not available in the current release of Epic."
+unverifiable_elements:
+  []
+tags:
+  - "proposal-current-state"

@@ -1,0 +1,14 @@
+case_id: ca-v1-047
+artifact_type: code_generation
+selection: verifiable
+ambiguity_status: none
+acceptable_claims:
+  - "Code generation must preserve every verification result as an immutable run."
+required_qualifiers:
+  - "must"
+verifiable_elements:
+  - "Code generation must preserve every verification result as an immutable run."
+unverifiable_elements:
+  []
+tags:
+  - "requirement"

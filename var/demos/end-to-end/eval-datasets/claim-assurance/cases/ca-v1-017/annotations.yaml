@@ -1,0 +1,14 @@
+case_id: ca-v1-017
+artifact_type: strategy
+selection: verifiable
+ambiguity_status: none
+acceptable_claims:
+  - "Strategy retains the source locator with each extracted occurrence."
+required_qualifiers:
+  []
+verifiable_elements:
+  - "Strategy retains the source locator with each extracted occurrence."
+unverifiable_elements:
+  []
+tags:
+  - "list-preamble"

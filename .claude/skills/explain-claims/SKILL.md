@@ -1,13 +1,20 @@
 ---
 name: explain-claims
-description: Investigate WHY an agent made a claim using pod logs, MLflow traces, strace output, and source artifacts
+description: Explain why a contradicted or insufficient-evidence claim was produced by correlating source artifacts, verification evidence, job logs, traces, and tool activity. Use after verification to route improvements to skills, context, retrieval, workflows, tools, models, policies, or human-owned sources.
 allowed-tools: Read, Write, Glob, Grep, Bash
 user-invocable: true
 ---
 
 # Explain Claims
 
-Perform forensic analysis on verified claims to determine WHY an agent made each claim. Uses K8s job logs, MLflow traces, strace output, and source artifacts to identify root causes — training data hallucination, source misinterpretation, context confusion, or insufficient context.
+Perform forensic analysis on verified claims to determine why each problematic
+claim was made and which system layer should improve. A verdict is not itself a
+root cause: distinguish generator failures from evidence, retrieval, workflow,
+tooling, and human-source failures.
+
+Treat causal attribution as an evidence-backed hypothesis. State material
+alternative explanations and use `unknown` when the available traces cannot
+distinguish them; never present speculation about hidden model state as fact.
 
 ## Inputs
 
@@ -15,8 +22,13 @@ This skill accepts inputs as positional arguments and/or kwargs in a `## Inputs`
 
 - **Issue key** (positional, e.g. `RHAISTRAT-1676`) — explain claims linked to this Jira key
 - **claim_id** (kwarg, e.g. `123`) — explain a specific claim by ID
-- **verdict_filter** (kwarg, e.g. `refuted,insufficient`) — only explain claims with these verdicts (default: `refuted,insufficient,inconclusive`)
+- **verdict_filter** (kwarg, e.g. `contradicted,insufficient_evidence`) — only explain claims with these verdicts (default: `contradicted,insufficient_evidence`; legacy aliases remain accepted)
 - **limit** (kwarg, e.g. `10`) — max claims to process (default: 20)
+- **implementation_revision**, **repository_revision**, **model**, **harness**,
+  and **configuration_digest** — resolved explainer tree identity and pinned
+  repository commit to persist
+- **evidence_revision** and **evidence_context_digest** — immutable forensic
+  input identity; bind output to these values
 - **`--force`** — re-explain claims that already have explanation files
 
 Example prompt with kwargs:
@@ -24,7 +36,7 @@ Example prompt with kwargs:
 /explain-claims --headless RHAISTRAT-1676
 
 ## Inputs
-- verdict_filter: refuted
+- verdict_filter: contradicted
 - limit: 5
 ```
 
@@ -35,8 +47,10 @@ Run the evidence-gathering script to discover all available data sources for the
 Locate the script relative to this SKILL.md file:
 
 ```bash
-SKILL_DIR=$(dirname "$(find /app/.claude/skills/explain-claims -name SKILL.md -type f 2>/dev/null | head -1)" 2>/dev/null || echo ".claude/skills/explain-claims")
-python3 "${SKILL_DIR}/scripts/gather-evidence.py" "${ISSUE_KEY}" 2>/dev/null
+SKILL_FILE=$(find . /app/.claude/skills/explain-claims \
+  -path "*/explain-claims/SKILL.md" -type f 2>/dev/null | head -1)
+SKILL_DIR=$(dirname "${SKILL_FILE:-.claude/skills/explain-claims/SKILL.md}")
+python3 "$SKILL_DIR/scripts/gather-evidence.py" "$ISSUE_KEY" 2>/dev/null
 ```
 
 Save the JSON output — it is your evidence index for all subsequent steps. The manifest contains:
@@ -44,6 +58,8 @@ Save the JSON output — it is your evidence index for all subsequent steps. The
 - **`evidence_sources.k8s_jobs`** — matching jobs with `has_logs` boolean and `log_cmd` to fetch logs
 - **`evidence_sources.mlflow_traces`** — traces with `trace_id`, token counts, duration, and `url`
 - **`evidence_sources.strace`** — directories with `file_count` and `total_mb`
+- **`evidence_sources.otel_logs`** — matching structured execution events
+- **`evidence_sources.api_bodies`** — captured request/response body directories
 - **`evidence_sources.artifacts`** — file paths grouped by type (`pipeline_output`, `claims_json`, `verification_log`, `existing_explanation`)
 - **`evidence_sources.observatory`** — claims with `id`, `claim_text`, `verdict`, and per-claim `url`
 
@@ -54,7 +70,7 @@ Save the JSON output — it is your evidence index for all subsequent steps. The
 From the manifest's `evidence_sources.observatory.claims`, filter to claims needing explanation:
 
 - If `claim_id` kwarg was provided, select only that claim
-- Otherwise filter by `verdict_filter` (default: refuted, insufficient, inconclusive)
+- Otherwise filter by `verdict_filter` (default: `contradicted,insufficient_evidence`; map legacy `refuted`, `insufficient`, and `inconclusive` when using fallback data)
 - Apply `limit` (default: 20)
 - Skip claims that already have files in `evidence_sources.artifacts` with `type: existing_explanation` unless `--force`
 
@@ -62,7 +78,10 @@ Report the number of claims selected and their verdict distribution.
 
 ## Step 3: Gather Forensic Evidence
 
-For each selected claim, use the manifest to read evidence from every available source. **Use every source the manifest says is available — do not skip any.**
+For each selected claim, start with its source artifact and verification log,
+then inspect the execution sources most likely to distinguish competing causes.
+Do not read every trace or strace file merely because it exists. Record what was
+checked, what was unavailable, and why each used source affected the conclusion.
 
 ### 3a. K8s Job Logs
 
@@ -81,7 +100,9 @@ Extract relevant excerpts. Focus on what information the agent had when it formu
 
 ### 3b. MLflow Traces
 
-For each trace in the manifest, note the `input_tokens`, `output_tokens`, `num_spans`, `duration_ms`, and `model`. High output tokens with low input may indicate hallucination. Low `num_spans` may indicate the agent didn't search for evidence.
+For relevant traces, note the model, duration, spans, token usage, and tool
+activity. These values describe execution behavior; token ratios and span counts
+alone are not evidence of hallucination or failed retrieval.
 
 ### 3c. Strace Output
 
@@ -108,25 +129,47 @@ For each claim, analyze the gathered evidence and assign a primary root cause ca
 
 ### Root Cause Categories
 
-**`training_data_hallucination`** — The claim contains specific facts (version numbers, API details, component behaviors) that do not appear in ANY source the agent accessed. Job logs show no file reads or searches that could have produced this information. The agent appears to have generated plausible-sounding but fabricated details from its training data.
+Choose the category that identifies the primary improvement target:
 
-**`source_misinterpretation`** — The agent DID read a relevant source document, but the claim distorts, overstates, or misquotes what the source says. The verification log shows a specific contradiction between the claim and the source. Job logs confirm the agent read the relevant file.
+**`skill_instruction_gap`** — Relevant evidence was available, but the skill did
+not require the necessary check, distinction, or output constraint.
 
-**`context_confusion`** — The claim conflates information from two different components, versions, or documents. Job logs show the agent read multiple files and mixed their contents. Common when similar component names exist across RHOAI versions (e.g., mixing 3.4 and 3.5 details).
+**`context_gap`** — The authoritative component, version, or policy information
+was missing, stale, or contradictory in the supplied context.
 
-**`insufficient_context`** — The claim addresses a topic where no authoritative source was available to the agent. Architecture context docs don't cover this component or version. The agent made a reasonable inference from limited data but got it wrong. The claim is plausible but unverifiable.
+**`retrieval_failure`** — Relevant evidence existed and the skill called for it,
+but the agent did not find, select, or read it.
 
-**`compound_error`** — The claim is built on another claim that is also wrong, creating a chain of errors. Other refuted claims from the same source file are prerequisites for this claim's truth.
+**`source_misinterpretation`** — The agent read the relevant evidence but
+distorted, overstated, or combined it incorrectly.
 
-**`unknown`** — Insufficient forensic evidence to determine the cause. Job logs and strace are unavailable, and the claim text alone doesn't reveal the mechanism. Use this sparingly.
+**`workflow_gap`** — Required context, sequencing, validation, or a quality gate
+was absent from the orchestration around the skill.
+
+**`tool_or_harness_gap`** — A missing, failed, or constrained tool or harness
+prevented the required evidence gathering or validation.
+
+**`model_reasoning_error`** — Instructions, tools, and authoritative evidence
+were sufficient and used, but the model still reached an unsupported conclusion.
+
+**`human_source_quality`** — The authoritative human-owned requirement or source
+was ambiguous, stale, or internally inconsistent.
+
+**`compound_error`** — The claim depends on another incorrect claim from the
+same generated artifact.
+
+**`unknown`** — Available forensic evidence cannot distinguish the cause.
 
 ### Analysis Guidelines
 
-- Check whether the claim's distinctive facts appear in any file the agent read (from job logs or strace). If not → likely `training_data_hallucination`.
-- Compare the claim text against the verification log's `evidence_detail`. If the verifier found a source that contradicts the claim AND the agent read that source → `source_misinterpretation`.
-- If the claim mentions component X but the evidence is about component Y → `context_confusion`.
-- If no architecture context exists for the topic → `insufficient_context`.
-- Always identify contributing factors beyond the primary category.
+- First decide whether authoritative evidence existed at generation time.
+- Then decide whether the skill required it, the agent retrieved it, and the
+  agent interpreted it correctly—in that order.
+- Do not infer what the agent read from token counts alone. Prefer tool calls,
+  file opens, API bodies, or quoted log evidence.
+- Distinguish unavailable evidence from evidence that was available but missed.
+- Name one primary category, contributing factors, an improvement target, and a
+  concrete regression test. Use `unknown` when evidence cannot support more.
 
 ## Step 5: Write Explanation Reports
 
@@ -135,6 +178,18 @@ For each claim, write a markdown report to:
 ```
 {artifacts_dir}/explanations/{claim_id}.md
 ```
+
+Also write
+`{artifacts_dir}/explanations/{verification_run_id}/{run_key}.explanation.json`
+with the
+verification run ID, explainer revision, primary category, improvement target,
+contributing factors, evidence for and against attribution, alternatives,
+remediation, and a replayable regression-test definition. Use `unknown` and
+mark human review required when the evidence cannot support a causal route.
+The run key incorporates the explainer revision and evidence digest so replay
+never overwrites an earlier explanation.
+After successful v2 ingestion, atomically record `observatory_run_id` so a
+later regression run can attach its result to this precise explanation.
 
 Create parent directories with `mkdir -p`.
 
@@ -149,6 +204,7 @@ If working from disk fallback (no claim IDs), use a sanitized claim hash as the 
 **Verdict:** {verdict} (confidence: {confidence}%)
 **Source file:** `{source_file}`
 **Root Cause:** `{category}`
+**Improvement Target:** `{skill|context|retrieval|workflow|tooling|model|human-source}`
 
 ## Evidence Gathered
 
@@ -168,7 +224,9 @@ If working from disk fallback (no claim IDs), use a sanitized claim hash as the 
 
 ### Primary: {category}
 
-{Detailed explanation of WHY the agent made this claim. Be specific — cite evidence from the sections above. For example: "The agent read architecture/rhoai-3.4/dashboard.md which describes OAuth2 proxy integration. However, the claim states 'dashboard uses mTLS for all service communication' — a detail that appears nowhere in the source document. The agent appears to have generated this detail from training data about common Kubernetes security patterns."}
+{Detailed evidence-backed explanation of why the agent made this claim and why
+this category fits better than the alternatives. Do not speculate about hidden
+model state or training data.}
 
 ### Contributing Factors
 - {Factor 1 — e.g., "Architecture context docs for rhoai-3.5 were not available"}
@@ -176,29 +234,39 @@ If working from disk fallback (no claim IDs), use a sanitized claim hash as the 
 
 ### Remediation
 {What could prevent this type of error — e.g., "Ensure architecture context includes the target version before running strat-create. Consider adding a verification step that checks claims against source files before finalizing the strategy document."}
+
+### Regression Test
+{A concrete replay or assertion that would demonstrate the remediation works}
 ```
 
 ## Step 6: POST Explanations to Observatory
 
-After writing disk reports, POST explanations to the Observatory API so they appear in the frontend.
+After writing disk reports, POST each machine-readable explanation to the
+immutable v2 API so it appears with the exact verification history.
 
 Build a JSON payload with all explanations from this run:
 
 ```bash
-cat <<'PAYLOAD' | curl -s -X POST "${observatory_url}/api/claims/explanations" \
+cat <<'PAYLOAD' | curl -s -X POST "${observatory_url}/api/v2/claims/explanation-runs" \
   -H "Content-Type: application/json" -d @-
 {
-  "explanations": [
-    {
-      "claim_id": 456,
-      "category": "training_data_hallucination",
-      "explanation": "The agent read architecture/rhoai-3.4/dashboard.md but the claim states 'dashboard uses mTLS for all service communication' — a detail that appears nowhere in the source. Generated from training data.",
-      "sources_used": [
-        {"type": "job_log", "path": "strat-create-rhaistrat-1676-opus-0610-143022"},
-        {"type": "artifact", "path": "strat-pipeline/RHAISTRAT-1676.md"},
-        {"type": "verification_log", "path": "verification/456.md"}
-      ]
-    }
+  "verification_run_id": 789,
+  "explainer_revision": "github.com/example/skills@abc123:explain-claims",
+  "repository_revision": "pinned repository commit",
+  "model": "resolved model identity",
+  "harness": "dashboard-jobs-api",
+  "configuration_digest": "sha256:...",
+  "category": "retrieval_failure",
+  "improvement_target": "architecture-context retrieval",
+  "explanation": "Execution evidence shows no retrieval of the required versioned source.",
+  "contributing_factors": ["the retriever searched only the default version"],
+  "alternative_explanations": ["the source may have been unavailable at execution time"],
+  "remediation": "Require the claim's product version in retrieval queries.",
+  "regression_test": "Replay and assert that the versioned source is read.",
+  "human_review_required": false,
+  "evidence": [
+    {"evidence_type": "job_log", "uri": "k8s://job/example", "relationship": "supports"},
+    {"evidence_type": "repository_file", "uri": "repo://architecture/dashboard.md", "relationship": "supports"}
   ]
 }
 PAYLOAD
@@ -207,21 +275,27 @@ PAYLOAD
 ### Constructing the payload
 
 For each analyzed claim:
-- **`claim_id`** — the numeric ID from the Observatory (from Step 1 fetch). Skip claims from disk fallback that have no ID.
-- **`category`** — the root cause category assigned in Step 4 (e.g., `training_data_hallucination`, `source_misinterpretation`).
-- **`explanation`** — the "Root Cause Analysis > Primary" section text from the Step 5 report. Keep it under 2000 characters.
-- **`sources_used`** — list of `{type, path}` objects for each evidence source actually used:
-  - `type: "job_log"` — K8s job name
-  - `type: "mlflow_trace"` — experiment/run path
-  - `type: "strace"` — strace file path
-  - `type: "artifact"` — source artifact file path
-  - `type: "verification_log"` — verification log path
+- **`verification_run_id`** — the exact immutable v2 run being explained.
+- **`model`, `harness`, and `configuration_digest`** — the resolved execution
+  identity used for revision- and configuration-aware comparisons.
+- **`category`** — the root cause category assigned in Step 4 (e.g., `retrieval_failure`, `source_misinterpretation`).
+- **`explanation`** — the primary analysis, improvement target, and regression test from Step 5. Keep it under 2000 characters.
+- **`evidence`** — structured evidence records for each source actually used:
+  - `evidence_type: "job_log"` with a `k8s://` URI
+  - `evidence_type: "mlflow_trace"` with experiment/run URI
+  - `evidence_type: "strace"` with artifact URI
+  - `evidence_type: "artifact"` with digest and source locator
+  - `evidence_type: "verification_log"` bound to the verification run
+  - use `relationship: "supports"` or `"against"` for causal attribution
 
 Only include sources that were actually found and used (not unavailable ones).
 
 ### Response
 
-The API returns `{"stored": N, "skipped": M}`. Log the result. If the API is unreachable, log a warning and continue — the disk reports from Step 5 are the durable fallback.
+The API returns `{"id": N}`. Atomically add that value to the JSON artifact as
+`observatory_run_id`. If the endpoint returns `404`, a legacy projection may be
+submitted to `/api/claims/explanations` but cannot satisfy the structured gate.
+For other failures, preserve the disk report and log it for retry.
 
 ## Step 7: Report Results
 
@@ -234,10 +308,10 @@ After processing all claims, output a summary:
 - **Root cause distribution:**
   | Category | Count | % |
   |----------|-------|---|
-  | training_data_hallucination | 5 | 42% |
+  | retrieval_failure | 5 | 42% |
   | source_misinterpretation | 3 | 25% |
-  | insufficient_context | 2 | 17% |
-  | context_confusion | 1 | 8% |
+  | context_gap | 2 | 17% |
+  | model_reasoning_error | 1 | 8% |
   | unknown | 1 | 8% |
 
 - **Evidence availability:**
@@ -249,12 +323,16 @@ After processing all claims, output a summary:
 
 | ID | Claim (truncated) | Verdict | Root Cause | Evidence Sources |
 |---|---|---|---|---|
-| 456 | "Component X uses mTLS on port 8443" | refuted | training_data_hallucination | logs, mlflow |
-| 789 | "Dashboard requires FIPS-validated TLS" | insufficient | insufficient_context | mlflow only |
+| 456 | "Component X uses mTLS on port 8443" | refuted | retrieval_failure | logs, mlflow |
+| 789 | "Dashboard requires FIPS-validated TLS" | insufficient | context_gap | mlflow only |
 
 ### Patterns Detected
-- {e.g., "4 of 5 hallucinations involve security-specific claims about components in rhoai-3.5, suggesting the model's training data contains outdated security patterns for these components"}
+- {e.g., "4 of 5 failures involve missing version-specific architecture lookups, suggesting the retrieval instructions need a version gate"}
 - {e.g., "All 3 misinterpretation cases involve the same source file strat-pipeline/RHAISTRAT-1676.md — the document may be ambiguously worded"}
 ```
 
-Always end with detected patterns — these are the most actionable output for improving the pipeline.
+Always end with detected patterns, improvement targets, and proposed regression
+tests. These are the feedback outputs that allow the platform to improve skills,
+context, retrieval, workflows, tools, models, policies, and human-owned sources.
+
+$ARGUMENTS

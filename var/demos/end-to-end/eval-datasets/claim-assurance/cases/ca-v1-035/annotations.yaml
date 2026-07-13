@@ -1,0 +1,14 @@
+case_id: ca-v1-035
+artifact_type: epic
+selection: verifiable
+ambiguity_status: none
+acceptable_claims:
+  - "Epic retains the source locator with each extracted occurrence."
+required_qualifiers:
+  []
+verifiable_elements:
+  - "Epic retains the source locator with each extracted occurrence."
+unverifiable_elements:
+  []
+tags:
+  - "list-preamble"

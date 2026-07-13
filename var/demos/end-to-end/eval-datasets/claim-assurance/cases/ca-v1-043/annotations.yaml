@@ -1,0 +1,14 @@
+case_id: ca-v1-043
+artifact_type: investigation
+selection: mixed
+ambiguity_status: none
+acceptable_claims:
+  - "Investigation records evidence digests."
+required_qualifiers:
+  []
+verifiable_elements:
+  - "Investigation records evidence digests."
+unverifiable_elements:
+  - "which is a wonderfully elegant design"
+tags:
+  - "subjective tail"

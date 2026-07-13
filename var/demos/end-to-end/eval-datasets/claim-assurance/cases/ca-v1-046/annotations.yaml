@@ -1,0 +1,14 @@
+case_id: ca-v1-046
+artifact_type: code_generation
+selection: verifiable
+ambiguity_status: none
+acceptable_claims:
+  - "Code generation currently overwrites the previous verification result."
+required_qualifiers:
+  - "currently"
+verifiable_elements:
+  - "Code generation currently overwrites the previous verification result."
+unverifiable_elements:
+  []
+tags:
+  - "current-state"

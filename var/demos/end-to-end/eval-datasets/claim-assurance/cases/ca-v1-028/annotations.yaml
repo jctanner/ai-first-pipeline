@@ -1,0 +1,14 @@
+case_id: ca-v1-028
+artifact_type: epic
+selection: verifiable
+ambiguity_status: none
+acceptable_claims:
+  - "Epic currently overwrites the previous verification result."
+required_qualifiers:
+  - "currently"
+verifiable_elements:
+  - "Epic currently overwrites the previous verification result."
+unverifiable_elements:
+  []
+tags:
+  - "current-state"

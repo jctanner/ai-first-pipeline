@@ -1,0 +1,14 @@
+case_id: ca-v1-038
+artifact_type: investigation
+selection: verifiable
+ambiguity_status: none
+acceptable_claims:
+  - "Investigation must preserve every verification result as an immutable run."
+required_qualifiers:
+  - "must"
+verifiable_elements:
+  - "Investigation must preserve every verification result as an immutable run."
+unverifiable_elements:
+  []
+tags:
+  - "requirement"

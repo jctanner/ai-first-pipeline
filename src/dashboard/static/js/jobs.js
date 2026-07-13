@@ -99,6 +99,7 @@ if (K8S_AVAILABLE) {
       if (document.getElementById('enable-strace').checked) args.strace = true;
       if (!document.getElementById('enable-mlflow').checked) args.mlflow = false;
       if (!document.getElementById('enable-otel').checked) args.otel = false;
+      if (!document.getElementById('enable-api-dump').checked) args.api_dump = false;
 
       const body = fqn ? { fqn, args } : { command: skill, args };
       const response = await fetch('/api/jobs/submit', {
@@ -227,6 +228,9 @@ if (K8S_AVAILABLE) {
       document.getElementById('modal-otel').innerHTML = job.otel !== false
         ? '<span class="text-green-600 dark:text-green-400">Enabled</span>'
         : '<span class="text-gray-400">Off</span>';
+      document.getElementById('modal-api-dump').innerHTML = job.api_dump !== false
+        ? '<span class="text-green-600 dark:text-green-400">Enabled</span>'
+        : '<span class="text-gray-400">Off</span>';
 
       const ekRow = document.getElementById('modal-extra-kwargs-row');
       if (job.extra_kwargs) {
@@ -262,12 +266,13 @@ if (K8S_AVAILABLE) {
         strace: !!job.strace,
         mlflow: job.mlflow !== false,
         otel: job.otel !== false,
+        api_dump: job.api_dump !== false,
       };
 
       // Action buttons
       const actionsEl = document.getElementById('modal-actions');
       let btns = '';
-      btns += `<button class="btn-rerun" onclick="modalRerun(window._rerunOpts.phase, window._rerunOpts.issue, window._rerunOpts.model, window._rerunOpts.runner, {fqn: window._rerunOpts.fqn, harness: window._rerunOpts.harness, extra_kwargs: window._rerunOpts.extra_kwargs, extra_env: window._rerunOpts.extra_env, force: window._rerunOpts.force, strace: window._rerunOpts.strace, mlflow: window._rerunOpts.mlflow, otel: window._rerunOpts.otel})">Re-run</button>`;
+      btns += `<button class="btn-rerun" onclick="modalRerun(window._rerunOpts.phase, window._rerunOpts.issue, window._rerunOpts.model, window._rerunOpts.runner, {fqn: window._rerunOpts.fqn, harness: window._rerunOpts.harness, extra_kwargs: window._rerunOpts.extra_kwargs, extra_env: window._rerunOpts.extra_env, force: window._rerunOpts.force, strace: window._rerunOpts.strace, mlflow: window._rerunOpts.mlflow, otel: window._rerunOpts.otel, api_dump: window._rerunOpts.api_dump})">Re-run</button>`;
       if (job.status === 'running' || job.status === 'pending') {
         btns += `<button class="btn-stop" onclick="modalStop('${jobName}')">Stop</button>`;
       }
@@ -323,7 +328,7 @@ if (K8S_AVAILABLE) {
           // Update actions (remove Stop button)
           const actionsEl = document.getElementById('modal-actions');
           let btns = '';
-          btns += `<button class="btn-rerun" onclick="modalRerun(window._rerunOpts.phase, window._rerunOpts.issue, window._rerunOpts.model, window._rerunOpts.runner, {fqn: window._rerunOpts.fqn, harness: window._rerunOpts.harness, extra_kwargs: window._rerunOpts.extra_kwargs, extra_env: window._rerunOpts.extra_env, force: window._rerunOpts.force, strace: window._rerunOpts.strace, mlflow: window._rerunOpts.mlflow, otel: window._rerunOpts.otel})">Re-run</button>`;
+          btns += `<button class="btn-rerun" onclick="modalRerun(window._rerunOpts.phase, window._rerunOpts.issue, window._rerunOpts.model, window._rerunOpts.runner, {fqn: window._rerunOpts.fqn, harness: window._rerunOpts.harness, extra_kwargs: window._rerunOpts.extra_kwargs, extra_env: window._rerunOpts.extra_env, force: window._rerunOpts.force, strace: window._rerunOpts.strace, mlflow: window._rerunOpts.mlflow, otel: window._rerunOpts.otel, api_dump: window._rerunOpts.api_dump})">Re-run</button>`;
           btns += `<button class="btn-delete" onclick="modalDelete('${jobName}')">Delete</button>`;
           actionsEl.innerHTML = btns;
 
@@ -395,6 +400,7 @@ if (K8S_AVAILABLE) {
     if (opts.strace) args.strace = true;
     if (opts.mlflow === false) args.mlflow = false;
     if (opts.otel === false) args.otel = false;
+    if (opts.api_dump === false) args.api_dump = false;
 
     const body = opts.fqn ? { fqn: opts.fqn, args } : { command: phase, args };
 

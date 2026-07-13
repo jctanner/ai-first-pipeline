@@ -1,0 +1,205 @@
+# Idempotent receipt wrapper for verification and explanation agent stages.
+
+name: run-claim-analysis-stage
+description: "Run {{ claim_stage }} for {{ claim_issue }} when dependencies changed"
+
+vars:
+  force_claims: false
+  claims_skill_revision: "unresolved"
+  claims_repository_revision: "unresolved"
+  claims_skill_execution_repo: "{{ claims_skill_repo }}"
+  claims_model: "claude-opus-4-6"
+  claims_harness: "claude-code"
+  claims_configuration_digest: "unresolved"
+  claims_evidence_revision: "runtime-default"
+  claims_git_extra_env: "{}"
+
+steps:
+  - name: check_stage_receipt
+    type: shell_exec
+    params:
+      command: |
+        MODE=check ISSUE="{{ claim_issue }}" STAGE="{{ claim_stage }}" \
+        SKILL_FQN="{{ claims_skill_repo }}:{{ claim_stage }}" \
+        SKILL_REVISION="{{ claims_skill_revision }}" MODEL="{{ claims_model }}" \
+        HARNESS="{{ claims_harness }}" \
+        CONFIGURATION_DIGEST="{{ claims_configuration_digest }}" \
+        EVIDENCE_REVISION="{{ claims_evidence_revision }}" \
+        FORCE_CLAIMS="{{ force_claims }}" python3 - <<'PY'
+        import hashlib, json, os, subprocess, tempfile
+        from datetime import datetime, timezone
+        from pathlib import Path
+
+        root = Path('/app/artifacts')
+        issue, stage = os.environ['ISSUE'].upper(), os.environ['STAGE']
+        input_dir = 'claims' if stage == 'verify-claims' else 'verification'
+        output_dir = 'verification' if stage == 'verify-claims' else 'explanations'
+        implementation = {
+            'skill_fqn': os.environ['SKILL_FQN'],
+            'skill_revision': os.environ['SKILL_REVISION'],
+            'model': os.environ['MODEL'],
+            'harness': os.environ['HARNESS'],
+            'configuration_digest': os.environ['CONFIGURATION_DIGEST'],
+        }
+        inputs = []
+        base = root / input_dir
+        if base.is_dir():
+            for path in base.rglob('*'):
+                if not path.is_file() or '.receipts' in path.parts:
+                    continue
+                if issue in path.as_posix().upper() or issue in path.read_text(errors='ignore').upper():
+                    inputs.append(path)
+        inputs.sort()
+        digest = hashlib.sha256(json.dumps(implementation, sort_keys=True).encode())
+        configured_evidence_revision = os.environ['EVIDENCE_REVISION']
+        actual_evidence_revision = configured_evidence_revision
+        context_repo = root.parent / '.context' / 'architecture-context'
+        if (context_repo / '.git').exists():
+            actual_evidence_revision = subprocess.run(
+                ['git', '-C', str(context_repo), 'rev-parse', 'HEAD'],
+                check=True, capture_output=True, text=True).stdout.strip()
+        evidence_context = hashlib.sha256(
+            actual_evidence_revision.encode())
+        for path in inputs:
+            content_digest = hashlib.sha256(path.read_bytes()).digest()
+            digest.update(path.relative_to(root).as_posix().encode() + b'\0' + content_digest)
+            evidence_context.update(content_digest)
+        input_digest = 'sha256:' + digest.hexdigest()
+        evidence_digest = 'sha256:' + evidence_context.hexdigest()
+        receipt_path = root / output_dir / '.receipts' / f'{issue}.json'
+        reusable, reason = False, 'receipt-missing'
+        if os.environ['FORCE_CLAIMS'].lower() in {'1', 'true', 'yes', 'on'}:
+            reason = 'forced'
+        elif receipt_path.is_file():
+            try:
+                receipt = json.loads(receipt_path.read_text())
+                reusable = all([
+                    receipt.get('schema_version') == 2,
+                    receipt.get('result') == 'complete',
+                    receipt.get('stage') == stage,
+                    receipt.get('scope') == {'issue': issue},
+                    receipt.get('implementation') == implementation,
+                    receipt.get('inputs', {}).get('digest') == input_digest,
+                    receipt.get('inputs', {}).get('evidence_context_digest') == evidence_digest,
+                    all((root / path).is_file()
+                        for path in receipt.get('outputs', {}).get('artifacts', [])),
+                ])
+                reason = 'receipt-current' if reusable else 'dependency-changed'
+            except (OSError, json.JSONDecodeError):
+                reason = 'receipt-invalid'
+        print(json.dumps({'reusable': reusable, 'reason': reason,
+                          'input_digest': input_digest,
+                          'evidence_context_digest': evidence_digest,
+                          'evidence_revision': actual_evidence_revision,
+                          'inputs': [p.relative_to(root).as_posix() for p in inputs],
+                          'receipt_path': receipt_path.as_posix()}))
+        PY
+    register: stage_receipt_check
+
+  - name: set_stage_receipt
+    type: set_fact
+    vars:
+      stage_receipt: "{{ stage_receipt_check.stdout | fromjson }}"
+
+  - name: record_stage_receipt
+    type: observatory_api
+    params:
+      path: /api/v2/claims/stage-receipts
+      method: POST
+      body:
+        stage: "{{ claim_stage }}"
+        scope_key: "{{ claim_issue }}"
+        input_digest: "{{ stage_receipt.input_digest }}"
+        evidence_context_digest: "{{ stage_receipt.evidence_context_digest }}"
+        skill_fqn: "{{ claims_skill_repo }}:{{ claim_stage }}"
+        skill_revision: "{{ claims_skill_revision }}"
+        model: "{{ claims_model }}"
+        harness: "{{ claims_harness }}"
+        configuration_digest: "{{ claims_configuration_digest }}"
+        status: "{{ 'hit' if stage_receipt.reusable else 'miss' }}"
+        agent_job_avoided: "{{ stage_receipt.reusable }}"
+        details:
+          reason: "{{ stage_receipt.reason }}"
+          evidence_revision: "{{ stage_receipt.evidence_revision }}"
+          repository_revision: "{{ claims_repository_revision }}"
+
+  - name: run_stage
+    when: "not stage_receipt.reusable"
+    workflow: run-skill
+    vars:
+      skill_fqn: "{{ claims_skill_execution_repo }}:{{ claim_stage }}"
+      skill_issue: "{{ claim_issue }}"
+      skill_model: "{{ claims_model }}"
+      skill_harness: "{{ claims_harness }}"
+      skill_extra_env: "{{ claims_git_extra_env }}"
+      skill_extra_kwargs: "implementation_revision={{ claims_skill_revision }} repository_revision={{ claims_repository_revision }} model={{ claims_model }} harness={{ claims_harness }} configuration_digest={{ claims_configuration_digest }} evidence_revision={{ stage_receipt.evidence_revision }} evidence_context_digest={{ stage_receipt.evidence_context_digest }}"
+
+  - name: write_stage_receipt
+    when: "not stage_receipt.reusable"
+    type: shell_exec
+    params:
+      command: |
+        ISSUE="{{ claim_issue }}" STAGE="{{ claim_stage }}" \
+        SKILL_FQN="{{ claims_skill_repo }}:{{ claim_stage }}" \
+        SKILL_REVISION="{{ claims_skill_revision }}" MODEL="{{ claims_model }}" \
+        REPOSITORY_REVISION="{{ claims_repository_revision }}" \
+        HARNESS="{{ claims_harness }}" \
+        CONFIGURATION_DIGEST="{{ claims_configuration_digest }}" \
+        EVIDENCE_REVISION="{{ stage_receipt.evidence_revision }}" \
+        INPUT_DIGEST="{{ stage_receipt.input_digest }}" \
+        EVIDENCE_DIGEST="{{ stage_receipt.evidence_context_digest }}" python3 - <<'PY'
+        import json, os, tempfile
+        from datetime import datetime, timezone
+        from pathlib import Path
+
+        root, issue, stage = Path('/app/artifacts'), os.environ['ISSUE'].upper(), os.environ['STAGE']
+        output_dir = 'verification' if stage == 'verify-claims' else 'explanations'
+        outputs = []
+        observatory_run_ids = []
+        base = root / output_dir
+        if base.is_dir():
+            for path in base.rglob('*'):
+                if path.is_file() and '.receipts' not in path.parts and (
+                        issue in path.as_posix().upper() or
+                        issue in path.read_text(errors='ignore').upper()):
+                    outputs.append(path.relative_to(root).as_posix())
+                    if path.suffix == '.json':
+                        try:
+                            value = json.loads(path.read_text())
+                        except (OSError, json.JSONDecodeError):
+                            value = {}
+                        for key in ('observatory_run_id', 'verification_run_id',
+                                    'explanation_run_id'):
+                            if value.get(key) is not None:
+                                observatory_run_ids.append(value[key])
+        receipt = {
+            'schema_version': 2, 'stage': stage, 'scope': {'issue': issue},
+            'implementation': {
+                'skill_fqn': os.environ['SKILL_FQN'],
+                'skill_revision': os.environ['SKILL_REVISION'],
+                'model': os.environ['MODEL'],
+                'harness': os.environ['HARNESS'],
+                'configuration_digest': os.environ['CONFIGURATION_DIGEST'],
+            },
+            'provenance': {
+                'repository_revision': os.environ['REPOSITORY_REVISION'],
+            },
+            'inputs': {'digest': os.environ['INPUT_DIGEST'],
+                       'evidence_context_digest': os.environ['EVIDENCE_DIGEST'],
+                       'evidence_revision': os.environ['EVIDENCE_REVISION']},
+            'outputs': {'artifacts': sorted(outputs),
+                        'observatory_run_ids': sorted(set(observatory_run_ids))},
+            'result': 'complete',
+            'completed_at': datetime.now(timezone.utc).isoformat(),
+        }
+        path = base / '.receipts' / f'{issue}.json'
+        path.parent.mkdir(parents=True, exist_ok=True)
+        fd, temporary = tempfile.mkstemp(prefix=f'.{path.name}.', dir=path.parent)
+        try:
+            with os.fdopen(fd, 'w') as stream:
+                json.dump(receipt, stream, indent=2, sort_keys=True); stream.write('\n')
+            os.replace(temporary, path)
+        finally:
+            if os.path.exists(temporary): os.unlink(temporary)
+        print(json.dumps({'receipt_path': path.as_posix(), 'outputs': len(outputs)}))
+        PY

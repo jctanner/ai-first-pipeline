@@ -1,0 +1,17 @@
+case_id: ca-v1-021
+artifact_type: security_review
+selection: verifiable
+ambiguity_status: none
+acceptable_claims:
+  - "A review queue is proposed for Security review."
+  - "The review queue is not available in the current release of Security review."
+required_qualifiers:
+  - "proposed"
+  - "current release"
+verifiable_elements:
+  - "A review queue is proposed for Security review."
+  - "The review queue is not available in the current release of Security review."
+unverifiable_elements:
+  []
+tags:
+  - "proposal-current-state"

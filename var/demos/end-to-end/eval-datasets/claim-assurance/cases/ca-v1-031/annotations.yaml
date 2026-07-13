@@ -1,0 +1,14 @@
+case_id: ca-v1-031
+artifact_type: epic
+selection: verifiable
+ambiguity_status: none
+acceptable_claims:
+  - "Epic does not treat a missing document as evidence that a claim is false."
+required_qualifiers:
+  - "does not"
+verifiable_elements:
+  - "Epic does not treat a missing document as evidence that a claim is false."
+unverifiable_elements:
+  []
+tags:
+  - "negation"

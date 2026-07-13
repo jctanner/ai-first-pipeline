@@ -12,6 +12,9 @@
 # Optional vars:
 #   skill_extra_kwargs — space-separated key=value pairs for prompt inputs
 #   skill_extra_env    — JSON object string of env vars to inject into the pod
+#   skill_model        — resolved model ID (default: claude-opus-4-6)
+#   skill_runner       — runner transport (default: cli)
+#   skill_harness      — agent harness (default: claude-code)
 
 name: run-skill
 description: "Submit a skill job and wait for completion"
@@ -19,6 +22,9 @@ description: "Submit a skill job and wait for completion"
 vars:
   skill_extra_kwargs: ""
   skill_extra_env: "{}"
+  skill_model: "claude-opus-4-6"
+  skill_runner: "cli"
+  skill_harness: "claude-code"
 
 steps:
 
@@ -29,12 +35,13 @@ steps:
         fqn: "{{ skill_fqn }}"
         args:
           issue: "{{ skill_issue }}"
-          model: opus
-          runner: cli
-          harness: claude-code
+          model: "{{ skill_model }}"
+          runner: "{{ skill_runner }}"
+          harness: "{{ skill_harness }}"
           strace: true
           mlflow: true
           otel: true
+          api_dump: true
           extra_kwargs: "{{ skill_extra_kwargs }}"
           extra_env: "{{ skill_extra_env | tojson }}"
     register: submitted_job

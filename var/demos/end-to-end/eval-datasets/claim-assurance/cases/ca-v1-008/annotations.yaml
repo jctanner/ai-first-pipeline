@@ -1,0 +1,14 @@
+case_id: ca-v1-008
+artifact_type: rfe
+selection: verifiable
+ambiguity_status: none
+acceptable_claims:
+  - "RFE retains the source locator with each extracted occurrence."
+required_qualifiers:
+  []
+verifiable_elements:
+  - "RFE retains the source locator with each extracted occurrence."
+unverifiable_elements:
+  []
+tags:
+  - "list-preamble"

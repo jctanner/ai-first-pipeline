@@ -88,6 +88,7 @@ if (K8S_AVAILABLE) {
       if (document.getElementById('eval-strace').checked) body.strace = true;
       if (!document.getElementById('eval-mlflow').checked) body.mlflow = false;
       if (!document.getElementById('eval-otel').checked) body.otel = false;
+      if (!document.getElementById('eval-api-dump').checked) body.api_dump = false;
 
       const response = await fetch('/api/evals/submit', {
         method: 'POST',
@@ -214,6 +215,9 @@ if (K8S_AVAILABLE) {
       document.getElementById('eval-modal-otel').innerHTML = job.otel !== false
         ? '<span class="text-green-600 dark:text-green-400">Enabled</span>'
         : '<span class="text-gray-400">Off</span>';
+      document.getElementById('eval-modal-api-dump').innerHTML = job.api_dump !== false
+        ? '<span class="text-green-600 dark:text-green-400">Enabled</span>'
+        : '<span class="text-gray-400">Off</span>';
 
       window._evalRerunOpts = {
         dataset_fqn: job.dataset_fqn || '',
@@ -226,6 +230,7 @@ if (K8S_AVAILABLE) {
         strace: !!job.strace,
         mlflow: job.mlflow !== false,
         otel: job.otel !== false,
+        api_dump: job.api_dump !== false,
       };
 
       const actionsEl = document.getElementById('eval-modal-actions');
@@ -354,6 +359,7 @@ if (K8S_AVAILABLE) {
     document.getElementById('eval-strace').checked = !!opts.strace;
     document.getElementById('eval-mlflow').checked = opts.mlflow !== false;
     document.getElementById('eval-otel').checked = opts.otel !== false;
+    document.getElementById('eval-api-dump').checked = opts.api_dump !== false;
 
     closeEvalModal();
     document.getElementById('eval-submit-form').scrollIntoView({ behavior: 'smooth' });

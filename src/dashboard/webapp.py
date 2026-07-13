@@ -918,6 +918,7 @@ def create_app() -> Flask:
                     "strace": job.metadata.labels.get("strace", "false") == "true",
                     "mlflow": job.metadata.labels.get("mlflow", "true") == "true",
                     "otel": job.metadata.labels.get("otel", "true") == "true",
+                    "api_dump": job.metadata.labels.get("api-dump", "true") == "true",
                     "extra_kwargs": (job.metadata.annotations or {}).get("extra_kwargs", ""),
                     "fqn": (job.metadata.annotations or {}).get("fqn", ""),
                 })
@@ -1029,7 +1030,8 @@ def create_app() -> Flask:
           "baseline": "",
           "strace": true,
           "mlflow": true,
-          "otel": true
+          "otel": true,
+          "api_dump": true
         }
         """
         if not K8S_AVAILABLE:
@@ -1062,6 +1064,8 @@ def create_app() -> Flask:
                 args["mlflow"] = False
             if data.get("otel") is False:
                 args["otel"] = False
+            if data.get("api_dump") is False:
+                args["api_dump"] = False
 
             orchestrator = get_orchestrator()
             job = orchestrator.submit_eval_job(
@@ -1111,6 +1115,7 @@ def create_app() -> Flask:
                     "strace": labels.get("strace", "false") == "true",
                     "mlflow": labels.get("mlflow", "true") == "true",
                     "otel": labels.get("otel", "true") == "true",
+                    "api_dump": labels.get("api-dump", "true") == "true",
                 })
 
             return jsonify(results)

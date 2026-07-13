@@ -1,0 +1,14 @@
+case_id: ca-v1-019
+artifact_type: security_review
+selection: verifiable
+ambiguity_status: none
+acceptable_claims:
+  - "Security review currently overwrites the previous verification result."
+required_qualifiers:
+  - "currently"
+verifiable_elements:
+  - "Security review currently overwrites the previous verification result."
+unverifiable_elements:
+  []
+tags:
+  - "current-state"

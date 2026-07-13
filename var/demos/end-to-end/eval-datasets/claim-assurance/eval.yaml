@@ -1,0 +1,82 @@
+name: claim-assurance
+description: Evaluate staged factual-claim selection, ambiguity handling, and decomposition.
+skill: extract-claims
+
+execution:
+  mode: case
+  arguments: "--headless --force artifact_filter=artifacts/{artifact_file}"
+  timeout: 900
+  max_budget_usd: 3.0
+
+runner:
+  type: claude-code
+  effort: high
+
+models:
+  skill: claude-opus-4-6
+  judge: claude-opus-4-6
+
+mlflow:
+  experiment: claim-assurance
+  tags:
+    dataset_version: v1
+
+permissions:
+  deny: ["mcp__*"]
+
+dataset:
+  path: cases
+  workspace:
+    files: [artifacts]
+  schema: |
+    Each case has input.yaml with artifact_file and prompt, an artifacts
+    directory containing one Markdown source artifact, and annotations.yaml
+    describing expected selection, ambiguity, acceptable claims, required
+    qualifiers, and verifiable/unverifiable elements.
+
+outputs:
+  - path: artifacts/claims
+    schema: |
+      The authoritative *.extraction.json contains all source units and durable
+      selection, ambiguity, decomposition, entailment, coverage, and
+      decontextualization results. A flattened *.claims.json may accompany it.
+
+traces:
+  stdout: true
+  stderr: true
+  events: true
+  metrics: true
+
+judges:
+  - name: staged_output_valid
+    description: Require structured staged output rather than a flattened-only result.
+    check: |
+      files = outputs.get("files", {})
+      staged = [value for path, value in files.items() if path.endswith(".extraction.json")]
+      if not staged:
+          return False, "No staged .extraction.json output"
+      return True, f"Found {len(staged)} staged output file(s)"
+
+  - name: selection_ambiguity_and_claim_quality
+    description: Compare stage decisions and claims with the reviewed annotations.
+    prompt: |
+      Evaluate the staged extraction output against annotations. Selection and
+      ambiguity must match. Every expected verifiable element must be covered,
+      unverifiable elements must not become claims, exact modality/version/
+      negation qualifiers must survive, and unresolved ambiguity must abstain.
+      Score 1-5 and explain every mismatch.
+
+  - name: extraction_entailment
+    description: Judge whether every accepted claim follows from the supplied source unit and context.
+    prompt: |
+      For each emitted claim, judge only source entailment—not external factual
+      truth. Score 1-5. Any invented qualifier, changed modality, or unsupported
+      decontextualization limits the case to 2.
+
+thresholds:
+  staged_output_valid:
+    min_pass_rate: 1.0
+  selection_ambiguity_and_claim_quality:
+    min_mean: 4.0
+  extraction_entailment:
+    min_mean: 4.5

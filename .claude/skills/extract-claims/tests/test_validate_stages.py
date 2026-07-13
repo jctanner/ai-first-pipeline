@@ -1,0 +1,119 @@
+import importlib.util
+from pathlib import Path
+
+
+SCRIPT = Path(__file__).parents[1] / "scripts" / "validate-stages.py"
+SPEC = importlib.util.spec_from_file_location("validate_stages", SCRIPT)
+MODULE = importlib.util.module_from_spec(SPEC)
+SPEC.loader.exec_module(MODULE)
+
+
+def document(units):
+    return {
+        "run_key": "run:test", "source_file": "test.md",
+        "pipeline_slug": "test", "extractor_revision": "extract@test",
+        "units": units,
+    }
+
+
+def valid_unit():
+    return {
+        "source_unit": {
+            "unit_key": "u1", "unit_kind": "sentence",
+            "source_locator": "test.md:L1-L1",
+            "original_text": "The API retains immutable verification history.",
+        },
+        "selection": {
+            "classification": "verifiable", "evaluator_revision": "selection@test"
+        },
+        "ambiguity": {"status": "none", "evaluator_revision": "ambiguity@test"},
+        "claims": [{
+            "claim_text": "The API retains immutable verification history.",
+            "claim_type": "architectural",
+            "original_text": "The API retains immutable verification history.",
+            "accepted": True,
+            "evaluation": {
+                "entailed": True,
+                "evaluator_revision": "evaluation@test",
+                "coverage_result": "complete",
+                "decontextualization_result": "self_contained",
+                "evidence": [{
+                    "evidence_type": "source_unit",
+                    "source_locator": "test.md:L1-L1",
+                }],
+                "coverage_elements": [{
+                    "element_text": "retains immutable verification history",
+                    "element_kind": "verifiable",
+                    "coverage": "explicit",
+                }],
+            },
+        }],
+    }
+
+
+def test_accepts_fully_evaluated_stages():
+    assert MODULE.validate(document([valid_unit()])) == []
+
+
+def test_rejects_claims_from_unresolved_unit():
+    unit = valid_unit()
+    unit["ambiguity"]["status"] = "unresolved"
+    assert "unresolved units cannot emit claims" in " ".join(
+        MODULE.validate(document([unit]))
+    )
+
+
+def test_rejects_non_entailed_claim():
+    unit = valid_unit()
+    unit["claims"][0]["evaluation"]["entailed"] = False
+    assert "cannot accept a non-entailed claim" in " ".join(
+        MODULE.validate(document([unit]))
+    )
+
+
+def test_preserves_rejected_non_entailed_candidate_for_audit():
+    unit = valid_unit()
+    unit["claims"][0]["evaluation"]["entailed"] = False
+    unit["claims"][0]["accepted"] = False
+    assert MODULE.validate(document([unit])) == []
+
+
+def test_accepts_empty_and_abstained_outputs():
+    assert MODULE.validate(document([])) == []
+    unit = valid_unit()
+    unit["selection"]["classification"] = "unverifiable"
+    unit["ambiguity"] = None
+    unit["claims"] = []
+    assert MODULE.validate(document([unit])) == []
+
+
+def test_selected_unit_requires_ambiguity_result():
+    unit = valid_unit()
+    unit["ambiguity"] = None
+    assert "ambiguity is required" in " ".join(MODULE.validate(document([unit])))
+
+
+def test_rejects_unmeasurable_coverage_and_context_results():
+    unit = valid_unit()
+    unit["claims"][0]["evaluation"]["coverage_elements"] = []
+    unit["claims"][0]["evaluation"]["decontextualization_result"] = None
+    errors = " ".join(MODULE.validate(document([unit])))
+    assert "coverage_elements is required" in errors
+    assert "decontextualization_result is invalid" in errors
+
+
+def test_rejects_non_exact_source_excerpt():
+    unit = valid_unit()
+    unit["claims"][0]["original_text"] = "The API maybe retains history."
+    assert "not an exact bounded-source excerpt" in " ".join(
+        MODULE.validate(document([unit]))
+    )
+
+
+def test_mixed_and_resolved_stages_require_durable_resolution_text():
+    unit = valid_unit()
+    unit["selection"]["classification"] = "mixed"
+    unit["ambiguity"]["status"] = "resolved"
+    errors = " ".join(MODULE.validate(document([unit])))
+    assert "selected_text is required" in errors
+    assert "clarified_text is required" in errors

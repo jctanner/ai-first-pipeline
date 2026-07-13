@@ -1,0 +1,15 @@
+case_id: ca-v1-036
+artifact_type: epic
+selection: unverifiable
+ambiguity_status: none
+acceptable_claims:
+  []
+required_qualifiers:
+  []
+verifiable_elements:
+  []
+unverifiable_elements:
+  - "probably"
+  - "favorite"
+tags:
+  []

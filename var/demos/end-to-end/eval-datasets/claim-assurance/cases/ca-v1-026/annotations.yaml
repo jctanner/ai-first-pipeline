@@ -1,0 +1,14 @@
+case_id: ca-v1-026
+artifact_type: security_review
+selection: verifiable
+ambiguity_status: none
+acceptable_claims:
+  - "Security review retains the source locator with each extracted occurrence."
+required_qualifiers:
+  []
+verifiable_elements:
+  - "Security review retains the source locator with each extracted occurrence."
+unverifiable_elements:
+  []
+tags:
+  - "list-preamble"

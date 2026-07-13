@@ -1,0 +1,14 @@
+case_id: ca-v1-015
+artifact_type: strategy
+selection: verifiable
+ambiguity_status: unresolved
+acceptable_claims:
+  []
+required_qualifiers:
+  []
+verifiable_elements:
+  []
+unverifiable_elements:
+  []
+tags:
+  - "referential ambiguity"

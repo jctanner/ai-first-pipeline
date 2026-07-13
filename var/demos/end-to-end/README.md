@@ -90,6 +90,19 @@ $CLI runs create var-demos-end-to-end \
   --workflow run-epic \
   --var strat_issue=RHAISTRAT-1 \
   --wait
+
+# Extract, verify, and explain claims for the RFE and all descendants
+$CLI runs create var-demos-end-to-end \
+  --workflow run-claims \
+  --var rfe_issue=RHAIRFE-1 \
+  --wait
+
+# Ignore extraction receipts and rebuild claims for every issue
+$CLI runs create var-demos-end-to-end \
+  --workflow run-claims \
+  --var rfe_issue=RHAIRFE-1 \
+  --var force_claims=true \
+  --wait
 ```
 
 The local Markov CLI and Make targets remain available:
@@ -142,7 +155,35 @@ main
 Each skill is submitted through the pipeline dashboard. Markov then watches
 the resulting Kubernetes Job until it completes or fails and captures its pod
 logs. Skill jobs enable strace, MLflow, and OpenTelemetry by default and
-currently use the Claude Code CLI harness with the `opus` model setting.
+currently use the Claude Code CLI harness with the resolved
+`claude-opus-4-6` model identity.
+
+### Claim assurance, gates, and receipts
+
+`run-claims` segments artifacts, records selection and ambiguity decisions,
+evaluates source entailment and coverage, then gates factual verification.
+Unresolved ambiguity, omitted verifiable content, or failed entailment routes
+the run to review. Verification separately pauses on missing structured output,
+high-severity contradictions, and cross-verifier disagreement. An explicit
+override requires an actor and rationale and is written to Observatory.
+
+Extraction, verification, and explanation each write schema-v2 receipts under
+their artifact directory's `.receipts/`. Receipts include the stage-specific
+Git tree identity, its containing repository commit, model, harness,
+configuration, source/evidence digests, outputs, and Observatory run IDs. Jobs
+execute a
+commit-pinned FQN, while reuse compares the stage tree; changing only the
+verifier therefore preserves extraction and invalidates verification plus
+explanation. Changing a source invalidates extraction and its descendants,
+changing architecture evidence invalidates verification and explanation, and
+changing only the explainer invalidates explanation. Receipt hits are also sent to
+Observatory so the UI can report avoided agent jobs. `force_claims=true`
+bypasses all three stages.
+
+Reset publishes the 54-case executable corpus to the emulator's
+`eval-datasets` repository. Set `run_claim_regression=true` after a skill or
+context change to submit `claim-assurance/eval.yaml` through the dashboard's
+agent-eval-harness API. Use `claim_assurance_enforce=false` for shadow rollout.
 
 ## Variables
 
@@ -153,6 +194,11 @@ Defaults are defined in `vars.yaml`. The most useful run overrides are:
 | `seed_rfe` | `true` | Create the demo RFE after reset |
 | `run_pipeline` | `true` | Run the complete RFE-to-code pipeline |
 | `rfe_issue` | `RHAIRFE-1` | RFE processed by the pipeline |
+| `claims_skill_repo` | `github.local/jctanner/ai-first-pipeline@main` | Logical source FQN containing the three claims skills; execution pins its resolved commit |
+| `force_claims` | `false` | Ignore extraction receipts and rerun every issue |
+| `claim_assurance_enforce` | `true` | Enforce quality gates; set false for shadow mode |
+| `run_claim_regression` | `false` | Submit the claim-assurance regression corpus after explanation |
+| `claim_human_override` | `false` | Permit progression after an audited verification override |
 | `org` | `opendatahub-io` | Organization in the GitHub emulator |
 | `fork_owner` | `opendatahub-io` | Fork owner supplied to code generation |
 | `codegen_target_repo` | `odh-cli` | Repository targeted by generated code |
@@ -181,9 +227,13 @@ repositories; they are not entries in `repos` because they have no upstream.
   independently runnable phases.
 - `workflows/run-epic-*.yaml` implement decomposition, investigation, and code
   generation.
+- `workflows/run-claims.yaml` discovers the RFE issue tree and coordinates
+  extraction, verification, and explanation.
+- `workflows/run-claim-extraction.yaml` checks and writes per-issue extraction
+  receipts around the agent job.
 - `workflows/run-skill.yaml` submits agent jobs and waits for their Kubernetes
   Jobs.
 - `workflows/reset-*.yaml` and `seed-*.yaml` prepare the demo environment.
 - `step_types/` defines Jira, GitHub, Observatory, dashboard, agent submission,
   and Kubernetes job-wait adapters.
-- `rules.yaml` is currently empty.
+- `rules.yaml` defines extraction, verification, shadow-mode, and override gates.

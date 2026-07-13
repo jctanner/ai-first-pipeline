@@ -1,0 +1,17 @@
+case_id: ca-v1-039
+artifact_type: investigation
+selection: verifiable
+ambiguity_status: none
+acceptable_claims:
+  - "A review queue is proposed for Investigation."
+  - "The review queue is not available in the current release of Investigation."
+required_qualifiers:
+  - "proposed"
+  - "current release"
+verifiable_elements:
+  - "A review queue is proposed for Investigation."
+  - "The review queue is not available in the current release of Investigation."
+unverifiable_elements:
+  []
+tags:
+  - "proposal-current-state"

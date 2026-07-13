@@ -1,0 +1,14 @@
+case_id: ca-v1-037
+artifact_type: investigation
+selection: verifiable
+ambiguity_status: none
+acceptable_claims:
+  - "Investigation currently overwrites the previous verification result."
+required_qualifiers:
+  - "currently"
+verifiable_elements:
+  - "Investigation currently overwrites the previous verification result."
+unverifiable_elements:
+  []
+tags:
+  - "current-state"

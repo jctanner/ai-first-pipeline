@@ -1,0 +1,17 @@
+case_id: ca-v1-003
+artifact_type: rfe
+selection: verifiable
+ambiguity_status: none
+acceptable_claims:
+  - "A review queue is proposed for RFE."
+  - "The review queue is not available in the current release of RFE."
+required_qualifiers:
+  - "proposed"
+  - "current release"
+verifiable_elements:
+  - "A review queue is proposed for RFE."
+  - "The review queue is not available in the current release of RFE."
+unverifiable_elements:
+  []
+tags:
+  - "proposal-current-state"

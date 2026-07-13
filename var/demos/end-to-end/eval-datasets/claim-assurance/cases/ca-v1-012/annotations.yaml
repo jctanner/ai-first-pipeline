@@ -1,0 +1,17 @@
+case_id: ca-v1-012
+artifact_type: strategy
+selection: verifiable
+ambiguity_status: none
+acceptable_claims:
+  - "A review queue is proposed for Strategy."
+  - "The review queue is not available in the current release of Strategy."
+required_qualifiers:
+  - "proposed"
+  - "current release"
+verifiable_elements:
+  - "A review queue is proposed for Strategy."
+  - "The review queue is not available in the current release of Strategy."
+unverifiable_elements:
+  []
+tags:
+  - "proposal-current-state"

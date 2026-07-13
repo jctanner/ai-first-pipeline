@@ -1,0 +1,328 @@
+# Per-issue idempotent claim extraction. A current receipt skips the agent job.
+
+name: run-claim-extraction
+description: "Extract claims for {{ claim_issue }} when inputs are stale"
+
+vars:
+  force_claims: false
+  claims_skill_revision: "unresolved"
+  claims_repository_revision: "unresolved"
+  claims_skill_execution_repo: "{{ claims_skill_repo }}"
+  claims_model: "claude-opus-4-6"
+  claims_harness: "claude-code"
+  claims_configuration_digest: "unresolved"
+  claims_segmentation_version: "claim-segmentation-v1"
+  claims_preceding_context_units: 1
+  claims_following_context_units: 1
+  claims_git_extra_env: "{}"
+
+steps:
+
+  - name: check_receipt
+    type: shell_exec
+    params:
+      command: |
+        ISSUE="{{ claim_issue }}" \
+        SKILL_FQN="{{ claims_skill_repo }}:extract-claims" \
+        SKILL_REVISION="{{ claims_skill_revision }}" \
+        MODEL="{{ claims_model }}" \
+        HARNESS="{{ claims_harness }}" \
+        CONFIGURATION_DIGEST="{{ claims_configuration_digest }}" \
+        FORCE_CLAIMS="{{ force_claims }}" \
+        python3 - <<'PY'
+        import hashlib, json, os
+        from pathlib import Path
+
+        root = Path('/app/artifacts')
+        issue = os.environ['ISSUE'].upper()
+        skill_fqn = os.environ['SKILL_FQN']
+        skill_revision = os.environ['SKILL_REVISION']
+        model = os.environ['MODEL']
+        harness = os.environ['HARNESS']
+        configuration_digest = os.environ['CONFIGURATION_DIGEST']
+        force = os.environ['FORCE_CLAIMS'].lower() in {'1', 'true', 'yes', 'on'}
+        skip_dirs = {'.git', 'claims', 'verification', 'explanations'}
+
+        def included(path):
+            rel = path.relative_to(root)
+            if issue not in rel.as_posix().upper():
+                return False
+            if any(p.startswith('.') or p in skip_dirs for p in rel.parts):
+                return False
+            if 'strat-originals' in rel.parts or 'ci-jobs' in rel.parts:
+                return False
+            return '-strat-text.md' not in path.name and path.name not in {
+                'README.md', 'strat-rubric.md'}
+
+        inputs = sorted(p for p in root.rglob('*.md') if p.is_file() and included(p))
+        digest = hashlib.sha256()
+        implementation = {
+            'skill_fqn': skill_fqn,
+            'skill_revision': skill_revision,
+            'model': model,
+            'harness': harness,
+            'configuration_digest': configuration_digest,
+        }
+        digest.update(b'claim-receipt-v2\0')
+        digest.update(json.dumps(implementation, sort_keys=True).encode())
+        digest.update(b'\0')
+        for path in inputs:
+            digest.update(path.relative_to(root).as_posix().encode())
+            digest.update(b'\0')
+            digest.update(hashlib.sha256(path.read_bytes()).digest())
+        input_digest = f'sha256:{digest.hexdigest()}'
+        receipt_path = root / 'claims' / '.receipts' / f'{issue}.json'
+
+        reusable = False
+        reason = 'receipt-missing'
+        if force:
+            reason = 'forced'
+        elif receipt_path.is_file():
+            try:
+                receipt = json.loads(receipt_path.read_text())
+            except (OSError, json.JSONDecodeError):
+                reason = 'receipt-invalid'
+            else:
+                checks = [
+                    (receipt.get('result') == 'complete', 'receipt-incomplete'),
+                    (receipt.get('schema_version') == 2, 'schema-changed'),
+                    (receipt.get('stage') == 'extract-claims', 'stage-changed'),
+                    (receipt.get('scope') == {'issue': issue}, 'scope-changed'),
+                    (receipt.get('implementation') == implementation,
+                     'implementation-changed'),
+                    (receipt.get('inputs', {}).get('digest') == input_digest,
+                     'inputs-changed'),
+                    (all((root / path).is_file()
+                         for path in receipt.get('outputs', {}).get('artifacts', [])),
+                     'outputs-missing'),
+                ]
+                failure = next((name for ok, name in checks if not ok), None)
+                if failure:
+                    reason = failure
+                else:
+                    reusable = True
+                    reason = 'receipt-current'
+
+        print(json.dumps({
+            'issue': issue,
+            'skill_fqn': skill_fqn,
+            'implementation': implementation,
+            'input_digest': input_digest,
+            'input_artifacts': [p.relative_to(root).as_posix() for p in inputs],
+            'receipt_path': receipt_path.as_posix(),
+            'reusable': reusable,
+            'reason': reason,
+        }))
+        PY
+    register: receipt_check
+
+  - name: set_receipt_state
+    type: set_fact
+    vars:
+      receipt: "{{ receipt_check.stdout | fromjson }}"
+
+  - name: report_receipt_hit
+    type: shell_exec
+    when: "receipt.reusable"
+    params:
+      command: |
+        echo "Skipping claim extraction for {{ claim_issue }}: {{ receipt.reason }}"
+
+  - name: record_receipt_hit
+    type: observatory_api
+    when: "receipt.reusable"
+    params:
+      path: /api/v2/claims/stage-receipts
+      method: POST
+      body:
+        stage: extract-claims
+        scope_key: "{{ claim_issue }}"
+        input_digest: "{{ receipt.input_digest }}"
+        skill_fqn: "{{ receipt.implementation.skill_fqn }}"
+        skill_revision: "{{ receipt.implementation.skill_revision }}"
+        model: "{{ receipt.implementation.model }}"
+        harness: "{{ receipt.implementation.harness }}"
+        configuration_digest: "{{ receipt.implementation.configuration_digest }}"
+        status: hit
+        agent_job_avoided: true
+        details:
+          reason: "{{ receipt.reason }}"
+          repository_revision: "{{ claims_repository_revision }}"
+
+  - name: extract
+    when: "not receipt.reusable"
+    workflow: run-skill
+    vars:
+      skill_fqn: "{{ claims_skill_execution_repo }}:extract-claims"
+      skill_issue: "{{ claim_issue }}"
+      skill_model: "{{ claims_model }}"
+      skill_harness: "{{ claims_harness }}"
+      skill_extra_env: "{{ claims_git_extra_env }}"
+      skill_extra_kwargs: "extractor_revision={{ claims_skill_revision }} repository_revision={{ claims_repository_revision }} model={{ claims_model }} harness={{ claims_harness }} configuration_digest={{ claims_configuration_digest }} segmentation_version={{ claims_segmentation_version }} preceding_context_units={{ claims_preceding_context_units }} following_context_units={{ claims_following_context_units }}"
+
+  - name: record_receipt_miss
+    type: observatory_api
+    when: "not receipt.reusable"
+    params:
+      path: /api/v2/claims/stage-receipts
+      method: POST
+      body:
+        stage: extract-claims
+        scope_key: "{{ claim_issue }}"
+        input_digest: "{{ receipt.input_digest }}"
+        skill_fqn: "{{ receipt.implementation.skill_fqn }}"
+        skill_revision: "{{ receipt.implementation.skill_revision }}"
+        model: "{{ receipt.implementation.model }}"
+        harness: "{{ receipt.implementation.harness }}"
+        configuration_digest: "{{ receipt.implementation.configuration_digest }}"
+        status: miss
+        agent_job_avoided: false
+        details:
+          reason: "{{ receipt.reason }}"
+          repository_revision: "{{ claims_repository_revision }}"
+
+  - name: write_receipt
+    type: shell_exec
+    when: "not receipt.reusable"
+    params:
+      command: |
+        ISSUE="{{ claim_issue }}" \
+        SKILL_FQN="{{ claims_skill_repo }}:extract-claims" \
+        SKILL_REVISION="{{ claims_skill_revision }}" \
+        REPOSITORY_REVISION="{{ claims_repository_revision }}" \
+        MODEL="{{ claims_model }}" \
+        HARNESS="{{ claims_harness }}" \
+        CONFIGURATION_DIGEST="{{ claims_configuration_digest }}" \
+        EXPECTED_DIGEST="{{ receipt.input_digest }}" \
+        python3 - <<'PY'
+        import hashlib, json, os, tempfile
+        from datetime import datetime, timezone
+        from pathlib import Path
+
+        root = Path('/app/artifacts')
+        issue = os.environ['ISSUE'].upper()
+        skill_fqn = os.environ['SKILL_FQN']
+        skill_revision = os.environ['SKILL_REVISION']
+        model = os.environ['MODEL']
+        harness = os.environ['HARNESS']
+        configuration_digest = os.environ['CONFIGURATION_DIGEST']
+        repository_revision = os.environ['REPOSITORY_REVISION']
+        skip_dirs = {'.git', 'claims', 'verification', 'explanations'}
+
+        def included(path):
+            rel = path.relative_to(root)
+            if issue not in rel.as_posix().upper():
+                return False
+            if any(p.startswith('.') or p in skip_dirs for p in rel.parts):
+                return False
+            if 'strat-originals' in rel.parts or 'ci-jobs' in rel.parts:
+                return False
+            return '-strat-text.md' not in path.name and path.name not in {
+                'README.md', 'strat-rubric.md'}
+
+        inputs = sorted(p for p in root.rglob('*.md') if p.is_file() and included(p))
+        digest = hashlib.sha256()
+        implementation = {
+            'skill_fqn': skill_fqn,
+            'skill_revision': skill_revision,
+            'model': model,
+            'harness': harness,
+            'configuration_digest': configuration_digest,
+        }
+        digest.update(b'claim-receipt-v2\0')
+        digest.update(json.dumps(implementation, sort_keys=True).encode())
+        digest.update(b'\0')
+        for path in inputs:
+            digest.update(path.relative_to(root).as_posix().encode())
+            digest.update(b'\0')
+            digest.update(hashlib.sha256(path.read_bytes()).digest())
+        input_digest = f'sha256:{digest.hexdigest()}'
+        if input_digest != os.environ['EXPECTED_DIGEST']:
+            raise SystemExit(
+                'source artifacts changed during extraction; refusing stale receipt')
+
+        claim_files = []
+        staged_files = []
+        claim_count = 0
+        source_unit_digests = []
+        selection_counts = {}
+        ambiguity_counts = {}
+        evaluator_revisions = set()
+        observatory_run_ids = []
+        claims_root = root / 'claims'
+        if claims_root.is_dir():
+            for path in sorted(claims_root.rglob('*.claims.json')):
+                try:
+                    data = json.loads(path.read_text())
+                except (OSError, json.JSONDecodeError):
+                    continue
+                if issue in str(data.get('source_file', '')).upper():
+                    claim_files.append(path)
+                    claim_count += len(data.get('claims', []))
+            for path in sorted(claims_root.rglob('*.extraction.json')):
+                try:
+                    data = json.loads(path.read_text())
+                except (OSError, json.JSONDecodeError):
+                    continue
+                if issue not in str(data.get('source_file', '')).upper():
+                    continue
+                staged_files.append(path)
+                if data.get('observatory_run_id') is not None:
+                    observatory_run_ids.append(data['observatory_run_id'])
+                for unit in data.get('units', []):
+                    source = unit.get('source_unit', {})
+                    source_unit_digests.append(source.get('digest') or source.get('id') or source.get('unit_key'))
+                    selection = unit.get('selection', {})
+                    classification = selection.get('classification', 'missing')
+                    selection_counts[classification] = selection_counts.get(classification, 0) + 1
+                    ambiguity = unit.get('ambiguity') or {}
+                    status = ambiguity.get('status', 'not_applicable')
+                    ambiguity_counts[status] = ambiguity_counts.get(status, 0) + 1
+                    for result in (selection, ambiguity):
+                        if result.get('evaluator_revision'):
+                            evaluator_revisions.add(result['evaluator_revision'])
+                    for claim in unit.get('claims', []):
+                        evaluation = claim.get('evaluation') or {}
+                        if evaluation.get('evaluator_revision'):
+                            evaluator_revisions.add(evaluation['evaluator_revision'])
+
+        receipt = {
+            'schema_version': 2,
+            'stage': 'extract-claims',
+            'scope': {'issue': issue},
+            'implementation': implementation,
+            'provenance': {'repository_revision': repository_revision},
+            'inputs': {
+                'digest': input_digest,
+                'artifacts': [p.relative_to(root).as_posix() for p in inputs],
+            },
+            'outputs': {
+                'claim_count': claim_count,
+                'source_unit_count': len(source_unit_digests),
+                'source_unit_digests': sorted(value for value in source_unit_digests if value),
+                'selection_counts': selection_counts,
+                'ambiguity_counts': ambiguity_counts,
+                'evaluator_revisions': sorted(evaluator_revisions),
+                'observatory_run_ids': sorted(observatory_run_ids),
+                'artifacts': [p.relative_to(root).as_posix()
+                              for p in claim_files + staged_files],
+            },
+            'result': 'complete',
+            'completed_at': datetime.now(timezone.utc).isoformat(),
+        }
+
+        receipt_path = claims_root / '.receipts' / f'{issue}.json'
+        receipt_path.parent.mkdir(parents=True, exist_ok=True)
+        fd, temporary = tempfile.mkstemp(prefix=f'.{receipt_path.name}.',
+                                         dir=receipt_path.parent)
+        try:
+            with os.fdopen(fd, 'w') as stream:
+                json.dump(receipt, stream, indent=2, sort_keys=True)
+                stream.write('\n')
+            os.replace(temporary, receipt_path)
+        finally:
+            if os.path.exists(temporary):
+                os.unlink(temporary)
+        print(json.dumps({'receipt_path': receipt_path.as_posix(),
+                          'claim_count': claim_count, 'written': True}))
+        PY

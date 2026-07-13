@@ -1,0 +1,17 @@
+case_id: ca-v1-005
+artifact_type: rfe
+selection: verifiable
+ambiguity_status: none
+acceptable_claims:
+  - "RFE version 2.1 uses the v2 claim-occurrence API."
+  - "RFE version 2.0 uses the legacy claims API."
+required_qualifiers:
+  - "version 2.1"
+  - "version 2.0"
+verifiable_elements:
+  - "RFE version 2.1 uses the v2 claim-occurrence API."
+  - "RFE version 2.0 uses the legacy claims API."
+unverifiable_elements:
+  []
+tags:
+  - "cross-version"

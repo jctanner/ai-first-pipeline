@@ -1,1 +1,105 @@
-[]
+- name: extraction_shadow
+  description: "Expose extraction findings without blocking during shadow rollout"
+  salience: 40
+  when: "claim_assurance_enforce == false"
+  action: continue
+  set_fact:
+    claims_ready_for_verification: true
+    claims_review_required: true
+
+- name: extraction_entailment_block
+  description: "Do not fact-check claims that failed source entailment"
+  salience: 30
+  when: "claim_assurance_enforce == true and entailment_failures > 0"
+  action: pause
+  set_fact:
+    claims_ready_for_verification: false
+    claims_review_required: true
+
+- name: extraction_review
+  description: "Route unresolved ambiguity or omitted verifiable content to review"
+  salience: 20
+  when: "claim_assurance_enforce == true and (unresolved_units > 0 or low_coverage_units > 0)"
+  action: pause
+  set_fact:
+    claims_ready_for_verification: false
+    claims_review_required: true
+
+- name: extraction_pass
+  description: "Allow factual verification only after extraction assurance passes"
+  salience: 10
+  when: "claim_assurance_enforce == true and entailment_failures == 0 and unresolved_units == 0 and low_coverage_units == 0"
+  action: continue
+  set_fact:
+    claims_ready_for_verification: true
+    claims_review_required: false
+
+- name: verification_shadow
+  description: "Expose verification findings without blocking during shadow rollout"
+  salience: 40
+  when: "claim_assurance_enforce == false"
+  action: continue
+  set_fact:
+    claims_ready_for_explanation: true
+    claims_review_required: true
+
+- name: verification_severity_block
+  description: "Pause on high-impact contradictions without an audited override"
+  salience: 30
+  when: "claim_assurance_enforce == true and high_severity_contradictions > 0 and claim_human_override != true"
+  action: pause
+  set_fact:
+    claims_ready_for_explanation: false
+    claims_review_required: true
+
+- name: verification_structure_block
+  description: "Pause when verification did not emit immutable structured runs"
+  salience: 25
+  when: "claim_assurance_enforce == true and unstructured_verifications > 0"
+  action: pause
+  set_fact:
+    claims_ready_for_explanation: false
+    claims_review_required: true
+
+- name: verification_disagreement
+  description: "Pause when verifier runs disagree on the same occurrence"
+  salience: 20
+  when: "claim_assurance_enforce == true and verifier_disagreements > 0 and claim_human_override != true"
+  action: pause
+  set_fact:
+    claims_ready_for_explanation: false
+    claims_review_required: true
+
+- name: verification_pass
+  description: "Continue after verification clears or an override is audited"
+  salience: 10
+  when: "claim_assurance_enforce == true and unstructured_verifications == 0 and ((high_severity_contradictions == 0 and verifier_disagreements == 0) or claim_human_override == true)"
+  action: continue
+  set_fact:
+    claims_ready_for_explanation: true
+
+- name: explanation_route_block
+  description: "Pause when a problematic claim lacks an actionable route or review flag"
+  salience: 20
+  when: "invalid_explanation_routes > 0 or unstructured_explanations > 0"
+  action: pause
+  set_fact:
+    claim_improvement_loop_ready: false
+    claims_review_required: true
+
+- name: explanation_human_review
+  description: "Pause explicit unknown attributions for human routing"
+  salience: 15
+  when: "invalid_explanation_routes == 0 and unstructured_explanations == 0 and human_review_explanations > 0"
+  action: pause
+  set_fact:
+    claim_improvement_loop_ready: false
+    claims_review_required: true
+
+- name: explanation_route_pass
+  description: "Continue when every explanation is routed or explicitly needs review"
+  salience: 10
+  when: "invalid_explanation_routes == 0 and unstructured_explanations == 0 and human_review_explanations == 0"
+  action: continue
+  set_fact:
+    claim_improvement_loop_ready: true
