@@ -114,6 +114,9 @@ def test_reset_imports_the_repository_addressed_by_the_claim_skill_fqn():
         "upstream": "{{ claims_skill_upstream }}",
     }
 
+    seed_command = steps["seed_claim_assurance_dataset"]["params"]["command"]
+    assert seed_command.count("git -c http.sslVerify=false") == 2
+
 
 def test_claim_jobs_use_pinned_execution_fqn_and_stage_specific_revisions():
     workflow = load("workflows/run-claims.yaml")

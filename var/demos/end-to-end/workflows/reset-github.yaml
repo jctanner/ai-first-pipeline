@@ -92,7 +92,7 @@ steps:
         rm -rf /tmp/claim-eval-source /tmp/claim-eval-target
         git clone --depth 1 --branch main \
           https://github.com/jctanner/ai-first-pipeline /tmp/claim-eval-source
-        git clone \
+        git -c http.sslVerify=false clone \
           "https://x-access-token:{{ github_api_token }}@github-emulator.ai-pipeline.svc.cluster.local/{{ org }}/eval-datasets.git" \
           /tmp/claim-eval-target
         cp -a /tmp/claim-eval-source/var/demos/end-to-end/eval-datasets/claim-assurance \
@@ -105,7 +105,7 @@ steps:
         git config user.email "demo@ai-pipeline.local"
         git add claim-assurance .claude/skills/extract-claims
         git commit -m "Seed claim assurance evaluation corpus"
-        git push origin main
+        git -c http.sslVerify=false push origin main
 
   - name: import_claims_skill_source
     description: "Import the repository addressed by the claim skill FQN"
