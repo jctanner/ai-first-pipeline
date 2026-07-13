@@ -79,6 +79,10 @@ missing extraction assurance to review instead. If `claim_types` is provided,
 filter after fetching. If `--force`, use `pending_only=false`; this creates a
 new verification run and preserves earlier runs.
 
+Exclude occurrences whose `source_file` is under `rfe-originals/`,
+`strat-originals/`, or `ci-jobs/`. Those are human/source inputs or duplicate
+transport artifacts, not generated outputs owned by claim assurance.
+
 If the v2 endpoint returns `404` during migration, use the legacy claims API
 and explicitly mark the result as legacy/unassured. Do not use legacy fallback
 for other non-2xx responses.

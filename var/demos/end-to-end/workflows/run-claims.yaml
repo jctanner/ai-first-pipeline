@@ -297,7 +297,11 @@ steps:
                   'low_coverage_units': 0, 'accepted_claims': 0}
         for path in Path('/app/artifacts/claims').rglob('*.extraction.json'):
             data = json.loads(path.read_text())
-            if not any(issue in str(data.get('source_file', '')).upper()
+            source_file = str(data.get('source_file', ''))
+            if ({'rfe-originals', 'strat-originals', 'ci-jobs'}
+                    & set(Path(source_file).parts)):
+                continue
+            if not any(issue in source_file.upper()
                        for issue in issues):
                 continue
             for unit in data.get('units', []):

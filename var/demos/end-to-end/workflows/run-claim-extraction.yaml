@@ -231,6 +231,7 @@ steps:
                 'README.md', 'strat-rubric.md'}
 
         inputs = sorted(p for p in root.rglob('*.md') if p.is_file() and included(p))
+        input_sources = {p.relative_to(root).as_posix() for p in inputs}
         digest = hashlib.sha256()
         implementation = {
             'skill_fqn': skill_fqn,
@@ -266,7 +267,7 @@ steps:
                     data = json.loads(path.read_text())
                 except (OSError, json.JSONDecodeError):
                     continue
-                if issue in str(data.get('source_file', '')).upper():
+                if data.get('source_file') in input_sources:
                     claim_files.append(path)
                     claim_count += len(data.get('claims', []))
             for path in sorted(claims_root.rglob('*.extraction.json')):
@@ -274,7 +275,7 @@ steps:
                     data = json.loads(path.read_text())
                 except (OSError, json.JSONDecodeError):
                     continue
-                if issue not in str(data.get('source_file', '')).upper():
+                if data.get('source_file') not in input_sources:
                     continue
                 staged_files.append(path)
                 if data.get('observatory_run_id') is not None:

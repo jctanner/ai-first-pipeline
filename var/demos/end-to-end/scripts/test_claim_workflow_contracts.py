@@ -172,6 +172,15 @@ def test_extraction_quality_accepts_null_ambiguity_for_unselected_units(tmp_path
         "source_file": "rfe-tasks/RFE-1.md",
         "units": [{"ambiguity": None, "claims": []}],
     }))
+    stale = tmp_path / "claims" / "rfe-originals" / "RFE-1.extraction.json"
+    stale.parent.mkdir(parents=True)
+    stale.write_text(json.dumps({
+        "source_file": "rfe-originals/RFE-1.md",
+        "units": [{
+            "ambiguity": {"status": "unresolved"},
+            "claims": [{"accepted": True, "evaluation": {"entailed": False}}],
+        }],
+    }))
     assess = step_command("workflows/run-claims.yaml", "assess_extraction_quality")
     metrics = run_embedded(
         assess,
