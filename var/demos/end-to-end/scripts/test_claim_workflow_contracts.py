@@ -79,6 +79,10 @@ def test_claim_workflow_has_both_assurance_gates_and_regression_replay():
     assert steps["submit_claim_regression"]["params"]["body"]["context_ref"] == (
         "{{ resolved_claims_evidence_revision }}"
     )
+    for name in ("record_claim_regression", "record_claim_regression_pass"):
+        command = steps[name]["params"]["command"]
+        assert "eligible_verification_runs" in command
+        assert "data.get('verification_run_id') not in eligible_verification_runs" in command
 
     rules = {rule["name"]: rule for rule in load("rules.yaml")}
     assert rules["extraction_entailment_block"]["action"] == "pause"
