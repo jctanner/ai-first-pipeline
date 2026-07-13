@@ -63,7 +63,7 @@ fi
 
 # Include skill+issue in job tag
 if [ -n "$ISSUE_KEY" ]; then
-  export PIPELINE_JOB_NAME="${SKILL:-agentic-ci}-${ISSUE_KEY}"
+  export PIPELINE_JOB_NAME="${PIPELINE_JOB_NAME:-${SKILL:-agentic-ci}-${ISSUE_KEY}}"
 fi
 
 HARNESS="${AGENTIC_CI_HARNESS:-opencode}"

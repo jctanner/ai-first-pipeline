@@ -68,7 +68,7 @@ if [ -z "$SKILL_TAG" ] && [ -n "$FQN" ]; then
   SKILL_TAG="${FQN##*:}"
 fi
 if [ -n "$ISSUE_KEY" ]; then
-  export PIPELINE_JOB_NAME="${SKILL_TAG}-${ISSUE_KEY}"
+  export PIPELINE_JOB_NAME="${PIPELINE_JOB_NAME:-${SKILL_TAG}-${ISSUE_KEY}}"
 fi
 
 echo "============================================================"
