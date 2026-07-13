@@ -231,6 +231,8 @@ if [ -n "${MLFLOW_TRACKING_URI:-}" ]; then
     MLFLOW_AUTOLOG_ARGS+=(-n "$MLFLOW_EXPERIMENT_NAME")
   fi
   /app/.venv/bin/mlflow autolog claude "${MLFLOW_AUTOLOG_ARGS[@]}"
+  /app/.venv/bin/python /app/scripts/bound_mlflow_claude_hooks.py \
+    "$HOME/.claude/settings.json"
   echo "MLflow tracing configured"
 else
   echo "Warning: MLFLOW_TRACKING_URI not set, skipping MLflow tracing setup"
