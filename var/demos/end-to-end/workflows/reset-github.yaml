@@ -128,7 +128,9 @@ steps:
     for_each_key: "name"
     for_each_sort: "name"
     as: repo
-    concurrency: 3
+    # GitHub emulator uses SQLite; serialize repository mutations to avoid
+    # transient database-lock failures during a clean reset.
+    concurrency: 1
     workflow: import-repo
     vars:
       repo_name: "{{ repo.name }}"

@@ -124,6 +124,7 @@ def test_reset_imports_the_repository_addressed_by_the_claim_skill_fqn():
     assert step_names.index("settle_after_dataset_seed") < step_names.index(
         "process_repos"
     )
+    assert steps["process_repos"]["concurrency"] == 1
 
 
 def test_claim_jobs_use_pinned_execution_fqn_and_stage_specific_revisions():
