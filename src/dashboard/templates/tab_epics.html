@@ -2,10 +2,10 @@
 
 <div class="flex flex-wrap gap-3 mb-4 items-end" id="epic-filter-bar">
   <label class="text-sm font-medium text-gray-700 dark:text-gray-300">
-    Type
-    <select data-attr="epictype" onchange="applyTabFilters('epic-table','epic-filter-bar','epic-row-count')" class="mt-1 block rounded-lg border-gray-300 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-200 text-sm py-1.5 px-2.5">
+    Status
+    <select data-attr="epicstatus" onchange="applyTabFilters('epic-table','epic-filter-bar','epic-row-count')" class="mt-1 block rounded-lg border-gray-300 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-200 text-sm py-1.5 px-2.5">
       <option value="">All</option>
-      {% for v in epic_types %}<option value="{{ v }}">{{ v }}</option>{% endfor %}
+      {% for v in epic_statuses %}<option value="{{ v }}">{{ v }}</option>{% endfor %}
     </select>
   </label>
   <label class="text-sm font-medium text-gray-700 dark:text-gray-300">
@@ -28,28 +28,38 @@
     <tr>
       <th class="sortable px-4 py-3" data-col="0">Key</th>
       <th class="sortable px-4 py-3" data-col="1">Title</th>
-      <th class="sortable px-4 py-3" data-col="2">Type</th>
-      <th class="sortable px-4 py-3" data-col="3">Parent Strategy</th>
-      <th class="sortable px-4 py-3" data-col="4">Created</th>
+      <th class="sortable px-4 py-3" data-col="2">Strategy</th>
+      <th class="sortable px-4 py-3" data-col="3">Status</th>
+      <th class="sortable px-4 py-3" data-col="4">Codegen</th>
+      <th class="sortable px-4 py-3" data-col="5">Score</th>
+      <th class="sortable px-4 py-3" data-col="6">Iterations</th>
     </tr>
   </thead>
   <tbody class="divide-y divide-gray-200 dark:divide-gray-700">
     {% for ep in epic_issues %}
     <tr class="hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors"
-      data-epictype="{{ ep.type|default('') }}"
+      data-epicstatus="{{ ep.status|default('') }}"
       data-stratkey="{{ ep.strat_key|default('') }}"
     >
-      <td class="px-4 py-2.5"><a href="https://issues.redhat.com/browse/{{ ep.key }}" class="text-primary-600 dark:text-primary-400 hover:underline font-medium">{{ ep.key }}</a></td>
+      <td class="px-4 py-2.5"><span class="text-primary-600 dark:text-primary-400 font-medium">{{ ep.key }}</span></td>
       <td class="px-4 py-2.5 truncate" title="{{ ep.title|default('') }}">{{ ep.title|default('')|truncate(80) }}</td>
+      <td class="px-4 py-2.5"><a href="/strat/{{ ep.strat_key }}" class="text-primary-600 dark:text-primary-400 hover:underline font-medium">{{ ep.strat_key }}</a></td>
       <td class="px-4 py-2.5">
-        {% if ep.type == 'eng' %}<span class="badge badge-rec-approve">eng</span>
-        {% elif ep.type == 'qe' %}<span class="badge badge-sec-concerns">qe</span>
-        {% elif ep.type == 'integration' %}<span class="badge badge-tier-standard">integration</span>
-        {% else %}<span class="badge badge-default">{{ ep.type }}</span>
+        {% if ep.status == 'Validated' %}<span class="badge badge-rec-approve">Validated</span>
+        {% elif ep.status == 'Pending' %}<span class="badge badge-tier-standard">Pending</span>
+        {% elif ep.status == 'Blocked' %}<span class="badge badge-sec-concerns">Blocked</span>
+        {% else %}<span class="badge badge-default">{{ ep.status|default('&mdash;'|safe) }}</span>
         {% endif %}
       </td>
-      <td class="px-4 py-2.5"><a href="/strat/{{ ep.strat_key }}" class="text-primary-600 dark:text-primary-400 hover:underline font-medium">{{ ep.strat_key }}</a></td>
-      <td class="px-4 py-2.5 text-gray-500 dark:text-gray-500 text-xs">{{ ep.created_at|default('&mdash;'|safe) }}</td>
+      <td class="px-4 py-2.5">
+        {% if ep.codegen_verdict == 'pass' %}<span class="badge badge-rec-approve">pass</span>
+        {% elif ep.codegen_verdict == 'fail' %}<span class="badge badge-sec-concerns">fail</span>
+        {% elif ep.codegen_verdict %}<span class="badge badge-default">{{ ep.codegen_verdict }}</span>
+        {% else %}&mdash;
+        {% endif %}
+      </td>
+      <td class="px-4 py-2.5 text-gray-700 dark:text-gray-300">{{ '%.1f'|format(ep.codegen_score) if ep.codegen_score is not none else '&mdash;'|safe }}</td>
+      <td class="px-4 py-2.5 text-gray-500 dark:text-gray-400">{{ ep.codegen_iterations if ep.codegen_iterations is not none else '&mdash;'|safe }}</td>
     </tr>
     {% endfor %}
   </tbody>

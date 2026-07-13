@@ -4,6 +4,7 @@ Scans YAML-frontmatter markdown files produced by the rfe-creator
 pipeline and returns structured dicts suitable for the dashboard.
 """
 
+import json
 from pathlib import Path
 
 import yaml
@@ -259,33 +260,52 @@ def load_strat_issues(
 
 
 def load_epic_issues(artifacts_dir: Path | None = None) -> list[dict]:
-    """Scan ``epic-receipts/`` under *artifacts_dir*.
+    """Scan ``epic-tasks/RHAI-*.md`` under *artifacts_dir*.
 
-    Returns a flat list of individual epics across all receipts, each with:
-    - ``key`` = RHOAIENG epic key
-    - ``title`` = epic title
-    - ``type`` = eng, qe, integration, stakeholder-signoff
-    - ``strat_key`` = parent RHAISTRAT key
-    - ``created_at`` = receipt creation timestamp
+    Returns a list of epics, each enriched with codegen results from
+    ``codegen-runs/index.json`` when available.
     """
     base = artifacts_dir or _ARTIFACTS_DIR
-    receipts_dir = base / "epic-receipts"
+    epic_dir = base / "epic-tasks"
     result: list[dict] = []
-    if not receipts_dir.is_dir():
+    if not epic_dir.is_dir():
         return result
-    for f in sorted(receipts_dir.glob("*.md")):
+
+    codegen_lookup: dict[str, dict] = {}
+    codegen_index = base / "codegen-runs" / "index.json"
+    if codegen_index.is_file():
+        try:
+            data = json.loads(codegen_index.read_text(encoding="utf-8"))
+            for run in data.get("runs", []):
+                eid = run.get("epic_id", "")
+                if eid:
+                    codegen_lookup[eid] = run
+        except (json.JSONDecodeError, OSError):
+            pass
+
+    for f in sorted(epic_dir.glob("RHAI-*.md")):
         text = f.read_text(encoding="utf-8", errors="replace")
         meta, _ = parse_frontmatter(text)
-        strat_key = meta.get("strat_key", "")
-        created_at = meta.get("created_at", "")
-        for epic in meta.get("epics", []):
-            result.append({
-                "key": epic.get("key", ""),
-                "title": epic.get("title", ""),
-                "type": epic.get("type", ""),
-                "strat_key": strat_key,
-                "created_at": created_at,
-            })
+        epic_id = meta.get("epic_id", "")
+        if not epic_id:
+            continue
+        entry = {
+            "key": epic_id,
+            "title": meta.get("title", ""),
+            "strat_key": meta.get("strategy_key", ""),
+            "status": meta.get("status", ""),
+            "jira_status": meta.get("jira_status", ""),
+            "blocks": meta.get("blocks", []),
+            "dependencies": meta.get("dependencies"),
+        }
+        cg = codegen_lookup.get(epic_id)
+        if cg:
+            entry["codegen_status"] = cg.get("status", "")
+            entry["codegen_verdict"] = cg.get("verdict", "")
+            entry["codegen_score"] = cg.get("weighted_average")
+            entry["codegen_iterations"] = cg.get("iterations")
+            entry["codegen_branch"] = cg.get("branch", "")
+        result.append(entry)
     return result
 
 

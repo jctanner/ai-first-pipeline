@@ -312,7 +312,7 @@ def create_app() -> Flask:
 
         # --- Epic data ---
         epic_issues = load_epic_issues()
-        epic_types = sorted({e.get("type", "") for e in epic_issues if e.get("type")})
+        epic_statuses = sorted({e.get("status", "") for e in epic_issues if e.get("status")})
         epic_strat_keys = sorted({e.get("strat_key", "") for e in epic_issues if e.get("strat_key")})
 
         # --- Build unified all-issues list ---
@@ -395,6 +395,26 @@ def create_app() -> Flask:
                 "detail_url": f"/strat/{st['key']}",
             })
 
+        # Epics
+        for ep in epic_issues:
+            score = ep.get("codegen_score")
+            all_issues.append({
+                "type": "epic",
+                "key": ep["key"],
+                "title": ep.get("title", ""),
+                "status": ep.get("status", ""),
+                "priority": "",
+                "quality_score": score if score is not None else -1,
+                "quality_display": f"{score:.1f}" if score is not None else "—",
+                "quality_class": (
+                    "score-red" if score < 5 else ("score-yellow" if score < 8 else "score-green")
+                ) if score is not None else "",
+                "recommendation": ep.get("codegen_verdict", ""),
+                "security_verdict": "",
+                "attention": ep.get("codegen_verdict") == "fail",
+                "detail_url": f"/strat/{ep.get('strat_key', '')}",
+            })
+
         all_statuses = sorted({i["status"] for i in all_issues if i["status"]})
         all_priorities = sorted({i["priority"] for i in all_issues if i["priority"]})
 
@@ -421,7 +441,7 @@ def create_app() -> Flask:
             strat_priorities=strat_priorities,
             strat_recommendations=strat_recommendations,
             epic_issues=epic_issues,
-            epic_types=epic_types,
+            epic_statuses=epic_statuses,
             epic_strat_keys=epic_strat_keys,
             all_issues=all_issues,
             all_statuses=all_statuses,
