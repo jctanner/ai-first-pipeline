@@ -151,17 +151,26 @@ def test_stage_output_directories_remain_writable_across_receipt_runs():
     assert "f'safe.directory={context_repo}'" in analysis_check
 
 
-def test_force_claims_reaches_each_agent_skill():
+def test_receipt_misses_force_each_agent_skill_to_rebuild_outputs():
     extraction = load("workflows/run-claim-extraction.yaml")
     extract = next(step for step in extraction["steps"] if step["name"] == "extract")
-    assert "force={{ force_claims }}" in extract["vars"]["skill_extra_kwargs"]
+    assert "force=true" in extract["vars"]["skill_extra_kwargs"]
     assert extract["for_each"] == "receipt.input_artifacts"
     assert extract["as"] == "artifact"
     assert "artifact_filter={{ artifact }}" in extract["vars"]["skill_extra_kwargs"]
 
     analysis = load("workflows/run-claim-analysis-stage.yaml")
     run_stage = next(step for step in analysis["steps"] if step["name"] == "run_stage")
-    assert "force={{ force_claims }}" in run_stage["vars"]["skill_extra_kwargs"]
+    assert "force=true" in run_stage["vars"]["skill_extra_kwargs"]
+
+
+def test_stage_receipts_exclude_human_original_claim_outputs():
+    check = step_command(
+        "workflows/run-claim-analysis-stage.yaml", "check_stage_receipt"
+    )
+    assert "excluded_dirs = {'rfe-originals', 'strat-originals', 'ci-jobs'}" in check
+    assert "set(path.relative_to(root).parts)" in check
+    assert "set(Path(source_file).parts)" in check
 
 
 def test_extraction_excludes_human_owned_original_inputs():
@@ -487,6 +496,11 @@ def test_embedded_analysis_receipt_tracks_inputs_evidence_and_outputs(tmp_path):
     claims.write_text(json.dumps({
         "source_file": "strategies/RFE-1.md", "observatory_run_id": 7,
     }))
+    original = tmp_path / "claims" / "rfe-originals" / "RFE-1.extraction.json"
+    original.parent.mkdir()
+    original.write_text(json.dumps({
+        "source_file": "rfe-originals/RFE-1.md", "observatory_run_id": 99,
+    }))
     verification = tmp_path / "verification" / "7" / "run.verification.json"
     verification.parent.mkdir(parents=True)
     verification.write_text(json.dumps({
@@ -497,6 +511,7 @@ def test_embedded_analysis_receipt_tracks_inputs_evidence_and_outputs(tmp_path):
 
     first = run_embedded(check, tmp_path, analysis_values())
     assert first["reusable"] is False
+    assert first["inputs"] == ["claims/RFE-1.extraction.json"]
     written = run_embedded(write, tmp_path, analysis_values(**{
         "stage_receipt.evidence_revision": first["evidence_revision"],
         "stage_receipt.input_digest": first["input_digest"],

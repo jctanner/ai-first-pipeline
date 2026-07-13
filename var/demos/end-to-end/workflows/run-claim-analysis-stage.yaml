@@ -43,10 +43,21 @@ steps:
         }
         inputs = []
         base = root / input_dir
+        excluded_dirs = {'rfe-originals', 'strat-originals', 'ci-jobs'}
         if base.is_dir():
             for path in base.rglob('*'):
                 if not path.is_file() or '.receipts' in path.parts:
                     continue
+                if excluded_dirs & set(path.relative_to(root).parts):
+                    continue
+                if path.suffix == '.json':
+                    try:
+                        candidate = json.loads(path.read_text())
+                    except (OSError, json.JSONDecodeError):
+                        candidate = {}
+                    source_file = str(candidate.get('source_file', ''))
+                    if excluded_dirs & set(Path(source_file).parts):
+                        continue
                 if issue in path.as_posix().upper() or issue in path.read_text(errors='ignore').upper():
                     inputs.append(path)
         inputs.sort()
@@ -138,6 +149,22 @@ steps:
         fi
         mkdir -p "$OUTPUT_DIR"
         chmod 0777 "$OUTPUT_DIR"
+        ISSUE="{{ claim_issue }}" OUTPUT_DIR="$OUTPUT_DIR" python3 - <<'PY'
+        import os
+        from pathlib import Path
+
+        issue = os.environ['ISSUE'].upper()
+        root = Path(os.environ['OUTPUT_DIR'])
+        removed = []
+        for path in root.rglob('*'):
+            if not path.is_file() or '.receipts' in path.parts:
+                continue
+            if (issue in path.as_posix().upper() or
+                    issue in path.read_text(errors='ignore').upper()):
+                path.unlink()
+                removed.append(path.relative_to(root).as_posix())
+        print(f'removed {len(removed)} stale stage outputs for {issue}')
+        PY
 
   - name: run_stage
     when: "not stage_receipt.reusable"
@@ -148,7 +175,7 @@ steps:
       skill_model: "{{ claims_model }}"
       skill_harness: "{{ claims_harness }}"
       skill_extra_env: "{{ claims_git_extra_env }}"
-      skill_extra_kwargs: "implementation_revision={{ claims_skill_revision }} repository_revision={{ claims_repository_revision }} model={{ claims_model }} harness={{ claims_harness }} configuration_digest={{ claims_configuration_digest }} evidence_revision={{ stage_receipt.evidence_revision }} evidence_context_digest={{ stage_receipt.evidence_context_digest }} force={{ force_claims }}"
+      skill_extra_kwargs: "implementation_revision={{ claims_skill_revision }} repository_revision={{ claims_repository_revision }} model={{ claims_model }} harness={{ claims_harness }} configuration_digest={{ claims_configuration_digest }} evidence_revision={{ stage_receipt.evidence_revision }} evidence_context_digest={{ stage_receipt.evidence_context_digest }} force=true"
 
   - name: record_stage_receipt_miss
     type: observatory_api
