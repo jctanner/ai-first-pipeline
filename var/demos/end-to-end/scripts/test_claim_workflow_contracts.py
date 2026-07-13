@@ -93,6 +93,28 @@ def test_dataset_fqn_matches_workflow_default():
     assert workflow["vars"]["claim_regression_dataset_fqn"] == dataset["dataset_fqn"]
 
 
+def test_reset_imports_the_repository_addressed_by_the_claim_skill_fqn():
+    variables = load("vars.yaml")
+    claims = load("workflows/run-claims.yaml")
+    reset = load("workflows/reset-github.yaml")
+    steps = {step["name"]: step for step in reset["steps"]}
+
+    expected_fqn = (
+        f"github.local/{variables['claims_skill_owner']}/"
+        "ai-first-pipeline@main"
+    )
+    assert claims["vars"]["claims_skill_repo"] == expected_fqn
+    assert steps["ensure_claims_skill_owner"]["params"]["body"]["login"] == (
+        "{{ claims_skill_owner }}"
+    )
+    imported = steps["import_claims_skill_source"]["vars"]
+    assert imported == {
+        "org": "{{ claims_skill_owner }}",
+        "repo_name": "ai-first-pipeline",
+        "upstream": "{{ claims_skill_upstream }}",
+    }
+
+
 def test_claim_jobs_use_pinned_execution_fqn_and_stage_specific_revisions():
     workflow = load("workflows/run-claims.yaml")
     steps = {step["name"]: step for step in workflow["steps"]}

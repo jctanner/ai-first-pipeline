@@ -214,7 +214,9 @@ Defaults are defined in `vars.yaml`. The most useful run overrides are:
 | `rhai_components` | component list | RHAI components seeded for epic creation |
 
 The reset also recreates the local-only `skills` and `eval-datasets`
-repositories; they are not entries in `repos` because they have no upstream.
+repositories and imports `jctanner/ai-first-pipeline`, the source addressed by
+the default claim-skill FQN. These are not entries in `repos` because they use
+different ownership or seeding behavior.
 
 ## Layout
 

@@ -5,6 +5,8 @@ jira_token: admin
 observatory_base: http://observatory.ai-pipeline.svc.cluster.local:8000
 dashboard_base: http://pipeline-dashboard.ai-pipeline.svc.cluster.local:5000
 org: opendatahub-io
+claims_skill_owner: jctanner
+claims_skill_upstream: https://github.com/jctanner/ai-first-pipeline
 github_token: ""
 github_api_token: "ghp_admin_default_token"
 fork_owner: opendatahub-io

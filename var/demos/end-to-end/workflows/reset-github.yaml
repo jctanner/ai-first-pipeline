@@ -37,6 +37,17 @@ steps:
         login: "{{ org }}"
       ignore_status: [422, 409]
 
+  - name: ensure_claims_skill_owner
+    description: "Ensure the local owner for the fully-qualified claim skills exists"
+    type: github_admin_api
+    params:
+      path: /users
+      method: POST
+      body:
+        login: "{{ claims_skill_owner }}"
+        email: "{{ claims_skill_owner }}@ai-pipeline.local"
+      ignore_status: [409, 422]
+
   # Step 3: Create local-only repos (no upstream — created empty)
   - name: delete_skills
     type: github_api
@@ -95,6 +106,14 @@ steps:
         git add claim-assurance .claude/skills/extract-claims
         git commit -m "Seed claim assurance evaluation corpus"
         git push origin main
+
+  - name: import_claims_skill_source
+    description: "Import the repository addressed by the claim skill FQN"
+    workflow: import-repo
+    vars:
+      org: "{{ claims_skill_owner }}"
+      repo_name: ai-first-pipeline
+      upstream: "{{ claims_skill_upstream }}"
 
   # Step 4: Delete and re-import each repo from upstream
   - name: process_repos
