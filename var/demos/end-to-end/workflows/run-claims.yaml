@@ -512,32 +512,6 @@ steps:
         from pathlib import Path
 
         issues = {item['key'].upper() for item in json.loads(r'''{{ all_issues | tojson }}''')}
-        root = Path('/app/artifacts/explanations')
-        invalid = structured = legacy = human_review = 0
-        explained_runs = set()
-        if root.is_dir():
-            for path in root.rglob('*'):
-                if not path.is_file() or '.receipts' in path.parts:
-                    continue
-                text = path.read_text(errors='ignore')
-                if not any(issue in (path.as_posix() + text).upper() for issue in issues):
-                    continue
-                if path.name.endswith('.explanation.json'):
-                    structured += 1
-                    data = json.loads(text)
-                    if data.get('verification_run_id') is not None:
-                        explained_runs.add(data['verification_run_id'])
-                    category = data.get('category')
-                    if category == 'unknown':
-                        if data.get('human_review_required') is not True:
-                            invalid += 1
-                        else:
-                            human_review += 1
-                    else:
-                        invalid += not all(data.get(field) for field in (
-                            'improvement_target', 'remediation', 'regression_test'))
-                elif path.suffix == '.md':
-                    legacy += 1
         expected_runs = set()
         verification_root = Path('/app/artifacts/verification')
         if verification_root.is_dir():
@@ -552,11 +526,39 @@ steps:
                     run_id = data.get('observatory_run_id', data.get('id'))
                     if run_id is not None:
                         expected_runs.add(run_id)
+        root = Path('/app/artifacts/explanations')
+        invalid = structured = human_review = 0
+        explained_runs = set()
+        if root.is_dir():
+            for path in root.rglob('*.explanation.json'):
+                if not path.is_file() or '.receipts' in path.parts:
+                    continue
+                try:
+                    data = json.loads(path.read_text())
+                except (OSError, json.JSONDecodeError):
+                    continue
+                verification_run_id = data.get('verification_run_id')
+                # The immutable verification run is the scope boundary. An
+                # explanation need not repeat a Jira key in its text, and
+                # legacy markdown projections must not be counted as missing
+                # structured output when the v2 artifact exists.
+                if verification_run_id not in expected_runs:
+                    continue
+                structured += 1
+                explained_runs.add(verification_run_id)
+                category = data.get('category')
+                if category == 'unknown':
+                    if data.get('human_review_required') is not True:
+                        invalid += 1
+                    else:
+                        human_review += 1
+                else:
+                    invalid += not all(data.get(field) for field in (
+                        'improvement_target', 'remediation', 'regression_test'))
         print(json.dumps({
             'invalid_explanation_routes': invalid,
             'human_review_explanations': human_review,
-            'unstructured_explanations': (
-                max(0, legacy - structured) + len(expected_runs - explained_runs)),
+            'unstructured_explanations': len(expected_runs - explained_runs),
         }))
         PY
     register: explanation_quality

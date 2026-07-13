@@ -252,6 +252,50 @@ def test_extraction_quality_uses_element_outcomes_not_model_summary_label(tmp_pa
     assert metrics["low_coverage_units"] == 1
 
 
+def test_explanation_quality_is_scoped_by_immutable_verification_run(tmp_path):
+    verification = tmp_path / "verification" / "17" / "run.verification.json"
+    verification.parent.mkdir(parents=True)
+    verification.write_text(json.dumps({
+        "source_file": "rfe-tasks/RFE-1.md",
+        "verdict": "contradicted",
+        "observatory_run_id": 71,
+    }))
+    legacy = tmp_path / "explanations" / "17.md"
+    legacy.parent.mkdir(parents=True)
+    legacy.write_text("# RFE-1 explanation\n")
+    structured = tmp_path / "explanations" / "71" / "run.explanation.json"
+    structured.parent.mkdir(parents=True)
+    # The structured artifact deliberately contains no Jira key. Its immutable
+    # verification-run binding is the authoritative scope relationship.
+    structured.write_text(json.dumps({
+        "verification_run_id": 71,
+        "category": "retrieval_failure",
+        "improvement_target": "architecture alias index",
+        "remediation": "add the missing alias",
+        "regression_test": "resolve the alias before verification",
+    }))
+
+    assess = step_command("workflows/run-claims.yaml", "assess_explanation_routes")
+    metrics = run_embedded(
+        assess,
+        tmp_path,
+        {"all_issues | tojson": '[{"key":"RFE-1"}]'},
+    )
+    assert metrics == {
+        "invalid_explanation_routes": 0,
+        "human_review_explanations": 0,
+        "unstructured_explanations": 0,
+    }
+
+    structured.unlink()
+    missing = run_embedded(
+        assess,
+        tmp_path,
+        {"all_issues | tojson": '[{"key":"RFE-1"}]'},
+    )
+    assert missing["unstructured_explanations"] == 1
+
+
 def test_dataset_fqn_matches_workflow_default():
     dataset = json.loads((ROOT / "eval-datasets/claim-assurance-v1.json").read_text())
     workflow = load("workflows/run-claims.yaml")
