@@ -78,10 +78,15 @@ def test_claim_workflow_has_both_assurance_gates_and_regression_replay():
 
 
 def test_claim_discovery_allows_an_rfe_without_descendants():
+    workflow = load("workflows/run-claims.yaml")
+    steps = {step["name"]: step for step in workflow["steps"]}
     command = step_command("workflows/run-claims.yaml", "discover_issues")
     assert "discovered = {rfe, *strategies}" in command
     assert "processing the RFE only" in command
     assert "ERROR: no RHAISTRAT link found" not in command
+    assert steps["set_all_issues"]["vars"]["all_issues"] == (
+        "{{ discovered.all_issues | tojson }}"
+    )
 
 
 def test_all_claim_stages_have_versioned_receipts():

@@ -135,7 +135,9 @@ steps:
   - name: set_all_issues
     type: set_fact
     vars:
-      all_issues: "{{ discovered.all_issues }}"
+      # Preserve the list across template rendering so for_each receives a
+      # native value rather than a Pongo string representation.
+      all_issues: "{{ discovered.all_issues | tojson }}"
 
   - name: resolve_claim_skill_revision
     description: "Resolve the claim repository and each skill to immutable revisions"
