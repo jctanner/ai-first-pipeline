@@ -12,7 +12,7 @@
 # Standalone — not wired into run-pipeline yet. Run directly:
 #   markov run --workflow run-claims --var rfe_issue=RHAIRFE-1
 #
-# Requires: rfe_issue (with at least one linked RHAISTRAT issue)
+# Requires: rfe_issue. Linked strategies and descendants are optional.
 
 name: run-claims
 description: "Extract, verify, and explain claims for {{ rfe_issue }} and its descendants"
@@ -101,8 +101,10 @@ steps:
                     strategies.add(key)
 
         if not strategies:
-            print(f'ERROR: no RHAISTRAT link found on {rfe}', file=sys.stderr)
-            sys.exit(1)
+            print(
+                f'  No RHAISTRAT link found on {rfe}; processing the RFE only',
+                file=sys.stderr,
+            )
 
         # Walk parent relationships recursively. Including the RFE in the
         # queue also supports future workflows that use parent instead of links.

@@ -77,6 +77,13 @@ def test_claim_workflow_has_both_assurance_gates_and_regression_replay():
     assert rules["explanation_human_review"]["action"] == "pause"
 
 
+def test_claim_discovery_allows_an_rfe_without_descendants():
+    command = step_command("workflows/run-claims.yaml", "discover_issues")
+    assert "discovered = {rfe, *strategies}" in command
+    assert "processing the RFE only" in command
+    assert "ERROR: no RHAISTRAT link found" not in command
+
+
 def test_all_claim_stages_have_versioned_receipts():
     extraction = (ROOT / "workflows/run-claim-extraction.yaml").read_text()
     analysis = (ROOT / "workflows/run-claim-analysis-stage.yaml").read_text()
