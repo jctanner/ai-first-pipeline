@@ -101,6 +101,7 @@ steps:
         cp -a /tmp/claim-eval-source/.claude/skills/extract-claims \
           /tmp/claim-eval-target/.claude/skills/extract-claims
         cd /tmp/claim-eval-target
+        git checkout -B main
         git config user.name "AI Pipeline Demo"
         git config user.email "demo@ai-pipeline.local"
         git add claim-assurance .claude/skills/extract-claims
