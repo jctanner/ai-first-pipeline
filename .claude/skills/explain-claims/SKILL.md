@@ -29,7 +29,8 @@ This skill accepts inputs as positional arguments and/or kwargs in a `## Inputs`
   repository commit to persist
 - **evidence_revision** and **evidence_context_digest** — immutable forensic
   input identity; bind output to these values
-- **`--force`** — re-explain claims that already have explanation files
+- **`--force`** or **force** (boolean kwarg) — re-explain claims that already
+  have explanation files
 
 Example prompt with kwargs:
 ```

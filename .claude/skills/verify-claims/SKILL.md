@@ -28,7 +28,8 @@ This skill accepts inputs as positional arguments and/or kwargs in a `## Inputs`
   repository commit to persist
 - **evidence_revision** and **evidence_context_digest** — immutable evidence
   dependency identity; the recorded digest must match the workflow input
-- **`--force`** — re-verify claims that already have verdicts
+- **`--force`** or **force** (boolean kwarg) — re-verify claims that already
+  have verdicts
 
 Example prompt with kwargs:
 ```

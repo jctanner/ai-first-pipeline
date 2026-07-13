@@ -146,6 +146,16 @@ def test_stage_output_directories_remain_writable_across_receipt_runs():
     assert "f'safe.directory={context_repo}'" in analysis_check
 
 
+def test_force_claims_reaches_each_agent_skill():
+    extraction = load("workflows/run-claim-extraction.yaml")
+    extract = next(step for step in extraction["steps"] if step["name"] == "extract")
+    assert "force={{ force_claims }}" in extract["vars"]["skill_extra_kwargs"]
+
+    analysis = load("workflows/run-claim-analysis-stage.yaml")
+    run_stage = next(step for step in analysis["steps"] if step["name"] == "run_stage")
+    assert "force={{ force_claims }}" in run_stage["vars"]["skill_extra_kwargs"]
+
+
 def test_dataset_fqn_matches_workflow_default():
     dataset = json.loads((ROOT / "eval-datasets/claim-assurance-v1.json").read_text())
     workflow = load("workflows/run-claims.yaml")

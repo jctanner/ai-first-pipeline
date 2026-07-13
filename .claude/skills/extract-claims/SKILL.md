@@ -27,7 +27,8 @@ This skill accepts inputs as positional arguments and/or kwargs in a `## Inputs`
 - **segmentation_version**, **preceding_context_units**, and
   **following_context_units** — deterministic segmentation settings supplied
   by the workflow; do not silently substitute different values
-- **`--force`** — re-extract even if a `.claims.json` file already exists for the artifact
+- **`--force`** or **force** (boolean kwarg) — re-extract even if a
+  `.claims.json` file already exists for the artifact
 
 Example prompt with kwargs:
 ```

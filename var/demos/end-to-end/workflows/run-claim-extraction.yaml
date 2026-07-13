@@ -166,7 +166,7 @@ steps:
       skill_model: "{{ claims_model }}"
       skill_harness: "{{ claims_harness }}"
       skill_extra_env: "{{ claims_git_extra_env }}"
-      skill_extra_kwargs: "extractor_revision={{ claims_skill_revision }} repository_revision={{ claims_repository_revision }} model={{ claims_model }} harness={{ claims_harness }} configuration_digest={{ claims_configuration_digest }} segmentation_version={{ claims_segmentation_version }} preceding_context_units={{ claims_preceding_context_units }} following_context_units={{ claims_following_context_units }}"
+      skill_extra_kwargs: "extractor_revision={{ claims_skill_revision }} repository_revision={{ claims_repository_revision }} model={{ claims_model }} harness={{ claims_harness }} configuration_digest={{ claims_configuration_digest }} segmentation_version={{ claims_segmentation_version }} preceding_context_units={{ claims_preceding_context_units }} following_context_units={{ claims_following_context_units }} force={{ force_claims }}"
 
   - name: record_receipt_miss
     type: observatory_api
