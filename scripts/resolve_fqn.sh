@@ -54,18 +54,27 @@ case "$CLONE_HOST" in
 esac
 
 # Clone repo if not already present
+CLONE_URL="${FQN_CLONE_URL:-https://${CLONE_HOST}/${FQN_OWNER}/${FQN_REPO}.git}"
 if [ -d "$FQN_CLONE_DIR" ]; then
-  echo "Repo already cloned at $FQN_CLONE_DIR, fetching latest..."
-  git -C "$FQN_CLONE_DIR" fetch origin "$FQN_REF" --depth 1 2>/dev/null || true
-  git -C "$FQN_CLONE_DIR" checkout FETCH_HEAD 2>/dev/null || true
+  echo "Repo already cloned at $FQN_CLONE_DIR, fetching ref $FQN_REF..."
 else
-  CLONE_URL="https://${CLONE_HOST}/${FQN_OWNER}/${FQN_REPO}.git"
-  echo "Cloning $CLONE_URL (branch: $FQN_REF)..."
+  echo "Cloning $CLONE_URL (ref: $FQN_REF)..."
   mkdir -p /tmp/skills
-  if ! git clone --depth 1 -b "$FQN_REF" "$CLONE_URL" "$FQN_CLONE_DIR" 2>&1; then
+  if ! git init -q "$FQN_CLONE_DIR" || \
+     ! git -C "$FQN_CLONE_DIR" remote add origin "$CLONE_URL"; then
     echo "ERROR: Failed to clone $CLONE_URL"
+    rm -rf "$FQN_CLONE_DIR"
     return 1 2>/dev/null || exit 1
   fi
+fi
+
+# Fetching and detaching FETCH_HEAD supports branches, tags, and raw commit
+# identities. `git clone --branch` only supports the first two and rejects the
+# commit-pinned FQNs used by reproducible workflow receipts.
+if ! git -C "$FQN_CLONE_DIR" fetch --depth 1 origin "$FQN_REF" 2>&1 || \
+   ! git -C "$FQN_CLONE_DIR" checkout --detach FETCH_HEAD 2>&1; then
+  echo "ERROR: Failed to resolve ref $FQN_REF from $CLONE_URL"
+  return 1 2>/dev/null || exit 1
 fi
 
 echo "Clone directory: $FQN_CLONE_DIR"
