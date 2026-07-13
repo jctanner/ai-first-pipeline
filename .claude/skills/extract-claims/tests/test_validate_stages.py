@@ -67,6 +67,24 @@ def test_accepts_fully_evaluated_stages():
     assert MODULE.validate(document([valid_unit()])) == []
 
 
+def test_accepts_observatory_identity_added_after_ingestion():
+    data = document([valid_unit()])
+    data["observatory_run_id"] = 7
+    data["observatory_occurrence_ids"] = [41]
+    assert MODULE.validate(data) == []
+
+
+def test_rejects_incomplete_or_synthesized_observatory_identity():
+    data = document([valid_unit()])
+    data["observatory_run_id"] = 7
+    errors = " ".join(MODULE.validate(data))
+    assert "observatory_occurrence_ids" in errors
+
+    data["observatory_occurrence_ids"] = [41, 42]
+    errors = " ".join(MODULE.validate(data))
+    assert "exactly one ID per claim" in errors
+
+
 def test_rejects_claims_from_unresolved_unit():
     unit = valid_unit()
     unit["ambiguity"]["status"] = "unresolved"

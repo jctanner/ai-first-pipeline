@@ -11,6 +11,10 @@
     "segmentation_version", "segmentation_configuration_digest",
     "preceding_context_units", "following_context_units", "units"
   ],
+  "dependentRequired": {
+    "observatory_run_id": ["observatory_occurrence_ids"],
+    "observatory_occurrence_ids": ["observatory_run_id"]
+  },
   "properties": {
     "run_key": {"type": "string", "minLength": 1},
     "source_file": {"type": "string", "minLength": 1},
@@ -27,6 +31,12 @@
     "segmentation_configuration_digest": {"type": "string", "minLength": 1},
     "preceding_context_units": {"type": "integer", "minimum": 0},
     "following_context_units": {"type": "integer", "minimum": 0},
+    "observatory_run_id": {"type": "integer", "minimum": 1},
+    "observatory_occurrence_ids": {
+      "type": "array",
+      "items": {"type": "integer", "minimum": 1},
+      "uniqueItems": true
+    },
     "units": {
       "type": "array",
       "items": {"$ref": "#/$defs/unit"}

@@ -359,7 +359,10 @@ results remain immutable:
 On success, atomically add the returned run ID as `observatory_run_id` to the
 staged artifact before the workflow writes its receipt. Preserve the response's
 occurrence IDs as `observatory_occurrence_ids`; later stages must use those IDs
-rather than normalized legacy claim IDs.
+rather than normalized legacy claim IDs. Parse and preserve the exact IDs from
+the response. Never infer, renumber, or synthesize them as a sequential range.
+Run `validate-stages.py` again after adding both fields; the validator requires
+exactly one returned occurrence ID per staged claim.
 
 During migration, if that endpoint returns `404`, fall back to the legacy
 endpoint for the flattened claims only and report that stage provenance was not

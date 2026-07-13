@@ -44,6 +44,16 @@ def validate(data: dict) -> list[str]:
     units = data.get("units")
     if not isinstance(units, list):
         return [*errors, "units must be a list"]
+    occurrence_ids = data.get("observatory_occurrence_ids")
+    if isinstance(occurrence_ids, list):
+        claim_count = sum(
+            len(unit.get("claims", [])) for unit in units
+            if isinstance(unit, dict)
+        )
+        if len(occurrence_ids) != claim_count:
+            errors.append(
+                "observatory_occurrence_ids must contain exactly one ID per claim"
+            )
     seen: set[str] = set()
     for index, unit in enumerate(units):
         prefix = f"units[{index}]"
