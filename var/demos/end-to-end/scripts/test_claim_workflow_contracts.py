@@ -126,6 +126,16 @@ def test_reset_imports_the_repository_addressed_by_the_claim_skill_fqn():
     )
     assert steps["process_repos"]["concurrency"] == 1
 
+    import_repo = load("workflows/import-repo.yaml")
+    import_steps = {step["name"]: step for step in import_repo["steps"]}
+    delete_command = import_steps["delete_repo"]["params"]["command"]
+    start_command = import_steps["start_import"]["params"]["command"]
+    assert "for attempt in $(seq 1 10)" in delete_command
+    assert "500|503" in delete_command
+    assert "for attempt in $(seq 1 10)" in start_command
+    assert "500|503" in start_command
+    assert import_steps["settle_import_writes"]["params"]["command"] == "sleep 2"
+
 
 def test_claim_jobs_use_pinned_execution_fqn_and_stage_specific_revisions():
     workflow = load("workflows/run-claims.yaml")

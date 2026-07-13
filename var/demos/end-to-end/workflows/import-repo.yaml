@@ -4,27 +4,81 @@ description: "Delete and re-import a single repo from upstream"
 steps:
 
   - name: delete_repo
-    type: github_api
+    description: "Delete with bounded retries for transient emulator write locks"
+    type: shell_exec
     params:
-      path: /repos/{{ org }}/{{ repo_name }}
-      method: DELETE
-      ignore_status: [404]
+      command: |
+        set -euo pipefail
+        body=$(mktemp)
+        trap 'rm -f "$body"' EXIT
+        for attempt in $(seq 1 10); do
+          status=$(curl -skS -o "$body" -w '%{http_code}' \
+            -X DELETE \
+            -H "Authorization: token {{ github_api_token }}" \
+            -H "Accept: application/json" \
+            "{{ github_base }}/api/v3/repos/{{ org }}/{{ repo_name }}")
+          case "$status" in
+            204|404)
+              echo "Repository delete settled with HTTP $status"
+              exit 0
+              ;;
+            500|503)
+              echo "Transient HTTP $status deleting repository (attempt $attempt/10)" >&2
+              sleep 2
+              ;;
+            *)
+              echo "Repository delete failed with HTTP $status" >&2
+              cat "$body" >&2
+              exit 1
+              ;;
+          esac
+        done
+        echo "Repository delete remained locked after 10 attempts" >&2
+        cat "$body" >&2
+        exit 1
 
   - name: start_import
-    type: github_admin_api
+    description: "Create the import job with bounded retries for transient write locks"
+    type: shell_exec
     params:
-      path: /repos/import
-      method: POST
-      body:
-        url: "{{ upstream }}"
-        owner: "{{ org }}"
+      command: |
+        set -euo pipefail
+        body=$(mktemp)
+        trap 'rm -f "$body"' EXIT
+        for attempt in $(seq 1 10); do
+          status=$(curl -skS -o "$body" -w '%{http_code}' \
+            -X POST \
+            -H "Content-Type: application/json" \
+            "{{ github_base }}/api/v3/admin/repos/import" \
+            -d '{"url":"{{ upstream }}","owner":"{{ org }}"}')
+          case "$status" in
+            202)
+              python3 -c \
+                'import json,sys; print(json.load(open(sys.argv[1]))["job_id"])' \
+                "$body"
+              exit 0
+              ;;
+            500|503)
+              echo "Transient HTTP $status creating import (attempt $attempt/10)" >&2
+              sleep 2
+              ;;
+            *)
+              echo "Repository import creation failed with HTTP $status" >&2
+              cat "$body" >&2
+              exit 1
+              ;;
+          esac
+        done
+        echo "Repository import creation remained locked after 10 attempts" >&2
+        cat "$body" >&2
+        exit 1
     register: import_result
 
   - name: poll_import
     type: shell_exec
     params:
       command: |
-        job_id="{{ import_result.body.job_id }}"
+        job_id="{{ import_result.stdout | trim }}"
         if [ -z "$job_id" ]; then
           echo "FAILED: no job_id in import response"
           exit 1
@@ -49,3 +103,9 @@ steps:
         done
         echo "TIMEOUT: import did not complete within 300s"
         exit 1
+
+  - name: settle_import_writes
+    description: "Let the completed import release its final SQLite write lock"
+    type: shell_exec
+    params:
+      command: sleep 2
