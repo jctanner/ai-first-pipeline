@@ -99,6 +99,24 @@ def test_all_claim_stages_have_versioned_receipts():
         assert "evidence_context_digest" in analysis
 
 
+def test_analysis_receipt_observability_uses_explicit_hit_and_miss_steps():
+    workflow = load("workflows/run-claim-analysis-stage.yaml")
+    steps = {step["name"]: step for step in workflow["steps"]}
+
+    hit = steps["record_stage_receipt_hit"]
+    assert hit["when"] == "stage_receipt.reusable"
+    assert hit["params"]["body"]["status"] == "hit"
+    assert hit["params"]["body"]["agent_job_avoided"] is True
+
+    miss = steps["record_stage_receipt_miss"]
+    assert miss["when"] == "not stage_receipt.reusable"
+    assert miss["params"]["body"]["status"] == "miss"
+    assert miss["params"]["body"]["agent_job_avoided"] is False
+
+    rendered = (ROOT / "workflows/run-claim-analysis-stage.yaml").read_text()
+    assert " if stage_receipt.reusable else " not in rendered
+
+
 def test_dataset_fqn_matches_workflow_default():
     dataset = json.loads((ROOT / "eval-datasets/claim-assurance-v1.json").read_text())
     workflow = load("workflows/run-claims.yaml")
