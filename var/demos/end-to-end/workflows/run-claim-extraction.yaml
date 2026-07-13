@@ -160,6 +160,9 @@ steps:
 
   - name: extract
     when: "not receipt.reusable"
+    for_each: receipt.input_artifacts
+    as: artifact
+    concurrency: 3
     workflow: run-skill
     vars:
       skill_fqn: "{{ claims_skill_execution_repo }}:extract-claims"
@@ -167,7 +170,7 @@ steps:
       skill_model: "{{ claims_model }}"
       skill_harness: "{{ claims_harness }}"
       skill_extra_env: "{{ claims_git_extra_env }}"
-      skill_extra_kwargs: "extractor_revision={{ claims_skill_revision }} repository_revision={{ claims_repository_revision }} model={{ claims_model }} harness={{ claims_harness }} configuration_digest={{ claims_configuration_digest }} segmentation_version={{ claims_segmentation_version }} preceding_context_units={{ claims_preceding_context_units }} following_context_units={{ claims_following_context_units }} force={{ force_claims }}"
+      skill_extra_kwargs: "artifact_filter={{ artifact }} extractor_revision={{ claims_skill_revision }} repository_revision={{ claims_repository_revision }} model={{ claims_model }} harness={{ claims_harness }} configuration_digest={{ claims_configuration_digest }} segmentation_version={{ claims_segmentation_version }} preceding_context_units={{ claims_preceding_context_units }} following_context_units={{ claims_following_context_units }} force={{ force_claims }}"
 
   - name: record_receipt_miss
     type: observatory_api
@@ -202,6 +205,9 @@ steps:
         MODEL="{{ claims_model }}" \
         HARNESS="{{ claims_harness }}" \
         CONFIGURATION_DIGEST="{{ claims_configuration_digest }}" \
+        SEGMENTATION_VERSION="{{ claims_segmentation_version }}" \
+        PRECEDING_CONTEXT_UNITS="{{ claims_preceding_context_units }}" \
+        FOLLOWING_CONTEXT_UNITS="{{ claims_following_context_units }}" \
         EXPECTED_DIGEST="{{ receipt.input_digest }}" \
         python3 - <<'PY'
         import hashlib, json, os, tempfile
@@ -215,6 +221,9 @@ steps:
         model = os.environ['MODEL']
         harness = os.environ['HARNESS']
         configuration_digest = os.environ['CONFIGURATION_DIGEST']
+        segmentation_version = os.environ['SEGMENTATION_VERSION']
+        preceding_context_units = int(os.environ['PRECEDING_CONTEXT_UNITS'])
+        following_context_units = int(os.environ['FOLLOWING_CONTEXT_UNITS'])
         repository_revision = os.environ['REPOSITORY_REVISION']
         skip_dirs = {'.git', 'claims', 'verification', 'explanations'}
 
@@ -231,7 +240,11 @@ steps:
                 'README.md', 'strat-rubric.md'}
 
         inputs = sorted(p for p in root.rglob('*.md') if p.is_file() and included(p))
-        input_sources = {p.relative_to(root).as_posix() for p in inputs}
+        substantive_sources = {
+            p.relative_to(root).as_posix(): p
+            for p in inputs
+            if len(p.read_text(encoding='utf-8')) >= 100
+        }
         digest = hashlib.sha256()
         implementation = {
             'skill_fqn': skill_fqn,
@@ -261,41 +274,156 @@ steps:
         evaluator_revisions = set()
         observatory_run_ids = []
         claims_root = root / 'claims'
-        if claims_root.is_dir():
-            for path in sorted(claims_root.rglob('*.claims.json')):
-                try:
-                    data = json.loads(path.read_text())
-                except (OSError, json.JSONDecodeError):
-                    continue
-                if data.get('source_file') in input_sources:
-                    claim_files.append(path)
-                    claim_count += len(data.get('claims', []))
-            for path in sorted(claims_root.rglob('*.extraction.json')):
-                try:
-                    data = json.loads(path.read_text())
-                except (OSError, json.JSONDecodeError):
-                    continue
-                if data.get('source_file') not in input_sources:
-                    continue
-                staged_files.append(path)
-                if data.get('observatory_run_id') is not None:
-                    observatory_run_ids.append(data['observatory_run_id'])
-                for unit in data.get('units', []):
-                    source = unit.get('source_unit', {})
-                    source_unit_digests.append(source.get('digest') or source.get('id') or source.get('unit_key'))
-                    selection = unit.get('selection', {})
-                    classification = selection.get('classification', 'missing')
-                    selection_counts[classification] = selection_counts.get(classification, 0) + 1
-                    ambiguity = unit.get('ambiguity') or {}
-                    status = ambiguity.get('status', 'not_applicable')
-                    ambiguity_counts[status] = ambiguity_counts.get(status, 0) + 1
-                    for result in (selection, ambiguity):
-                        if result.get('evaluator_revision'):
-                            evaluator_revisions.add(result['evaluator_revision'])
-                    for claim in unit.get('claims', []):
-                        evaluation = claim.get('evaluation') or {}
-                        if evaluation.get('evaluator_revision'):
-                            evaluator_revisions.add(evaluation['evaluator_revision'])
+        for source_file, source_path in substantive_sources.items():
+            legacy_path = claims_root / f'{source_file}.claims.json'
+            staged_path = claims_root / f'{source_file}.extraction.json'
+            missing = [
+                path.relative_to(root).as_posix()
+                for path in (legacy_path, staged_path) if not path.is_file()
+            ]
+            if missing:
+                raise SystemExit(
+                    f'extraction did not produce required outputs for {source_file}: '
+                    + ', '.join(missing))
+            try:
+                legacy = json.loads(legacy_path.read_text())
+                data = json.loads(staged_path.read_text())
+            except (OSError, json.JSONDecodeError) as exc:
+                raise SystemExit(
+                    f'extraction output for {source_file} is not valid JSON: {exc}')
+
+            required_provenance = {
+                'source_file': source_file,
+                'artifact_digest': 'sha256:' + hashlib.sha256(
+                    source_path.read_bytes()).hexdigest(),
+                'extractor_revision': skill_revision,
+                'repository_revision': repository_revision,
+                'model': model,
+                'harness': harness,
+                'configuration_digest': configuration_digest,
+                'segmentation_version': segmentation_version,
+                'preceding_context_units': preceding_context_units,
+                'following_context_units': following_context_units,
+                'pipeline_slug': source_file.split('/', 1)[0],
+            }
+            mismatches = {
+                key: {'expected': expected, 'actual': data.get(key)}
+                for key, expected in required_provenance.items()
+                if data.get(key) != expected
+            }
+            if mismatches:
+                raise SystemExit(
+                    f'extraction provenance mismatch for {source_file}: '
+                    + json.dumps(mismatches, sort_keys=True))
+            if '__REQUIRED__' in json.dumps(data, sort_keys=True):
+                raise SystemExit(
+                    f'extraction left required judgments empty for {source_file}')
+            if not isinstance(data.get('units'), list):
+                raise SystemExit(
+                    f'extraction units are not canonical for {source_file}')
+            for field in ('run_key', 'artifact_type',
+                          'segmentation_configuration_digest'):
+                if not isinstance(data.get(field), str) or not data[field]:
+                    raise SystemExit(
+                        f'extraction is missing {field} for {source_file}')
+            if not isinstance(data.get('configuration'), dict):
+                raise SystemExit(
+                    f'extraction is missing segmentation configuration for '
+                    f'{source_file}')
+
+            projected = []
+            for unit_index, unit in enumerate(data['units']):
+                if not isinstance(unit, dict) or not isinstance(
+                        unit.get('source_unit'), dict):
+                    raise SystemExit(
+                        f'extraction unit {unit_index} is malformed for {source_file}')
+                if unit.get('selection', {}).get('classification') not in {
+                        'verifiable', 'mixed', 'unverifiable'}:
+                    raise SystemExit(
+                        f'extraction unit {unit_index} has no selection for {source_file}')
+                ambiguity = unit.get('ambiguity')
+                classification = unit['selection']['classification']
+                if ambiguity is not None and ambiguity.get('status') not in {
+                        'none', 'resolved', 'unresolved'}:
+                    raise SystemExit(
+                        f'extraction unit {unit_index} has no ambiguity result '
+                        f'for {source_file}')
+                if classification == 'unverifiable' and (
+                        ambiguity is not None or unit.get('claims')):
+                    raise SystemExit(
+                        f'unverifiable unit {unit_index} emitted judgments or '
+                        f'claims for {source_file}')
+                if classification != 'unverifiable' and ambiguity is None:
+                    raise SystemExit(
+                        f'selected unit {unit_index} has no ambiguity result '
+                        f'for {source_file}')
+                if ambiguity and ambiguity.get('status') == 'unresolved' and \
+                        unit.get('claims'):
+                    raise SystemExit(
+                        f'unresolved unit {unit_index} emitted claims for '
+                        f'{source_file}')
+                for claim in unit.get('claims', []):
+                    evaluation = claim.get('evaluation') or {}
+                    if not isinstance(evaluation.get('entailed'), bool):
+                        raise SystemExit(
+                            f'extraction claim lacks entailment for {source_file}')
+                    elements = evaluation.get('coverage_elements')
+                    if not isinstance(elements, list) or not elements:
+                        raise SystemExit(
+                            f'extraction claim lacks coverage elements for '
+                            f'{source_file}')
+                    coverage_problem = any(
+                        (element.get('element_kind') == 'verifiable' and
+                         element.get('coverage') == 'omitted') or
+                        (element.get('element_kind') == 'unverifiable' and
+                         element.get('coverage') == 'included')
+                        for element in elements
+                    )
+                    result = evaluation.get('coverage_result')
+                    if (coverage_problem and result == 'complete') or (
+                            not coverage_problem and result != 'complete'):
+                        raise SystemExit(
+                            f'extraction claim has inconsistent coverage for '
+                            f'{source_file}')
+                    if claim.get('accepted', True):
+                        projected.append({
+                            'claim': claim.get('claim_text'),
+                            'type': claim.get('claim_type'),
+                            'original_text': claim.get('original_text'),
+                        })
+
+            expected_legacy = {
+                'source_file': source_file,
+                'pipeline_slug': data.get('pipeline_slug'),
+                'claim_count': len(projected),
+                'claims': projected,
+            }
+            if legacy != expected_legacy:
+                raise SystemExit(
+                    f'legacy projection does not match canonical extraction for '
+                    f'{source_file}')
+
+            claim_files.append(legacy_path)
+            staged_files.append(staged_path)
+            claim_count += len(projected)
+            if data.get('observatory_run_id') is not None:
+                observatory_run_ids.append(data['observatory_run_id'])
+            for unit in data['units']:
+                source = unit.get('source_unit', {})
+                source_unit_digests.append(source.get('digest') or source.get('id') or source.get('unit_key'))
+                selection = unit.get('selection', {})
+                classification = selection.get('classification', 'missing')
+                selection_counts[classification] = selection_counts.get(classification, 0) + 1
+                ambiguity = unit.get('ambiguity') or {}
+                status = ambiguity.get('status', 'not_applicable')
+                ambiguity_counts[status] = ambiguity_counts.get(status, 0) + 1
+                for result in (selection, ambiguity):
+                    if result.get('evaluator_revision'):
+                        evaluator_revisions.add(result['evaluator_revision'])
+                for claim in unit.get('claims', []):
+                    evaluation = claim.get('evaluation') or {}
+                    if evaluation.get('evaluator_revision'):
+                        evaluator_revisions.add(evaluation['evaluator_revision'])
 
         receipt = {
             'schema_version': 2,

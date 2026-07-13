@@ -38,7 +38,10 @@ Example prompt with kwargs:
 - artifact_filter: strat-pipeline/RHAISTRAT-1676.md
 ```
 
-If both an issue key and artifact_filter are provided, use both to narrow the search.
+If both an issue key and artifact_filter are provided, use both to narrow the
+search. Treat a workflow-supplied `artifact_filter` as an exact artifacts-root
+relative path. It must select at most one eligible file; fail if it ambiguously
+matches multiple files.
 
 Require at least one of `issue key` or `artifact_filter`. If no eligible files
 match, report a successful zero-file result rather than inventing work.
@@ -133,10 +136,14 @@ entailment result, coverage result, evidence record, acceptance decision, or
 decontextualization result. A missing judgment is a failed extraction, not a
 reasonable default.
 
-If work is delegated, give each worker exactly one scaffold path and require it
-to populate the canonical nested shape and run `validate-stages.py` itself.
-Treat a worker result that does not pass validation as failed. The parent must
-not translate a worker-specific format into the canonical format.
+When `artifact_filter` is provided, do not delegate extraction to another
+agent. The workflow already provides artifact-level parallelism, and this
+agent must populate and validate the one selected scaffold itself. For a local
+issue-scoped invocation without `artifact_filter`, any delegated worker must
+receive exactly one scaffold path and must populate the canonical nested shape
+and run `validate-stages.py` itself. Treat a worker result that does not pass
+validation as failed. The parent must not translate a worker-specific format
+into the canonical format or fill in judgments on a failed worker's behalf.
 
 1. **Selection** — classify the unit as `verifiable`, `mixed`, or
    `unverifiable`. For a mixed unit, select its exact verifiable portions.

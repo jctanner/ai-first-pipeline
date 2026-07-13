@@ -1,7 +1,9 @@
 import json
+import hashlib
 import subprocess
 from pathlib import Path
 
+import pytest
 import yaml
 
 from claim_receipt_contract import reusable
@@ -40,6 +42,9 @@ def extraction_values(**overrides):
         "claims_model": "claude-opus-4-6",
         "claims_harness": "claude-code",
         "claims_configuration_digest": "config-a",
+        "claims_segmentation_version": "claim-segmentation-v1",
+        "claims_preceding_context_units": 1,
+        "claims_following_context_units": 1,
         "force_claims": "false",
     }
     values.update(overrides)
@@ -150,6 +155,9 @@ def test_force_claims_reaches_each_agent_skill():
     extraction = load("workflows/run-claim-extraction.yaml")
     extract = next(step for step in extraction["steps"] if step["name"] == "extract")
     assert "force={{ force_claims }}" in extract["vars"]["skill_extra_kwargs"]
+    assert extract["for_each"] == "receipt.input_artifacts"
+    assert extract["as"] == "artifact"
+    assert "artifact_filter={{ artifact }}" in extract["vars"]["skill_extra_kwargs"]
 
     analysis = load("workflows/run-claim-analysis-stage.yaml")
     run_stage = next(step for step in analysis["steps"] if step["name"] == "run_stage")
@@ -396,6 +404,81 @@ def test_embedded_extraction_receipt_hits_then_invalidates_source_and_skill(tmp_
     )
     assert skill_change["reusable"] is False
     assert skill_change["reason"] == "implementation-changed"
+
+
+def test_extraction_receipt_refuses_unvalidated_or_stale_agent_output(tmp_path):
+    source = tmp_path / "strategies" / "RFE-1.md"
+    source.parent.mkdir()
+    source_text = (
+        "# Strategy\n\nThe API retains immutable history for every submitted "
+        "job, including its resolved skill identity and execution result.\n"
+    )
+    source.write_text(source_text)
+    check = step_command("workflows/run-claim-extraction.yaml", "check_receipt")
+    write = step_command("workflows/run-claim-extraction.yaml", "write_receipt")
+    first = run_embedded(check, tmp_path, extraction_values())
+    values = extraction_values(**{"receipt.input_digest": first["input_digest"]})
+
+    with pytest.raises(subprocess.CalledProcessError):
+        run_embedded(write, tmp_path, values)
+
+    outputs = tmp_path / "claims" / "strategies"
+    outputs.mkdir(parents=True)
+    staged_path = outputs / "RFE-1.md.extraction.json"
+    legacy_path = outputs / "RFE-1.md.claims.json"
+    staged = {
+        "run_key": "run-a",
+        "source_file": "strategies/RFE-1.md",
+        "pipeline_slug": "strategies",
+        "artifact_type": "strategy",
+        "artifact_digest": "sha256:" + hashlib.sha256(
+            source.read_bytes()).hexdigest(),
+        "extractor_revision": "skill-a",
+        "repository_revision": "commit-a",
+        "model": "claude-opus-4-6",
+        "harness": "claude-code",
+        "configuration_digest": "config-a",
+        "configuration": {
+            "segmenter_version": "markdown-v1",
+            "preceding_units": 1,
+            "following_units": 1,
+            "artifact_type": "strategy",
+            "artifact_type_override": {},
+        },
+        "segmentation_version": "claim-segmentation-v1",
+        "segmentation_configuration_digest": "sha256:segments-a",
+        "preceding_context_units": 1,
+        "following_context_units": 1,
+        "units": [{
+            "source_unit": {"id": "unit-a"},
+            "selection": {
+                "classification": "__REQUIRED__",
+                "evaluator_revision": "skill-a",
+            },
+            "ambiguity": None,
+            "claims": [],
+        }],
+    }
+    staged_path.write_text(json.dumps(staged))
+    legacy_path.write_text(json.dumps({
+        "source_file": "strategies/RFE-1.md",
+        "pipeline_slug": "strategies",
+        "claim_count": 0,
+        "claims": [],
+    }))
+    with pytest.raises(subprocess.CalledProcessError):
+        run_embedded(write, tmp_path, values)
+
+    staged["units"][0]["selection"]["classification"] = "unverifiable"
+    staged_path.write_text(json.dumps(staged))
+    result = run_embedded(write, tmp_path, values)
+    assert result["written"] is True
+    receipt = json.loads(
+        (tmp_path / "claims" / ".receipts" / "RFE-1.json").read_text())
+    assert receipt["outputs"]["artifacts"] == [
+        "claims/strategies/RFE-1.md.claims.json",
+        "claims/strategies/RFE-1.md.extraction.json",
+    ]
 
 
 def test_embedded_analysis_receipt_tracks_inputs_evidence_and_outputs(tmp_path):
