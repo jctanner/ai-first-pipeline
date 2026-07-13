@@ -98,6 +98,7 @@ def test_reset_imports_the_repository_addressed_by_the_claim_skill_fqn():
     claims = load("workflows/run-claims.yaml")
     reset = load("workflows/reset-github.yaml")
     steps = {step["name"]: step for step in reset["steps"]}
+    step_names = [step["name"] for step in reset["steps"]]
 
     expected_fqn = (
         f"github.local/{variables['claims_skill_owner']}/"
@@ -117,6 +118,12 @@ def test_reset_imports_the_repository_addressed_by_the_claim_skill_fqn():
     seed_command = steps["seed_claim_assurance_dataset"]["params"]["command"]
     assert seed_command.count("git -c http.sslVerify=false") == 2
     assert "git checkout -B main" in seed_command
+    assert step_names.index("import_claims_skill_source") < step_names.index(
+        "seed_claim_assurance_dataset"
+    )
+    assert step_names.index("settle_after_dataset_seed") < step_names.index(
+        "process_repos"
+    )
 
 
 def test_claim_jobs_use_pinned_execution_fqn_and_stage_specific_revisions():

@@ -83,6 +83,14 @@ steps:
         auto_init: true
         description: "Evaluation datasets for agent-eval-harness"
 
+  - name: import_claims_skill_source
+    description: "Import the repository addressed by the claim skill FQN"
+    workflow: import-repo
+    vars:
+      org: "{{ claims_skill_owner }}"
+      repo_name: ai-first-pipeline
+      upstream: "{{ claims_skill_upstream }}"
+
   - name: seed_claim_assurance_dataset
     description: "Publish the executable claim-assurance corpus and current extraction skill"
     type: shell_exec
@@ -108,13 +116,11 @@ steps:
         git commit -m "Seed claim assurance evaluation corpus"
         git -c http.sslVerify=false push origin main
 
-  - name: import_claims_skill_source
-    description: "Import the repository addressed by the claim skill FQN"
-    workflow: import-repo
-    vars:
-      org: "{{ claims_skill_owner }}"
-      repo_name: ai-first-pipeline
-      upstream: "{{ claims_skill_upstream }}"
+  - name: settle_after_dataset_seed
+    description: "Let the emulator release its SQLite write transaction"
+    type: shell_exec
+    params:
+      command: sleep 2
 
   # Step 4: Delete and re-import each repo from upstream
   - name: process_repos
