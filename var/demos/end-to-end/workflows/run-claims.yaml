@@ -1,0 +1,126 @@
+# ====================================================================
+# Run Claims: Extract → Verify → Explain
+# ====================================================================
+#
+# Runs the three-stage claim analysis pipeline across all issues
+# produced by a completed RFE → Strategy → Epic run.
+#
+# Discovers the strategy and epic keys from Jira, then fans out
+# extract-claims, verify-claims, and explain-claims for each issue.
+#
+# Standalone — not wired into run-pipeline yet. Run directly:
+#   markov run --workflow run-claims --var rfe_issue=RHAIRFE-1
+#
+# Requires: rfe_issue (with a linked RHAISTRAT and child epics)
+
+name: run-claims
+description: "Extract, verify, and explain claims for {{ rfe_issue }}"
+
+steps:
+
+  # ── Discover all issues ───────────────────────────────────────
+  #
+  # Single script that finds the RHAISTRAT key from issue links,
+  # then finds all epic children via JQL, and outputs a combined
+  # JSON object with strat_issue and a flat all_issues list.
+
+  - name: discover_issues
+    description: "Discover strategy and epic keys from Jira"
+    type: shell_exec
+    params:
+      command: |
+        python3 -c "
+        import json, sys, ssl, urllib.request, base64
+        ssl._create_default_https_context = ssl._create_unverified_context
+
+        server = '{{ jira_base }}'.rstrip('/')
+        rfe = '{{ rfe_issue }}'
+        auth_header = 'Basic ' + base64.b64encode(
+            '{{ jira_user }}:{{ jira_token }}'.encode()).decode()
+        headers = {'Content-Type': 'application/json',
+                   'Authorization': auth_header}
+
+        # 1) Find RHAISTRAT key from RFE issue links
+        req = urllib.request.Request(
+            f'{server}/rest/api/2/issue/{rfe}?fields=issuelinks',
+            headers=headers)
+        data = json.loads(urllib.request.urlopen(req).read())
+        strat = None
+        for link in data.get('fields', {}).get('issuelinks', []):
+            if link.get('type', {}).get('name') == 'Cloners':
+                for d in ['inwardIssue', 'outwardIssue']:
+                    issue = link.get(d, {})
+                    if issue.get('key', '').startswith('RHAISTRAT'):
+                        strat = issue['key']
+                        break
+            if strat:
+                break
+        if not strat:
+            print(f'ERROR: no RHAISTRAT link found on {rfe}', file=sys.stderr)
+            sys.exit(1)
+        print(f'  Strategy: {strat}', file=sys.stderr)
+
+        # 2) Find epic children via JQL
+        body = json.dumps({
+            'jql': f'parent = {strat}',
+            'fields': ['key', 'summary'],
+            'maxResults': 100,
+        }).encode()
+        req = urllib.request.Request(
+            f'{server}/rest/api/2/search',
+            data=body, headers=headers)
+        search = json.loads(urllib.request.urlopen(req).read())
+        epics = [{'key': i['key']} for i in search.get('issues', [])]
+        for e in epics:
+            print(f'  Epic: {e[\"key\"]}', file=sys.stderr)
+        print(f'  Total: 1 RFE + 1 strategy + {len(epics)} epics', file=sys.stderr)
+
+        # 3) Build combined list
+        all_issues = [{'key': rfe}, {'key': strat}] + epics
+        print(json.dumps({'strat_issue': strat, 'all_issues': all_issues}))
+        "
+    register: issue_discovery
+
+  - name: set_issues
+    type: set_fact
+    vars:
+      discovered: "{{ issue_discovery.stdout | fromjson }}"
+
+  - name: set_all_issues
+    type: set_fact
+    vars:
+      strat_issue: "{{ discovered.strat_issue }}"
+      all_issues: "{{ discovered.all_issues }}"
+
+  # ── Phase 1: Extract claims ──────────────────────────────────
+
+  - name: extract_claims
+    description: "Extract claims from artifacts"
+    for_each: all_issues
+    as: issue
+    workflow: run-skill
+    vars:
+      skill_fqn: "github.com/jctanner/ai-first-pipeline@main:extract-claims"
+      skill_issue: "{{ issue.key }}"
+
+  # ── Phase 2: Verify claims ──────────────────────────────────
+
+  - name: verify_claims
+    description: "Verify extracted claims against evidence"
+    for_each: all_issues
+    as: issue
+    workflow: run-skill
+    vars:
+      skill_fqn: "github.com/jctanner/ai-first-pipeline@main:verify-claims"
+      skill_issue: "{{ issue.key }}"
+
+  # ── Phase 3: Explain claims ─────────────────────────────────
+
+  - name: explain_claims
+    description: "Root-cause analysis on verified claims"
+    for_each: all_issues
+    as: issue
+    workflow: run-skill
+    vars:
+      skill_fqn: "github.com/jctanner/ai-first-pipeline@main:explain-claims"
+      skill_issue: "{{ issue.key }}"
