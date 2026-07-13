@@ -149,6 +149,14 @@ steps:
           reason: "{{ receipt.reason }}"
           repository_revision: "{{ claims_repository_revision }}"
 
+  - name: prepare_claim_output
+    type: shell_exec
+    when: "not receipt.reusable"
+    params:
+      command: |
+        mkdir -p /app/artifacts/claims
+        chmod 0777 /app/artifacts/claims
+
   - name: extract
     when: "not receipt.reusable"
     workflow: run-skill
@@ -320,6 +328,9 @@ steps:
                 json.dump(receipt, stream, indent=2, sort_keys=True)
                 stream.write('\n')
             os.replace(temporary, receipt_path)
+            os.chmod(receipt_path, 0o666)
+            os.chmod(receipt_path.parent, 0o777)
+            os.chmod(claims_root, 0o777)
         finally:
             if os.path.exists(temporary):
                 os.unlink(temporary)

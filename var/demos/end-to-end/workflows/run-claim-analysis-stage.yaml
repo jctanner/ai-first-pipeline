@@ -124,6 +124,20 @@ steps:
           evidence_revision: "{{ stage_receipt.evidence_revision }}"
           repository_revision: "{{ claims_repository_revision }}"
 
+  - name: prepare_stage_output
+    type: shell_exec
+    when: "not stage_receipt.reusable"
+    params:
+      command: |
+        STAGE="{{ claim_stage }}"
+        if [ "$STAGE" = "verify-claims" ]; then
+          OUTPUT_DIR=/app/artifacts/verification
+        else
+          OUTPUT_DIR=/app/artifacts/explanations
+        fi
+        mkdir -p "$OUTPUT_DIR"
+        chmod 0777 "$OUTPUT_DIR"
+
   - name: run_stage
     when: "not stage_receipt.reusable"
     workflow: run-skill
@@ -223,6 +237,9 @@ steps:
             with os.fdopen(fd, 'w') as stream:
                 json.dump(receipt, stream, indent=2, sort_keys=True); stream.write('\n')
             os.replace(temporary, path)
+            os.chmod(path, 0o666)
+            os.chmod(path.parent, 0o777)
+            os.chmod(base, 0o777)
         finally:
             if os.path.exists(temporary): os.unlink(temporary)
         print(json.dumps({'receipt_path': path.as_posix(), 'outputs': len(outputs)}))

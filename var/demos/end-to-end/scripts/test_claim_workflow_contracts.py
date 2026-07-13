@@ -117,6 +117,30 @@ def test_analysis_receipt_observability_uses_explicit_hit_and_miss_steps():
     assert " if stage_receipt.reusable else " not in rendered
 
 
+def test_stage_output_directories_remain_writable_across_receipt_runs():
+    extraction = load("workflows/run-claim-extraction.yaml")
+    extraction_steps = {step["name"]: step for step in extraction["steps"]}
+    prepare_claims = extraction_steps["prepare_claim_output"]
+    assert prepare_claims["when"] == "not receipt.reusable"
+    assert "chmod 0777 /app/artifacts/claims" in prepare_claims["params"]["command"]
+    extraction_receipt = step_command(
+        "workflows/run-claim-extraction.yaml", "write_receipt"
+    )
+    assert "os.chmod(receipt_path, 0o666)" in extraction_receipt
+    assert "os.chmod(claims_root, 0o777)" in extraction_receipt
+
+    analysis = load("workflows/run-claim-analysis-stage.yaml")
+    analysis_steps = {step["name"]: step for step in analysis["steps"]}
+    prepare_stage = analysis_steps["prepare_stage_output"]
+    assert prepare_stage["when"] == "not stage_receipt.reusable"
+    assert "chmod 0777 \"$OUTPUT_DIR\"" in prepare_stage["params"]["command"]
+    analysis_receipt = step_command(
+        "workflows/run-claim-analysis-stage.yaml", "write_stage_receipt"
+    )
+    assert "os.chmod(path, 0o666)" in analysis_receipt
+    assert "os.chmod(base, 0o777)" in analysis_receipt
+
+
 def test_dataset_fqn_matches_workflow_default():
     dataset = json.loads((ROOT / "eval-datasets/claim-assurance-v1.json").read_text())
     workflow = load("workflows/run-claims.yaml")

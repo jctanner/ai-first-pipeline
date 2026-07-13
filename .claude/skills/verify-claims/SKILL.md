@@ -24,7 +24,7 @@ This skill accepts inputs as positional arguments and/or kwargs in a `## Inputs`
 - **claim_ids** (kwarg, e.g. `123,456,789`) — verify specific claim IDs
 - **claim_types** (kwarg, e.g. `security,architectural`) — only verify claims of these types
 - **implementation_revision**, **repository_revision**, **model**, **harness**,
-  and **configuration_digest** — resolved verifier tree identity and pinned
+  and **configuration_digest** — resolved verifier tree identity and resolved
   repository commit to persist
 - **evidence_revision** and **evidence_context_digest** — immutable evidence
   dependency identity; the recorded digest must match the workflow input
@@ -262,7 +262,7 @@ For each claim, produce:
 {
   "claim_occurrence_id": 123,
   "verifier_revision": "resolved commit or immutable implementation ID",
-  "repository_revision": "pinned repository commit",
+  "repository_revision": "resolved repository commit",
   "model": "resolved model identity",
   "harness": "dashboard-jobs-api",
   "configuration_digest": "sha256:...",

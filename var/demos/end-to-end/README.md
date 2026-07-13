@@ -171,8 +171,8 @@ Extraction, verification, and explanation each write schema-v2 receipts under
 their artifact directory's `.receipts/`. Receipts include the stage-specific
 Git tree identity, its containing repository commit, model, harness,
 configuration, source/evidence digests, outputs, and Observatory run IDs. Jobs
-execute a
-commit-pinned FQN, while reuse compares the stage tree; changing only the
+normally execute the configured `@main` FQN, while receipts record the resolved
+repository commit and compare the stage tree; changing only the
 verifier therefore preserves extraction and invalidates verification plus
 explanation. Changing a source invalidates extraction and its descendants,
 changing architecture evidence invalidates verification and explanation, and

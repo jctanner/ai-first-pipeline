@@ -23,7 +23,7 @@ This skill accepts inputs as positional arguments and/or kwargs in a `## Inputs`
   **configuration_digest** — resolved execution provenance supplied by the
   workflow; preserve these exact values in staged output. The extractor
   revision identifies the stage-specific Git tree, while repository revision
-  identifies the pinned commit used to execute it.
+  identifies the commit resolved from the configured execution ref.
 - **segmentation_version**, **preceding_context_units**, and
   **following_context_units** — deterministic segmentation settings supplied
   by the workflow; do not silently substitute different values
@@ -77,7 +77,22 @@ For each matching artifact file:
 1. Read the file content
 2. Skip if content is under 100 characters
 3. Check if a `.claims.json` file already exists at `{artifacts_dir}/claims/{relative_path}.claims.json` — skip unless `--force` was given
-4. Run `scripts/segment-artifact.py` to produce deterministic source units.
+4. Resolve this skill's directory, then run its segmenter to produce
+   deterministic source units:
+
+```bash
+SKILL_FILE=$(find . /app/.claude/skills/extract-claims \
+  -path "*/extract-claims/SKILL.md" -type f 2>/dev/null | head -1)
+SKILL_DIR=$(dirname "${SKILL_FILE:-.claude/skills/extract-claims/SKILL.md}")
+test -f "$SKILL_DIR/scripts/segment-artifact.py"
+test -f "$SKILL_DIR/scripts/validate-stages.py"
+test -f "$SKILL_DIR/schemas/staged-extraction.schema.json"
+python3 "$SKILL_DIR/scripts/segment-artifact.py" --help
+```
+
+Do not look for these files under the repository-level `scripts/` directory.
+If any required skill resource is unavailable, fail the extraction instead of
+substituting manual segmentation or validation.
 
 Use the same segmentation version and context-window configuration for every
 artifact in a run. Preserve the generated `unit_key`, locator, heading path,
@@ -88,8 +103,9 @@ list preamble, and context arrays in all later stage results.
 Process every source unit independently through these stages. Emit valid JSON
 for each stage before continuing; do not silently repair malformed model output.
 The combined artifact must conform to
-`schemas/staged-extraction.schema.json` in addition to the cross-stage
-invariants enforced by `scripts/validate-stages.py`.
+`$SKILL_DIR/schemas/staged-extraction.schema.json` in addition to the
+cross-stage invariants enforced by
+`$SKILL_DIR/scripts/validate-stages.py`.
 
 1. **Selection** — classify the unit as `verifiable`, `mixed`, or
    `unverifiable`. For a mixed unit, select its exact verifiable portions.
@@ -226,11 +242,15 @@ segmenter's `id`/`kind`/`text` source-unit fields are accepted directly by the
 v2 API as aliases for `unit_key`/`unit_kind`/`original_text`.
 
 The legacy `.claims.json` is a flattened compatibility projection only. Run
-`scripts/validate-stages.py` against the staged artifact before writing either
-file. If validation fails, preserve the invalid candidate separately for
+`$SKILL_DIR/scripts/validate-stages.py` against the staged artifact before
+writing either file. If validation fails, preserve the invalid candidate separately for
 diagnosis, report failure, and do not ingest or emit a completion receipt.
 
 Create parent directories as needed with `mkdir -p`.
+
+If the shared `claims/` directory is not writable, stop and report the
+permission error. Never rename, replace, recursively delete, or move the shared
+`claims/` directory or its `.receipts/` directory to work around permissions.
 
 Write each JSON file atomically (temporary file followed by rename). Before
 renaming, parse it again and verify that `claim_count == len(claims)`, every

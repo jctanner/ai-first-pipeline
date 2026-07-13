@@ -25,7 +25,7 @@ This skill accepts inputs as positional arguments and/or kwargs in a `## Inputs`
 - **verdict_filter** (kwarg, e.g. `contradicted,insufficient_evidence`) — only explain claims with these verdicts (default: `contradicted,insufficient_evidence`; legacy aliases remain accepted)
 - **limit** (kwarg, e.g. `10`) — max claims to process (default: 20)
 - **implementation_revision**, **repository_revision**, **model**, **harness**,
-  and **configuration_digest** — resolved explainer tree identity and pinned
+  and **configuration_digest** — resolved explainer tree identity and resolved
   repository commit to persist
 - **evidence_revision** and **evidence_context_digest** — immutable forensic
   input identity; bind output to these values
@@ -252,7 +252,7 @@ cat <<'PAYLOAD' | curl -s -X POST "${observatory_url}/api/v2/claims/explanation-
 {
   "verification_run_id": 789,
   "explainer_revision": "github.com/example/skills@abc123:explain-claims",
-  "repository_revision": "pinned repository commit",
+  "repository_revision": "resolved repository commit",
   "model": "resolved model identity",
   "harness": "dashboard-jobs-api",
   "configuration_digest": "sha256:...",
