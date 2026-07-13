@@ -2,82 +2,105 @@
 # Run Claims: Extract → Verify → Explain
 # ====================================================================
 #
-# Runs the three-stage claim analysis pipeline across all issues
-# produced by a completed RFE → Strategy → Epic run.
+# Runs the three-stage claim analysis pipeline across the RFE and every
+# descendant produced by a completed planning-to-implementation run.
 #
-# Discovers the strategy and epic keys from Jira, then fans out
-# extract-claims, verify-claims, and explain-claims for each issue.
+# Discovers all linked strategies, recursively walks parented children,
+# then fans out extract-claims, verify-claims, and explain-claims for
+# each unique issue.
 #
 # Standalone — not wired into run-pipeline yet. Run directly:
 #   markov run --workflow run-claims --var rfe_issue=RHAIRFE-1
 #
-# Requires: rfe_issue (with a linked RHAISTRAT and child epics)
+# Requires: rfe_issue (with at least one linked RHAISTRAT issue)
 
 name: run-claims
-description: "Extract, verify, and explain claims for {{ rfe_issue }}"
+description: "Extract, verify, and explain claims for {{ rfe_issue }} and its descendants"
+
+vars:
+  # Override this to compare a fork, local-forge copy, or immutable revision.
+  claims_skill_repo: "github.com/jctanner/ai-first-pipeline@main"
 
 steps:
 
-  # ── Discover all issues ───────────────────────────────────────
-  #
-  # Single script that finds the RHAISTRAT key from issue links,
-  # then finds all epic children via JQL, and outputs a combined
-  # JSON object with strat_issue and a flat all_issues list.
+  # ── Discover complete issue tree ─────────────────────────────
 
   - name: discover_issues
-    description: "Discover strategy and epic keys from Jira"
+    description: "Discover linked strategies and all parented descendants"
     type: shell_exec
     params:
       command: |
         python3 -c "
-        import json, sys, ssl, urllib.request, base64
-        ssl._create_default_https_context = ssl._create_unverified_context
+        import base64, json, ssl, sys, urllib.request
 
         server = '{{ jira_base }}'.rstrip('/')
         rfe = '{{ rfe_issue }}'
         auth_header = 'Basic ' + base64.b64encode(
             '{{ jira_user }}:{{ jira_token }}'.encode()).decode()
-        headers = {'Content-Type': 'application/json',
-                   'Authorization': auth_header}
+        headers = {
+            'Content-Type': 'application/json',
+            'Authorization': auth_header,
+        }
+        ssl_context = ssl._create_unverified_context()
 
-        # 1) Find RHAISTRAT key from RFE issue links
-        req = urllib.request.Request(
-            f'{server}/rest/api/2/issue/{rfe}?fields=issuelinks',
-            headers=headers)
-        data = json.loads(urllib.request.urlopen(req).read())
-        strat = None
-        for link in data.get('fields', {}).get('issuelinks', []):
-            if link.get('type', {}).get('name') == 'Cloners':
-                for d in ['inwardIssue', 'outwardIssue']:
-                    issue = link.get(d, {})
-                    if issue.get('key', '').startswith('RHAISTRAT'):
-                        strat = issue['key']
-                        break
-            if strat:
-                break
-        if not strat:
+        def request_json(url, body=None):
+            req = urllib.request.Request(url, data=body, headers=headers)
+            with urllib.request.urlopen(
+                    req, timeout=30, context=ssl_context) as response:
+                return json.loads(response.read())
+
+        def children_of(parent):
+            children = []
+            start_at = 0
+            while True:
+                body = json.dumps({
+                    'jql': f'parent = {parent}',
+                    'fields': ['key', 'summary'],
+                    'startAt': start_at,
+                    'maxResults': 100,
+                }).encode()
+                page = request_json(f'{server}/rest/api/2/search', body)
+                issues = page.get('issues', [])
+                children.extend(i['key'] for i in issues)
+                start_at += len(issues)
+                if not issues or start_at >= page.get('total', start_at):
+                    return children
+
+        # Strategies are linked rather than parented in the current flow.
+        rfe_data = request_json(
+            f'{server}/rest/api/2/issue/{rfe}?fields=issuelinks')
+        strategies = set()
+        for link in rfe_data.get('fields', {}).get('issuelinks', []):
+            if link.get('type', {}).get('name') != 'Cloners':
+                continue
+            for direction in ['inwardIssue', 'outwardIssue']:
+                issue = link.get(direction, {})
+                key = issue.get('key', '')
+                if key.startswith('RHAISTRAT'):
+                    strategies.add(key)
+
+        if not strategies:
             print(f'ERROR: no RHAISTRAT link found on {rfe}', file=sys.stderr)
             sys.exit(1)
-        print(f'  Strategy: {strat}', file=sys.stderr)
 
-        # 2) Find epic children via JQL
-        body = json.dumps({
-            'jql': f'parent = {strat}',
-            'fields': ['key', 'summary'],
-            'maxResults': 100,
-        }).encode()
-        req = urllib.request.Request(
-            f'{server}/rest/api/2/search',
-            data=body, headers=headers)
-        search = json.loads(urllib.request.urlopen(req).read())
-        epics = [{'key': i['key']} for i in search.get('issues', [])]
-        for e in epics:
-            print(f'  Epic: {e[\"key\"]}', file=sys.stderr)
-        print(f'  Total: 1 RFE + 1 strategy + {len(epics)} epics', file=sys.stderr)
+        # Walk parent relationships recursively. Including the RFE in the
+        # queue also supports future workflows that use parent instead of links.
+        discovered = {rfe, *strategies}
+        queue = sorted(discovered)
+        while queue:
+            parent = queue.pop(0)
+            for child in children_of(parent):
+                if child in discovered:
+                    continue
+                discovered.add(child)
+                queue.append(child)
+                print(f'  Child of {parent}: {child}', file=sys.stderr)
 
-        # 3) Build combined list
-        all_issues = [{'key': rfe}, {'key': strat}] + epics
-        print(json.dumps({'strat_issue': strat, 'all_issues': all_issues}))
+        for strat in sorted(strategies):
+            print(f'  Strategy: {strat}', file=sys.stderr)
+        all_issues = [{'key': key} for key in sorted(discovered)]
+        print(f'  Total issues: {len(all_issues)}', file=sys.stderr)
+        print(json.dumps({'all_issues': all_issues}))
         "
     register: issue_discovery
 
@@ -89,7 +112,6 @@ steps:
   - name: set_all_issues
     type: set_fact
     vars:
-      strat_issue: "{{ discovered.strat_issue }}"
       all_issues: "{{ discovered.all_issues }}"
 
   # ── Phase 1: Extract claims ──────────────────────────────────
@@ -97,10 +119,12 @@ steps:
   - name: extract_claims
     description: "Extract claims from artifacts"
     for_each: all_issues
+    for_each_key: "key"
+    for_each_sort: "key"
     as: issue
     workflow: run-skill
     vars:
-      skill_fqn: "github.com/jctanner/ai-first-pipeline@main:extract-claims"
+      skill_fqn: "{{ claims_skill_repo }}:extract-claims"
       skill_issue: "{{ issue.key }}"
 
   # ── Phase 2: Verify claims ──────────────────────────────────
@@ -108,10 +132,13 @@ steps:
   - name: verify_claims
     description: "Verify extracted claims against evidence"
     for_each: all_issues
+    for_each_key: "key"
+    for_each_sort: "key"
+    concurrency: 1
     as: issue
     workflow: run-skill
     vars:
-      skill_fqn: "github.com/jctanner/ai-first-pipeline@main:verify-claims"
+      skill_fqn: "{{ claims_skill_repo }}:verify-claims"
       skill_issue: "{{ issue.key }}"
 
   # ── Phase 3: Explain claims ─────────────────────────────────
@@ -119,8 +146,11 @@ steps:
   - name: explain_claims
     description: "Root-cause analysis on verified claims"
     for_each: all_issues
+    for_each_key: "key"
+    for_each_sort: "key"
+    concurrency: 1
     as: issue
     workflow: run-skill
     vars:
-      skill_fqn: "github.com/jctanner/ai-first-pipeline@main:explain-claims"
+      skill_fqn: "{{ claims_skill_repo }}:explain-claims"
       skill_issue: "{{ issue.key }}"
