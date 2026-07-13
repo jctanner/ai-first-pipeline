@@ -117,3 +117,34 @@ def test_mixed_and_resolved_stages_require_durable_resolution_text():
     errors = " ".join(MODULE.validate(document([unit])))
     assert "selected_text is required" in errors
     assert "clarified_text is required" in errors
+
+
+def test_rejects_worker_specific_separate_stage_arrays():
+    malformed = document([])
+    malformed.pop("units")
+    malformed["source_units"] = [valid_unit()["source_unit"]]
+    malformed["stages"] = {
+        "selection": [], "ambiguity": [], "decomposition": [],
+    }
+    errors = " ".join(MODULE.validate(malformed))
+    assert "'units' is a required property" in errors
+    assert "Additional properties are not allowed" in errors
+
+
+def test_rejects_evidence_without_a_declared_type():
+    unit = valid_unit()
+    unit["claims"][0]["evaluation"]["evidence"] = [{
+        "source": "bounded_source_context",
+        "excerpt": unit["claims"][0]["original_text"],
+    }]
+    errors = " ".join(MODULE.validate(document([unit])))
+    assert "evidence_type" in errors
+    assert "Additional properties are not allowed" in errors
+
+
+def test_rejects_post_hoc_assurance_fields_outside_the_contract():
+    unit = valid_unit()
+    unit["claims"][0]["evaluation"]["invented_default"] = True
+    assert "Additional properties are not allowed" in " ".join(
+        MODULE.validate(document([unit]))
+    )

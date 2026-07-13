@@ -53,3 +53,15 @@ def test_schema_exposes_artifact_type_and_structured_evidence():
     assert schema["$defs"]["evaluation"]["properties"]["coverage_elements"][
         "minItems"
     ] == 1
+
+
+def test_schema_rejects_worker_specific_and_unknown_shapes():
+    schema = load_schema()
+    assert schema["additionalProperties"] is False
+    for definition in (
+        "sourceUnit", "selection", "ambiguity", "coverageElement",
+        "evaluation", "evidenceRecord", "claim", "unit",
+    ):
+        assert schema["$defs"][definition]["additionalProperties"] is False
+    assert "stages" not in schema["properties"]
+    assert "source_units" not in schema["properties"]

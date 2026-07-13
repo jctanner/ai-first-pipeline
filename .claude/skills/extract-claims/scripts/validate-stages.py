@@ -5,19 +5,45 @@ import argparse
 import json
 from pathlib import Path
 
+from jsonschema import Draft202012Validator
+
 SELECTIONS = {"verifiable", "mixed", "unverifiable"}
 AMBIGUITIES = {"none", "resolved", "unresolved"}
 CLAIM_TYPES = {"factual", "architectural", "security", "scope", "attribution"}
+SCHEMA_PATH = Path(__file__).parents[1] / "schemas" / "staged-extraction.schema.json"
+
+
+def _format_path(parts) -> str:
+    path = ""
+    for part in parts:
+        if isinstance(part, int):
+            path += f"[{part}]"
+        else:
+            path += ("." if path else "") + str(part)
+    return path or "$"
+
+
+def validate_schema(data: dict) -> list[str]:
+    """Validate the complete canonical artifact before cross-stage checks."""
+    schema = json.loads(SCHEMA_PATH.read_text(encoding="utf-8"))
+    validator = Draft202012Validator(schema)
+    return [
+        f"schema {_format_path(error.absolute_path)}: {error.message}"
+        for error in sorted(
+            validator.iter_errors(data),
+            key=lambda item: (_format_path(item.absolute_path), item.message),
+        )
+    ]
 
 
 def validate(data: dict) -> list[str]:
-    errors: list[str] = []
+    errors: list[str] = validate_schema(data)
     for field in ("run_key", "source_file", "pipeline_slug", "extractor_revision"):
         if not isinstance(data.get(field), str) or not data[field].strip():
             errors.append(f"{field} is required")
     units = data.get("units")
     if not isinstance(units, list):
-        return ["units must be a list"]
+        return [*errors, "units must be a list"]
     seen: set[str] = set()
     for index, unit in enumerate(units):
         prefix = f"units[{index}]"
@@ -88,6 +114,15 @@ def validate(data: dict) -> list[str]:
                     errors.append(f"{claim_prefix}.evaluation.evaluator_revision is required")
                 if not isinstance(evaluation.get("evidence"), list) or not evaluation["evidence"]:
                     errors.append(f"{claim_prefix}.evaluation.evidence is required")
+                else:
+                    for evidence_index, evidence in enumerate(evaluation["evidence"]):
+                        if not isinstance(evidence, dict) or not isinstance(
+                            evidence.get("evidence_type"), str
+                        ) or not evidence["evidence_type"].strip():
+                            errors.append(
+                                f"{claim_prefix}.evaluation.evidence[{evidence_index}]"
+                                ".evidence_type is required"
+                            )
                 coverage_elements = evaluation.get("coverage_elements")
                 if not isinstance(coverage_elements, list) or not coverage_elements:
                     errors.append(f"{claim_prefix}.evaluation.coverage_elements is required")

@@ -87,7 +87,9 @@ SKILL_FILE=$(find . /app/.claude/skills/extract-claims \
   -path "*/extract-claims/SKILL.md" -type f 2>/dev/null | head -1)
 SKILL_DIR=$(dirname "${SKILL_FILE:-.claude/skills/extract-claims/SKILL.md}")
 test -f "$SKILL_DIR/scripts/segment-artifact.py"
+test -f "$SKILL_DIR/scripts/create-staged-scaffold.py"
 test -f "$SKILL_DIR/scripts/validate-stages.py"
+test -f "$SKILL_DIR/scripts/project-legacy-claims.py"
 test -f "$SKILL_DIR/schemas/staged-extraction.schema.json"
 python3 "$SKILL_DIR/scripts/segment-artifact.py" --help
 ```
@@ -102,12 +104,39 @@ list preamble, and context arrays in all later stage results.
 
 ## Step 3: Run the Extraction Stages
 
-Process every source unit independently through these stages. Emit valid JSON
-for each stage before continuing; do not silently repair malformed model output.
-The combined artifact must conform to
-`$SKILL_DIR/schemas/staged-extraction.schema.json` in addition to the
-cross-stage invariants enforced by
-`$SKILL_DIR/scripts/validate-stages.py`.
+Create the canonical artifact scaffold from each segmenter result before making
+any model judgment:
+
+```bash
+python3 "$SKILL_DIR/scripts/create-staged-scaffold.py" "$SEGMENTS_JSON" \
+  --output "$STAGED_JSON" \
+  --pipeline-slug "$PIPELINE_SLUG" \
+  --artifact-type "$ARTIFACT_TYPE" \
+  --extractor-revision "$EXTRACTOR_REVISION" \
+  --repository-revision "$REPOSITORY_REVISION" \
+  --model "$MODEL" --harness "$HARNESS" \
+  --configuration-digest "$CONFIGURATION_DIGEST" \
+  --segmentation-version "$SEGMENTATION_VERSION" \
+  --preceding-context-units "$PRECEDING_CONTEXT_UNITS" \
+  --following-context-units "$FOLLOWING_CONTEXT_UNITS"
+```
+
+Populate that scaffold in place. Process every source unit independently
+through the stages below. The only accepted durable shape is one top-level
+`units` array whose entries embed `source_unit`, `selection`, `ambiguity`, and
+`claims`. Never replace it with top-level `source_units`, `stages`, `selection`,
+`ambiguity`, or `decomposition` arrays.
+
+Do not silently repair, normalize, merge, or transform malformed model output.
+Never default or infer a missing classification, ambiguity decision,
+entailment result, coverage result, evidence record, acceptance decision, or
+decontextualization result. A missing judgment is a failed extraction, not a
+reasonable default.
+
+If work is delegated, give each worker exactly one scaffold path and require it
+to populate the canonical nested shape and run `validate-stages.py` itself.
+Treat a worker result that does not pass validation as failed. The parent must
+not translate a worker-specific format into the canonical format.
 
 1. **Selection** — classify the unit as `verifiable`, `mixed`, or
    `unverifiable`. For a mixed unit, select its exact verifiable portions.
@@ -123,6 +152,37 @@ Every unit must have durable selection output, including unverifiable units.
 Every selected unit must have durable ambiguity output, including unresolved
 units. This makes abstention and coverage measurable instead of disappearing
 from the output.
+
+### Canonical staged shape
+
+Each populated unit must retain the scaffold's deterministic `source_unit` and
+use this structure:
+
+```json
+{
+  "source_unit": {"id": "...", "kind": "sentence", "text": "...", "source_locator": "..."},
+  "selection": {"classification": "verifiable", "evaluator_revision": "..."},
+  "ambiguity": {"status": "none", "evaluator_revision": "..."},
+  "claims": [{
+    "claim_text": "...",
+    "claim_type": "architectural",
+    "original_text": "exact bounded-source excerpt",
+    "accepted": true,
+    "evaluation": {
+      "evaluator_revision": "...",
+      "entailed": true,
+      "coverage_result": "complete",
+      "coverage_elements": [{"element_text": "...", "element_kind": "verifiable", "coverage": "explicit"}],
+      "decontextualization_result": "self_contained",
+      "evidence": [{"evidence_type": "source_unit", "source_locator": "...", "excerpt": "..."}]
+    }
+  }]
+}
+```
+
+Use `ambiguity: null` only for an `unverifiable` selection. An unresolved
+ambiguity has a durable ambiguity object and no claims. The schema and validator
+are authoritative when this abbreviated example omits an optional field.
 
 ### Extraction Rubric
 
@@ -155,9 +215,11 @@ Extract only statements that can be independently verified as true or false. App
    - `scope` — claims about project scope, size, complexity
    - `attribution` — claims about who did what, ownership, responsibility
 
-### Per-Claim Output
+### Legacy per-claim projection
 
-For each extracted claim, produce an object:
+Do not ask model workers to produce this shape. After the canonical staged
+artifact passes validation, the deterministic projection script produces each
+legacy claim object:
 
 ```json
 {
@@ -198,7 +260,7 @@ For regression and sampled production claims, perform the full comparison:
 
 Do not use stylistic preference or claim length as a proxy for this result.
 
-For each processed artifact file, write the claims to:
+For each processed artifact file, project and write the legacy claims to:
 
 ```
 {artifacts_dir}/claims/{pipeline_slug}/{original_filename}.claims.json
@@ -206,7 +268,7 @@ For each processed artifact file, write the claims to:
 
 Where `{pipeline_slug}` is the first path component under the artifacts directory (e.g., `strat-pipeline`, `security-reviews`, `rfe-assessor`).
 
-Use this JSON schema for the output file:
+Use this compatibility format for the output file:
 
 ```json
 {
@@ -244,9 +306,19 @@ segmenter's `id`/`kind`/`text` source-unit fields are accepted directly by the
 v2 API as aliases for `unit_key`/`unit_kind`/`original_text`.
 
 The legacy `.claims.json` is a flattened compatibility projection only. Run
-`$SKILL_DIR/scripts/validate-stages.py` against the staged artifact before
-writing either file. If validation fails, preserve the invalid candidate separately for
-diagnosis, report failure, and do not ingest or emit a completion receipt.
+the validator and projector exactly as follows:
+
+```bash
+python3 "$SKILL_DIR/scripts/validate-stages.py" "$STAGED_JSON"
+python3 "$SKILL_DIR/scripts/project-legacy-claims.py" "$STAGED_JSON" \
+  --output "$CLAIMS_JSON"
+```
+
+The validator performs full JSON Schema validation and cross-stage invariant
+checks. If validation fails, preserve the invalid candidate separately for
+diagnosis, report failure, and do not write the authoritative staged artifact,
+project legacy claims, ingest, or emit a completion receipt. Do not write a
+script during the run to convert an invalid candidate into a passing artifact.
 
 Create parent directories as needed with `mkdir -p`.
 
@@ -254,10 +326,9 @@ If the shared `claims/` directory is not writable, stop and report the
 permission error. Never rename, replace, recursively delete, or move the shared
 `claims/` directory or its `.receipts/` directory to work around permissions.
 
-Write each JSON file atomically (temporary file followed by rename). Before
-renaming, parse it again and verify that `claim_count == len(claims)`, every
-claim has non-empty `claim`, `type`, and `original_text`, and `type` is one of
-the five allowed values. A zero-claim file is a valid durable result.
+The projector writes legacy JSON atomically and verifies the canonical input
+again. Write the staged JSON atomically after it passes validation. A
+zero-claim file is a valid durable result.
 
 ## Step 5: Ingest into Observatory
 

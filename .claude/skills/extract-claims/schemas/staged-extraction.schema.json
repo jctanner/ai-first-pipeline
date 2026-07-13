@@ -3,6 +3,7 @@
   "$id": "https://ai-pipeline.local/schemas/staged-extraction-v1.json",
   "title": "Staged claim extraction run",
   "type": "object",
+  "additionalProperties": false,
   "required": ["run_key", "source_file", "pipeline_slug", "extractor_revision", "units"],
   "properties": {
     "run_key": {"type": "string", "minLength": 1},
@@ -16,6 +17,10 @@
     "harness": {"type": ["string", "null"]},
     "configuration_digest": {"type": ["string", "null"]},
     "configuration": {"type": "object"},
+    "segmentation_version": {"type": ["string", "null"]},
+    "segmentation_configuration_digest": {"type": ["string", "null"]},
+    "preceding_context_units": {"type": ["integer", "null"], "minimum": 0},
+    "following_context_units": {"type": ["integer", "null"], "minimum": 0},
     "units": {
       "type": "array",
       "items": {"$ref": "#/$defs/unit"}
@@ -24,6 +29,7 @@
   "$defs": {
     "sourceUnit": {
       "type": "object",
+      "additionalProperties": false,
       "required": ["source_locator"],
       "properties": {
         "id": {"type": "string"},
@@ -33,6 +39,8 @@
         "text": {"type": "string"},
         "original_text": {"type": "string"},
         "source_locator": {"type": "string"},
+        "line_start": {"type": "integer", "minimum": 1},
+        "line_end": {"type": "integer", "minimum": 1},
         "heading_path": {"type": "array", "items": {"type": "string"}},
         "preceding_context": {"type": "array", "items": {"type": "string"}},
         "following_context": {"type": "array", "items": {"type": "string"}},
@@ -45,6 +53,7 @@
     },
     "selection": {
       "type": "object",
+      "additionalProperties": false,
       "required": ["classification", "evaluator_revision"],
       "properties": {
         "classification": {"enum": ["verifiable", "mixed", "unverifiable"]},
@@ -55,6 +64,7 @@
     },
     "ambiguity": {
       "type": ["object", "null"],
+      "additionalProperties": false,
       "required": ["status", "evaluator_revision"],
       "properties": {
         "status": {"enum": ["none", "resolved", "unresolved"]},
@@ -67,6 +77,7 @@
     },
     "coverageElement": {
       "type": "object",
+      "additionalProperties": false,
       "required": ["element_text", "element_kind", "coverage"],
       "properties": {
         "element_text": {"type": "string", "minLength": 1},
@@ -77,6 +88,7 @@
     },
     "evaluation": {
       "type": "object",
+      "additionalProperties": false,
       "required": ["evaluator_revision", "entailed", "coverage_result", "coverage_elements", "decontextualization_result", "evidence"],
       "properties": {
         "evaluator_revision": {"type": "string", "minLength": 1},
@@ -98,6 +110,7 @@
     },
     "evidenceRecord": {
       "type": "object",
+      "additionalProperties": false,
       "required": ["evidence_type"],
       "properties": {
         "evidence_type": {"type": "string", "minLength": 1},
@@ -115,6 +128,7 @@
     },
     "claim": {
       "type": "object",
+      "additionalProperties": false,
       "required": ["claim_text", "claim_type", "original_text", "accepted", "evaluation"],
       "properties": {
         "claim_text": {"type": "string", "minLength": 1},
@@ -131,6 +145,7 @@
     },
     "unit": {
       "type": "object",
+      "additionalProperties": false,
       "required": ["source_unit", "selection", "claims"],
       "properties": {
         "source_unit": {"$ref": "#/$defs/sourceUnit"},
