@@ -167,7 +167,7 @@ def test_reset_imports_the_repository_addressed_by_the_claim_skill_fqn():
     assert import_steps["settle_import_writes"]["params"]["command"] == "sleep 2"
 
 
-def test_claim_jobs_use_pinned_execution_fqn_and_stage_specific_revisions():
+def test_claim_jobs_use_flexible_execution_fqn_and_resolved_receipt_revisions():
     workflow = load("workflows/run-claims.yaml")
     steps = {step["name"]: step for step in workflow["steps"]}
     assert workflow["vars"]["claims_model"] == "claude-opus-4-6"
@@ -182,6 +182,14 @@ def test_claim_jobs_use_pinned_execution_fqn_and_stage_specific_revisions():
         assert steps[name]["vars"]["claims_skill_execution_repo"] == (
             "{{ resolved_claims_execution_repo }}"
         )
+
+    resolution = step_command(
+        "workflows/run-claims.yaml", "resolve_claim_skill_revision"
+    )
+    assert "execution_ref = configured if configured != 'unresolved' else ref" in resolution
+    assert "'execution_repo': repository + '@' + execution_ref" in resolution
+    assert "'repository_revision': commit" in resolution
+    assert "'stage_revisions': revisions" in resolution
 
     run_skill = load("workflows/run-skill.yaml")
     submit = next(step for step in run_skill["steps"] if step["name"] == "submit")

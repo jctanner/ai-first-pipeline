@@ -194,7 +194,7 @@ Defaults are defined in `vars.yaml`. The most useful run overrides are:
 | `seed_rfe` | `true` | Create the demo RFE after reset |
 | `run_pipeline` | `true` | Run the complete RFE-to-code pipeline |
 | `rfe_issue` | `RHAIRFE-1` | RFE processed by the pipeline |
-| `claims_skill_repo` | `github.local/jctanner/ai-first-pipeline@main` | Logical source FQN containing the three claims skills; execution pins its resolved commit |
+| `claims_skill_repo` | `github.local/jctanner/ai-first-pipeline@main` | Source FQN used for execution; receipts record its resolved commit and skill-tree revisions |
 | `force_claims` | `false` | Ignore extraction receipts and rerun every issue |
 | `claim_assurance_enforce` | `true` | Enforce quality gates; set false for shadow mode |
 | `run_claim_regression` | `false` | Submit the claim-assurance regression corpus after explanation |
