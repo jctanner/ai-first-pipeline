@@ -1,8 +1,60 @@
 # AI-First Pipeline
 
-AI-driven pipeline for triaging, analyzing, and fixing RHOAI (Red Hat OpenShift AI) engineering bugs, managing RFEs, and developing strategies using Claude agents.
+Integration and deployment repository for the RHOAI (Red Hat OpenShift AI)
+AI-first engineering platform. It combines an active Python pipeline for bug,
+RFE, and strategy work with a K3s-hosted suite of workflow, CI simulation,
+observability, and trace-analysis services.
 
-The pipeline orchestrates Claude Agent SDK sessions to fetch Jira issues, score bug completeness, map bugs to architecture context, attempt automated code fixes against midstream repos, validate patches in containers, generate test plans, create and review RFEs, and develop implementation strategies. A Flask dashboard provides a web UI for reviewing results across all pipelines.
+This repository owns the integration layer: the Python CLI/dashboard, workflow
+definitions, container assembly, Kubernetes manifests, and operational scripts.
+Several deployed applications are independent repositories checked out under
+the gitignored `deploy/repos/` directory. The manifests and deployment script,
+not the contents of every local checkout, define the component stack.
+
+The platform is designed to define, run, observe, evaluate, and govern
+AI-native software-engineering workflows against realistic but isolated
+services. It can connect business intent to planning, investigation, code, CI,
+and evidence while preserving the execution history needed to understand and
+compare the result.
+
+Its central goal is continuous improvement: turn execution traces and generated
+artifacts into evidence-backed feedback for skills, context, retrieval,
+workflows, models, tools, and policies. Findings from one run become targeted
+changes and regression cases for the next, creating a measurable engineering
+quality loop rather than a collection of one-off agent prompts.
+
+```text
+Skills + context + models + policy
+                 |
+                 v
+           Workflow execution
+                 |
+                 v
+       Artifacts + traces + claims
+                 |
+                 v
+      Evidence-based verification
+                 |
+                 v
+         Root-cause attribution
+                 |
+                 v
+     Targeted change + regression replay
+```
+
+The reference scenario in [`var/demos/end-to-end/`](var/demos/end-to-end/README.md)
+demonstrates the current platform arc:
+
+```text
+RFE -> quality gate -> strategy -> review -> epic decomposition
+    -> investigation and code generation
+```
+
+It resets the local service environment, imports source and skill repositories,
+seeds Jira, launches instrumented agent jobs through the dashboard, fans work
+out through Markov, and records artifacts and telemetry. The scenario is
+destructive by design, which makes complete runs reproducible and suitable for
+workflow, skill, model, harness, and policy comparisons.
 
 ```mermaid
 graph TB
@@ -15,7 +67,7 @@ graph TB
 
         subgraph core["Core Services"]
             dashboard["Pipeline Dashboard<br/>dashboard.local"]
-            markov["Markov<br/>markov.local<br/>Workflow Engine"]
+            markov["markovd + Markov Jobs<br/>markov.local<br/>Workflow Control Plane"]
             mlflow["MLflow<br/>mlflow.local<br/>Experiment Tracking"]
             es["Elasticsearch<br/>Trace Indexing"]
             observatory["Observatory<br/>observatory.local<br/>Claim Verification"]
@@ -33,16 +85,18 @@ graph TB
             traefik["Traefik<br/>Ingress Controller"]
         end
 
-        jobs["Pipeline Agent Jobs<br/>Claude SDK"]
+        jobs["Pipeline / Workflow Jobs<br/>Claude SDK · OpenCode · agentic-ci"]
     end
 
     proxy --> traefik
     traefik --> dashboard & mlflow & markov & observatory
     traefik --> github & gitlab & jira
     runner --> gitlab
-    dashboard --> jira & mlflow
-    jobs --> jira & github
-    mlflow --> es
+    dashboard --> jira & mlflow & markov
+    markov --> jobs
+    jobs --> jira & github & gitlab & mlflow
+    mlflow -.->|trace sync| es
+    observatory --> github & gitlab & jira
     certmgr -.->|TLS certs| traefik
 ```
 
@@ -50,7 +104,8 @@ graph TB
 
 - Python 3.13+
 - [uv](https://docs.astral.sh/uv/) (package manager)
-- [Podman](https://podman.io/) (for patch validation containers)
+- [Podman](https://podman.io/) or Docker for image builds; Podman is required
+  for the Python pipeline's patch-validation containers
 - Git
 - Vertex AI credentials (the Claude Agent SDK connects via Google Cloud)
 - K3s (for the full deployment stack; optional for CLI-only usage)
@@ -67,6 +122,12 @@ RFE and strategy skills live in an external repo:
 - **`remote_skills/rfe-creator/`** — cloned repo with RFE/strategy skill definitions, scripts, and its own `CLAUDE.md`
 
 These are gitignored and must be cloned or populated separately.
+
+The same is true of the component source checkouts in `deploy/repos/`. At
+minimum, a full local image build expects `github-emulator`, `jira-emulator`,
+`gitlab-emulator`, `markovd`, and `observatory`; Markov workflow jobs also use
+the separately built `markov` image. Each checkout has its own development
+instructions and history.
 
 ## Setup
 
@@ -96,9 +157,93 @@ EOF
 
 ## Usage
 
+### Execution paths
+
+There are three related ways work runs:
+
+1. `main.py` runs the original Python phase orchestrator locally or in a
+   `pipeline-agent` Kubernetes Job.
+2. The dashboard creates and monitors Kubernetes Jobs, selecting Claude Code
+   or OpenCode and an SDK, shell, or `agentic-ci` runner.
+3. Markov executes declarative workflows from `var/markov-workflows/`; markovd
+   supplies the API/UI, persistence, callbacks, gates, and Kubernetes runner.
+
+These paths share skills, Jira data, workspaces, artifacts, and telemetry, but
+they are not aliases for one another.
+
 ```bash
 python main.py <command> [options]
 ```
+
+## What the Platform Enables
+
+### Reproducible engineering workflows
+
+Workflow definitions can combine agent skills with Jira, GitHub, dashboard,
+Observatory, and Kubernetes operations. Markov supplies sequencing,
+conditions, concurrency, fan-out, reusable sub-workflows, registered results,
+and gates. Service resets and seeded fixtures make a complete organizational
+process replayable rather than leaving it as a series of prompts.
+
+Examples include:
+
+- RFE to strategy, epics, investigations, and implementation
+- Bug report to diagnosis, patch, validation, tests, and pull request
+- CI failure to root-cause analysis, repair, and rerun
+- Security issue to affected-component discovery and remediation
+- Upgrade proposal to compatibility analysis and migration work
+
+### Governed automation
+
+The end-to-end demo requires an RFE rubric-pass label before strategy creation.
+The same workflow-gate pattern can enforce human approvals, security review,
+claim-evidence thresholds, test results, cost limits, and repository or tool
+policies. Autonomous work therefore remains subject to explicit, versioned
+acceptance criteria.
+
+### Evaluation and experimentation
+
+The same scenario can be run with different skill revisions, models, agent
+harnesses, runners, prompts, policies, and repository revisions. MLflow,
+OpenTelemetry, strace, Elasticsearch, and Observatory provide the basis for
+comparing quality, reliability, unsupported claims, duration, tool behavior,
+and cost—not merely whether a job exited successfully.
+
+### Continuous improvement
+
+Observatory closes the loop by extracting atomic claims from generated
+artifacts, gathering relevant evidence, and recording whether each claim is
+supported, refuted, insufficiently evidenced, or inconclusive. The important
+output is not just a verdict; it is an attribution of what should improve:
+
+| Finding | Improvement target |
+|---------|--------------------|
+| Available evidence was ignored or misused | Skill instructions and examples |
+| Necessary evidence was absent | Architecture or domain context |
+| Irrelevant evidence was selected | Indexing, queries, and retrieval policy |
+| Validation or review was missing | Workflow structure and gates |
+| The agent lacked a needed capability | Harness, runner, or tool policy |
+| Ground truth was stale or contradictory | Human-owned source documentation |
+| Reasoning failed despite sufficient evidence | Prompt, model, or escalation policy |
+| Automated verification is not reliable | Human-review gate |
+
+The same seeded scenario can then be replayed to determine whether the change
+improved claim support, evidence coverage, verifier agreement, human-review
+load, cost, duration, and downstream CI or acceptance outcomes without
+introducing regressions elsewhere.
+
+The intended evolution is for these quality signals to participate directly in
+Markov gates—for example, preventing progression when high-severity claims are
+refuted, security evidence is unresolved, or verifier disagreement requires
+human approval.
+
+### Auditable delivery loops
+
+The platform can preserve lineage between the originating Jira request,
+workflow and skill versions, model and harness, source revision, agent traces,
+generated artifacts, gate decisions, and resulting code. The natural extension
+of the demonstrated code-generation stage is a closed loop through branches or
+pull requests, CI, failure analysis, repair, review, and merge or escalation.
 
 ### Commands
 
@@ -351,9 +496,10 @@ The project includes a full K3s-based deployment stack for running the pipeline 
 | Jira Emulator | ai-pipeline | `https://jira.local` | Jira REST API emulation for ticket management |
 | GitLab Runner | gitlab-runner | — | In-cluster CI runner (Kubernetes executor) |
 | MLflow | ai-pipeline | `https://mlflow.local` | Experiment tracking and agent trace logging |
-| Markov (markovd) | ai-pipeline | `https://markov.local` | Workflow engine for multi-phase pipelines |
-| Elasticsearch | ai-pipeline | — | Trace indexing and search |
-| Observatory | ai-pipeline | `https://observatory.local` | Claim extraction and verification |
+| markovd | ai-pipeline | `https://markov.local` | Workflow API/UI, run persistence, callbacks, gates, and Kubernetes orchestration |
+| Markov jobs | ai-pipeline | — | Ephemeral pods that execute declarative workflows |
+| Elasticsearch | ai-pipeline | — | Search index populated from MLflow trace sync |
+| Observatory | ai-pipeline | `https://observatory.local` | CI collection, artifact/trace analysis, claim extraction and verification |
 | Go Reverse Proxy | ai-pipeline | — | Routes `*.local` hostnames to internal services via TLS |
 
 ### Infrastructure
@@ -381,12 +527,12 @@ The Makefile provides targets for both Vagrant VM (`vagrant-*`) and bare-metal h
 
 | Target Group | Examples | Purpose |
 |-------------|----------|---------|
-| `host-deploy-*` | `host-deploy-all`, `host-deploy-dashboard` | Deploy services |
+| `host-deploy-*` | `host-deploy-all`, `host-deploy-markovd`, `host-deploy-gitlab-runner` | Deploy the stack or selected services |
 | `host-rebuild-*` | `host-rebuild-dashboard`, `host-rebuild-gitlab` | Build image + restart deployment |
 | `host-logs-*` | `host-logs-dashboard`, `host-logs-gitlab` | Tail service logs |
 | `host-images` | | Build all container images |
 | `host-status` | | Cluster pod/service status |
-| `host-es-sync` | | Sync MLflow traces to Elasticsearch |
+| `host-sync-traces` / `host-sync-traces-full` | | Incrementally sync or fully resync MLflow traces to Elasticsearch |
 | `host-backup` / `host-restore` | | Backup and restore all service data |
 | `host-deploy-gitlab-runner` | | Deploy GitLab Runner with k8s executor |
 
@@ -439,7 +585,10 @@ ai-first-pipeline/
 │   └── repos/               # Cloned emulator and service repos (gitignored)
 │       ├── github-emulator/ # GitHub API emulator
 │       ├── jira-emulator/   # Jira API emulator
-│       └── gitlab-emulator/ # GitLab API emulator with CI/CD
+│       ├── gitlab-emulator/ # GitLab API/git/CI test surface
+│       ├── markov/          # Declarative workflow CLI/runner
+│       ├── markovd/         # Workflow API, React UI, and K8s orchestrator
+│       └── observatory/     # CI telemetry and claim-verification service
 ├── .claude/skills/          # Local agent skill definitions
 │   ├── bug-completeness/    # Score bug quality, classify type
 │   ├── bug-context-map/     # Map bug to architecture docs and repos
@@ -477,19 +626,27 @@ The deployment stack includes local emulators for GitHub, GitLab, and Jira so th
 
 | Emulator | URL | API | Purpose |
 |----------|-----|-----|---------|
-| **GitHub Emulator** | `https://github.local` | GitHub REST API | Git hosting, pull requests, issues, `gh` CLI workflows |
-| **GitLab Emulator** | `https://gitlab.local` | GitLab REST API | Git hosting, CI/CD pipelines, merge requests, `glab` CLI workflows |
-| **Jira Emulator** | `https://jira.local` | Jira REST API v2/v3 | Issue tracking, project management, MCP server for Claude integration |
+| **GitHub Emulator** | `https://github.local` | GitHub REST/GraphQL subset | Git hosting, pull requests, issues, `gh` CLI workflows |
+| **GitLab Emulator** | `https://gitlab.local` | GitLab REST API v4 surface | Git/merge-request/CI integration testing; supported endpoints depend on the checked-out component revision |
+| **Jira Emulator** | `https://jira.local` | Jira REST API v2/v3 | Issue tracking, project management, and an optional companion MCP server |
 
-The Jira emulator includes a built-in MCP (Model Context Protocol) server, enabling Claude agents to interact with Jira tickets directly during pipeline runs.
+The Jira emulator component also implements an MCP server. The K3s manifest in
+this repository deploys the Jira API/UI service; clients should use the
+configured `ATLASSIAN_MCP_URL` when an MCP endpoint is separately available.
 
-The GitLab emulator supports CI/CD pipeline execution via an in-cluster **GitLab Runner** (Kubernetes executor) that polls for jobs and runs them as pods in the `gitlab-runner` namespace.
+The stack deploys an in-cluster **GitLab Runner** with a Kubernetes executor for
+the GitLab emulator's supported runner/coordinator workflows. Jobs run as pods
+in the `gitlab-runner` namespace.
 
 Each emulator runs on SQLite — no external database required. Data persists on PVCs within the cluster.
 
-## Markov Workflows
+## Markov and markovd
 
-The pipeline integrates with [Markov](https://markov.local), a workflow engine that orchestrates multi-phase pipelines as declarative YAML definitions. Workflow definitions live in `var/markov-workflows/`:
+Markov is the workflow CLI/runner; markovd is the persistent API and React UI
+available at `https://markov.local`. In the deployed configuration, markovd
+creates Kubernetes jobs using the `markov:latest` image and receives lifecycle
+callbacks from them. PostgreSQL stores users and run state, while an nginx
+sidecar serves the UI. Workflow definitions live in `var/markov-workflows/`:
 
 | Workflow | Purpose |
 |----------|---------|
@@ -501,7 +658,11 @@ The pipeline integrates with [Markov](https://markov.local), a workflow engine t
 
 ## Observatory
 
-The Observatory service extracts verifiable claims from pipeline artifacts (RFEs, strategies, security reviews) and checks them against evidence. It runs as a cluster service and has dedicated skills:
+Observatory is broader than claim checking: it collects GitHub/GitLab pipeline
+metadata and artifacts, ingests CI definitions and telemetry, parses execution
+traces, and exposes health and quality views. Its hallucination-analysis path
+extracts verifiable claims from artifacts and checks them against evidence.
+This repository supplies three skills used by that path:
 
 - **extract-claims** — parse artifacts into discrete, testable claims
 - **verify-claims** — check each claim against source material and codebase evidence
