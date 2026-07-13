@@ -11,7 +11,19 @@ SPEC.loader.exec_module(MODULE)
 def document(units):
     return {
         "run_key": "run:test", "source_file": "test.md",
-        "pipeline_slug": "test", "extractor_revision": "extract@test",
+        "pipeline_slug": "test", "artifact_type": "rfe",
+        "artifact_digest": "sha256:artifact",
+        "extractor_revision": "extract@test",
+        "repository_revision": "commit:test", "model": "model:test",
+        "harness": "harness:test", "configuration_digest": "sha256:config",
+        "configuration": {
+            "segmenter_version": "markdown-v1", "preceding_units": 1,
+            "following_units": 1, "artifact_type": "rfe",
+            "artifact_type_override": {},
+        },
+        "segmentation_version": "claim-segmentation-v1",
+        "segmentation_configuration_digest": "sha256:segments",
+        "preceding_context_units": 1, "following_context_units": 1,
         "units": units,
     }
 
@@ -148,3 +160,26 @@ def test_rejects_post_hoc_assurance_fields_outside_the_contract():
     assert "Additional properties are not allowed" in " ".join(
         MODULE.validate(document([unit]))
     )
+
+
+def test_rejects_dropped_scaffold_provenance():
+    data = document([valid_unit()])
+    data["artifact_digest"] = None
+    data["configuration"] = {}
+    errors = " ".join(MODULE.validate(data))
+    assert "artifact_digest" in errors
+    assert "segmenter_version" in errors
+
+
+def test_coverage_result_must_match_element_level_outcomes():
+    unit = valid_unit()
+    element = unit["claims"][0]["evaluation"]["coverage_elements"][0]
+    element["element_kind"] = "unverifiable"
+    element["coverage"] = "included"
+    errors = " ".join(MODULE.validate(document([unit])))
+    assert "cannot be complete" in errors
+
+    element["coverage"] = "omitted"
+    unit["claims"][0]["evaluation"]["coverage_result"] = "partial"
+    errors = " ".join(MODULE.validate(document([unit])))
+    assert "must be complete" in errors

@@ -21,7 +21,7 @@ def step_command(workflow_name: str, step_name: str) -> str:
 
 
 def run_embedded(command: str, artifacts: Path, values: dict) -> dict:
-    rendered = command.replace("Path('/app/artifacts')", f"Path({str(artifacts)!r})")
+    rendered = command.replace("/app/artifacts", str(artifacts))
     for key, value in values.items():
         rendered = rendered.replace("{{ " + key + " }}", str(value))
     assert "{{" not in rendered, rendered
@@ -193,6 +193,46 @@ def test_extraction_quality_accepts_null_ambiguity_for_unselected_units(tmp_path
         "low_coverage_units": 0,
         "accepted_claims": 0,
     }
+
+
+def test_extraction_quality_uses_element_outcomes_not_model_summary_label(tmp_path):
+    staged = tmp_path / "claims" / "rfe-tasks" / "RFE-1.extraction.json"
+    staged.parent.mkdir(parents=True)
+    staged.write_text(json.dumps({
+        "source_file": "rfe-tasks/RFE-1.md",
+        "units": [{
+            "ambiguity": {"status": "none"},
+            "claims": [{
+                "accepted": True,
+                "evaluation": {
+                    "entailed": True,
+                    "coverage_result": "complete",
+                    "coverage_elements": [{
+                        "element_kind": "unverifiable", "coverage": "included",
+                    }],
+                },
+            }],
+        }, {
+            "ambiguity": {"status": "none"},
+            "claims": [{
+                "accepted": True,
+                "evaluation": {
+                    "entailed": True,
+                    "coverage_result": "partial",
+                    "coverage_elements": [{
+                        "element_kind": "unverifiable", "coverage": "omitted",
+                    }],
+                },
+            }],
+        }],
+    }))
+    assess = step_command("workflows/run-claims.yaml", "assess_extraction_quality")
+    metrics = run_embedded(
+        assess,
+        tmp_path,
+        {"all_issues | tojson": '[{"key":"RFE-1"}]'},
+    )
+    assert metrics["low_coverage_units"] == 1
 
 
 def test_dataset_fqn_matches_workflow_default():

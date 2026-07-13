@@ -25,7 +25,13 @@ def segments():
     return {
         "source_file": "rfe-tasks/RFE-1.md",
         "source_digest": "sha256:source",
-        "configuration": {"preceding_units": 1, "following_units": 1},
+        "configuration": {
+            "segmenter_version": "markdown-v1",
+            "preceding_units": 1,
+            "following_units": 1,
+            "artifact_type": "rfe",
+            "artifact_type_override": {},
+        },
         "configuration_digest": "sha256:segments",
         "units": [{
             "id": "unit-1",

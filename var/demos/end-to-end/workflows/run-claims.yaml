@@ -305,6 +305,7 @@ steps:
                        for issue in issues):
                 continue
             for unit in data.get('units', []):
+                unit_low_coverage = False
                 if (unit.get('ambiguity') or {}).get('status') == 'unresolved':
                     totals['unresolved_units'] += 1
                 for claim in unit.get('claims', []):
@@ -313,9 +314,17 @@ steps:
                     evaluation = claim.get('evaluation', {})
                     if evaluation.get('entailed') is not True:
                         totals['entailment_failures'] += 1
-                    if evaluation.get('coverage_result') not in {
-                            'complete', 'explicit', 'implicit'}:
-                        totals['low_coverage_units'] += 1
+                    for element in evaluation.get('coverage_elements', []):
+                        if (
+                            element.get('element_kind') == 'verifiable'
+                            and element.get('coverage') == 'omitted'
+                        ) or (
+                            element.get('element_kind') == 'unverifiable'
+                            and element.get('coverage') == 'included'
+                        ):
+                            unit_low_coverage = True
+                if unit_low_coverage:
+                    totals['low_coverage_units'] += 1
         print(json.dumps(totals))
         PY
     register: extraction_quality

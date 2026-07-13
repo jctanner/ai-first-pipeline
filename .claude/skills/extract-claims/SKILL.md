@@ -243,6 +243,12 @@ element. Record each unverifiable source element as `omitted` when correctly
 excluded or `included` when it leaked into a claim, so precision and explicit
 unverifiable-inclusion rate can be measured.
 
+Set `coverage_result` from those elements, not from whether the source unit was
+classified `mixed`. Use `complete` only when every verifiable element is
+`explicit` or `implicit` and every unverifiable element is `omitted`. Use
+`partial` or `failed` when at least one verifiable element is `omitted` or one
+unverifiable element is `included`. The validator rejects inconsistent labels.
+
 Decontextualization evaluation may be sampled outside the regression corpus,
 but each accepted claim must record whether it is self-contained or needs
 review.

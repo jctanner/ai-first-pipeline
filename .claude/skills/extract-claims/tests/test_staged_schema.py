@@ -59,9 +59,21 @@ def test_schema_rejects_worker_specific_and_unknown_shapes():
     schema = load_schema()
     assert schema["additionalProperties"] is False
     for definition in (
-        "sourceUnit", "selection", "ambiguity", "coverageElement",
+        "segmentationConfiguration", "sourceUnit", "selection", "ambiguity",
+        "coverageElement",
         "evaluation", "evidenceRecord", "claim", "unit",
     ):
         assert schema["$defs"][definition]["additionalProperties"] is False
     assert "stages" not in schema["properties"]
     assert "source_units" not in schema["properties"]
+
+
+def test_schema_requires_complete_scaffold_provenance():
+    schema = load_schema()
+    required = set(schema["required"])
+    assert {
+        "artifact_type", "artifact_digest", "repository_revision", "model",
+        "harness", "configuration_digest", "configuration",
+        "segmentation_version", "segmentation_configuration_digest",
+        "preceding_context_units", "following_context_units",
+    } <= required

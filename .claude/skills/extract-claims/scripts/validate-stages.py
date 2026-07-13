@@ -127,6 +127,7 @@ def validate(data: dict) -> list[str]:
                 if not isinstance(coverage_elements, list) or not coverage_elements:
                     errors.append(f"{claim_prefix}.evaluation.coverage_elements is required")
                 else:
+                    coverage_problem = False
                     for element_index, element in enumerate(coverage_elements):
                         element_prefix = (
                             f"{claim_prefix}.evaluation.coverage_elements[{element_index}]"
@@ -142,6 +143,25 @@ def validate(data: dict) -> list[str]:
                             errors.append(
                                 f"{element_prefix} has invalid kind/coverage combination"
                             )
+                        if (
+                            kind == "verifiable" and coverage == "omitted"
+                        ) or (
+                            kind == "unverifiable" and coverage == "included"
+                        ):
+                            coverage_problem = True
+                    coverage_result = evaluation.get("coverage_result")
+                    if coverage_problem and coverage_result == "complete":
+                        errors.append(
+                            f"{claim_prefix}.evaluation.coverage_result cannot be "
+                            "complete when a verifiable element is omitted or an "
+                            "unverifiable element is included"
+                        )
+                    if not coverage_problem and coverage_result in {"partial", "failed"}:
+                        errors.append(
+                            f"{claim_prefix}.evaluation.coverage_result must be complete "
+                            "when all verifiable elements are covered and all unverifiable "
+                            "elements are omitted"
+                        )
                 if evaluation.get("coverage_result") not in {
                     "complete", "partial", "failed",
                 }:
