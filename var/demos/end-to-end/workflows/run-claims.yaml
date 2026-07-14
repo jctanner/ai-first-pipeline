@@ -389,23 +389,38 @@ steps:
         from pathlib import Path
 
         issues = {item['key'].upper() for item in json.loads(r'''{{ all_issues | tojson }}''')}
+        eligible_occurrences = set()
+        claims_root = Path('/app/artifacts/claims')
+        if claims_root.is_dir():
+            for path in claims_root.rglob('*.extraction.json'):
+                try:
+                    data = json.loads(path.read_text())
+                except (OSError, json.JSONDecodeError):
+                    continue
+                source_file = str(data.get('source_file', ''))
+                if not any(issue in source_file.upper() for issue in issues):
+                    continue
+                eligible_occurrences.update(data.get('observatory_occurrence_ids', []))
         root = Path('/app/artifacts/verification')
-        structured, legacy = [], []
+        structured = []
         if root.is_dir():
-            for path in root.rglob('*'):
+            for path in root.rglob('*.verification.json'):
                 if not path.is_file() or '.receipts' in path.parts:
                     continue
-                text = path.read_text(errors='ignore')
-                if not any(issue in (path.as_posix() + text).upper() for issue in issues):
+                try:
+                    data = json.loads(path.read_text())
+                except (OSError, json.JSONDecodeError):
                     continue
-                if path.name.endswith('.verification.json'):
-                    structured.append(json.loads(text))
-                elif path.suffix == '.md':
-                    legacy.append(path)
+                if data.get('claim_occurrence_id') not in eligible_occurrences:
+                    continue
+                structured.append(data)
         verdicts = defaultdict(set)
         blocking = set()
+        structured_occurrences = set()
         for run in structured:
             occurrence = run.get('claim_occurrence_id')
+            if occurrence is not None:
+                structured_occurrences.add(occurrence)
             verdicts[occurrence].add(run.get('verdict'))
             if run.get('verdict') in {'contradicted', 'refuted'} and run.get('severity') in {'high', 'critical'}:
                 blocking.add(occurrence)
@@ -416,7 +431,8 @@ steps:
         print(json.dumps({
             'high_severity_contradictions': len(blocking),
             'verifier_disagreements': len(disagreements),
-            'unstructured_verifications': max(0, len(legacy) - len(structured)),
+            'unstructured_verifications': len(
+                eligible_occurrences - structured_occurrences),
             'blocking_occurrences': sorted(value for value in blocking if value is not None),
             'review_occurrences': sorted(blocking | disagreements),
         }))

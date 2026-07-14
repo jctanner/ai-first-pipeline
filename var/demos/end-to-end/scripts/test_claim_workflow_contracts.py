@@ -310,6 +310,59 @@ def test_explanation_quality_is_scoped_by_immutable_verification_run(tmp_path):
     assert missing["unstructured_explanations"] == 1
 
 
+def test_verification_quality_is_scoped_by_claim_occurrence_identity(tmp_path):
+    extraction = tmp_path / "claims" / "rfe-tasks" / "RFE-1.extraction.json"
+    extraction.parent.mkdir(parents=True)
+    extraction.write_text(json.dumps({
+        "source_file": "rfe-tasks/RFE-1.md",
+        "observatory_occurrence_ids": [11, 12],
+    }))
+    first = tmp_path / "verification" / "11" / "run.verification.json"
+    first.parent.mkdir(parents=True)
+    # Verification artifacts deliberately need not duplicate a Jira key.
+    first.write_text(json.dumps({
+        "claim_occurrence_id": 11,
+        "verdict": "contradicted",
+        "severity": "high",
+    }))
+    second = tmp_path / "verification" / "12" / "run.verification.json"
+    second.parent.mkdir(parents=True)
+    second.write_text(json.dumps({
+        "claim_occurrence_id": 12,
+        "verdict": "supported",
+        "severity": "info",
+    }))
+    unrelated = tmp_path / "verification" / "999" / "run.verification.json"
+    unrelated.parent.mkdir(parents=True)
+    unrelated.write_text(json.dumps({
+        "claim_occurrence_id": 999,
+        "verdict": "contradicted",
+        "severity": "critical",
+    }))
+
+    assess = step_command("workflows/run-claims.yaml", "assess_verification_quality")
+    metrics = run_embedded(
+        assess,
+        tmp_path,
+        {"all_issues | tojson": '[{"key":"RFE-1"}]'},
+    )
+    assert metrics == {
+        "high_severity_contradictions": 1,
+        "verifier_disagreements": 0,
+        "unstructured_verifications": 0,
+        "blocking_occurrences": [11],
+        "review_occurrences": [11],
+    }
+
+    second.unlink()
+    missing = run_embedded(
+        assess,
+        tmp_path,
+        {"all_issues | tojson": '[{"key":"RFE-1"}]'},
+    )
+    assert missing["unstructured_verifications"] == 1
+
+
 def test_dataset_fqn_matches_workflow_default():
     dataset = json.loads((ROOT / "eval-datasets/claim-assurance-v1.json").read_text())
     workflow = load("workflows/run-claims.yaml")
