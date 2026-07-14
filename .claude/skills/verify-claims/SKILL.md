@@ -60,11 +60,20 @@ Fetch claims from the Observatory API, falling back to disk if unreachable.
 
 ### API approach (preferred)
 
-Fetch pending, extraction-entailed occurrences for the issue:
+Fetch pending, extraction-entailed occurrences for the issue using the API's
+maximum page size:
 
 ```bash
-curl -s "$observatory_url/api/v2/claims/occurrences?jira_key=$ISSUE_KEY&pending_only=true&limit=200"
+curl -s "$observatory_url/api/v2/claims/occurrences?jira_key=$ISSUE_KEY&pending_only=true&limit=1000"
 ```
+
+Count the returned occurrences before filtering or delegating work. If the API
+returns exactly 1000 occurrences, stop with an explicit overflow error; the
+endpoint may have truncated the candidate set, and a partial “successful”
+verification would violate the workflow gate. Never replace this query with a
+smaller fixed limit. If `claim_ids` was supplied, confirm that every requested
+ID is present after applying the extraction-entailment and source-file rules;
+report any missing IDs rather than silently completing a subset.
 
 This returns `{"occurrences": [...]}` where each occurrence has:
 - `id` — claim occurrence ID (needed for the immutable verification run)

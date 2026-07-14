@@ -516,6 +516,13 @@ def test_extraction_gate_runtime_ignores_sibling_omissions_but_keeps_real_gaps(
     }
 
 
+def test_verifier_does_not_silently_truncate_pending_occurrences():
+    skill = (ROOT.parents[2] / ".claude/skills/verify-claims/SKILL.md").read_text()
+    assert "pending_only=true&limit=1000" in skill
+    assert "exactly 1000 occurrences" in skill
+    assert "report any missing IDs" in skill
+
+
 def test_receipt_invalidates_only_when_a_dependency_changes():
     expected = {
         "stage": "verify-claims", "scope": {"issue": "RFE-1"},
