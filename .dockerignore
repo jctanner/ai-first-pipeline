@@ -1,11 +1,5 @@
-# Exclude deployment infrastructure (except OpenCode source for build)
+# Exclude deployment infrastructure
 deploy/
-!deploy/repos/opencode/
-deploy/repos/opencode/.git/
-deploy/repos/opencode/node_modules/
-!deploy/repos/agentic-ci/
-deploy/repos/agentic-ci/.git/
-deploy/repos/agentic-ci/.tox/
 .vagrant/
 vagrant/
 
