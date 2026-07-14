@@ -16,6 +16,7 @@ def document(units):
         "extractor_revision": "extract@test",
         "repository_revision": "commit:test", "model": "model:test",
         "harness": "harness:test", "configuration_digest": "sha256:config",
+        "decontextualization_mode": "basic",
         "configuration": {
             "segmenter_version": "markdown-v1", "preceding_units": 1,
             "following_units": 1, "artifact_type": "rfe",
@@ -65,6 +66,35 @@ def valid_unit():
 
 def test_accepts_fully_evaluated_stages():
     assert MODULE.validate(document([valid_unit()])) == []
+
+
+def test_full_mode_requires_and_accepts_independent_comparison_evidence():
+    data = document([valid_unit()])
+    data["decontextualization_mode"] = "full"
+    evaluation = data["units"][0]["claims"][0]["evaluation"]
+    evaluation.update({
+        "decontextualization_result": "desirable",
+        "maximally_contextualized_claim": (
+            "In the documented API, verification history is immutable."
+        ),
+        "extracted_retrieval_digest": "sha256:extracted",
+        "comparison_retrieval_digest": "sha256:comparison",
+        "evidence_context_digest": "sha256:evidence-context",
+    })
+    assert MODULE.validate(data) == []
+
+
+def test_full_mode_rejects_basic_judgment_and_missing_comparison_digests():
+    data = document([valid_unit()])
+    data["decontextualization_mode"] = "full"
+    errors = " ".join(MODULE.validate(data))
+    assert "must be desirable or undesirable in full mode" in errors
+
+    evaluation = data["units"][0]["claims"][0]["evaluation"]
+    evaluation["decontextualization_result"] = "undesirable"
+    errors = " ".join(MODULE.validate(data))
+    for field in MODULE.FULL_DECONTEXTUALIZATION_FIELDS:
+        assert f"{field} is required" in errors
 
 
 def test_accepts_observatory_identity_added_after_ingestion():

@@ -30,6 +30,7 @@ vars:
   claims_model: "claude-opus-4-6"
   claims_harness: "claude-code"
   claims_configuration_digest: "auto"
+  claims_decontextualization_mode: "basic"
   claims_segmentation_version: "claim-segmentation-v1"
   claims_preceding_context_units: 1
   claims_following_context_units: 1
@@ -234,6 +235,7 @@ steps:
     params:
       command: |
         CONFIGURED="{{ claims_configuration_digest }}" \
+        DECONTEXTUALIZATION_MODE="{{ claims_decontextualization_mode }}" \
         SEGMENTATION_VERSION="{{ claims_segmentation_version }}" \
         PRECEDING="{{ claims_preceding_context_units }}" \
         FOLLOWING="{{ claims_following_context_units }}" python3 - <<'PY'
@@ -244,6 +246,7 @@ steps:
             raise SystemExit(0)
         configuration = {
             'contract_version': 2,
+            'decontextualization_mode': os.environ['DECONTEXTUALIZATION_MODE'],
             'segmentation_version': os.environ['SEGMENTATION_VERSION'],
             'preceding_context_units': int(os.environ['PRECEDING']),
             'following_context_units': int(os.environ['FOLLOWING']),
@@ -278,6 +281,7 @@ steps:
       claims_model: "{{ claims_model }}"
       claims_harness: "{{ claims_harness }}"
       claims_configuration_digest: "{{ resolved_claims_configuration_digest }}"
+      claims_decontextualization_mode: "{{ claims_decontextualization_mode }}"
       claims_segmentation_version: "{{ claims_segmentation_version }}"
       claims_preceding_context_units: "{{ claims_preceding_context_units }}"
       claims_following_context_units: "{{ claims_following_context_units }}"

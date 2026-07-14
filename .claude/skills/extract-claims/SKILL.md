@@ -27,6 +27,10 @@ This skill accepts inputs as positional arguments and/or kwargs in a `## Inputs`
 - **segmentation_version**, **preceding_context_units**, and
   **following_context_units** — deterministic segmentation settings supplied
   by the workflow; do not silently substitute different values
+- **decontextualization_mode** (`basic` or `full`) — `basic` records whether
+  each accepted claim is self-contained or needs review; `full` requires the
+  independent extracted-versus-maximally-contextualized retrieval comparison
+  and its digests for every accepted claim
 - **`--force`** or **force** (boolean kwarg) — re-extract even if a
   `.claims.json` file already exists for the artifact
 
@@ -119,6 +123,7 @@ python3 "$SKILL_DIR/scripts/create-staged-scaffold.py" "$SEGMENTS_JSON" \
   --repository-revision "$REPOSITORY_REVISION" \
   --model "$MODEL" --harness "$HARNESS" \
   --configuration-digest "$CONFIGURATION_DIGEST" \
+  --decontextualization-mode "$DECONTEXTUALIZATION_MODE" \
   --segmentation-version "$SEGMENTATION_VERSION" \
   --preceding-context-units "$PRECEDING_CONTEXT_UNITS" \
   --following-context-units "$FOLLOWING_CONTEXT_UNITS"
@@ -256,22 +261,27 @@ classified `mixed`. Use `complete` only when every verifiable element is
 `partial` or `failed` when at least one verifiable element is `omitted` or one
 unverifiable element is `included`. The validator rejects inconsistent labels.
 
-Decontextualization evaluation may be sampled outside the regression corpus,
-but each accepted claim must record whether it is self-contained or needs
-review.
+In `basic` mode, each accepted claim must record `self_contained`,
+`needs_review`, or `not_sampled`. Use `desirable` or `undesirable` only after
+performing the full comparison below.
 
-For regression and sampled production claims, perform the full comparison:
+In `full` mode (required for regression and sampled production claims), perform
+the full comparison for every accepted claim:
 
 1. Generate a maximally contextualized comparison claim using only the heading,
    list preamble, and bounded source context.
 2. Retrieve evidence independently for the extracted and comparison claims,
-   recording identical retrieval limits and the query/evidence digests.
+   using identical retrieval limits. Record deterministic digests of each
+   retrieval query/result set and the common evidence context.
 3. Judge whether omitted context changes the evidence set or its relationship
    to the claim.
 4. Record `desirable` only when the shorter claim preserves meaning and
    evidence behavior; otherwise record `undesirable` with the omitted context.
 
 Do not use stylistic preference or claim length as a proxy for this result.
+The validator rejects `self_contained`, `needs_review`, and `not_sampled` for
+accepted claims in `full` mode, and rejects `desirable` or `undesirable` unless
+all four comparison fields are non-empty.
 
 For each processed artifact file, project and write the legacy claims to:
 

@@ -45,6 +45,7 @@ def create_scaffold(segments: dict, metadata: dict) -> dict:
         "model": metadata.get("model"),
         "harness": metadata.get("harness"),
         "configuration_digest": metadata.get("configuration_digest"),
+        "decontextualization_mode": metadata.get("decontextualization_mode", "basic"),
         "configuration": segments.get("configuration", {}),
         "segmentation_version": metadata.get("segmentation_version"),
         "segmentation_configuration_digest": segments.get("configuration_digest"),
@@ -74,6 +75,9 @@ def main() -> int:
     parser.add_argument("--model")
     parser.add_argument("--harness")
     parser.add_argument("--configuration-digest")
+    parser.add_argument(
+        "--decontextualization-mode", choices=("basic", "full"), default="basic"
+    )
     parser.add_argument("--segmentation-version")
     parser.add_argument("--preceding-context-units", type=int)
     parser.add_argument("--following-context-units", type=int)

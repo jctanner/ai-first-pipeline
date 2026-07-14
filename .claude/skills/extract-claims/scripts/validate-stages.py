@@ -10,6 +10,13 @@ from jsonschema import Draft202012Validator
 SELECTIONS = {"verifiable", "mixed", "unverifiable"}
 AMBIGUITIES = {"none", "resolved", "unresolved"}
 CLAIM_TYPES = {"factual", "architectural", "security", "scope", "attribution"}
+DECONTEXTUALIZATION_MODES = {"basic", "full"}
+FULL_DECONTEXTUALIZATION_FIELDS = (
+    "maximally_contextualized_claim",
+    "extracted_retrieval_digest",
+    "comparison_retrieval_digest",
+    "evidence_context_digest",
+)
 SCHEMA_PATH = Path(__file__).parents[1] / "schemas" / "staged-extraction.schema.json"
 
 
@@ -41,6 +48,9 @@ def validate(data: dict) -> list[str]:
     for field in ("run_key", "source_file", "pipeline_slug", "extractor_revision"):
         if not isinstance(data.get(field), str) or not data[field].strip():
             errors.append(f"{field} is required")
+    decontextualization_mode = data.get("decontextualization_mode")
+    if decontextualization_mode not in DECONTEXTUALIZATION_MODES:
+        errors.append("decontextualization_mode is invalid")
     units = data.get("units")
     if not isinstance(units, list):
         return [*errors, "units must be a list"]
@@ -183,6 +193,26 @@ def validate(data: dict) -> list[str]:
                     errors.append(
                         f"{claim_prefix}.evaluation.decontextualization_result is invalid"
                     )
+                decontextualization_result = evaluation.get(
+                    "decontextualization_result"
+                )
+                if (
+                    decontextualization_mode == "full"
+                    and claim.get("accepted", True)
+                    and decontextualization_result not in {"desirable", "undesirable"}
+                ):
+                    errors.append(
+                        f"{claim_prefix}.evaluation.decontextualization_result must be "
+                        "desirable or undesirable in full mode"
+                    )
+                if decontextualization_result in {"desirable", "undesirable"}:
+                    for field in FULL_DECONTEXTUALIZATION_FIELDS:
+                        value = evaluation.get(field)
+                        if not isinstance(value, str) or not value.strip():
+                            errors.append(
+                                f"{claim_prefix}.evaluation.{field} is required for "
+                                f"{decontextualization_result} decontextualization"
+                            )
     return errors
 
 

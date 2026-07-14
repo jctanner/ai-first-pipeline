@@ -57,6 +57,7 @@ def metadata():
         "model": "model-1",
         "harness": "harness-1",
         "configuration_digest": "sha256:config",
+        "decontextualization_mode": "basic",
         "segmentation_version": "claim-segmentation-v1",
         "preceding_context_units": 1,
         "following_context_units": 1,

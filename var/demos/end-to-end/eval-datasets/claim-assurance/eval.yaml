@@ -4,7 +4,7 @@ skill: extract-claims
 
 execution:
   mode: case
-  arguments: "--headless --force artifact_filter=artifacts/{artifact_file}"
+  arguments: "--headless --force artifact_filter=artifacts/{artifact_file} decontextualization_mode=full"
   timeout: 900
   max_budget_usd: 3.0
 
@@ -57,6 +57,32 @@ judges:
           return False, "No staged .extraction.json output"
       return True, f"Found {len(staged)} staged output file(s)"
 
+  - name: full_decontextualization_contract
+    description: Require a complete independent retrieval comparison for every accepted claim.
+    check: |
+      import json
+      files = outputs.get("files", {})
+      staged = [value for path, value in files.items() if path.endswith(".extraction.json")]
+      required = (
+          "maximally_contextualized_claim", "extracted_retrieval_digest",
+          "comparison_retrieval_digest", "evidence_context_digest",
+      )
+      for raw in staged:
+          document = json.loads(raw) if isinstance(raw, str) else raw
+          if document.get("decontextualization_mode") != "full":
+              return False, "Extraction did not record full decontextualization mode"
+          for unit in document.get("units", []):
+              for claim in unit.get("claims", []):
+                  if not claim.get("accepted", True):
+                      continue
+                  evaluation = claim.get("evaluation", {})
+                  if evaluation.get("decontextualization_result") not in ("desirable", "undesirable"):
+                      return False, "Accepted claim lacks a full decontextualization judgment"
+                  missing = [field for field in required if not evaluation.get(field)]
+                  if missing:
+                      return False, f"Accepted claim lacks comparison fields: {missing}"
+      return True, "Every accepted claim has a full independent retrieval comparison"
+
   - name: selection_ambiguity_and_claim_quality
     description: Compare stage decisions and claims with the reviewed annotations.
     prompt: |
@@ -75,6 +101,8 @@ judges:
 
 thresholds:
   staged_output_valid:
+    min_pass_rate: 1.0
+  full_decontextualization_contract:
     min_pass_rate: 1.0
   selection_ambiguity_and_claim_quality:
     min_mean: 4.0

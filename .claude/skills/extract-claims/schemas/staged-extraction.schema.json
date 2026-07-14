@@ -7,7 +7,7 @@
   "required": [
     "run_key", "source_file", "pipeline_slug", "artifact_type",
     "artifact_digest", "extractor_revision", "repository_revision", "model",
-    "harness", "configuration_digest", "configuration",
+    "harness", "configuration_digest", "decontextualization_mode", "configuration",
     "segmentation_version", "segmentation_configuration_digest",
     "preceding_context_units", "following_context_units", "units"
   ],
@@ -26,6 +26,7 @@
     "model": {"type": "string", "minLength": 1},
     "harness": {"type": "string", "minLength": 1},
     "configuration_digest": {"type": "string", "minLength": 1},
+    "decontextualization_mode": {"enum": ["basic", "full"]},
     "configuration": {"$ref": "#/$defs/segmentationConfiguration"},
     "segmentation_version": {"type": "string", "minLength": 1},
     "segmentation_configuration_digest": {"type": "string", "minLength": 1},
@@ -134,7 +135,27 @@
           "minItems": 1,
           "items": {"$ref": "#/$defs/evidenceRecord"}
         }
-      }
+      },
+      "allOf": [{
+        "if": {
+          "properties": {
+            "decontextualization_result": {"enum": ["desirable", "undesirable"]}
+          },
+          "required": ["decontextualization_result"]
+        },
+        "then": {
+          "required": [
+            "maximally_contextualized_claim", "extracted_retrieval_digest",
+            "comparison_retrieval_digest", "evidence_context_digest"
+          ],
+          "properties": {
+            "maximally_contextualized_claim": {"type": "string", "minLength": 1},
+            "extracted_retrieval_digest": {"type": "string", "minLength": 1},
+            "comparison_retrieval_digest": {"type": "string", "minLength": 1},
+            "evidence_context_digest": {"type": "string", "minLength": 1}
+          }
+        }
+      }]
     },
     "evidenceRecord": {
       "type": "object",

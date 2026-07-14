@@ -11,6 +11,7 @@ vars:
   claims_model: "claude-opus-4-6"
   claims_harness: "claude-code"
   claims_configuration_digest: "unresolved"
+  claims_decontextualization_mode: "basic"
   claims_segmentation_version: "claim-segmentation-v1"
   claims_preceding_context_units: 1
   claims_following_context_units: 1
@@ -28,6 +29,7 @@ steps:
         MODEL="{{ claims_model }}" \
         HARNESS="{{ claims_harness }}" \
         CONFIGURATION_DIGEST="{{ claims_configuration_digest }}" \
+        DECONTEXTUALIZATION_MODE="{{ claims_decontextualization_mode }}" \
         FORCE_CLAIMS="{{ force_claims }}" \
         python3 - <<'PY'
         import hashlib, json, os
@@ -40,6 +42,7 @@ steps:
         model = os.environ['MODEL']
         harness = os.environ['HARNESS']
         configuration_digest = os.environ['CONFIGURATION_DIGEST']
+        decontextualization_mode = os.environ['DECONTEXTUALIZATION_MODE']
         force = os.environ['FORCE_CLAIMS'].lower() in {'1', 'true', 'yes', 'on'}
         skip_dirs = {'.git', 'claims', 'verification', 'explanations'}
 
@@ -63,6 +66,7 @@ steps:
             'model': model,
             'harness': harness,
             'configuration_digest': configuration_digest,
+            'decontextualization_mode': decontextualization_mode,
         }
         digest.update(b'claim-receipt-v2\0')
         digest.update(json.dumps(implementation, sort_keys=True).encode())
@@ -186,7 +190,7 @@ steps:
       skill_model: "{{ claims_model }}"
       skill_harness: "{{ claims_harness }}"
       skill_extra_env: "{{ claims_git_extra_env }}"
-      skill_extra_kwargs: "artifact_filter={{ artifact }} extractor_revision={{ claims_skill_revision }} repository_revision={{ claims_repository_revision }} model={{ claims_model }} harness={{ claims_harness }} configuration_digest={{ claims_configuration_digest }} segmentation_version={{ claims_segmentation_version }} preceding_context_units={{ claims_preceding_context_units }} following_context_units={{ claims_following_context_units }} force=true"
+      skill_extra_kwargs: "artifact_filter={{ artifact }} extractor_revision={{ claims_skill_revision }} repository_revision={{ claims_repository_revision }} model={{ claims_model }} harness={{ claims_harness }} configuration_digest={{ claims_configuration_digest }} decontextualization_mode={{ claims_decontextualization_mode }} segmentation_version={{ claims_segmentation_version }} preceding_context_units={{ claims_preceding_context_units }} following_context_units={{ claims_following_context_units }} force=true"
 
   - name: record_receipt_miss
     type: observatory_api
@@ -221,6 +225,7 @@ steps:
         MODEL="{{ claims_model }}" \
         HARNESS="{{ claims_harness }}" \
         CONFIGURATION_DIGEST="{{ claims_configuration_digest }}" \
+        DECONTEXTUALIZATION_MODE="{{ claims_decontextualization_mode }}" \
         SEGMENTATION_VERSION="{{ claims_segmentation_version }}" \
         PRECEDING_CONTEXT_UNITS="{{ claims_preceding_context_units }}" \
         FOLLOWING_CONTEXT_UNITS="{{ claims_following_context_units }}" \
@@ -237,6 +242,7 @@ steps:
         model = os.environ['MODEL']
         harness = os.environ['HARNESS']
         configuration_digest = os.environ['CONFIGURATION_DIGEST']
+        decontextualization_mode = os.environ['DECONTEXTUALIZATION_MODE']
         segmentation_version = os.environ['SEGMENTATION_VERSION']
         preceding_context_units = int(os.environ['PRECEDING_CONTEXT_UNITS'])
         following_context_units = int(os.environ['FOLLOWING_CONTEXT_UNITS'])
@@ -268,6 +274,7 @@ steps:
             'model': model,
             'harness': harness,
             'configuration_digest': configuration_digest,
+            'decontextualization_mode': decontextualization_mode,
         }
         digest.update(b'claim-receipt-v2\0')
         digest.update(json.dumps(implementation, sort_keys=True).encode())
@@ -317,6 +324,7 @@ steps:
                 'model': model,
                 'harness': harness,
                 'configuration_digest': configuration_digest,
+                'decontextualization_mode': decontextualization_mode,
                 'segmentation_version': segmentation_version,
                 'preceding_context_units': preceding_context_units,
                 'following_context_units': following_context_units,

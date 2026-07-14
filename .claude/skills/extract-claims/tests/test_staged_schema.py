@@ -74,6 +74,7 @@ def test_schema_requires_complete_scaffold_provenance():
     assert {
         "artifact_type", "artifact_digest", "repository_revision", "model",
         "harness", "configuration_digest", "configuration",
+        "decontextualization_mode",
         "segmentation_version", "segmentation_configuration_digest",
         "preceding_context_units", "following_context_units",
     } <= required

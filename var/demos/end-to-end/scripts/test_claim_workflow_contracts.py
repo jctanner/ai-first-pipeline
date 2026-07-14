@@ -42,6 +42,7 @@ def extraction_values(**overrides):
         "claims_model": "claude-opus-4-6",
         "claims_harness": "claude-code",
         "claims_configuration_digest": "config-a",
+        "claims_decontextualization_mode": "basic",
         "claims_segmentation_version": "claim-segmentation-v1",
         "claims_preceding_context_units": 1,
         "claims_following_context_units": 1,
@@ -172,6 +173,9 @@ def test_receipt_misses_force_each_agent_skill_to_rebuild_outputs():
     assert extract["for_each"] == "receipt.input_artifacts"
     assert extract["as"] == "artifact"
     assert "artifact_filter={{ artifact }}" in extract["vars"]["skill_extra_kwargs"]
+    assert "decontextualization_mode={{ claims_decontextualization_mode }}" in (
+        extract["vars"]["skill_extra_kwargs"]
+    )
 
     analysis = load("workflows/run-claim-analysis-stage.yaml")
     run_stage = next(step for step in analysis["steps"] if step["name"] == "run_stage")
@@ -418,6 +422,7 @@ def test_claim_jobs_use_flexible_execution_fqn_and_resolved_receipt_revisions():
     steps = {step["name"]: step for step in workflow["steps"]}
     assert workflow["vars"]["claims_model"] == "claude-opus-4-6"
     assert workflow["vars"]["claims_harness"] == "claude-code"
+    assert workflow["vars"]["claims_decontextualization_mode"] == "basic"
     expected = {
         "extract_claims": "{{ resolved_extract_claims_revision }}",
         "verify_claims": "{{ resolved_verify_claims_revision }}",
@@ -436,6 +441,16 @@ def test_claim_jobs_use_flexible_execution_fqn_and_resolved_receipt_revisions():
     assert "'execution_repo': repository + '@' + execution_ref" in resolution
     assert "'repository_revision': commit" in resolution
     assert "'stage_revisions': revisions" in resolution
+
+    configuration = step_command(
+        "workflows/run-claims.yaml", "resolve_claim_configuration"
+    )
+    assert "'decontextualization_mode': os.environ['DECONTEXTUALIZATION_MODE']" in (
+        configuration
+    )
+
+    evaluation = load("eval-datasets/claim-assurance/eval.yaml")
+    assert "decontextualization_mode=full" in evaluation["execution"]["arguments"]
 
     run_skill = load("workflows/run-skill.yaml")
     submit = next(step for step in run_skill["steps"] if step["name"] == "submit")
@@ -558,6 +573,7 @@ def test_extraction_receipt_refuses_unvalidated_or_stale_agent_output(tmp_path):
         "model": "claude-opus-4-6",
         "harness": "claude-code",
         "configuration_digest": "config-a",
+        "decontextualization_mode": "basic",
         "configuration": {
             "segmenter_version": "markdown-v1",
             "preceding_units": 1,
