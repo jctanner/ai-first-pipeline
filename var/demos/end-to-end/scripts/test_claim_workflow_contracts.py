@@ -738,7 +738,7 @@ def test_embedded_analysis_receipt_tracks_inputs_evidence_and_outputs(tmp_path):
     verification = tmp_path / "verification" / "7" / "run.verification.json"
     verification.parent.mkdir(parents=True)
     verification.write_text(json.dumps({
-        "issue": "RFE-1", "observatory_run_id": 11,
+        "issue": "RFE-1", "observatory_run_id": "11",
         "verification_run_id": 999, "explanation_run_id": 888,
         "verdict": "supported",
     }))

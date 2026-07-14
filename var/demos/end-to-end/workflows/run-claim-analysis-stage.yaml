@@ -235,7 +235,12 @@ steps:
                         except (OSError, json.JSONDecodeError):
                             value = {}
                         if value.get('observatory_run_id') is not None:
-                            observatory_run_ids.append(value['observatory_run_id'])
+                            try:
+                                observatory_run_ids.append(
+                                    int(value['observatory_run_id']))
+                            except (TypeError, ValueError) as exc:
+                                raise SystemExit(
+                                    f'{path} has invalid observatory_run_id') from exc
         receipt = {
             'schema_version': 2, 'stage': stage, 'scope': {'issue': issue},
             'implementation': {

@@ -431,7 +431,11 @@ steps:
             staged_files.append(staged_path)
             claim_count += len(projected)
             if data.get('observatory_run_id') is not None:
-                observatory_run_ids.append(data['observatory_run_id'])
+                try:
+                    observatory_run_ids.append(int(data['observatory_run_id']))
+                except (TypeError, ValueError) as exc:
+                    raise SystemExit(
+                        f'{staged_path} has invalid observatory_run_id') from exc
             for unit in data['units']:
                 source = unit.get('source_unit', {})
                 source_unit_digests.append(source.get('digest') or source.get('id') or source.get('unit_key'))
