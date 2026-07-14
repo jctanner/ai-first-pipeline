@@ -95,22 +95,4 @@ Vagrant.configure("2") do |config|
     SHELL
   end
 
-  # ── Secondary VM: gitlab-runner (stub) ───────────────────────────────
-  config.vm.define "gitlab-runner", autostart: false do |runner|
-    runner.vm.box = "cloud-image/ubuntu-24.04"
-    runner.vm.box_check_update = false
-    runner.vm.hostname = "gitlab-runner"
-
-    runner.vm.provider "libvirt" do |lv|
-      lv.memory = 4096
-      lv.cpus = 2
-      lv.machine_virtual_size = 50  # 50GB disk
-    end
-
-    runner.vm.provision "shell", inline: <<-SHELL
-      echo "==> GitLab Runner VM provisioned (stub)"
-      echo "TODO: Install and register gitlab-runner"
-    SHELL
-  end
-
 end
