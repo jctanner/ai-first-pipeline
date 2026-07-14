@@ -12,6 +12,26 @@ This is not a benchmark demo. The proof is the operational loop itself:
 4. Rerun the same workflow.
 5. Compare before and after claim quality in Observatory.
 
+## Current Status
+
+As of 2026-07-14, the Claimify-aligned assurance subsystem is implemented and
+deployed: generated artifacts can be segmented into traceable claim
+occurrences, evaluated for extraction quality, verified against versioned
+evidence, routed to explanations, gated by Markov, overridden with audit
+provenance, and replayed through regression evaluation. Receipt evidence also
+demonstrates no-op reuse and selective invalidation for skill and context
+revisions.
+
+This does not yet complete the larger closed-loop demo described below. The
+remaining assurance work is tracked in the
+[Claimify plan](claimify-aligned-claim-assurance-plan.md) and its linked pending
+tasks. In particular, the regression judges must receive real case data, seven
+missing staged outputs must be investigated, the long-running evaluation must
+be reconciled after Markov's wait deadline, and source-artifact invalidation
+must be demonstrated. The full planning-to-code workflow has intentionally not
+been rerun twice because of its execution cost; whether that is required for
+final acceptance remains an explicit decision.
+
 ## Why This Demo Exists
 
 The project has the pieces for a local AI delivery control plane:

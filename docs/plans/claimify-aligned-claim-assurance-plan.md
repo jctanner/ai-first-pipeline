@@ -50,29 +50,41 @@ At the time this plan was written, the architectural gaps were:
 
 ## Implementation Status
 
-As of 2026-07-12, phases 0 through 8 are implemented in the local working
-tree. The implementation includes the annotated regression corpus,
+As of 2026-07-14, phases 0 through 8 are implemented, committed, and deployed.
+The implementation includes the annotated regression corpus,
 deterministic segmentation, staged extraction schemas and validation,
 extraction-quality scoring, additive Observatory persistence and v2 APIs,
 immutable verification and explanation histories, stage-aware receipts,
 Markov gates and audited overrides, and the Observatory claim-assurance UI.
 
-Local acceptance evidence currently includes:
+Acceptance evidence currently includes:
 
-- 15 passing segmentation, stage-contract, scoring, and workflow-receipt tests;
-- 9 passing focused Observatory claim-assurance and admin API tests;
+- 55 passing segmentation, stage-contract, scoring, and workflow-receipt tests;
+- 14 passing focused Observatory claim-assurance and admin API tests;
 - clean backend lint, valid Markov workflow definitions, and a successful
   Observatory production frontend build;
-- a 54-unit executable regression corpus spanning all six target artifact
-  classes and a valid agent-eval-harness configuration.
+- deployed no-op receipt hits that skipped extraction, verification, and
+  explanation agent jobs;
+- skill-revision and context-revision invalidation that reran only the affected
+  stages and their descendants;
+- a completed context-change run with a provenance-bound, audited human
+  override and dependent explanation replay; and
+- a completed 54-unit regression job whose deterministic checks reported 100%
+  decontextualization-contract compliance and 47 of 54 expected staged outputs.
 
-Deployment acceptance remains open. After the changes are committed and the
-demo services are rebuilt, run the complete workflow twice to prove a
-no-op receipt hit, then independently perturb an artifact, context revision,
-and skill revision to prove that invalidation reruns only the affected stage
-and its descendants. Exercise a human override and capture its audit history
-in the same run. These checks are required before declaring the final
-completion criterion satisfied.
+Final acceptance remains open for two concrete reasons. The regression job
+exceeded Markov's three-hour wait deadline, so the workflow was marked failed
+before the Kubernetes job completed successfully. Its two model judges also
+received neither the generated artifacts nor annotations and therefore emitted
+the same non-evidentiary score for every case. Seven cases did not produce the
+expected `.extraction.json` output and require investigation. In addition, the
+source-artifact invalidation test and final import/sync of the latest
+`ai-first-pipeline@main` revision remain outstanding.
+
+## Active Ledger Items
+
+- [Repair claim-assurance regression evaluation](../tasks/pending/repair-claim-assurance-regression-evaluation.md)
+- [Complete claim-assurance deployment acceptance](../tasks/pending/complete-claim-assurance-deployment-acceptance.md)
 
 ## Design Principles
 
