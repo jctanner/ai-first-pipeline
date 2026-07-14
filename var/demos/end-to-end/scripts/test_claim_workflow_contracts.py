@@ -89,6 +89,13 @@ def test_claim_workflow_has_both_assurance_gates_and_regression_replay():
     assert rules["explanation_human_review"]["action"] == "pause"
 
 
+def test_eval_runner_accepts_immutable_context_commits():
+    runner = (ROOT.parents[2] / "scripts" / "run_eval.sh").read_text()
+    assert "checkout_context_ref()" in runner
+    assert 'checkout --detach "$target"' in runner
+    assert 'clone --depth 1 -b "$CONTEXT_REF"' not in runner
+
+
 def test_claim_discovery_allows_an_rfe_without_descendants():
     workflow = load("workflows/run-claims.yaml")
     steps = {step["name"]: step for step in workflow["steps"]}

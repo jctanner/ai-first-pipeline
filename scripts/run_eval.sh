@@ -150,14 +150,34 @@ CONTEXT_CLONE_URL="${CONTEXT_CLONE_URL/https:\/\/github.local/https:\/\/github-e
 CONTEXT_CLONE_URL="${CONTEXT_CLONE_URL/http:\/\/github.local/https:\/\/github-emulator.ai-pipeline.svc.cluster.local}"
 
 CONTEXT_DIR="/tmp/eval-workspace/architecture-context"
-if [ -d "$CONTEXT_DIR" ]; then
-  echo "Architecture-context already cloned, switching to ref: $CONTEXT_REF..."
-  git -C "$CONTEXT_DIR" fetch origin "$CONTEXT_REF" --depth 1 2>/dev/null || true
-  git -C "$CONTEXT_DIR" checkout FETCH_HEAD 2>/dev/null || true
-else
-  echo "Cloning architecture-context from $CONTEXT_CLONE_URL at ref: $CONTEXT_REF..."
-  git clone --depth 1 -b "$CONTEXT_REF" "$CONTEXT_CLONE_URL" "$CONTEXT_DIR"
-fi
+checkout_context_ref() {
+  local clone_url="$1" ref="$2" directory="$3" target
+
+  if [ ! -d "$directory/.git" ]; then
+    echo "Cloning architecture-context from $clone_url..."
+    # Keep history so an immutable commit can be selected even when it is not
+    # advertised as a branch or tag by the remote.
+    git clone "$clone_url" "$directory"
+  else
+    echo "Architecture-context already cloned, fetching refs..."
+    git -C "$directory" fetch origin --tags
+  fi
+
+  if git -C "$directory" rev-parse --verify --quiet "origin/$ref^{commit}" >/dev/null; then
+    target="origin/$ref"
+  elif git -C "$directory" rev-parse --verify --quiet "$ref^{commit}" >/dev/null; then
+    target="$ref"
+  else
+    # This also supports servers configured to allow fetching a reachable SHA.
+    git -C "$directory" fetch origin "$ref"
+    target="FETCH_HEAD"
+  fi
+  git -C "$directory" checkout --detach "$target"
+  echo "Architecture-context resolved to $(git -C "$directory" rev-parse HEAD)"
+}
+
+echo "Resolving architecture-context ref: $CONTEXT_REF..."
+checkout_context_ref "$CONTEXT_CLONE_URL" "$CONTEXT_REF" "$CONTEXT_DIR"
 
 # ---------------------------------------------------------------------------
 # Context mode setup
