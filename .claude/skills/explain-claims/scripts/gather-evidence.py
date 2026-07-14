@@ -190,11 +190,20 @@ def find_artifacts(claim_ids=None):
     claim_ids = {str(value) for value in (claim_ids or []) if value is not None}
 
     def report_matches(path):
-        if path.stem in claim_ids:
+        if path.stem in claim_ids or any(part in claim_ids for part in path.parts):
             return True
         try:
-            return ISSUE_KEY.upper() in path.read_text(errors="ignore").upper()
+            text = path.read_text(errors="ignore")
+            if ISSUE_KEY.upper() in text.upper():
+                return True
+            if path.suffix == ".json":
+                payload = json.loads(text)
+                occurrence_id = payload.get("claim_occurrence_id")
+                return str(occurrence_id) in claim_ids
+            return False
         except OSError:
+            return False
+        except (TypeError, json.JSONDecodeError):
             return False
 
     # Pipeline outputs across RFE, strategy, epic, investigation, and codegen
@@ -224,27 +233,35 @@ def find_artifacts(claim_ids=None):
                         "path": os.path.join(root, f),
                     })
 
-    # Verification logs
-    verif_dir = os.path.join(ARTIFACTS_DIR, "verification")
-    if os.path.isdir(verif_dir):
-        for f in sorted(os.listdir(verif_dir)):
-            path = os.path.join(verif_dir, f)
-            if f.endswith(".md") and report_matches(Path(path)):
+    # Verification logs and immutable structured runs. Structured runs live one
+    # directory below the occurrence ID, so a top-level os.listdir() silently
+    # misses the evidence that explanation must bind to.
+    verif_dir = Path(ARTIFACTS_DIR) / "verification"
+    if verif_dir.is_dir():
+        for path in sorted(verif_dir.rglob("*.md")):
+            if report_matches(path):
                 found.append({
                     "type": "verification_log",
-                    "path": path,
+                    "path": str(path),
+                })
+        for path in sorted(verif_dir.rglob("*.verification.json")):
+            if report_matches(path):
+                found.append({
+                    "type": "verification_run",
+                    "path": str(path),
                 })
 
-    # Existing explanations
-    explain_dir = os.path.join(ARTIFACTS_DIR, "explanations")
-    if os.path.isdir(explain_dir):
-        for f in sorted(os.listdir(explain_dir)):
-            path = os.path.join(explain_dir, f)
-            if f.endswith(".md") and report_matches(Path(path)):
-                found.append({
-                    "type": "existing_explanation",
-                    "path": path,
-                })
+    # Existing explanations include both the legacy markdown projection and
+    # immutable structured runs nested under verification-run IDs.
+    explain_dir = Path(ARTIFACTS_DIR) / "explanations"
+    if explain_dir.is_dir():
+        for pattern in ("*.md", "*.explanation.json"):
+            for path in sorted(explain_dir.rglob(pattern)):
+                if report_matches(path):
+                    found.append({
+                        "type": "existing_explanation",
+                        "path": str(path),
+                    })
 
     return found
 
@@ -321,13 +338,13 @@ def find_observatory_claims():
     try:
         url = (
             f"{OBSERVATORY_URL}/api/v2/claims/occurrences"
-            f"?jira_key={ISSUE_KEY}&pending_only=false&limit=200"
+            f"?jira_key={ISSUE_KEY}&pending_only=false&limit=1000"
         )
         resp = urllib.request.urlopen(url, timeout=10)
         data = json.loads(resp.read())
     except Exception:
         try:
-            url = f"{OBSERVATORY_URL}/api/hallucinations/claims?jira_key={ISSUE_KEY}&limit=200"
+            url = f"{OBSERVATORY_URL}/api/hallucinations/claims?jira_key={ISSUE_KEY}&limit=1000"
             resp = urllib.request.urlopen(url, timeout=10)
             data = json.loads(resp.read())
         except Exception:
@@ -338,13 +355,29 @@ def find_observatory_claims():
             "total": data.get("total", 0),
             "api_url": url,
             "claims": data.get("claims", []),
+            "overflow": len(data.get("claims", [])) == 1000,
         }
 
-    if not data.get("occurrences"):
+    occurrences = data.get("occurrences", [])
+    if len(occurrences) == 1000:
+        return {
+            "reachable": True,
+            "legacy_fallback": False,
+            "total": data.get("total", len(occurrences)),
+            "api_url": url,
+            "claims": [],
+            "overflow": True,
+            "error": (
+                "Observatory returned exactly 1000 occurrences; the result may "
+                "be truncated, so explanation selection must stop."
+            ),
+        }
+
+    if not occurrences:
         try:
             legacy_url = (
                 f"{OBSERVATORY_URL}/api/hallucinations/claims"
-                f"?jira_key={ISSUE_KEY}&limit=200"
+                f"?jira_key={ISSUE_KEY}&limit=1000"
             )
             legacy = json.loads(urllib.request.urlopen(legacy_url, timeout=10).read())
             if legacy.get("total", 0):
@@ -354,6 +387,7 @@ def find_observatory_claims():
                     "total": legacy["total"],
                     "api_url": legacy_url,
                     "claims": legacy.get("claims", []),
+                    "overflow": len(legacy.get("claims", [])) == 1000,
                 }
         except Exception:
             pass
@@ -369,7 +403,7 @@ def find_observatory_claims():
         except Exception:
             pass
         runs = history.get("verification_runs", [])
-        latest = runs[-1] if runs else {}
+        latest = max(runs, key=lambda run: run.get("id", -1)) if runs else {}
         claims.append({
             "id": c.get("id"),
             "claim_text": c.get("claim_text", ""),
@@ -389,6 +423,7 @@ def find_observatory_claims():
         "total": data.get("total", len(claims)),
         "api_url": url,
         "claims": claims,
+        "overflow": False,
     }
 
 

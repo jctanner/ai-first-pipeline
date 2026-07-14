@@ -303,6 +303,20 @@ For each claim, produce:
 - `insufficient_evidence` — evidence is missing, ambiguous, or cannot distinguish support from contradiction
 - `not_applicable` — the occurrence is not a factual-verification target after modality-aware review
 
+Apply verdicts to the whole atomic claim, not only its easiest clause. Every
+material, independently checkable element must have authoritative support for a
+`supported` verdict. If any material element lacks evidence, use
+`insufficient_evidence`; if authoritative evidence contradicts a material
+element, use `contradicted`. Split a genuinely non-atomic occurrence upstream
+rather than averaging evidence across its clauses.
+
+Never promote plausibility to support. Phrases such as "plausible",
+"reasonable", "well-known", "close to", "could not be independently
+verified", or "the source document states it" identify an evidence gap when
+the claim asserts current state, external product behavior, user behavior, or
+a numeric fact. A generated artifact proves what it proposed or reported; it
+does not prove that its current-state premise is true.
+
 Legacy reports may render `contradicted` as `refuted` and split
 `insufficient_evidence` into `insufficient`/`inconclusive`, but v2 JSON always
 uses the canonical values above.
@@ -335,6 +349,21 @@ The single `{claim_id}.md` report is a legacy projection and may show only the
 effective run; it is not the history of record.
 After successful v2 ingestion, atomically record the returned ID as
 `observatory_run_id`; explanation must bind to this exact verification run.
+
+Before ingestion, validate every machine-readable file created by this
+execution (and only those files):
+
+```bash
+python3 "$SKILL_DIR/scripts/validate-verification.py" \
+  "${current_verification_files[@]}"
+```
+
+Do not POST any run if validation fails. Repository and architecture evidence
+must include the resolved evidence repository commit in
+`repository_revision`, plus a stable source locator or exact query. Generated
+artifact evidence must include its SHA-256 `artifact_digest` and stable source
+locator. A URI or human-readable authority label is not immutable provenance by
+itself.
 
 Use `contradicted` for the v2 verdict corresponding to the legacy `refuted`
 label. Severity describes the impact of a contradicted claim (`info`, `low`,

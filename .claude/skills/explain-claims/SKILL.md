@@ -64,7 +64,10 @@ Save the JSON output — it is your evidence index for all subsequent steps. The
 - **`evidence_sources.artifacts`** — file paths grouped by type (`pipeline_output`, `claims_json`, `verification_log`, `existing_explanation`)
 - **`evidence_sources.observatory`** — claims with `id`, `claim_text`, `verdict`, and per-claim `url`
 
-**Before proceeding**, report the summary counts. If the script is not found, fall back to manual discovery (see Appendix).
+**Before proceeding**, report the summary counts. If
+`evidence_sources.observatory.overflow` is true, stop with an explicit error;
+partial explanation selection would silently omit occurrences. If the script
+is not found, fall back to manual discovery (see Appendix).
 
 ## Step 2: Select Claims to Explain
 
@@ -76,6 +79,9 @@ From the manifest's `evidence_sources.observatory.claims`, filter to claims need
 - Skip claims that already have files in `evidence_sources.artifacts` with `type: existing_explanation` unless `--force`
 
 Report the number of claims selected and their verdict distribution.
+Maintain an explicit list of the selected claim occurrence IDs and immutable
+verification run IDs. That list defines this execution's output set; do not
+later discover outputs by globbing the shared explanations directory.
 
 ## Step 3: Gather Forensic Evidence
 
@@ -171,6 +177,24 @@ same generated artifact.
 - Distinguish unavailable evidence from evidence that was available but missed.
 - Name one primary category, contributing factors, an improvement target, and a
   concrete regression test. Use `unknown` when evidence cannot support more.
+- A verification log establishes the factual verdict, not the cause. It cannot
+  be the only evidence for `retrieval_failure`, `source_misinterpretation`,
+  `workflow_gap`, `tool_or_harness_gap`, `model_reasoning_error`, or
+  `compound_error`.
+- Assign `retrieval_failure` only when evidence shows all three facts: the
+  relevant source was available at generation time, the generating skill
+  required or reasonably implied its retrieval, and execution evidence shows
+  the agent did not retrieve or select it. A context-setup write or clone does
+  not prove the generating agent read the source. If execution evidence cannot
+  distinguish a missed retrieval from unavailable context or
+  misinterpretation, use `unknown` and require human review.
+- Assign `source_misinterpretation` or `model_reasoning_error` only when a job
+  log, tool event, trace, API body, or file-access record demonstrates that the
+  generating agent actually consumed the relevant evidence.
+- Assign `compound_error` only when the source artifacts establish the upstream
+  and downstream claims and execution or workflow evidence establishes that the
+  downstream phase consumed the upstream artifact. Similar wording alone does
+  not prove propagation.
 
 ## Step 5: Write Explanation Reports
 
@@ -187,6 +211,11 @@ verification run ID, explainer revision, primary category, improvement target,
 contributing factors, evidence for and against attribution, alternatives,
 remediation, and a replayable regression-test definition. Use `unknown` and
 mark human review required when the evidence cannot support a causal route.
+Every JSON file must be independently understandable. Do not write shorthand
+such as `same as claim 11`, `same root cause`, or `same regression test`; repeat
+the concrete evidence-backed explanation, remediation, and assertion in each
+immutable run. Cross-claim links may be additional context, never the only
+definition of a field.
 The run key incorporates the explainer revision and evidence digest so replay
 never overwrites an earlier explanation.
 After successful v2 ingestion, atomically record `observatory_run_id` so a
@@ -242,8 +271,11 @@ model state or training data.}
 
 ## Step 6: POST Explanations to Observatory
 
-After writing disk reports, POST each machine-readable explanation to the
-immutable v2 API so it appears with the exact verification history.
+After writing disk reports, POST each machine-readable explanation created for
+the explicit selected-run list from Step 2 to the immutable v2 API so it appears
+with the exact verification history. Never glob all `*.explanation.json` files
+from the shared artifact directory: they include immutable outputs from earlier
+runs, and reposting them creates duplicate or stale explanation history.
 
 Build a JSON payload with all explanations from this run:
 
