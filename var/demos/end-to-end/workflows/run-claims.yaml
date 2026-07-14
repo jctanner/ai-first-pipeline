@@ -669,6 +669,12 @@ steps:
 
         issues = {item['key'].upper() for item in json.loads(
             r'''{{ all_issues | tojson }}''')}
+        def normalized_id(value):
+            try:
+                return int(value)
+            except (TypeError, ValueError):
+                return None
+
         eligible_verification_runs = set()
         for path in Path('/app/artifacts/verification').rglob('*.verification.json'):
             text = path.read_text(errors='ignore')
@@ -676,13 +682,13 @@ steps:
                        for issue in issues):
                 continue
             data = json.loads(text)
-            run_id = data.get('observatory_run_id', data.get('id'))
+            run_id = normalized_id(data.get('observatory_run_id', data.get('id')))
             if run_id is not None:
                 eligible_verification_runs.add(run_id)
         recorded = 0
         for path in Path('/app/artifacts/explanations').rglob('*.explanation.json'):
             data = json.loads(path.read_text())
-            if data.get('verification_run_id') not in eligible_verification_runs:
+            if normalized_id(data.get('verification_run_id')) not in eligible_verification_runs:
                 continue
             explanation_id = data.get('observatory_run_id')
             if explanation_id is None:
@@ -727,6 +733,12 @@ steps:
 
         issues = {item['key'].upper() for item in json.loads(
             r'''{{ all_issues | tojson }}''')}
+        def normalized_id(value):
+            try:
+                return int(value)
+            except (TypeError, ValueError):
+                return None
+
         eligible_verification_runs = set()
         for path in Path('/app/artifacts/verification').rglob('*.verification.json'):
             text = path.read_text(errors='ignore')
@@ -734,13 +746,13 @@ steps:
                        for issue in issues):
                 continue
             data = json.loads(text)
-            run_id = data.get('observatory_run_id', data.get('id'))
+            run_id = normalized_id(data.get('observatory_run_id', data.get('id')))
             if run_id is not None:
                 eligible_verification_runs.add(run_id)
         recorded = 0
         for path in Path('/app/artifacts/explanations').rglob('*.explanation.json'):
             data = json.loads(path.read_text())
-            if data.get('verification_run_id') not in eligible_verification_runs:
+            if normalized_id(data.get('verification_run_id')) not in eligible_verification_runs:
                 continue
             explanation_id = data.get('observatory_run_id')
             if explanation_id is None:

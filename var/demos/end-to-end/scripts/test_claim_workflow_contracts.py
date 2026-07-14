@@ -83,7 +83,13 @@ def test_claim_workflow_has_both_assurance_gates_and_regression_replay():
     for name in ("record_claim_regression", "record_claim_regression_pass"):
         command = steps[name]["params"]["command"]
         assert "eligible_verification_runs" in command
-        assert "data.get('verification_run_id') not in eligible_verification_runs" in command
+        assert "def normalized_id(value):" in command
+        assert "return int(value)" in command
+        assert "except (TypeError, ValueError):" in command
+        assert (
+            "normalized_id(data.get('verification_run_id')) not in "
+            "eligible_verification_runs"
+        ) in command
 
     rules = {rule["name"]: rule for rule in load("rules.yaml")}
     assert rules["extraction_entailment_block"]["action"] == "pause"
@@ -732,7 +738,9 @@ def test_embedded_analysis_receipt_tracks_inputs_evidence_and_outputs(tmp_path):
     verification = tmp_path / "verification" / "7" / "run.verification.json"
     verification.parent.mkdir(parents=True)
     verification.write_text(json.dumps({
-        "issue": "RFE-1", "observatory_run_id": 11, "verdict": "supported",
+        "issue": "RFE-1", "observatory_run_id": 11,
+        "verification_run_id": 999, "explanation_run_id": 888,
+        "verdict": "supported",
     }))
     check = step_command("workflows/run-claim-analysis-stage.yaml", "check_stage_receipt")
     write = step_command("workflows/run-claim-analysis-stage.yaml", "write_stage_receipt")
@@ -746,6 +754,10 @@ def test_embedded_analysis_receipt_tracks_inputs_evidence_and_outputs(tmp_path):
         "stage_receipt.evidence_context_digest": first["evidence_context_digest"],
     }))
     assert written["outputs"] == 1
+    receipt = json.loads(
+        (tmp_path / "verification" / ".receipts" / "RFE-1.json").read_text()
+    )
+    assert receipt["outputs"]["observatory_run_ids"] == [11]
 
     hit = run_embedded(check, tmp_path, analysis_values())
     assert hit["reusable"] is True

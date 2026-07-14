@@ -234,10 +234,8 @@ steps:
                             value = json.loads(path.read_text())
                         except (OSError, json.JSONDecodeError):
                             value = {}
-                        for key in ('observatory_run_id', 'verification_run_id',
-                                    'explanation_run_id'):
-                            if value.get(key) is not None:
-                                observatory_run_ids.append(value[key])
+                        if value.get('observatory_run_id') is not None:
+                            observatory_run_ids.append(value['observatory_run_id'])
         receipt = {
             'schema_version': 2, 'stage': stage, 'scope': {'issue': issue},
             'implementation': {
