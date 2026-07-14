@@ -326,6 +326,7 @@ def test_verification_quality_is_scoped_by_claim_occurrence_identity(tmp_path):
     # Verification artifacts deliberately need not duplicate a Jira key.
     first.write_text(json.dumps({
         "claim_occurrence_id": 11,
+        "observatory_run_id": 101,
         "verdict": "contradicted",
         "severity": "high",
     }))
@@ -333,6 +334,7 @@ def test_verification_quality_is_scoped_by_claim_occurrence_identity(tmp_path):
     second.parent.mkdir(parents=True)
     second.write_text(json.dumps({
         "claim_occurrence_id": 12,
+        "observatory_run_id": 102,
         "verdict": "supported",
         "severity": "info",
     }))
@@ -356,6 +358,10 @@ def test_verification_quality_is_scoped_by_claim_occurrence_identity(tmp_path):
         "unstructured_verifications": 0,
         "blocking_occurrences": [11],
         "review_occurrences": [11],
+        "review_targets": [{
+            "claim_occurrence_id": 11,
+            "verification_run_id": 101,
+        }],
     }
 
     second.unlink()
@@ -521,6 +527,37 @@ def test_verifier_does_not_silently_truncate_pending_occurrences():
     assert "pending_only=true&limit=1000" in skill
     assert "exactly 1000 occurrences" in skill
     assert "report any missing IDs" in skill
+
+
+def test_human_override_binds_exact_immutable_verification_run(tmp_path):
+    claims = tmp_path / "claims" / "RFE-1.extraction.json"
+    claims.parent.mkdir()
+    claims.write_text(json.dumps({
+        "source_file": "strategies/RFE-1.md",
+        "observatory_occurrence_ids": [42],
+    }))
+    verification = tmp_path / "verification" / "42" / "current.verification.json"
+    verification.parent.mkdir(parents=True)
+    verification.write_text(json.dumps({
+        "claim_occurrence_id": 42,
+        "observatory_run_id": "314",
+        "verdict": "contradicted",
+        "severity": "high",
+    }))
+
+    assess = step_command("workflows/run-claims.yaml", "assess_verification_quality")
+    metrics = run_embedded(assess, tmp_path, {
+        "all_issues | tojson": '[{"key":"RFE-1"}]',
+    })
+    assert metrics["review_occurrences"] == [42]
+    assert metrics["review_targets"] == [{
+        "claim_occurrence_id": 42,
+        "verification_run_id": 314,
+    }]
+
+    audit = step_command("workflows/run-claims.yaml", "audit_human_override")
+    assert "'verification_run_id': verification_run" in audit
+    assert "lacks immutable verification run ID" in audit
 
 
 def test_receipt_invalidates_only_when_a_dependency_changes():

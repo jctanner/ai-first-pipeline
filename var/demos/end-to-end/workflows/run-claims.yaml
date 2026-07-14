@@ -428,10 +428,16 @@ steps:
         verdicts = defaultdict(set)
         blocking = set()
         structured_occurrences = set()
+        verification_run_ids = {}
         for run in structured:
             occurrence = run.get('claim_occurrence_id')
             if occurrence is not None:
                 structured_occurrences.add(occurrence)
+                run_id = run.get('observatory_run_id') or run.get('verification_run_id')
+                if run_id is not None:
+                    run_id = int(run_id)
+                    verification_run_ids[occurrence] = max(
+                        run_id, verification_run_ids.get(occurrence, 0))
             verdicts[occurrence].add(run.get('verdict'))
             if run.get('verdict') in {'contradicted', 'refuted'} and run.get('severity') in {'high', 'critical'}:
                 blocking.add(occurrence)
@@ -439,13 +445,21 @@ steps:
             occurrence for occurrence, values in verdicts.items()
             if occurrence is not None and len(values) > 1
         }
+        review_occurrences = blocking | disagreements
         print(json.dumps({
             'high_severity_contradictions': len(blocking),
             'verifier_disagreements': len(disagreements),
             'unstructured_verifications': len(
                 eligible_occurrences - structured_occurrences),
             'blocking_occurrences': sorted(value for value in blocking if value is not None),
-            'review_occurrences': sorted(blocking | disagreements),
+            'review_occurrences': sorted(review_occurrences),
+            'review_targets': [
+                {
+                    'claim_occurrence_id': occurrence,
+                    'verification_run_id': verification_run_ids.get(occurrence),
+                }
+                for occurrence in sorted(review_occurrences)
+            ],
         }))
         PY
     register: verification_quality
@@ -462,14 +476,22 @@ steps:
     params:
       command: |
         ACTOR="{{ claim_override_actor }}" RATIONALE="{{ claim_override_rationale }}" \
-        OCCURRENCES='{{ verification_metrics.review_occurrences | tojson }}' \
+        TARGETS='{{ verification_metrics.review_targets | tojson }}' \
         OBSERVATORY_URL="{{ observatory_base }}" python3 - <<'PY'
         import json, os, urllib.request
         if not os.environ['ACTOR'].strip() or not os.environ['RATIONALE'].strip():
             raise SystemExit('override requires claim_override_actor and claim_override_rationale')
-        for occurrence in json.loads(os.environ['OCCURRENCES']):
+        targets = json.loads(os.environ['TARGETS'])
+        for target in targets:
+            occurrence = target['claim_occurrence_id']
+            verification_run = target.get('verification_run_id')
+            if verification_run is None:
+                raise SystemExit(
+                    f'override target {occurrence} lacks immutable verification run ID')
             body = json.dumps({
-                'claim_occurrence_id': occurrence, 'actor': os.environ['ACTOR'],
+                'claim_occurrence_id': occurrence,
+                'verification_run_id': verification_run,
+                'actor': os.environ['ACTOR'],
                 'decision': 'allow_workflow_progression',
                 'rationale': os.environ['RATIONALE'],
             }).encode()
@@ -479,7 +501,7 @@ steps:
             with urllib.request.urlopen(request, timeout=30) as response:
                 if response.status // 100 != 2:
                     raise SystemExit(f'override audit failed: HTTP {response.status}')
-        print(json.dumps({'audited': len(json.loads(os.environ['OCCURRENCES']))}))
+        print(json.dumps({'audited': len(targets)}))
         PY
 
   - name: gate_verification_quality
