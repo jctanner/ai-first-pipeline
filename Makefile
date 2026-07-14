@@ -108,6 +108,9 @@ vagrant-rebuild-all-with-emulators: ## Rebuild all images including emulators
 vagrant-deploy-all: ## Run full deployment from scratch
 	vagrant ssh -c "cd /vagrant/deploy/scripts && sudo bash deploy-all.sh"
 
+vagrant-clone-repos: ## Clone component source repositories into /vagrant/deploy/repos
+	vagrant ssh -c "cd /vagrant && PROJECT_ROOT=/vagrant bash deploy/scripts/00-clone-component-repos.sh"
+
 vagrant-restart-all: ## Restart all pipeline pods
 	vagrant ssh -c "kubectl rollout restart deployment -n ai-pipeline"
 	@echo "==> Waiting for rollouts to complete..."
@@ -285,6 +288,9 @@ host-kubeconfig: ## Copy k3s kubeconfig to ~/.kube/config for non-sudo kubectl
 
 host-deploy-all: ## Run full deployment from scratch on host
 	sudo PROJECT_ROOT=$(HOST_PROJECT_ROOT) bash deploy/scripts/deploy-all.sh
+
+host-clone-repos: ## Clone component source repositories into deploy/repos on host
+	PROJECT_ROOT=$(HOST_PROJECT_ROOT) bash deploy/scripts/00-clone-component-repos.sh
 
 host-build-dashboard: ## Build dashboard image on host
 	PROJECT_ROOT=$(HOST_PROJECT_ROOT) bash deploy/scripts/05a-build-dashboard.sh

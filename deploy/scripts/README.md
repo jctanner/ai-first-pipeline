@@ -36,6 +36,7 @@ Run these scripts in order for manual deployment:
 
 | Script | Description | Dependencies |
 |--------|-------------|--------------|
+| `00-clone-component-repos.sh` | Clone source repositories used by component image builds | Git and repository access |
 | `05-build-images.sh` | Build all container images | Docker installed |
 | `05a-build-github-emulator.sh` | Build GitHub emulator image only | GitHub emulator repo cloned |
 | `05b-build-jira-emulator.sh` | Build Jira emulator image only | Jira emulator repo cloned |

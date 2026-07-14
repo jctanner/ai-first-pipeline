@@ -10,13 +10,16 @@ RUN git clone --depth 1 https://github.com/opendatahub-io/architecture-context.g
     cp ../../bin/arch-query /build/arch-query
 
 
-# ── Stage 2: Build OpenCode from local source ───────────────────
+# ── Stage 2: Build OpenCode from its source repository ──────────
 FROM oven/bun:1.3.14-debian AS opencode-builder
 
-RUN apt-get update && apt-get install -y --no-install-recommends python3 make g++ && rm -rf /var/lib/apt/lists/*
+ARG OPENCODE_REPO=https://github.com/jctanner/opencode.git
+ARG OPENCODE_REF=mlflow-fix
+
+RUN apt-get update && apt-get install -y --no-install-recommends git python3 make g++ && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /build
-COPY deploy/repos/opencode/ .
+RUN git clone --depth 1 --branch "${OPENCODE_REF}" "${OPENCODE_REPO}" .
 
 RUN bun install --frozen-lockfile || bun install
 ENV OPENCODE_CHANNEL=latest
@@ -82,9 +85,10 @@ USER pipelineagent
 # Install Python dependencies (will create .venv owned by pipelineagent)
 RUN uv sync --frozen || uv sync
 
-# Install agentic-ci from local checkout
-COPY --chown=pipelineagent:pipelineagent deploy/repos/agentic-ci /tmp/agentic-ci
-RUN uv pip install /tmp/agentic-ci && rm -rf /tmp/agentic-ci
+# Install agentic-ci from its source repository.
+ARG AGENTIC_CI_REPO=https://github.com/opendatahub-io/agentic-ci.git
+ARG AGENTIC_CI_REF=main
+RUN uv pip install "git+${AGENTIC_CI_REPO}@${AGENTIC_CI_REF}"
 
 # Copy only necessary application files
 COPY --chown=pipelineagent:pipelineagent main.py ./
