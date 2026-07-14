@@ -203,7 +203,12 @@ Extract only statements that can be independently verified as true or false. App
 1. **Extract only verifiable statements** — claims that involve reasoning or architectural knowledge
 2. **Skip purely subjective content** — opinions, bare recommendations, and
    scoring rationale. If a recommendation contains a factual premise, extract
-   the premise without turning the recommendation itself into a fact.
+   the premise without turning the recommendation itself into a fact. Treat
+   competitive-positioning phrases such as “key differentiator,” “better,” or
+   “leading” as unverifiable unless the source supplies a defined comparison.
+   When such a phrase embeds a factual premise (for example, that named managed
+   services automate a specific operation), extract the premise separately and
+   omit only the evaluative positioning.
 3. **Decompose compound claims** — one fact per claim (atomic statements)
 4. **Preserve context** — each claim must be understandable standalone
    - retain the subject, component, version, environment, and time scope
@@ -254,6 +259,16 @@ coverage as `explicit`, `implicit`, or `omitted` for each verifiable source
 element. Record each unverifiable source element as `omitted` when correctly
 excluded or `included` when it leaked into a claim, so precision and explicit
 unverifiable-inclusion rate can be measured.
+
+Coverage is audited across the complete decomposition of a source unit. Assign
+each verifiable source element to the atomic claim that expresses it; do not
+mark that element `omitted` on sibling claims that intentionally express other
+elements from the same unit. After drafting all sibling claims, audit their
+combined coverage. Every verifiable source element must be `explicit` or
+`implicit` on at least one accepted claim. If no accepted claim covers an
+element, record it once as `omitted` on the closest candidate and mark that
+candidate `partial` or `failed`. Likewise, record an unverifiable element as
+`included` only on the claim into which it actually leaked.
 
 Set `coverage_result` from those elements, not from whether the source unit was
 classified `mixed`. Use `complete` only when every verifiable element is

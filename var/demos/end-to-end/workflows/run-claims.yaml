@@ -309,24 +309,31 @@ steps:
                        for issue in issues):
                 continue
             for unit in data.get('units', []):
-                unit_low_coverage = False
+                element_coverage = {}
                 if (unit.get('ambiguity') or {}).get('status') == 'unresolved':
                     totals['unresolved_units'] += 1
                 for claim in unit.get('claims', []):
-                    if claim.get('accepted', True):
+                    accepted = claim.get('accepted', True)
+                    if accepted:
                         totals['accepted_claims'] += 1
                     evaluation = claim.get('evaluation', {})
-                    if evaluation.get('entailed') is not True:
+                    if accepted and evaluation.get('entailed') is not True:
                         totals['entailment_failures'] += 1
                     for element in evaluation.get('coverage_elements', []):
-                        if (
-                            element.get('element_kind') == 'verifiable'
-                            and element.get('coverage') == 'omitted'
-                        ) or (
-                            element.get('element_kind') == 'unverifiable'
-                            and element.get('coverage') == 'included'
-                        ):
-                            unit_low_coverage = True
+                        key = (
+                            element.get('element_kind'),
+                            element.get('element_text'),
+                        )
+                        element_coverage.setdefault(key, set()).add(
+                            element.get('coverage')
+                        )
+                unit_low_coverage = any(
+                    (kind == 'verifiable'
+                     and 'omitted' in outcomes
+                     and not outcomes.intersection({'explicit', 'implicit'}))
+                    or (kind == 'unverifiable' and 'included' in outcomes)
+                    for (kind, _), outcomes in element_coverage.items()
+                )
                 if unit_low_coverage:
                     totals['low_coverage_units'] += 1
         print(json.dumps(totals))

@@ -459,6 +459,63 @@ def test_claim_jobs_use_flexible_execution_fqn_and_resolved_receipt_revisions():
     assert args["harness"] == "{{ skill_harness }}"
 
 
+def test_extraction_gate_aggregates_coverage_across_atomic_sibling_claims():
+    command = step_command("workflows/run-claims.yaml", "assess_extraction_quality")
+    assert "element_coverage.setdefault(key, set()).add" in command
+    assert "not outcomes.intersection({'explicit', 'implicit'})" in command
+    assert "if accepted and evaluation.get('entailed') is not True" in command
+    skill = (ROOT.parents[2] / ".claude/skills/extract-claims/SKILL.md").read_text()
+    assert "competitive-positioning phrases" in skill
+    assert "combined coverage" in skill
+
+
+def test_extraction_gate_runtime_ignores_sibling_omissions_but_keeps_real_gaps(
+    tmp_path,
+):
+    command = step_command("workflows/run-claims.yaml", "assess_extraction_quality")
+    output = tmp_path / "claims" / "RFE-1.extraction.json"
+    output.parent.mkdir()
+    sibling_elements = [
+        {"element_text": "element A", "element_kind": "verifiable",
+         "coverage": "explicit"},
+        {"element_text": "element B", "element_kind": "verifiable",
+         "coverage": "omitted"},
+    ]
+    output.write_text(json.dumps({
+        "source_file": "strategies/RFE-1.md",
+        "units": [
+            {"ambiguity": {"status": "none"}, "claims": [
+                {"accepted": True, "evaluation": {
+                    "entailed": True, "coverage_elements": sibling_elements,
+                }},
+                {"accepted": True, "evaluation": {
+                    "entailed": True, "coverage_elements": [
+                        {**sibling_elements[0], "coverage": "omitted"},
+                        {**sibling_elements[1], "coverage": "explicit"},
+                    ],
+                }},
+            ]},
+            {"ambiguity": {"status": "none"}, "claims": [
+                {"accepted": True, "evaluation": {
+                    "entailed": True, "coverage_elements": [{
+                        "element_text": "genuinely dropped",
+                        "element_kind": "verifiable", "coverage": "omitted",
+                    }],
+                }},
+            ]},
+        ],
+    }))
+    metrics = run_embedded(command, tmp_path, {
+        "all_issues | tojson": '[{"key":"RFE-1"}]',
+    })
+    assert metrics == {
+        "entailment_failures": 0,
+        "unresolved_units": 0,
+        "low_coverage_units": 1,
+        "accepted_claims": 3,
+    }
+
+
 def test_receipt_invalidates_only_when_a_dependency_changes():
     expected = {
         "stage": "verify-claims", "scope": {"issue": "RFE-1"},
