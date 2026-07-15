@@ -13,13 +13,13 @@ RUN git clone --depth 1 https://github.com/opendatahub-io/architecture-context.g
 # ── Stage 2: Build OpenCode from its source repository ──────────
 FROM oven/bun:1.3.14-debian AS opencode-builder
 
-ARG OPENCODE_REPO=https://github.com/jctanner/opencode.git
-ARG OPENCODE_REF=mlflow-fix
+ARG OPENCODE_REPO=https://github.com/anomalyco/opencode.git
+ARG OPENCODE_REF=dev
 
 RUN apt-get update && apt-get install -y --no-install-recommends git python3 make g++ && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /build
-RUN git clone --depth 1 --branch "${OPENCODE_REF}" "${OPENCODE_REPO}" .
+RUN GIT_SSL_NO_VERIFY=true git clone --depth 1 --branch "${OPENCODE_REF}" "${OPENCODE_REPO}" .
 
 RUN bun install --frozen-lockfile || bun install
 ENV OPENCODE_CHANNEL=latest
