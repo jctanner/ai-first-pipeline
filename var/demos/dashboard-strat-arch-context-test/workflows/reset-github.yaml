@@ -9,13 +9,8 @@ steps:
       method: GET
     register: repository_list
 
-  - name: set_repositories
-    type: set_fact
-    vars:
-      existing_repositories: "{{ repository_list.body }}"
-
   - name: delete_repositories
-    for_each: existing_repositories
+    for_each: repository_list.body
     as: repo
     concurrency: 1
     type: github_api
