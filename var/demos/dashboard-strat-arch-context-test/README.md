@@ -5,6 +5,8 @@ and resets Jira. It then clones architecture context directly from its upstream
 GitHub repository into the shared context PVC. Strategy skills are also loaded
 directly from their upstream GitHub repository. The workflow imports the
 captured Jira issue twice, as `RHAIRFE-2259` and `RHAIRFE-2260`.
+Both imports add the `strat-creator-3.6` pipeline-targeting label required by
+the strategy skill selector.
 
 The baseline ticket runs `strategy-create`, `strategy-refine`, and
 `strategy-review` against the unmodified architecture context. The workflow

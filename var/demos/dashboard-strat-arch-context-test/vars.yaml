@@ -5,6 +5,7 @@ dashboard_base: http://pipeline-dashboard.ai-pipeline.svc.cluster.local:5000
 
 baseline_rfe_issue: RHAIRFE-2259
 overlay_rfe_issue: RHAIRFE-2260
+strategy_target_label: strat-creator-3.6
 rfe_fixture_url: https://raw.githubusercontent.com/jctanner/ai-first-pipeline/main/var/demos/dashboard-strat-arch-context-test/files/RHAIRFE-2259.json
 overlay_fixture_url: https://raw.githubusercontent.com/jctanner/ai-first-pipeline/main/var/demos/dashboard-strat-arch-context-test/files/0018-catalog-admin-uis-in-model-registry.md
 strategy_create_fqn: "github.com/opendatahub-io/strat-creator@main:strategy-create"
