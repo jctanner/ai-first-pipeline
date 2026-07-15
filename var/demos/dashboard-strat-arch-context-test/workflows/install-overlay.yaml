@@ -5,7 +5,7 @@ steps:
   - name: encode_overlay
     type: shell_exec
     params:
-      command: "base64 -w0 '{{ overlay_fixture }}'"
+      command: "curl -sfkL '{{ overlay_fixture_url }}' | base64 -w0"
     register: overlay_content
 
   - name: write_overlay
