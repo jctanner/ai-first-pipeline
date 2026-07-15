@@ -1,0 +1,27 @@
+name: run-skill
+description: "Run {{ skill_fqn }} for {{ skill_issue }} through the dashboard"
+
+steps:
+  - name: submit
+    type: agent_job
+    params:
+      body:
+        fqn: "{{ skill_fqn }}"
+        args:
+          issue: "{{ skill_issue }}"
+          model: "{{ skill_model }}"
+          runner: "{{ skill_runner }}"
+          harness: "{{ skill_harness }}"
+          strace: true
+          mlflow: true
+          otel: true
+          api_dump: true
+          extra_kwargs: ""
+          extra_env: "{}"
+    register: submitted_job
+
+  - name: wait_for_completion
+    type: agent_job_wait
+    params:
+      job_name: "{{ submitted_job.body.job_name }}"
+    register: skill_result

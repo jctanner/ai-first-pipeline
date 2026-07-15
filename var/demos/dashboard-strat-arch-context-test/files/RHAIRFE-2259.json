@@ -1,0 +1,313 @@
+{
+  "expand": "renderedFields,names,schema,operations,editmeta,changelog,versionedRepresentations,customfield_10010.requestTypePractice",
+  "id": "5970590",
+  "self": "https://redhat.atlassian.net/rest/api/2/issue/5970590",
+  "key": "RHAIRFE-2259",
+  "fields": {
+    "statuscategorychangedate": "2026-05-21T03:17:10.603+0000",
+    "parent": {
+      "id": "5589135",
+      "key": "RHAISTRAT-1339",
+      "self": "https://redhat.atlassian.net/rest/api/2/issue/5589135",
+      "fields": {
+        "summary": "AI Hub AI Asset Delivery for Agentic Solutions",
+        "status": {
+          "self": "https://redhat.atlassian.net/rest/api/2/status/3",
+          "description": "This work item is being actively worked on at the moment by the assignee.",
+          "iconUrl": "https://redhat.atlassian.net/images/icons/statuses/inprogress.png",
+          "name": "In Progress",
+          "id": "3",
+          "statusCategory": {
+            "self": "https://redhat.atlassian.net/rest/api/2/statuscategory/4",
+            "id": 4,
+            "key": "indeterminate",
+            "colorName": "yellow",
+            "name": "In Progress"
+          }
+        },
+        "priority": {
+          "self": "https://redhat.atlassian.net/rest/api/2/priority/10001",
+          "iconUrl": "https://redhat.atlassian.net/images/icons/priorities/critical.svg",
+          "name": "Critical",
+          "id": "10001"
+        },
+        "issuetype": {
+          "self": "https://redhat.atlassian.net/rest/api/2/issuetype/10130",
+          "id": "10130",
+          "description": "Organizational objective focused on a measurable outcome. May be in support of larger strategic goals.",
+          "iconUrl": "https://redhat.atlassian.net/rest/api/2/universal_avatar/view/type/issuetype/avatar/10309?size=medium",
+          "name": "Outcome",
+          "subtask": false,
+          "avatarId": 10309,
+          "hierarchyLevel": 3
+        }
+      }
+    },
+    "fixVersions": [],
+    "resolution": null,
+    "lastViewed": "2026-07-15T01:06:15.591+0000",
+    "priority": {
+      "self": "https://redhat.atlassian.net/rest/api/2/priority/10002",
+      "iconUrl": "https://redhat.atlassian.net/images/icons/priorities/major.svg",
+      "name": "Major",
+      "id": "10002"
+    },
+    "labels": [
+      "agentic",
+      "ai-hub",
+      "mcp",
+      "mcp-catalog",
+      "rfe-creator-auto-created",
+      "rfe-creator-autofix-rubric-pass",
+      "rfe-creator-feasibility-pass"
+    ],
+    "customfield_10855": [
+      {
+        "self": "https://redhat.atlassian.net/rest/api/2/version/107595",
+        "id": "107595",
+        "description": "PPSync [2026-06-27 task:rhai-3.6]",
+        "name": "3.6 EA2 RHOAI RELEASE",
+        "archived": false,
+        "released": false,
+        "releaseDate": "2026-10-15"
+      }
+    ],
+    "versions": [],
+    "issuelinks": [
+      {
+        "id": "1976460",
+        "self": "https://redhat.atlassian.net/rest/api/2/issueLink/1976460",
+        "type": {
+          "id": "10001",
+          "name": "Cloners",
+          "inward": "is cloned by",
+          "outward": "clones",
+          "self": "https://redhat.atlassian.net/rest/api/2/issueLinkType/10001"
+        },
+        "inwardIssue": {
+          "id": "6121775",
+          "key": "RHAISTRAT-1859",
+          "self": "https://redhat.atlassian.net/rest/api/2/issue/6121775",
+          "fields": {
+            "summary": "MCP Catalog Admin UI for Managing Catalog Entries",
+            "status": {
+              "self": "https://redhat.atlassian.net/rest/api/2/status/3",
+              "description": "This work item is being actively worked on at the moment by the assignee.",
+              "iconUrl": "https://redhat.atlassian.net/images/icons/statuses/inprogress.png",
+              "name": "In Progress",
+              "id": "3",
+              "statusCategory": {
+                "self": "https://redhat.atlassian.net/rest/api/2/statuscategory/4",
+                "id": 4,
+                "key": "indeterminate",
+                "colorName": "yellow",
+                "name": "In Progress"
+              }
+            },
+            "priority": {
+              "self": "https://redhat.atlassian.net/rest/api/2/priority/10002",
+              "iconUrl": "https://redhat.atlassian.net/images/icons/priorities/major.svg",
+              "name": "Major",
+              "id": "10002"
+            },
+            "issuetype": {
+              "self": "https://redhat.atlassian.net/rest/api/2/issuetype/10142",
+              "id": "10142",
+              "description": "Capability or a well-defined set of functionality that delivers business value. Features can include additions or changes to existing functionality. Features can easily span multiple teams, and potentially multiple releases.",
+              "iconUrl": "https://redhat.atlassian.net/rest/api/2/universal_avatar/view/type/issuetype/avatar/10311?size=medium",
+              "name": "Feature",
+              "subtask": false,
+              "avatarId": 10311,
+              "hierarchyLevel": 2
+            }
+          }
+        }
+      }
+    ],
+    "assignee": null,
+    "status": {
+      "self": "https://redhat.atlassian.net/rest/api/2/status/10169",
+      "description": "A proposal has been approved and now awaits execution",
+      "iconUrl": "https://redhat.atlassian.net/images/icons/statuses/generic.png",
+      "name": "Approved",
+      "id": "10169",
+      "statusCategory": {
+        "self": "https://redhat.atlassian.net/rest/api/2/statuscategory/4",
+        "id": 4,
+        "key": "indeterminate",
+        "colorName": "yellow",
+        "name": "In Progress"
+      }
+    },
+    "components": [
+      {
+        "self": "https://redhat.atlassian.net/rest/api/2/component/81109",
+        "id": "81109",
+        "name": "AI Core Dashboard"
+      },
+      {
+        "self": "https://redhat.atlassian.net/rest/api/2/component/81114",
+        "id": "81114",
+        "name": "AI Hub"
+      }
+    ],
+    "dataclassification": {},
+    "creator": {
+      "self": "https://redhat.atlassian.net/rest/api/2/user?accountId=624b179d4fe01d006ba9362c",
+      "accountId": "624b179d4fe01d006ba9362c",
+      "emailAddress": "pedouble@redhat.com",
+      "avatarUrls": {
+        "48x48": "https://secure.gravatar.com/avatar/c7dfa0d29d68932a251aa784c8572473?d=https%3A%2F%2Favatar-management--avatars.us-west-2.prod.public.atl-paas.net%2Finitials%2FPD-3.png",
+        "24x24": "https://secure.gravatar.com/avatar/c7dfa0d29d68932a251aa784c8572473?d=https%3A%2F%2Favatar-management--avatars.us-west-2.prod.public.atl-paas.net%2Finitials%2FPD-3.png",
+        "16x16": "https://secure.gravatar.com/avatar/c7dfa0d29d68932a251aa784c8572473?d=https%3A%2F%2Favatar-management--avatars.us-west-2.prod.public.atl-paas.net%2Finitials%2FPD-3.png",
+        "32x32": "https://secure.gravatar.com/avatar/c7dfa0d29d68932a251aa784c8572473?d=https%3A%2F%2Favatar-management--avatars.us-west-2.prod.public.atl-paas.net%2Finitials%2FPD-3.png"
+      },
+      "displayName": "Peter Double",
+      "active": true,
+      "timeZone": "Etc/GMT",
+      "accountType": "atlassian"
+    },
+    "subtasks": [],
+    "reporter": {
+      "self": "https://redhat.atlassian.net/rest/api/2/user?accountId=624b179d4fe01d006ba9362c",
+      "accountId": "624b179d4fe01d006ba9362c",
+      "emailAddress": "pedouble@redhat.com",
+      "avatarUrls": {
+        "48x48": "https://secure.gravatar.com/avatar/c7dfa0d29d68932a251aa784c8572473?d=https%3A%2F%2Favatar-management--avatars.us-west-2.prod.public.atl-paas.net%2Finitials%2FPD-3.png",
+        "24x24": "https://secure.gravatar.com/avatar/c7dfa0d29d68932a251aa784c8572473?d=https%3A%2F%2Favatar-management--avatars.us-west-2.prod.public.atl-paas.net%2Finitials%2FPD-3.png",
+        "16x16": "https://secure.gravatar.com/avatar/c7dfa0d29d68932a251aa784c8572473?d=https%3A%2F%2Favatar-management--avatars.us-west-2.prod.public.atl-paas.net%2Finitials%2FPD-3.png",
+        "32x32": "https://secure.gravatar.com/avatar/c7dfa0d29d68932a251aa784c8572473?d=https%3A%2F%2Favatar-management--avatars.us-west-2.prod.public.atl-paas.net%2Finitials%2FPD-3.png"
+      },
+      "displayName": "Peter Double",
+      "active": true,
+      "timeZone": "Etc/GMT",
+      "accountType": "atlassian"
+    },
+    "aggregateprogress": {
+      "progress": 0,
+      "total": 0
+    },
+    "progress": {
+      "progress": 0,
+      "total": 0
+    },
+    "votes": {
+      "self": "https://redhat.atlassian.net/rest/api/2/issue/RHAIRFE-2259/votes",
+      "votes": 0,
+      "hasVoted": false
+    },
+    "worklog": {
+      "startAt": 0,
+      "maxResults": 20,
+      "total": 0,
+      "worklogs": []
+    },
+    "issuetype": {
+      "self": "https://redhat.atlassian.net/rest/api/2/issuetype/10111",
+      "id": "10111",
+      "description": "Feature requests from customers and/or users",
+      "iconUrl": "https://redhat.atlassian.net/rest/api/2/universal_avatar/view/type/issuetype/avatar/10675?size=medium",
+      "name": "Feature Request",
+      "subtask": false,
+      "avatarId": 10675,
+      "hierarchyLevel": 2
+    },
+    "timespent": null,
+    "project": {
+      "self": "https://redhat.atlassian.net/rest/api/2/project/12853",
+      "id": "12853",
+      "key": "RHAIRFE",
+      "name": "Red Hat AI RFE project",
+      "projectTypeKey": "software",
+      "simplified": false,
+      "avatarUrls": {
+        "48x48": "https://redhat.atlassian.net/rest/api/2/universal_avatar/view/type/project/avatar/10413",
+        "24x24": "https://redhat.atlassian.net/rest/api/2/universal_avatar/view/type/project/avatar/10413?size=small",
+        "16x16": "https://redhat.atlassian.net/rest/api/2/universal_avatar/view/type/project/avatar/10413?size=xsmall",
+        "32x32": "https://redhat.atlassian.net/rest/api/2/universal_avatar/view/type/project/avatar/10413?size=medium"
+      }
+    },
+    "aggregatetimespent": null,
+    "customfield_10430": 1.0,
+    "customfield_10431": 0.0,
+    "customfield_10427": 4.0,
+    "customfield_10428": 1.0,
+    "customfield_10429": 0.0,
+    "resolutiondate": null,
+    "workratio": -1,
+    "watches": {
+      "self": "https://redhat.atlassian.net/rest/api/2/issue/RHAIRFE-2259/watchers",
+      "watchCount": 1,
+      "isWatching": false
+    },
+    "created": "2026-05-20T19:42:53.991+0000",
+    "customfield_10414": 0.0,
+    "customfield_10019": "0|irlln3:",
+    "updated": "2026-07-07T12:16:37.277+0000",
+    "timeoriginalestimate": null,
+    "description": "h2. Summary\n\nEnterprise platform teams need a UI-based experience for managing MCP server entries in the MCP Catalog, replacing the current YAML-only workflow. Today, adding, editing, or removing MCP servers from the catalog requires direct YAML file manipulation, which blocks non-technical personas and is inconsistent with the rest of the MCP management experience, which is moving toward UI-driven workflows.\n\nh2. Problem Statement\n\nThe MCP Catalog currently requires administrators to manually edit a YAML configuration to add or modify MCP server entries. This creates several problems:\n\n* *Non-technical personas are blocked.* Platform operators, security reviewers, and team leads who need to curate the catalog for their organization cannot do so without YAML editing skills or developer assistance.\n* *Inconsistent management experience.* Other aspects of end-to-end MCP lifecycle management (registration, deployment, monitoring) are moving toward UI-based workflows. The catalog remains a manual, file-based outlier.\n* *Parity gap with Model Catalog.* The Model Catalog already provides an admin UI for managing catalog entries. MCP server catalog management should offer a comparable experience for the same admin personas.\n* *Operational risk in multi-team environments.* Without a structured UI, YAML edits are error-prone and lack validation, increasing the risk of misconfigured catalog entries in environments with multiple teams and namespaces.\n\nh2. Affected Customers\n\n* *Dell, Verizon, Costco* — Enterprise RHOAI customers with multi-team, multi-namespace environments managing MCP deployments at scale\n* *Enterprise platform teams* managing MCP deployments across multiple namespaces, teams, and environments who need operational visibility and lifecycle governance\n* *Security and compliance teams* who must audit which MCP servers are available in the catalog, trace their provenance, and verify policy compliance\n* *AI engineering teams* who need to understand which MCP servers are available within their namespace scope, what versions exist, and what lifecycle state they are in\n\nh2. Business Justification\n\n* *RHOAI 3.6 MCP Catalog GA readiness*: A YAML-only catalog management experience does not meet the usability bar for GA. Admin UI is required for end-to-end MCP management completeness.\n* *Consistency with MCP management direction*: The broader MCP lifecycle management story is converging on UI-driven workflows. The catalog is the remaining gap.\n* *Model Catalog parity*: The Model Catalog already serves the same admin personas with a UI experience. MCP Catalog admins expect the same.\n* *Strategic parent*: Contributes to RHAISTRAT-1791 (RHOAI 3.6 deliverables) for overall usability of end-to-end MCP management.\n\nh2. Acceptance Criteria\n\n* [ ] Administrators can add new MCP server entries to the catalog through the RHOAI UI without editing YAML\n* [ ] Administrators can edit existing MCP server catalog entries through the RHOAI UI\n* [ ] Administrators can remove MCP server entries from the catalog through the RHOAI UI\n* [ ] Catalog management operations are available to users with appropriate admin or operator roles consistent with existing RHOAI RBAC\n\nh2. Success Criteria\n\n* Platform operators and team leads can manage the MCP Catalog end-to-end through the UI without requiring YAML editing skills or developer assistance\n* MCP Catalog admin experience is consistent with the Model Catalog admin experience for comparable operations",
+    "timetracking": {},
+    "security": null,
+    "attachment": [],
+    "summary": "MCP Catalog Admin UI for Managing Catalog Entries",
+    "customfield_10483": "None",
+    "customfield_10484": {
+      "self": "https://redhat.atlassian.net/rest/api/2/customFieldOption/10472",
+      "value": "False",
+      "id": "10472"
+    },
+    "customfield_10517": {
+      "self": "https://redhat.atlassian.net/rest/api/2/customFieldOption/10853",
+      "value": "False",
+      "id": "10853"
+    },
+    "environment": null,
+    "duedate": null,
+    "comment": {
+      "comments": [
+        {
+          "self": "https://redhat.atlassian.net/rest/api/2/issue/5970590/comment/17049113",
+          "id": "17049113",
+          "author": {
+            "self": "https://redhat.atlassian.net/rest/api/2/user?accountId=712020%3A9efc6a2a-8d76-4879-b330-502b84a3e040",
+            "accountId": "712020:9efc6a2a-8d76-4879-b330-502b84a3e040",
+            "emailAddress": "rhoaieng-automation@redhat.com",
+            "avatarUrls": {
+              "48x48": "https://secure.gravatar.com/avatar/6fd73e7360f6d5f9c5f8d205261ee1f3?d=https%3A%2F%2Favatar-management--avatars.us-west-2.prod.public.atl-paas.net%2Finitials%2FRA-4.png",
+              "24x24": "https://secure.gravatar.com/avatar/6fd73e7360f6d5f9c5f8d205261ee1f3?d=https%3A%2F%2Favatar-management--avatars.us-west-2.prod.public.atl-paas.net%2Finitials%2FRA-4.png",
+              "16x16": "https://secure.gravatar.com/avatar/6fd73e7360f6d5f9c5f8d205261ee1f3?d=https%3A%2F%2Favatar-management--avatars.us-west-2.prod.public.atl-paas.net%2Finitials%2FRA-4.png",
+              "32x32": "https://secure.gravatar.com/avatar/6fd73e7360f6d5f9c5f8d205261ee1f3?d=https%3A%2F%2Favatar-management--avatars.us-west-2.prod.public.atl-paas.net%2Finitials%2FRA-4.png"
+            },
+            "displayName": "rhoaieng automationbot",
+            "active": true,
+            "timeZone": "Etc/GMT",
+            "accountType": "atlassian"
+          },
+          "body": "_[RFE Creator]_ This RFE has been automatically transitioned to Approved status based on passing rubric scoring and technical feasibility checks. Approval does not constitute a commitment to customers until this RFE is prioritized into a product release by product management.",
+          "updateAuthor": {
+            "self": "https://redhat.atlassian.net/rest/api/2/user?accountId=712020%3A9efc6a2a-8d76-4879-b330-502b84a3e040",
+            "accountId": "712020:9efc6a2a-8d76-4879-b330-502b84a3e040",
+            "emailAddress": "rhoaieng-automation@redhat.com",
+            "avatarUrls": {
+              "48x48": "https://secure.gravatar.com/avatar/6fd73e7360f6d5f9c5f8d205261ee1f3?d=https%3A%2F%2Favatar-management--avatars.us-west-2.prod.public.atl-paas.net%2Finitials%2FRA-4.png",
+              "24x24": "https://secure.gravatar.com/avatar/6fd73e7360f6d5f9c5f8d205261ee1f3?d=https%3A%2F%2Favatar-management--avatars.us-west-2.prod.public.atl-paas.net%2Finitials%2FRA-4.png",
+              "16x16": "https://secure.gravatar.com/avatar/6fd73e7360f6d5f9c5f8d205261ee1f3?d=https%3A%2F%2Favatar-management--avatars.us-west-2.prod.public.atl-paas.net%2Finitials%2FRA-4.png",
+              "32x32": "https://secure.gravatar.com/avatar/6fd73e7360f6d5f9c5f8d205261ee1f3?d=https%3A%2F%2Favatar-management--avatars.us-west-2.prod.public.atl-paas.net%2Finitials%2FRA-4.png"
+            },
+            "displayName": "rhoaieng automationbot",
+            "active": true,
+            "timeZone": "Etc/GMT",
+            "accountType": "atlassian"
+          },
+          "created": "2026-05-21T03:17:11.152+0000",
+          "updated": "2026-05-21T03:17:11.152+0000",
+          "jsdPublic": true
+        }
+      ],
+      "self": "https://redhat.atlassian.net/rest/api/2/issue/5970590/comment",
+      "maxResults": 1,
+      "total": 1,
+      "startAt": 0
+    }
+  }
+}

@@ -1,0 +1,52 @@
+name: import-repo
+description: "Import {{ repo_name }} from upstream into github.local"
+
+steps:
+  - name: start_import
+    type: shell_exec
+    params:
+      command: |
+        set -euo pipefail
+        body=$(mktemp)
+        trap 'rm -f "$body"' EXIT
+        status=$(curl -skS -o "$body" -w '%{http_code}' \
+          -X POST \
+          -H "Content-Type: application/json" \
+          "{{ github_base }}/api/v3/admin/repos/import" \
+          -d '{"url":"{{ upstream }}","owner":"{{ org }}"}')
+        if [ "$status" != 202 ]; then
+          echo "Repository import failed with HTTP $status" >&2
+          cat "$body" >&2
+          exit 1
+        fi
+        python3 -c \
+          'import json,sys; print(json.load(open(sys.argv[1]))["job_id"])' \
+          "$body"
+    register: import_result
+
+  - name: poll_import
+    type: shell_exec
+    params:
+      command: |
+        set -euo pipefail
+        job_id="{{ import_result.stdout | trim }}"
+        elapsed=0
+        while [ "$elapsed" -lt 300 ]; do
+          status=$(curl -sfk \
+            "{{ github_base }}/api/v3/admin/repos/import/$job_id" \
+            | python3 -c \
+              "import json,sys; print(json.load(sys.stdin).get('status',''))")
+          case "$status" in
+            completed) exit 0 ;;
+            failed) echo "Repository import failed" >&2; exit 1 ;;
+          esac
+          sleep 2
+          elapsed=$((elapsed + 2))
+        done
+        echo "Repository import timed out" >&2
+        exit 1
+
+  - name: settle_import
+    type: shell_exec
+    params:
+      command: sleep 2

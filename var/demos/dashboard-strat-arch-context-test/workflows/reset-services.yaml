@@ -1,0 +1,22 @@
+name: reset-services
+description: "Clear all shared pipeline data volumes"
+
+steps:
+  - name: clear_volumes
+    type: dashboard_api
+    params:
+      path: /api/volumes/clear
+      method: POST
+      body:
+        volumes:
+          - issues
+          - workspace
+          - logs
+          - artifacts
+          - context
+    register: clear_result
+
+  - name: wait_for_clear
+    type: agent_job_wait
+    params:
+      job_name: "{{ clear_result.body.job_name }}"

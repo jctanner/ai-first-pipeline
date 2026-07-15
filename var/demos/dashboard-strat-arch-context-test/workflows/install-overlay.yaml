@@ -1,0 +1,20 @@
+name: install-overlay
+description: "Install the catalog ownership overlay into shared architecture context"
+
+steps:
+  - name: encode_overlay
+    type: shell_exec
+    params:
+      command: "base64 -w0 '{{ overlay_fixture }}'"
+    register: overlay_content
+
+  - name: write_overlay
+    type: context_sync_job
+    params:
+      args:
+        - |
+          set -eu
+          mkdir -p /context/architecture-context/overlays
+          echo '{{ overlay_content.stdout | trim }}' \
+            | base64 -d \
+            > /context/architecture-context/overlays/0018-catalog-admin-uis-in-model-registry.md

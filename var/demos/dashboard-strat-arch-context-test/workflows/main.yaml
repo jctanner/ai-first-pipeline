@@ -1,0 +1,35 @@
+name: main
+description: "Compare strategy generation before and after an architecture-context overlay"
+
+steps:
+  - name: reset_environment
+    description: "Clear shared volumes, Jira, and github.local"
+    workflow: reset-environment
+
+  - name: seed_baseline_rfe
+    description: "Import the captured RFE as the baseline ticket"
+    workflow: seed-rfe
+    vars:
+      rfe_issue: "{{ baseline_rfe_issue }}"
+
+  - name: seed_overlay_rfe
+    description: "Import the same captured RFE under a second key"
+    workflow: seed-rfe
+    vars:
+      rfe_issue: "{{ overlay_rfe_issue }}"
+
+  - name: run_baseline_strategy
+    description: "Run create, refine, and review against unmodified architecture context"
+    workflow: run-strategy
+    vars:
+      rfe_issue: "{{ baseline_rfe_issue }}"
+
+  - name: install_overlay
+    description: "Add the catalog ownership correction to shared architecture context"
+    workflow: install-overlay
+
+  - name: run_overlay_strategy
+    description: "Run create, refine, and review with the architecture overlay"
+    workflow: run-strategy
+    vars:
+      rfe_issue: "{{ overlay_rfe_issue }}"

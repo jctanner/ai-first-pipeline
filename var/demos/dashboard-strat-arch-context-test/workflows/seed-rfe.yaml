@@ -1,0 +1,48 @@
+name: seed-rfe
+description: "Import {{ rfe_issue }} from the captured Jira JSON fixture"
+
+steps:
+  - name: import_rfe
+    type: shell_exec
+    params:
+      command: |
+        set -euo pipefail
+        payload=$(mktemp)
+        trap 'rm -f "$payload"' EXIT
+        python3 - "{{ rfe_fixture }}" "{{ rfe_issue }}" "$payload" <<'PY'
+        import json
+        import sys
+
+        source_path, issue_key, output_path = sys.argv[1:]
+        source = json.load(open(source_path, encoding="utf-8"))
+        fields = source["fields"]
+        issue = {
+            "key": issue_key,
+            "summary": fields["summary"],
+            "description": fields["description"],
+            "status": fields["status"]["name"],
+            "priority": fields["priority"]["name"],
+            "issue_type": fields["issuetype"]["name"],
+            "reporter": fields["reporter"]["displayName"],
+            "project": {
+                "key": fields["project"]["key"],
+                "name": fields["project"]["name"],
+            },
+            "labels": fields.get("labels", []),
+            "components": [item["name"] for item in fields.get("components", [])],
+            "affects_versions": [item["name"] for item in fields.get("versions", [])],
+            "fix_versions": [item["name"] for item in fields.get("fixVersions", [])],
+        }
+        json.dump({"issues": [issue]}, open(output_path, "w", encoding="utf-8"))
+        PY
+        curl -sfk -u "{{ jira_user }}:{{ jira_token }}" \
+          -H "Content-Type: application/json" \
+          -X POST \
+          --data-binary "@$payload" \
+          "{{ jira_base }}/api/admin/import"
+
+  - name: verify_rfe
+    type: jira_api
+    params:
+      path: "/rest/api/2/issue/{{ rfe_issue }}"
+      method: GET

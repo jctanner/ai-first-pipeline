@@ -1,0 +1,49 @@
+name: run-strategy
+description: "Run strategy create, refine, and review for {{ rfe_issue }}"
+
+steps:
+  - name: strategy_create
+    workflow: run-skill
+    vars:
+      skill_fqn: "{{ strategy_create_fqn }}"
+      skill_issue: "{{ rfe_issue }}"
+
+  - name: discover_strategy
+    type: shell_exec
+    params:
+      command: |
+        set -euo pipefail
+        curl -sfk -u "{{ jira_user }}:{{ jira_token }}" \
+          "{{ jira_base }}/rest/api/2/issue/{{ rfe_issue }}?fields=issuelinks" \
+          | python3 -c '
+        import json, sys
+        data = json.load(sys.stdin)
+        for link in data.get("fields", {}).get("issuelinks", []):
+            if link.get("type", {}).get("name") != "Cloners":
+                continue
+            for direction in ("inwardIssue", "outwardIssue"):
+                key = link.get(direction, {}).get("key", "")
+                if key.startswith("RHAISTRAT-"):
+                    print(key)
+                    raise SystemExit(0)
+        print("No linked RHAISTRAT issue found", file=sys.stderr)
+        raise SystemExit(1)
+        '
+    register: strategy_discovery
+
+  - name: set_strategy_issue
+    type: set_fact
+    vars:
+      strategy_issue: "{{ strategy_discovery.stdout | trim }}"
+
+  - name: strategy_refine
+    workflow: run-skill
+    vars:
+      skill_fqn: "{{ strategy_refine_fqn }}"
+      skill_issue: "{{ strategy_issue }}"
+
+  - name: strategy_review
+    workflow: run-skill
+    vars:
+      skill_fqn: "{{ strategy_review_fqn }}"
+      skill_issue: "{{ strategy_issue }}"

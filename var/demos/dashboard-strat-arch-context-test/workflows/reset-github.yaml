@@ -1,0 +1,48 @@
+name: reset-github
+description: "Delete repositories from github.local and re-import test dependencies"
+
+steps:
+  - name: list_repositories
+    type: github_api
+    params:
+      path: /user/repos?per_page=100
+      method: GET
+    register: repository_list
+
+  - name: set_repositories
+    type: set_fact
+    vars:
+      existing_repositories: "{{ repository_list.body }}"
+
+  - name: delete_repositories
+    for_each: existing_repositories
+    as: repo
+    concurrency: 1
+    type: github_api
+    params:
+      path: "/repos/{{ repo.owner.login }}/{{ repo.name }}"
+      method: DELETE
+      ignore_status: [404]
+
+  - name: import_dependencies
+    for_each: github_repos
+    for_each_key: name
+    for_each_sort: name
+    as: repo
+    concurrency: 1
+    workflow: import-repo
+    vars:
+      repo_name: "{{ repo.name }}"
+      upstream: "{{ repo.upstream }}"
+
+  - name: populate_architecture_context
+    description: "Clone the freshly imported architecture context into its shared PVC"
+    type: context_sync_job
+    params:
+      args:
+        - |
+          set -eu
+          rm -rf /context/architecture-context
+          git -c http.sslVerify=false clone --depth 1 \
+            "{{ github_base }}/{{ org }}/architecture-context.git" \
+            /context/architecture-context

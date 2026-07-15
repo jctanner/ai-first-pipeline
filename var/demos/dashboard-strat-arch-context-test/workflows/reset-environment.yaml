@@ -1,0 +1,12 @@
+name: reset-environment
+description: "Reset shared volumes and isolated service state before the test"
+
+steps:
+  - name: clear_shared_volumes
+    workflow: reset-services
+
+  - name: clear_jira
+    workflow: reset-jira
+
+  - name: clear_github
+    workflow: reset-github
