@@ -25,7 +25,7 @@ volumes is removed.
 - Permission for markovd to create and watch Kubernetes Jobs in `ai-pipeline`
 - Network access to the upstream GitHub repositories listed in `vars.yaml`
 
-See [`markovd-cli.md`](markovd-cli.md) for project setup, configuration,
+See [`markovd-cli.md`](../../../docs/notes/markovd-cli.md) for project setup, configuration,
 result inspection, logs, and troubleshooting.
 
 ## Quick Start

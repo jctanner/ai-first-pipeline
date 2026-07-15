@@ -93,6 +93,13 @@ Vagrant.configure("2") do |config|
       echo "==> System preparation complete"
       echo "Next: Run /vagrant/deploy/scripts/01-install-k3s.sh"
     SHELL
+
+    # Install interactive agent and cluster-debugging tools. This named
+    # provisioner can also be rerun with:
+    # vagrant provision --provision-with development-tools
+    pipeline.vm.provision "development-tools", type: "shell",
+      path: "deploy/scripts/00-install-vagrant-tools.sh",
+      args: ["vagrant"]
   end
 
 end

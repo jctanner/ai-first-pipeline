@@ -75,16 +75,18 @@ vagrant-rebuild-gitlab: ## Rebuild and redeploy GitLab emulator
 
 GCP_CREDS ?= $(HOME)/.config/gcloud/application_default_credentials.json
 
-vagrant-push-gcp-creds: ## Create/update gcp-credentials secret from local ADC (~/.config/gcloud/application_default_credentials.json)
+vagrant-push-gcp-creds: ## Install local ADC for vagrant and create/update the gcp-credentials secret
 	@test -f "$(GCP_CREDS)" || { echo "ERROR: $(GCP_CREDS) not found. Run 'gcloud auth application-default login' first."; exit 1; }
-	@echo "==> Pushing GCP credentials to ai-pipeline namespace..."
+	@echo "==> Installing GCP credentials for the vagrant user and ai-pipeline namespace..."
 	cat "$(GCP_CREDS)" | vagrant ssh -c '\
 		cat > /tmp/gcp-creds.json && \
+		sudo install -d -m 700 -o vagrant -g vagrant /home/vagrant/.config/gcloud && \
+		sudo install -m 600 -o vagrant -g vagrant /tmp/gcp-creds.json /home/vagrant/.config/gcloud/application_default_credentials.json && \
 		kubectl -n ai-pipeline create secret generic gcp-credentials \
 			--from-file=credentials.json=/tmp/gcp-creds.json \
 			--dry-run=client -o yaml | kubectl apply -f - && \
 		rm -f /tmp/gcp-creds.json'
-	@echo "✓ gcp-credentials secret created/updated in ai-pipeline namespace"
+	@echo "✓ ADC installed for vagrant and gcp-credentials secret created/updated"
 
 ##@ Vagrant: Full Stack Management
 
