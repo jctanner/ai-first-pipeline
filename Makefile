@@ -90,17 +90,19 @@ vagrant-push-gcp-creds: ## Install local ADC for vagrant and create/update the g
 
 ##@ Vagrant: Full Stack Management
 
-vagrant-build-all: ## Build dashboard and agent images only (no redeploy)
-	@echo "==> Building dashboard and agent images..."
+vagrant-build-all: ## Build dashboard, agent, and Markov images (no redeploy)
+	@echo "==> Building dashboard, agent, and Markov images..."
 	@$(MAKE) vagrant-build-dashboard
 	@$(MAKE) vagrant-build-agent
-	@echo "✓ Dashboard and agent images built"
+	@$(MAKE) vagrant-rebuild-markov
+	@echo "✓ Dashboard, agent, and Markov images built"
 
-vagrant-rebuild-all: ## Rebuild and redeploy dashboard, rebuild agent
-	@echo "==> Rebuilding dashboard and agent images..."
+vagrant-rebuild-all: ## Redeploy dashboard and rebuild agent and Markov images
+	@echo "==> Rebuilding dashboard, agent, and Markov images..."
 	@$(MAKE) vagrant-rebuild-dashboard
 	@$(MAKE) vagrant-build-agent
-	@echo "✓ Dashboard redeployed, agent image rebuilt"
+	@$(MAKE) vagrant-rebuild-markov
+	@echo "✓ Dashboard redeployed; agent and Markov images rebuilt"
 
 vagrant-rebuild-all-with-emulators: ## Rebuild all images including emulators
 	@echo "==> Rebuilding all images (dashboard, agent, emulators)..."
@@ -217,10 +219,10 @@ vagrant-rebuild-markovd: ## Rebuild and redeploy markovd
 	vagrant ssh -c "kubectl rollout status deployment/markovd -n ai-pipeline --timeout=60s"
 	@echo "✓ markovd rebuilt and redeployed"
 
-vagrant-rebuild-markov: ## Rebuild markov CLI binary
-	@echo "==> Building markov CLI..."
+vagrant-rebuild-markov: ## Build and import the Markov job image
+	@echo "==> Building Markov job image..."
 	vagrant ssh -c "cd /vagrant && bash deploy/scripts/05d-build-markov.sh"
-	@echo "✓ markov CLI rebuilt"
+	@echo "✓ Markov job image rebuilt and imported"
 
 vagrant-rebuild-ingress-proxy: ## Rebuild and redeploy ingress proxy (Go reverse proxy)
 	@echo "==> Rebuilding ingress proxy..."
@@ -338,17 +340,19 @@ host-rebuild-gitlab: ## Rebuild and redeploy GitLab emulator on host
 	kubectl rollout status deployment/gitlab-emulator -n ai-pipeline --timeout=60s
 	@echo "✓ GitLab emulator rebuilt and redeployed"
 
-host-build-all: ## Build dashboard and agent images on host
-	@echo "==> Building dashboard and agent images..."
+host-build-all: ## Build dashboard, agent, and Markov images on host
+	@echo "==> Building dashboard, agent, and Markov images..."
 	@$(MAKE) host-build-dashboard
 	@$(MAKE) host-build-agent
-	@echo "✓ Dashboard and agent images built"
+	@$(MAKE) host-rebuild-markov
+	@echo "✓ Dashboard, agent, and Markov images built"
 
-host-rebuild-all: ## Rebuild and redeploy dashboard, rebuild agent on host
-	@echo "==> Rebuilding dashboard and agent images..."
+host-rebuild-all: ## Redeploy dashboard and rebuild agent and Markov images on host
+	@echo "==> Rebuilding dashboard, agent, and Markov images..."
 	@$(MAKE) host-rebuild-dashboard
 	@$(MAKE) host-build-agent
-	@echo "✓ Dashboard redeployed, agent image rebuilt"
+	@$(MAKE) host-rebuild-markov
+	@echo "✓ Dashboard redeployed; agent and Markov images rebuilt"
 
 host-rebuild-all-with-emulators: ## Rebuild all images including emulators on host
 	@echo "==> Rebuilding all images..."
@@ -485,10 +489,10 @@ host-rebuild-markovd: ## Rebuild and redeploy markovd on host
 	kubectl rollout status deployment/markovd -n ai-pipeline --timeout=60s
 	@echo "✓ markovd rebuilt and redeployed"
 
-host-rebuild-markov: ## Rebuild markov CLI binary on host
-	@echo "==> Building markov CLI..."
+host-rebuild-markov: ## Build and import the Markov job image on host
+	@echo "==> Building Markov job image..."
 	PROJECT_ROOT=$(HOST_PROJECT_ROOT) bash deploy/scripts/05d-build-markov.sh
-	@echo "✓ markov CLI rebuilt"
+	@echo "✓ Markov job image rebuilt and imported"
 
 host-backup: ## Backup all service data on host
 	PROJECT_ROOT=$(HOST_PROJECT_ROOT) bash deploy/scripts/backup.sh

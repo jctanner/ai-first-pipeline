@@ -190,9 +190,23 @@ else
   echo "WARNING: markovd repo not found at ${PROJECT_ROOT}/deploy/repos/markovd"
 fi
 
+# Build the Markov job image used by markovd workflow runs
+if [ -d ${PROJECT_ROOT}/deploy/repos/markov ]; then
+  echo "--- Building Markov job image for k3s ---"
+  cd ${PROJECT_ROOT}/deploy/repos/markov
+
+  ${CONTAINER_CMD} build -t markov:latest .
+  sudo k3s ctr images rm docker.io/library/markov:latest localhost/markov:latest 2>/dev/null || true
+  ${CONTAINER_CMD} save markov:latest | sudo k3s ctr images import -
+  sudo k3s ctr images tag localhost/markov:latest docker.io/library/markov:latest 2>/dev/null || true
+  echo "Successfully built and imported markov:latest"
+else
+  echo "WARNING: markov repo not found at ${PROJECT_ROOT}/deploy/repos/markov"
+fi
+
 echo "==> Image build complete!"
 echo ""
 echo "Imported images:"
-sudo k3s ctr images ls | grep -E 'ai-first-pipeline|github-emulator|gitlab-emulator|jira-emulator|ingress-proxy|observatory|markovd' || echo "No matching images found"
+sudo k3s ctr images ls | grep -E 'ai-first-pipeline|github-emulator|gitlab-emulator|jira-emulator|ingress-proxy|observatory|markovd|markov:' || echo "No matching images found"
 echo ""
 echo "Note: ingress-proxy image is built during the ingress deployment step"
