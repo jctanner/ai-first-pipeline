@@ -1,10 +1,10 @@
 # Dashboard Strategy Architecture-Context Test
 
-This directory-based Markov workflow first clears the shared pipeline volumes,
-resets Jira, and deletes the repositories on `github.local`. It then imports the
-required strategy and architecture-context repositories and repopulates the
-shared context PVC. It imports the captured Jira issue twice, as `RHAIRFE-2259`
-and `RHAIRFE-2260`.
+This directory-based Markov workflow first clears the shared pipeline volumes
+and resets Jira. It then clones architecture context directly from its upstream
+GitHub repository into the shared context PVC. Strategy skills are also loaded
+directly from their upstream GitHub repository. The workflow imports the
+captured Jira issue twice, as `RHAIRFE-2259` and `RHAIRFE-2260`.
 
 The baseline ticket runs `strategy-create`, `strategy-refine`, and
 `strategy-review` against the unmodified architecture context. The workflow

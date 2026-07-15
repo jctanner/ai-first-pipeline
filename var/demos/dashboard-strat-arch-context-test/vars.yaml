@@ -2,23 +2,14 @@ jira_base: https://jira-emulator.ai-pipeline.svc.cluster.local
 jira_user: admin
 jira_token: admin
 dashboard_base: http://pipeline-dashboard.ai-pipeline.svc.cluster.local:5000
-github_base: https://github-emulator.ai-pipeline.svc.cluster.local
-github_api_token: ghp_admin_default_token
-org: opendatahub-io
 
 baseline_rfe_issue: RHAIRFE-2259
 overlay_rfe_issue: RHAIRFE-2260
 rfe_fixture: var/demos/dashboard-strat-arch-context-test/files/RHAIRFE-2259.json
 overlay_fixture: var/demos/dashboard-strat-arch-context-test/files/0018-catalog-admin-uis-in-model-registry.md
-strategy_create_fqn: "github.local/opendatahub-io/strat-creator@main:strategy-create"
-strategy_refine_fqn: "github.local/opendatahub-io/strat-creator@main:strategy-refine"
-strategy_review_fqn: "github.local/opendatahub-io/strat-creator@main:strategy-review"
+strategy_create_fqn: "github.com/opendatahub-io/strat-creator@main:strategy-create"
+strategy_refine_fqn: "github.com/opendatahub-io/strat-creator@main:strategy-refine"
+strategy_review_fqn: "github.com/opendatahub-io/strat-creator@main:strategy-review"
 skill_model: claude-opus-4-6
 skill_runner: cli
 skill_harness: claude-code
-
-github_repos:
-  - name: strat-creator
-    upstream: https://github.com/opendatahub-io/strat-creator
-  - name: architecture-context
-    upstream: https://github.com/opendatahub-io/architecture-context

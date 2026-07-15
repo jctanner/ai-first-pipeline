@@ -3,7 +3,7 @@ description: "Compare strategy generation before and after an architecture-conte
 
 steps:
   - name: reset_environment
-    description: "Clear shared volumes, Jira, and github.local"
+    description: "Clear shared volumes, reset Jira, and repopulate architecture context"
     workflow: reset-environment
 
   - name: seed_baseline_rfe

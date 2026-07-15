@@ -1,0 +1,14 @@
+name: populate-context
+description: "Populate the shared PVC from the upstream architecture-context repository"
+
+steps:
+  - name: clone_architecture_context
+    type: context_sync_job
+    params:
+      args:
+        - |
+          set -eu
+          rm -rf /context/architecture-context
+          GIT_SSL_NO_VERIFY=true git clone --depth 1 \
+            https://github.com/opendatahub-io/architecture-context.git \
+            /context/architecture-context
