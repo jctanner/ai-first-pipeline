@@ -4,11 +4,25 @@
 #
 # Creates the three experiment repos on github.local and pushes their
 # scaffold content from the demo files/ directory.
+#
+# The markov pod does not have project files locally. We clone the
+# ai-first-pipeline repo from GitHub to get the scaffold files, then
+# copy them into each target repo.
 
 name: import-repos
 description: "Create and populate experiment repos on github.local"
 
 steps:
+
+  - name: clone_source
+    type: shell_exec
+    params:
+      command: |
+        set -euo pipefail
+        rm -rf /tmp/aifp-source
+        git clone --depth 1 --branch main \
+          https://github.com/jctanner/ai-first-pipeline /tmp/aifp-source
+        echo "Cloned ai-first-pipeline scaffold source"
 
   - name: push_metric_converter
     type: shell_exec
@@ -31,7 +45,7 @@ steps:
         GIT_SSL_NO_VERIFY=true git clone \
           "https://x-access-token:{{ github_api_token }}@github-emulator.ai-pipeline.svc.cluster.local/{{ org }}/metric-converter.git" \
           "$REPO_DIR"
-        cp -a /app/var/demos/skill-disambiguation/files/metric-converter/. "$REPO_DIR/"
+        cp -a /tmp/aifp-source/var/demos/skill-disambiguation/files/metric-converter/. "$REPO_DIR/"
         cd "$REPO_DIR"
         git config user.name "Experiment Setup"
         git config user.email "experiment@ai-pipeline.local"
@@ -63,7 +77,7 @@ steps:
         GIT_SSL_NO_VERIFY=true git clone \
           "https://x-access-token:{{ github_api_token }}@github-emulator.ai-pipeline.svc.cluster.local/{{ org }}/imperial-converter.git" \
           "$REPO_DIR"
-        cp -a /app/var/demos/skill-disambiguation/files/imperial-converter/. "$REPO_DIR/"
+        cp -a /tmp/aifp-source/var/demos/skill-disambiguation/files/imperial-converter/. "$REPO_DIR/"
         cd "$REPO_DIR"
         git config user.name "Experiment Setup"
         git config user.email "experiment@ai-pipeline.local"
@@ -95,7 +109,7 @@ steps:
         GIT_SSL_NO_VERIFY=true git clone \
           "https://x-access-token:{{ github_api_token }}@github-emulator.ai-pipeline.svc.cluster.local/{{ org }}/{{ registry_repo }}.git" \
           "$REPO_DIR"
-        cp -a /app/var/demos/skill-disambiguation/files/experiment-registry/. "$REPO_DIR/"
+        cp -a /tmp/aifp-source/var/demos/skill-disambiguation/files/experiment-registry/. "$REPO_DIR/"
         cd "$REPO_DIR"
         git config user.name "Experiment Setup"
         git config user.email "experiment@ai-pipeline.local"
@@ -107,3 +121,8 @@ steps:
     type: shell_exec
     params:
       command: sleep 2
+
+  - name: cleanup_source
+    type: shell_exec
+    params:
+      command: rm -rf /tmp/aifp-source
