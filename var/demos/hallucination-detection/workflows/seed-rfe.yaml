@@ -7,9 +7,11 @@ steps:
     params:
       command: |
         set -euo pipefail
+        fixture=$(mktemp)
         payload=$(mktemp)
-        trap 'rm -f "$payload"' EXIT
-        python3 - "{{ rfe_fixture_file }}" "{{ rfe_issue }}" "{{ strategy_target_label }}" "$payload" <<'PY'
+        trap 'rm -f "$fixture" "$payload"' EXIT
+        curl -sfkL "{{ rfe_fixture_url }}" -o "$fixture"
+        python3 - "$fixture" "{{ rfe_issue }}" "{{ strategy_target_label }}" "$payload" <<'PY'
         import json
         import sys
 

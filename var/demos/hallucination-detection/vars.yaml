@@ -6,7 +6,7 @@ observatory_base: http://observatory.ai-pipeline.svc.cluster.local:8000
 
 rfe_issue: RHAIRFE-3001
 strategy_target_label: strat-creator-3.6
-rfe_fixture_file: files/RHAIRFE-2259.json
+rfe_fixture_url: https://raw.githubusercontent.com/jctanner/ai-first-pipeline/main/var/demos/hallucination-detection/files/RHAIRFE-2259.json
 
 strategy_create_fqn: "github.com/opendatahub-io/strat-creator@main:strategy-create"
 strategy_refine_fqn: "github.com/opendatahub-io/strat-creator@main:strategy-refine"
