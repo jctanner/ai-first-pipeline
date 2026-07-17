@@ -181,7 +181,12 @@ while True:
     # System events (retries, etc.)
     if msg_type == "system":
         subtype = msg.get("subtype", "")
-        if subtype == "api_retry":
+        if subtype == "init":
+            skills = msg.get("skills", [])
+            plugins = msg.get("plugins", [])
+            print(f"{TOOL_COLOR}  \U0001f50c Skills: {skills}{RESET}", flush=True)
+            print(f"{TOOL_COLOR}  \U0001f50c Plugins: {plugins}{RESET}", flush=True)
+        elif subtype == "api_retry":
             attempt = msg.get("attempt", "?")
             max_retries = msg.get("max_retries", "?")
             delay = msg.get("retry_delay_ms", "?")
