@@ -1,0 +1,7 @@
+- name: claims_shadow
+  description: "Report all claim findings without blocking — shadow mode for initial test runs"
+  salience: 40
+  when: "true"
+  action: continue
+  set_fact:
+    claims_review_required: true

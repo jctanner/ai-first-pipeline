@@ -1,0 +1,23 @@
+jira_base: https://jira-emulator.ai-pipeline.svc.cluster.local
+jira_user: admin
+jira_token: admin
+dashboard_base: http://pipeline-dashboard.ai-pipeline.svc.cluster.local:5000
+observatory_base: http://observatory.ai-pipeline.svc.cluster.local:8000
+
+rfe_issue: RHAIRFE-3001
+strategy_target_label: strat-creator-3.6
+rfe_fixture_file: files/RHAIRFE-2259.json
+
+strategy_create_fqn: "github.com/opendatahub-io/strat-creator@main:strategy-create"
+strategy_refine_fqn: "github.com/opendatahub-io/strat-creator@main:strategy-refine"
+strategy_review_fqn: "github.com/opendatahub-io/strat-creator@main:strategy-review"
+
+extract_claims_fqn: "github.com/opendatahub-io/observatory@main:extract-claims"
+verify_claims_fqn: "github.com/opendatahub-io/observatory@main:verify-claims"
+explain_claims_fqn: "github.com/opendatahub-io/observatory@main:explain-claims"
+
+skill_model: claude-opus-4-6
+skill_runner: cli
+skill_harness: claude-code
+skill_extra_env:
+  OBSERVATORY_URL: "http://observatory.ai-pipeline.svc.cluster.local:8000"

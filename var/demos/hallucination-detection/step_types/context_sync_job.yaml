@@ -1,0 +1,14 @@
+context_sync_job:
+  base: k8s_job
+  description: "Populate the shared architecture-context volume"
+  job:
+    image: pipeline-agent:latest
+    namespace: ai-pipeline
+    command: ["/bin/sh", "-c"]
+    backoff_limit: 0
+    ttl_seconds: 3600
+    image_pull_policy: Never
+    volumes:
+      - name: context
+        pvc: pipeline-context
+        mount: /context

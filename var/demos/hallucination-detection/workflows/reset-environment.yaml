@@ -1,0 +1,12 @@
+name: reset-environment
+description: "Reset shared volumes, Jira, and architecture context"
+
+steps:
+  - name: clear_shared_volumes
+    workflow: reset-services
+
+  - name: clear_jira
+    workflow: reset-jira
+
+  - name: populate_architecture_context
+    workflow: populate-context

@@ -1,0 +1,60 @@
+name: run-claims
+description: "Run claim extraction, verification, and explanation against the strategy"
+
+steps:
+  - name: discover_strategy
+    description: "Find the RHAISTRAT issue linked to the RFE"
+    type: shell_exec
+    params:
+      command: |
+        set -euo pipefail
+        curl -sfk -u "{{ jira_user }}:{{ jira_token }}" \
+          "{{ jira_base }}/rest/api/2/issue/{{ rfe_issue }}?fields=issuelinks" \
+          | python3 -c '
+        import json, sys
+        data = json.load(sys.stdin)
+        for link in data.get("fields", {}).get("issuelinks", []):
+            if link.get("type", {}).get("name") != "Cloners":
+                continue
+            for direction in ("inwardIssue", "outwardIssue"):
+                key = link.get(direction, {}).get("key", "")
+                if key.startswith("RHAISTRAT-"):
+                    print(key)
+                    raise SystemExit(0)
+        print("No linked RHAISTRAT issue found", file=sys.stderr)
+        raise SystemExit(1)
+        '
+    register: strategy_discovery
+
+  - name: set_strategy_issue
+    type: set_fact
+    vars:
+      strategy_issue: "{{ strategy_discovery.stdout | trim }}"
+
+  - name: extract_claims
+    description: "Extract atomic factual claims from the strategy"
+    workflow: run-skill
+    vars:
+      skill_fqn: "{{ extract_claims_fqn }}"
+      skill_issue: "{{ strategy_issue }}"
+
+  - name: verify_claims
+    description: "Verify extracted claims against available evidence"
+    workflow: run-skill
+    vars:
+      skill_fqn: "{{ verify_claims_fqn }}"
+      skill_issue: "{{ strategy_issue }}"
+
+  - name: gate_claims
+    description: "Evaluate claim quality rules"
+    type: gate
+    params:
+      rules:
+        - claims_shadow
+
+  - name: explain_claims
+    description: "Route findings to improvement targets"
+    workflow: run-skill
+    vars:
+      skill_fqn: "{{ explain_claims_fqn }}"
+      skill_issue: "{{ strategy_issue }}"

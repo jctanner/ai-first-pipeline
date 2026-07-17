@@ -1,0 +1,175 @@
+{
+  "expand": "renderedFields,names,schema,operations,editmeta,changelog,versionedRepresentations,customfield_10010.requestTypePractice",
+  "id": "5970590",
+  "self": "https://redhat.atlassian.net/rest/api/2/issue/5970590",
+  "key": "RHAIRFE-2259",
+  "fields": {
+    "statuscategorychangedate": "2026-05-21T03:17:10.603+0000",
+    "parent": null,
+    "fixVersions": [],
+    "resolution": null,
+    "lastViewed": "2026-07-15T01:06:15.591+0000",
+    "priority": {
+      "self": "https://redhat.atlassian.net/rest/api/2/priority/10002",
+      "iconUrl": "https://redhat.atlassian.net/images/icons/priorities/major.svg",
+      "name": "Major",
+      "id": "10002"
+    },
+    "labels": [
+      "ingress",
+      "multi-tenancy",
+      "networking",
+      "rfe-creator-auto-created",
+      "rfe-creator-autofix-rubric-pass",
+      "rfe-creator-feasibility-pass"
+    ],
+    "customfield_10855": [
+      {
+        "self": "https://redhat.atlassian.net/rest/api/2/version/107595",
+        "id": "107595",
+        "description": "PPSync [2026-06-27 task:rhai-3.6]",
+        "name": "3.6 EA2 RHOAI RELEASE",
+        "archived": false,
+        "released": false,
+        "releaseDate": "2026-10-15"
+      }
+    ],
+    "versions": [],
+    "issuelinks": [],
+    "assignee": null,
+    "status": {
+      "self": "https://redhat.atlassian.net/rest/api/2/status/10169",
+      "description": "A proposal has been approved and now awaits execution",
+      "iconUrl": "https://redhat.atlassian.net/images/icons/statuses/generic.png",
+      "name": "Approved",
+      "id": "10169",
+      "statusCategory": {
+        "self": "https://redhat.atlassian.net/rest/api/2/statuscategory/4",
+        "id": 4,
+        "key": "indeterminate",
+        "colorName": "yellow",
+        "name": "In Progress"
+      }
+    },
+    "components": [],
+    "dataclassification": {},
+    "creator": {
+      "self": "https://redhat.atlassian.net/rest/api/2/user?accountId=000000000000000000000001",
+      "accountId": "000000000000000000000001",
+      "emailAddress": "demo-user@example.com",
+      "avatarUrls": {
+        "48x48": "https://avatar-management--avatars.us-west-2.prod.public.atl-paas.net/default-avatar.png",
+        "24x24": "https://avatar-management--avatars.us-west-2.prod.public.atl-paas.net/default-avatar.png",
+        "16x16": "https://avatar-management--avatars.us-west-2.prod.public.atl-paas.net/default-avatar.png",
+        "32x32": "https://avatar-management--avatars.us-west-2.prod.public.atl-paas.net/default-avatar.png"
+      },
+      "displayName": "Demo User",
+      "active": true,
+      "timeZone": "Etc/GMT",
+      "accountType": "atlassian"
+    },
+    "subtasks": [],
+    "reporter": {
+      "self": "https://redhat.atlassian.net/rest/api/2/user?accountId=000000000000000000000001",
+      "accountId": "000000000000000000000001",
+      "emailAddress": "demo-user@example.com",
+      "avatarUrls": {
+        "48x48": "https://avatar-management--avatars.us-west-2.prod.public.atl-paas.net/default-avatar.png",
+        "24x24": "https://avatar-management--avatars.us-west-2.prod.public.atl-paas.net/default-avatar.png",
+        "16x16": "https://avatar-management--avatars.us-west-2.prod.public.atl-paas.net/default-avatar.png",
+        "32x32": "https://avatar-management--avatars.us-west-2.prod.public.atl-paas.net/default-avatar.png"
+      },
+      "displayName": "Demo User",
+      "active": true,
+      "timeZone": "Etc/GMT",
+      "accountType": "atlassian"
+    },
+    "aggregateprogress": {
+      "progress": 0,
+      "total": 0
+    },
+    "progress": {
+      "progress": 0,
+      "total": 0
+    },
+    "votes": {
+      "self": "https://redhat.atlassian.net/rest/api/2/issue/RHAIRFE-2259/votes",
+      "votes": 0,
+      "hasVoted": false
+    },
+    "worklog": {
+      "startAt": 0,
+      "maxResults": 20,
+      "total": 0,
+      "worklogs": []
+    },
+    "issuetype": {
+      "self": "https://redhat.atlassian.net/rest/api/2/issuetype/10111",
+      "id": "10111",
+      "description": "Feature requests from customers and/or users",
+      "iconUrl": "https://redhat.atlassian.net/rest/api/2/universal_avatar/view/type/issuetype/avatar/10675?size=medium",
+      "name": "Feature Request",
+      "subtask": false,
+      "avatarId": 10675,
+      "hierarchyLevel": 2
+    },
+    "timespent": null,
+    "project": {
+      "self": "https://redhat.atlassian.net/rest/api/2/project/12853",
+      "id": "12853",
+      "key": "RHAIRFE",
+      "name": "Red Hat AI RFE project",
+      "projectTypeKey": "software",
+      "simplified": false,
+      "avatarUrls": {
+        "48x48": "https://redhat.atlassian.net/rest/api/2/universal_avatar/view/type/project/avatar/10413",
+        "24x24": "https://redhat.atlassian.net/rest/api/2/universal_avatar/view/type/project/avatar/10413?size=small",
+        "16x16": "https://redhat.atlassian.net/rest/api/2/universal_avatar/view/type/project/avatar/10413?size=xsmall",
+        "32x32": "https://redhat.atlassian.net/rest/api/2/universal_avatar/view/type/project/avatar/10413?size=medium"
+      }
+    },
+    "aggregatetimespent": null,
+    "customfield_10430": 1.0,
+    "customfield_10431": 0.0,
+    "customfield_10427": 4.0,
+    "customfield_10428": 1.0,
+    "customfield_10429": 0.0,
+    "resolutiondate": null,
+    "workratio": -1,
+    "watches": {
+      "self": "https://redhat.atlassian.net/rest/api/2/issue/RHAIRFE-2259/watchers",
+      "watchCount": 1,
+      "isWatching": false
+    },
+    "created": "2026-05-20T19:42:53.991+0000",
+    "customfield_10414": 0.0,
+    "customfield_10019": "0|irlln3:",
+    "updated": "2026-07-07T12:16:37.277+0000",
+    "timeoriginalestimate": null,
+    "description": "h2. Summary\n\nRHOAI should support ingress sharding so that multi-tenant deployments can isolate inference traffic, dashboard access, and internal component communication onto separate OpenShift router shards. Today all RHOAI routes land on the default ingress controller, which means a spike in model-serving traffic can degrade dashboard and pipeline UI responsiveness for every tenant on the cluster.\n\nh2. Problem Statement\n\nAll RHOAI-managed routes (model serving endpoints, dashboard, notebook spawner, pipeline UI, model registry API) are created on the cluster's default IngressController. This causes several problems:\n\n* *Noisy-neighbor inference traffic.* A single tenant running high-throughput batch inference can saturate the default router's connection pool, increasing latency for every other tenant's dashboard and notebook sessions.\n* *No network-level tenant isolation.* Regulated industries require that inference endpoints serving sensitive data are not co-located on the same load balancer as administrative UIs. The current architecture cannot satisfy this without manual route surgery.\n* *Inability to apply per-shard TLS policies.* Different tenants may require different TLS certificate chains, cipher suites, or mTLS enforcement. A single ingress controller forces a one-size-fits-all TLS configuration.\n* *Capacity planning blind spots.* Because all traffic funnels through one router, operators cannot independently scale or monitor the ingress layer for model-serving versus interactive workloads.\n\nh2. Affected Customers\n\n* *Enterprise platform teams* running multi-tenant RHOAI clusters who need traffic isolation between inference, interactive, and administrative workloads\n* *Regulated-industry customers* in financial services and healthcare who must demonstrate network-level separation between data-plane inference traffic and control-plane administrative access\n* *ML platform operators* responsible for SLA compliance on model-serving latency who need independent scaling and monitoring of inference ingress\n\nh2. Business Justification\n\n* *Multi-tenant production readiness*: Enterprise customers evaluating RHOAI for multi-tenant production use cite ingress isolation as a blocking gap compared to managed alternatives that offer per-workload-type load balancers.\n* *Regulatory compliance*: Financial services and healthcare customers require demonstrable network separation between data-plane and control-plane traffic for audit purposes.\n* *Operational scalability*: Independent ingress shards allow operators to scale model-serving routers without over-provisioning the administrative ingress path, reducing infrastructure cost.\n\nh2. Acceptance Criteria\n\n* [ ] RHOAI components can be configured to place routes on named IngressController shards via DSC or DSCI CR fields\n* [ ] Model-serving inference routes, dashboard and notebook UI routes, and internal component routes can each target a different ingress shard\n* [ ] Per-shard TLS configuration (certificate, cipher suite, mTLS policy) is supported and documented\n* [ ] Shard assignment is tenant-aware: routes created for a DataScienceProject inherit the shard configuration of that project's namespace\n* [ ] The RHOAI operator validates that referenced IngressController shards exist and reports condition errors when they do not\n* [ ] Existing single-ingress deployments continue to work without configuration changes (backward compatibility)\n\nh2. Success Criteria\n\n* Platform operators can isolate inference traffic onto a dedicated router shard, eliminating noisy-neighbor latency impact on dashboard and notebook sessions\n* Regulated-industry customers can demonstrate network-level separation between inference and administrative traffic for compliance audits\n* Operators can independently monitor and scale ingress capacity per workload type",
+    "timetracking": {},
+    "security": null,
+    "attachment": [],
+    "summary": "Support Ingress Sharding for Multi-Tenant RHOAI Deployments",
+    "customfield_10483": "None",
+    "customfield_10484": {
+      "self": "https://redhat.atlassian.net/rest/api/2/customFieldOption/10472",
+      "value": "False",
+      "id": "10472"
+    },
+    "customfield_10517": {
+      "self": "https://redhat.atlassian.net/rest/api/2/customFieldOption/10853",
+      "value": "False",
+      "id": "10853"
+    },
+    "environment": null,
+    "duedate": null,
+    "comment": {
+      "comments": [],
+      "self": "https://redhat.atlassian.net/rest/api/2/issue/5970590/comment",
+      "maxResults": 0,
+      "total": 0,
+      "startAt": 0
+    }
+  }
+}

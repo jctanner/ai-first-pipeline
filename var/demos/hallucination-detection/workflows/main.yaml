@@ -1,0 +1,19 @@
+name: main
+description: "Generate a strategy from a seeded RFE and run claim-assurance to detect hallucinations"
+
+steps:
+  - name: reset_environment
+    description: "Clear shared volumes, reset Jira, and populate architecture context"
+    workflow: reset-environment
+
+  - name: seed_rfe
+    description: "Import the RFE fixture as {{ rfe_issue }}"
+    workflow: seed-rfe
+
+  - name: run_strategy
+    description: "Run strategy create, refine, and review"
+    workflow: run-strategy
+
+  - name: run_claims
+    description: "Extract, verify, and explain claims from the strategy output"
+    workflow: run-claims

@@ -1,0 +1,15 @@
+name: reset-jira
+description: "Wipe Jira and restore its built-in seed data"
+
+steps:
+  - name: reset_database
+    type: jira_api
+    params:
+      path: /api/admin/reset
+      method: POST
+
+  - name: verify_rfe_project
+    type: jira_api
+    params:
+      path: /rest/api/2/project/RHAIRFE
+      method: GET
