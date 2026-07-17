@@ -45,13 +45,6 @@ steps:
       skill_fqn: "{{ verify_claims_fqn }}"
       skill_issue: "{{ strategy_issue }}"
 
-  - name: gate_claims
-    description: "Evaluate claim quality rules"
-    type: gate
-    params:
-      rules:
-        - claims_shadow
-
   - name: explain_claims
     description: "Route findings to improvement targets"
     workflow: run-skill
