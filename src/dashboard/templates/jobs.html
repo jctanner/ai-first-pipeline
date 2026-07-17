@@ -60,6 +60,7 @@
             {% endfor %}
           </select>
           <input type="text" id="skill-fqn" name="skill_fqn" placeholder="github.local/org/repo@branch:skill" class="w-full rounded-lg border-gray-300 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-200 text-sm py-2 px-3" style="display:none; position:absolute; top:0; left:0; right:0;">
+          <input type="text" id="skill-prompt" name="prompt" placeholder="/unit-convert Convert 100 degrees" class="w-full rounded-lg border-gray-300 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-200 text-sm py-2 px-3" style="display:none; position:absolute; top:0; left:0; right:0;">
         </div>
       </div>
       <div style="width:8rem;">
@@ -98,8 +99,21 @@
         <input type="text" id="extra-env" name="extra_env" placeholder="KEY=value KEY2=value2" class="w-full rounded-lg border-gray-300 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-200 text-sm py-2 px-3">
       </div>
     </div>
+    <div id="plugin-fields" class="flex flex-wrap gap-4 items-end mb-1" style="display:none;">
+      <div class="flex-grow" style="min-width:14rem;">
+        <label for="registries" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Registries <span class="text-gray-400 text-xs">(one per line)</span></label>
+        <textarea id="registries" name="registries" rows="2" placeholder="github.local/org/registry@main" class="w-full rounded-lg border-gray-300 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-200 text-sm py-2 px-3"></textarea>
+      </div>
+      <div class="flex-grow" style="min-width:14rem;">
+        <label for="plugins" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Plugins <span class="text-gray-400 text-xs">(one per line)</span></label>
+        <textarea id="plugins" name="plugins" rows="2" placeholder="metric-converter&#10;imperial-converter" class="w-full rounded-lg border-gray-300 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-200 text-sm py-2 px-3"></textarea>
+      </div>
+    </div>
+
     <div class="mb-3">
       <button type="button" id="toggle-fqn" class="text-xs text-primary-600 dark:text-primary-400 cursor-pointer bg-transparent border-none p-0">or enter FQN...</button>
+      <button type="button" id="toggle-prompt" class="text-xs text-primary-600 dark:text-primary-400 cursor-pointer bg-transparent border-none p-0 ml-3">or enter prompt...</button>
+      <button type="button" id="toggle-plugins" class="text-xs text-primary-600 dark:text-primary-400 cursor-pointer bg-transparent border-none p-0 ml-3">+ registries/plugins</button>
     </div>
     <div class="flex items-center gap-6">
       <label class="flex items-center gap-1.5 text-sm text-gray-700 dark:text-gray-300 cursor-pointer select-none">
@@ -184,6 +198,18 @@
     <div id="modal-extra-env-row" class="text-sm mb-4" style="display:none;">
       <span class="text-gray-500 dark:text-gray-400">Env vars</span>
       <div id="modal-extra-env" class="font-medium font-mono text-gray-900 dark:text-white"></div>
+    </div>
+    <div id="modal-prompt-row" class="text-sm mb-4" style="display:none;">
+      <span class="text-gray-500 dark:text-gray-400">Prompt</span>
+      <div id="modal-prompt" class="font-medium font-mono text-gray-900 dark:text-white"></div>
+    </div>
+    <div id="modal-registries-row" class="text-sm mb-4" style="display:none;">
+      <span class="text-gray-500 dark:text-gray-400">Registries</span>
+      <div id="modal-registries" class="font-medium font-mono text-gray-900 dark:text-white"></div>
+    </div>
+    <div id="modal-plugins-row" class="text-sm mb-4" style="display:none;">
+      <span class="text-gray-500 dark:text-gray-400">Plugins</span>
+      <div id="modal-plugins" class="font-medium font-mono text-gray-900 dark:text-white"></div>
     </div>
 
     <div class="flex gap-2 mb-4" id="modal-actions"></div>

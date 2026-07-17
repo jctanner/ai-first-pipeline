@@ -1,0 +1,8 @@
+agent_job_wait:
+  base: k8s_job_wait
+  description: "Wait for a pipeline-agent K8s job to complete, capturing pod logs"
+  params:
+    namespace: ai-pipeline
+    timeout: 10800
+    tail_logs: true
+    log_bytes: 131072

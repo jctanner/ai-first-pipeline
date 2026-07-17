@@ -1,0 +1,40 @@
+{
+  "categories": [
+    {
+      "id": "unambiguous",
+      "description": "Unambiguous requests where both plugins should give identical answers",
+      "prompts": [
+        "/unit-convert Convert 5 miles to kilometers",
+        "/unit-convert Convert 100 kilograms to pounds",
+        "/unit-convert What is 32 degrees Fahrenheit in Celsius?"
+      ]
+    },
+    {
+      "id": "ambiguous-unqualified",
+      "description": "Ambiguous requests via unqualified skill name — answer depends on which plugin runs",
+      "prompts": [
+        "/unit-convert Convert 100 degrees to the other system",
+        "/unit-convert What is 212 degrees in the other temperature scale?",
+        "/unit-convert Convert 50 degrees"
+      ]
+    },
+    {
+      "id": "qualified-metric",
+      "description": "Qualified invocations targeting metric-converter — should always route correctly",
+      "prompts": [
+        "/metric-converter:unit-convert Convert 100 degrees",
+        "/metric-converter:unit-convert Convert 50 degrees",
+        "/metric-converter:unit-convert What is 212 degrees in the other system?"
+      ]
+    },
+    {
+      "id": "qualified-imperial",
+      "description": "Qualified invocations targeting imperial-converter — should always route correctly",
+      "prompts": [
+        "/imperial-converter:unit-convert Convert 100 degrees",
+        "/imperial-converter:unit-convert Convert 50 degrees",
+        "/imperial-converter:unit-convert What is 212 degrees in the other system?"
+      ]
+    }
+  ]
+}

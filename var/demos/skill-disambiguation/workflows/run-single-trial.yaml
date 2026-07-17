@@ -1,0 +1,37 @@
+# ====================================================================
+# Run Single Trial
+# ====================================================================
+#
+# Submits a single experiment trial via the dashboard API and waits
+# for completion. Uses the new prompt/registries/plugins fields.
+
+name: run-single-trial
+description: "Submit and wait for a single disambiguation trial"
+
+steps:
+
+  - name: submit_trial
+    type: agent_job
+    params:
+      body:
+        args:
+          prompt: "{{ trial_prompt }}"
+          registries:
+            - "github.local/{{ org }}/{{ registry_repo }}@{{ registry_ref }}"
+          plugins:
+            - metric-converter
+            - imperial-converter
+          model: "{{ model }}"
+          runner: "{{ runner }}"
+          harness: "{{ harness }}"
+          strace: true
+          mlflow: true
+          otel: true
+          api_dump: true
+    register: submitted_job
+
+  - name: wait_for_trial
+    type: agent_job_wait
+    params:
+      job_name: "{{ submitted_job.body.job_name }}"
+    register: trial_result

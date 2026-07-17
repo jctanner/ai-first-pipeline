@@ -14,7 +14,10 @@ FQN=""
 ISSUE_KEY=""
 MODEL="opus"
 FORCE=""
+RAW_PROMPT=""
 declare -a EXTRA_VARS=()
+declare -a REGISTRIES=()
+declare -a PLUGINS=()
 
 while [[ $# -gt 0 ]]; do
   case $1 in
@@ -46,6 +49,18 @@ while [[ $# -gt 0 ]]; do
       SKILL_LOAD_MODE="$2"
       shift 2
       ;;
+    --registry)
+      REGISTRIES+=("$2")
+      shift 2
+      ;;
+    --plugin)
+      PLUGINS+=("$2")
+      shift 2
+      ;;
+    --prompt)
+      RAW_PROMPT="$2"
+      shift 2
+      ;;
     *)
       echo "Unknown argument: $1"
       exit 1
@@ -56,9 +71,10 @@ done
 # Export SKILL_LOAD_MODE so resolve_fqn.sh can pick it up (defaults to auto)
 export SKILL_LOAD_MODE="${SKILL_LOAD_MODE:-auto}"
 
-if [ -z "$SKILL" ] && [ -z "$FQN" ]; then
+if [ -z "$SKILL" ] && [ -z "$FQN" ] && [ -z "$RAW_PROMPT" ]; then
   echo "Usage: $0 --skill <skill-name> [--issue <issue-key>] [--model <model>] [--force]"
   echo "   or: $0 --fqn <host/owner/repo@ref:skill> [--issue <issue-key>] [--model <model>] [--force]"
+  echo "   or: $0 --prompt <prompt> [--registry <url>]... [--plugin <name>]... [--model <model>]"
   exit 1
 fi
 
@@ -84,10 +100,12 @@ env | sort
 echo "=== End environment ==="
 echo
 
-# Configure SSL certificate bundle for Python requests
+# Configure SSL certificate bundle for all tools
 if [ -f /shared/ca-certificates.crt ]; then
   export SSL_CERT_FILE=/shared/ca-certificates.crt
   export REQUESTS_CA_BUNDLE=/shared/ca-certificates.crt
+  export NODE_EXTRA_CA_CERTS=/shared/ca-certificates.crt
+  export GIT_SSL_CAINFO=/shared/ca-certificates.crt
   echo "✓ Using custom CA certificate bundle"
 fi
 
@@ -171,6 +189,58 @@ echo
 echo "Registering skill marketplaces..."
 claude plugin marketplace add opendatahub-io/skills-registry || true
 
+# Register additional marketplaces from --registry args
+# Accepts FQN format: host/owner/repo@ref
+# The CLI supports full git URLs: claude plugin marketplace add https://host/owner/repo.git
+# For non-github.com hosts, we also add scoped git URL rewrites so that
+# `claude plugin install` (which hardcodes github.com for source.repo) clones
+# from the correct host.
+if [ ${#REGISTRIES[@]} -gt 0 ]; then
+  echo "Registering ${#REGISTRIES[@]} additional marketplace(s)..."
+  for REG_FQN in "${REGISTRIES[@]}"; do
+    # Parse registry FQN: host/owner/repo@ref
+    REG_REF="${REG_FQN##*@}"
+    REG_PATH="${REG_FQN%%@*}"
+    REG_HOST="${REG_PATH%%/*}"
+    REG_REMAINDER="${REG_PATH#*/}"
+    REG_OWNER="${REG_REMAINDER%%/*}"
+    REG_REPO="${REG_REMAINDER#*/}"
+
+    # Resolve hostname
+    case "$REG_HOST" in
+      github.local) REG_RESOLVED_HOST="github-emulator.ai-pipeline.svc.cluster.local" ;;
+      *) REG_RESOLVED_HOST="$REG_HOST" ;;
+    esac
+
+    REG_GIT_URL="https://${REG_RESOLVED_HOST}/${REG_OWNER}/${REG_REPO}.git"
+    if [ "$REG_REF" != "$REG_FQN" ] && [ -n "$REG_REF" ]; then
+      REG_GIT_URL="${REG_GIT_URL}#${REG_REF}"
+    fi
+
+    echo "  Registering marketplace: $REG_GIT_URL"
+    claude plugin marketplace add "$REG_GIT_URL" || true
+
+    # When the registry host is not github.com, add a scoped git URL rewrite
+    # so that `claude plugin install` (which hardcodes github.com for
+    # source.repo values) clones from the correct host. The rewrite is scoped
+    # to the registry owner's org to avoid redirecting unrelated traffic.
+    if [ "$REG_RESOLVED_HOST" != "github.com" ]; then
+      echo "  Adding git URL rewrite: github.com/${REG_OWNER}/ → ${REG_RESOLVED_HOST}/${REG_OWNER}/"
+      git config --global url."https://${REG_RESOLVED_HOST}/${REG_OWNER}/".insteadOf "https://github.com/${REG_OWNER}/"
+      git config --global url."https://${REG_RESOLVED_HOST}/${REG_OWNER}/".insteadOf "git@github.com:${REG_OWNER}/"
+    fi
+  done
+fi
+
+# Install additional plugins from --plugin args
+if [ ${#PLUGINS[@]} -gt 0 ]; then
+  echo "Installing ${#PLUGINS[@]} additional plugin(s)..."
+  for PLUG in "${PLUGINS[@]}"; do
+    echo "  Installing plugin: $PLUG"
+    claude plugin install "$PLUG" || true
+  done
+fi
+
 # Install only the plugin needed for the current skill
 REGISTRY=$(python3 -c "
 import yaml
@@ -225,7 +295,11 @@ echo
 
 # Resolve skill name from pipeline-skills.yaml (falls back to dash-to-dot conversion)
 # When --fqn was used, SKILL_NAME is already set by resolve_fqn.sh
-if [ -z "${SKILL_NAME:-}" ]; then
+# When --prompt was used, skill name resolution is skipped entirely
+if [ -n "$RAW_PROMPT" ]; then
+  SKILL_NAME=""
+  echo "Using raw prompt mode (skill name resolution skipped)"
+elif [ -z "${SKILL_NAME:-}" ]; then
   SKILL_NAME=$(python3 -c "
 import yaml
 with open('/app/var/pipeline-skills.yaml') as f:
@@ -238,7 +312,9 @@ else:
 " 2>/dev/null)
 fi
 
-echo "Skill name: $SKILL_NAME"
+if [ -n "$SKILL_NAME" ]; then
+  echo "Skill name: $SKILL_NAME"
+fi
 echo
 
 # Verify MLflow is accessible
@@ -267,10 +343,11 @@ for VAR in "${EXTRA_VARS[@]}"; do
 done
 
 # Build the skill invocation prompt
-# Skills accept issue keys as positional arguments, not flags
-# Example: /rfe.review --headless RHAIRFE-953
-# --headless flag suppresses interactive prompts and end-of-run summary
-if [ "${FQN_LOAD_MODE_RESOLVED:-}" = "plugin" ] && [ -n "${FQN_PLUGIN_NAME:-}" ]; then
+# When --prompt is set, use it verbatim (no skill/FQN resolution).
+# Otherwise, derive the prompt from the resolved skill name.
+if [ -n "$RAW_PROMPT" ]; then
+  PROMPT="$RAW_PROMPT"
+elif [ "${FQN_LOAD_MODE_RESOLVED:-}" = "plugin" ] && [ -n "${FQN_PLUGIN_NAME:-}" ]; then
   PROMPT="/${FQN_PLUGIN_NAME}:${SKILL_NAME} --headless${FORCE:+ $FORCE}${ISSUE_KEY:+ $ISSUE_KEY}"
 else
   PROMPT="/$SKILL_NAME --headless${FORCE:+ $FORCE}${ISSUE_KEY:+ $ISSUE_KEY}"

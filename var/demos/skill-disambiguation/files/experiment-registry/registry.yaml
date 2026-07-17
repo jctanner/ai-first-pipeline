@@ -1,0 +1,57 @@
+name: experiment-registry
+description: >
+  Registry for the skill disambiguation experiment. Contains two
+  unit-conversion plugins with identically named skills that differ
+  in default unit system behavior.
+owner:
+  name: experiment
+
+plugins:
+
+  - name: metric-converter
+    description: >
+      Unit conversion plugin operating in metric (SI) mode.
+      Assumes ambiguous inputs are imperial and converts to metric.
+    version: "1.0.0"
+    category: experiment
+    tags: [unit-conversion, metric, experiment]
+    author:
+      name: experiment
+    source:
+      type: github
+      repo: experiment/metric-converter
+      ref: main
+    strict: false
+    skills_dir: ./.claude/skills
+    skills:
+      - name: unit-convert
+        description: Convert units between measurement systems (metric mode)
+        user-invocable: true
+    harnesses:
+      claude-code:
+        install: "/plugin install metric-converter@experiment-registry"
+    depends_on: []
+
+  - name: imperial-converter
+    description: >
+      Unit conversion plugin operating in imperial mode.
+      Assumes ambiguous inputs are metric and converts to imperial.
+    version: "1.0.0"
+    category: experiment
+    tags: [unit-conversion, imperial, experiment]
+    author:
+      name: experiment
+    source:
+      type: github
+      repo: experiment/imperial-converter
+      ref: main
+    strict: false
+    skills_dir: ./.claude/skills
+    skills:
+      - name: unit-convert
+        description: Convert units between measurement systems (imperial mode)
+        user-invocable: true
+    harnesses:
+      claude-code:
+        install: "/plugin install imperial-converter@experiment-registry"
+    depends_on: []

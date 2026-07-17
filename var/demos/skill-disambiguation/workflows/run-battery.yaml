@@ -1,0 +1,27 @@
+# ====================================================================
+# Run Battery
+# ====================================================================
+#
+# Iterates over the test battery JSON file and submits a job for each
+# prompt, repeated trials_per_prompt times. Each trial is an isolated
+# K8s job with full observability (strace, OTel, API dumps, MLflow).
+
+name: run-battery
+description: "Run all test battery prompts with the configured number of trials"
+
+steps:
+
+  - name: load_battery
+    type: load_artifact
+    params:
+      path: /app/var/demos/skill-disambiguation/files/test-battery.json
+    register: battery
+
+  - name: run_categories
+    for_each: "{{ battery.body.categories }}"
+    as: category
+    concurrency: 1
+    workflow: run-category
+    vars:
+      category_id: "{{ category.id }}"
+      category_prompts: "{{ category.prompts }}"

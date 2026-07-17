@@ -1,0 +1,27 @@
+# ====================================================================
+# Skill Disambiguation Experiment — Main Workflow
+# ====================================================================
+#
+# Resets the experiment environment, imports plugin repos and registry
+# to github.local, then runs the test battery.
+#
+# Usage:
+#   markov run var/demos/skill-disambiguation/
+#   markov run var/demos/skill-disambiguation/ --var trials_per_prompt=5
+
+name: main
+description: "Skill disambiguation experiment: setup environment, run test battery"
+
+steps:
+
+  - name: reset_environment
+    description: "Bootstrap github.local org and wipe previous experiment state"
+    workflow: reset-environment
+
+  - name: import_repos
+    description: "Push plugin repos and registry to github.local"
+    workflow: import-repos
+
+  - name: run_battery
+    description: "Run the test battery across all prompt categories"
+    workflow: run-battery

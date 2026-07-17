@@ -138,6 +138,9 @@ class PipelineOrchestrator:
             "baseline": (job.metadata.annotations or {}).get("baseline", ""),
             "eval_harness": (job.metadata.annotations or {}).get("eval_harness", ""),
             "run_id": (job.metadata.annotations or {}).get("run_id", ""),
+            "prompt": (job.metadata.annotations or {}).get("prompt", ""),
+            "registries": (job.metadata.annotations or {}).get("registries", "[]"),
+            "plugins": (job.metadata.annotations or {}).get("plugins", "[]"),
         }
 
     def get_job_logs(self, job_name: str) -> str:
@@ -266,7 +269,10 @@ class PipelineOrchestrator:
             raise ValueError(f"Unsupported harness+runner: {harness}+{runner}")
         cmd_args = ["/bin/bash", script]
 
-        if fqn:
+        prompt = args.get("prompt")
+        if prompt:
+            cmd_args.extend(["--prompt", prompt])
+        elif fqn:
             cmd_args.extend(["--fqn", fqn])
         elif skill_fqn and skill_fqn.startswith(("github.com/", "gitlab.com/")):
             cmd_args.extend(["--fqn", skill_fqn])
@@ -287,6 +293,12 @@ class PipelineOrchestrator:
             if "=" in kv:
                 cmd_args.extend(["--extra-vars", kv])
 
+        for reg in args.get("registries") or []:
+            cmd_args.extend(["--registry", reg])
+
+        for plugin in args.get("plugins") or []:
+            cmd_args.extend(["--plugin", plugin])
+
         job = client.V1Job(
             api_version="batch/v1",
             kind="Job",
@@ -299,6 +311,9 @@ class PipelineOrchestrator:
                     "fqn": fqn or "",
                     "model": model,
                     "skill_load_mode": skill_load_mode,
+                    "prompt": (prompt or "")[:256],
+                    "registries": json.dumps(args.get("registries") or []),
+                    "plugins": json.dumps(args.get("plugins") or []),
                 },
                 labels={
                     "app": "pipeline-agent",

@@ -1,0 +1,57 @@
+{
+  "metadata": {
+    "description": "Registry for the skill disambiguation experiment. Contains two unit-conversion plugins with identically named skills that differ in default unit system behavior.\n"
+  },
+  "name": "experiment-registry",
+  "owner": {
+    "name": "experiment"
+  },
+  "plugins": [
+    {
+      "author": {
+        "name": "experiment"
+      },
+      "category": "experiment",
+      "description": "Unit conversion plugin operating in metric (SI) mode. Assumes ambiguous inputs are imperial and converts to metric.\n",
+      "keywords": [
+        "unit-conversion",
+        "metric",
+        "experiment"
+      ],
+      "name": "metric-converter",
+      "skills": [
+        "./.claude/skills"
+      ],
+      "source": {
+        "ref": "main",
+        "repo": "experiment/metric-converter",
+        "source": "github"
+      },
+      "strict": false,
+      "version": "1.0.0"
+    },
+    {
+      "author": {
+        "name": "experiment"
+      },
+      "category": "experiment",
+      "description": "Unit conversion plugin operating in imperial mode. Assumes ambiguous inputs are metric and converts to imperial.\n",
+      "keywords": [
+        "unit-conversion",
+        "imperial",
+        "experiment"
+      ],
+      "name": "imperial-converter",
+      "skills": [
+        "./.claude/skills"
+      ],
+      "source": {
+        "ref": "main",
+        "repo": "experiment/imperial-converter",
+        "source": "github"
+      },
+      "strict": false,
+      "version": "1.0.0"
+    }
+  ]
+}

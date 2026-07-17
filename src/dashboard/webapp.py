@@ -806,6 +806,16 @@ def create_app() -> Flask:
           "args": { ... }
         }
 
+        POST body (raw prompt with custom plugins):
+        {
+          "args": {
+            "prompt": "/unit-convert Convert 100 degrees",
+            "registries": ["github.local/experiment/experiment-registry@main"],
+            "plugins": ["metric-converter", "imperial-converter"],
+            "model": "opus"
+          }
+        }
+
         Returns:
         {
           "job_name": "bug-completeness-rhoaieng-37036-opus-1234",
@@ -834,6 +844,21 @@ def create_app() -> Flask:
             model = args.get("model", "opus")
             runner = args.get("runner", "cli")
             harness = args.get("harness", "claude-code")
+            prompt = args.get("prompt")
+
+            # Validate new optional fields
+            registries = args.get("registries")
+            if registries is not None:
+                if not isinstance(registries, list) or not all(isinstance(r, str) for r in registries):
+                    return jsonify({"error": "registries must be a list of strings"}), 400
+
+            plugins = args.get("plugins")
+            if plugins is not None:
+                if not isinstance(plugins, list) or not all(isinstance(p, str) for p in plugins):
+                    return jsonify({"error": "plugins must be a list of strings"}), 400
+
+            if prompt is not None and (not isinstance(prompt, str) or not prompt.strip()):
+                return jsonify({"error": "prompt must be a non-empty string"}), 400
 
             if args.get("skill_load_mode") not in (None, "auto", "plugin", "skill"):
                 return jsonify({"error": f"Invalid skill_load_mode: {args['skill_load_mode']}. Must be auto, plugin, or skill"}), 400
@@ -848,8 +873,10 @@ def create_app() -> Flask:
                 if parsed:
                     fqn = phase
                     phase = parsed["skill"]
+            elif prompt:
+                phase = "prompt"
             else:
-                return jsonify({"error": "Missing required field: command or fqn"}), 400
+                return jsonify({"error": "Missing required field: command, fqn, or prompt"}), 400
 
             orchestrator = get_orchestrator()
             job = orchestrator.submit_phase_job(

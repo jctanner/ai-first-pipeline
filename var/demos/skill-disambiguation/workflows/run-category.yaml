@@ -1,0 +1,19 @@
+# ====================================================================
+# Run Category
+# ====================================================================
+#
+# Runs all prompts in a single test battery category, each repeated
+# trials_per_prompt times.
+
+name: run-category
+description: "Run all prompts in a category"
+
+steps:
+
+  - name: run_prompts
+    for_each: "{{ category_prompts }}"
+    as: prompt_text
+    concurrency: 1
+    workflow: run-trials
+    vars:
+      trial_prompt: "{{ prompt_text }}"

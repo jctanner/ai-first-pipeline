@@ -1,0 +1,109 @@
+# ====================================================================
+# Import Repos
+# ====================================================================
+#
+# Creates the three experiment repos on github.local and pushes their
+# scaffold content from the demo files/ directory.
+
+name: import-repos
+description: "Create and populate experiment repos on github.local"
+
+steps:
+
+  - name: push_metric_converter
+    type: shell_exec
+    params:
+      command: |
+        set -euo pipefail
+        REPO_DIR=$(mktemp -d)
+        trap 'rm -rf "$REPO_DIR"' EXIT
+
+        # Create the repo on github.local
+        curl -skS -X POST \
+          -H "Authorization: token {{ github_api_token }}" \
+          -H "Content-Type: application/json" \
+          "{{ github_base }}/api/v3/orgs/{{ org }}/repos" \
+          -d '{"name":"metric-converter","auto_init":true,"description":"Unit conversion plugin (metric/SI mode)"}'
+
+        sleep 1
+
+        # Clone, overlay scaffold, push
+        GIT_SSL_NO_VERIFY=true git clone \
+          "https://x-access-token:{{ github_api_token }}@github-emulator.ai-pipeline.svc.cluster.local/{{ org }}/metric-converter.git" \
+          "$REPO_DIR"
+        cp -a /app/var/demos/skill-disambiguation/files/metric-converter/. "$REPO_DIR/"
+        cd "$REPO_DIR"
+        git config user.name "Experiment Setup"
+        git config user.email "experiment@ai-pipeline.local"
+        git add -A
+        git commit -m "Initial metric-converter plugin scaffold"
+        GIT_SSL_NO_VERIFY=true git push origin main
+
+  - name: settle_metric
+    type: shell_exec
+    params:
+      command: sleep 2
+
+  - name: push_imperial_converter
+    type: shell_exec
+    params:
+      command: |
+        set -euo pipefail
+        REPO_DIR=$(mktemp -d)
+        trap 'rm -rf "$REPO_DIR"' EXIT
+
+        curl -skS -X POST \
+          -H "Authorization: token {{ github_api_token }}" \
+          -H "Content-Type: application/json" \
+          "{{ github_base }}/api/v3/orgs/{{ org }}/repos" \
+          -d '{"name":"imperial-converter","auto_init":true,"description":"Unit conversion plugin (imperial mode)"}'
+
+        sleep 1
+
+        GIT_SSL_NO_VERIFY=true git clone \
+          "https://x-access-token:{{ github_api_token }}@github-emulator.ai-pipeline.svc.cluster.local/{{ org }}/imperial-converter.git" \
+          "$REPO_DIR"
+        cp -a /app/var/demos/skill-disambiguation/files/imperial-converter/. "$REPO_DIR/"
+        cd "$REPO_DIR"
+        git config user.name "Experiment Setup"
+        git config user.email "experiment@ai-pipeline.local"
+        git add -A
+        git commit -m "Initial imperial-converter plugin scaffold"
+        GIT_SSL_NO_VERIFY=true git push origin main
+
+  - name: settle_imperial
+    type: shell_exec
+    params:
+      command: sleep 2
+
+  - name: push_experiment_registry
+    type: shell_exec
+    params:
+      command: |
+        set -euo pipefail
+        REPO_DIR=$(mktemp -d)
+        trap 'rm -rf "$REPO_DIR"' EXIT
+
+        curl -skS -X POST \
+          -H "Authorization: token {{ github_api_token }}" \
+          -H "Content-Type: application/json" \
+          "{{ github_base }}/api/v3/orgs/{{ org }}/repos" \
+          -d '{"name":"{{ registry_repo }}","auto_init":true,"description":"Plugin registry for skill disambiguation experiment"}'
+
+        sleep 1
+
+        GIT_SSL_NO_VERIFY=true git clone \
+          "https://x-access-token:{{ github_api_token }}@github-emulator.ai-pipeline.svc.cluster.local/{{ org }}/{{ registry_repo }}.git" \
+          "$REPO_DIR"
+        cp -a /app/var/demos/skill-disambiguation/files/experiment-registry/. "$REPO_DIR/"
+        cd "$REPO_DIR"
+        git config user.name "Experiment Setup"
+        git config user.email "experiment@ai-pipeline.local"
+        git add -A
+        git commit -m "Initial experiment registry with metric and imperial converter plugins"
+        GIT_SSL_NO_VERIFY=true git push origin main
+
+  - name: settle_registry
+    type: shell_exec
+    params:
+      command: sleep 2

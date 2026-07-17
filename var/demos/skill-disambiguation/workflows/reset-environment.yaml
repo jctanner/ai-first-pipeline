@@ -1,0 +1,61 @@
+# ====================================================================
+# Reset Environment
+# ====================================================================
+#
+# Bootstraps an admin token, ensures the experiment org exists, and
+# deletes any previous experiment repos so import-repos starts clean.
+
+name: reset-environment
+description: "Bootstrap experiment org and wipe previous repos"
+
+steps:
+
+  - name: bootstrap_token
+    type: github_admin_api
+    params:
+      path: /tokens
+      method: POST
+      body:
+        login: admin
+        name: disambiguation-reset
+    register: token_result
+
+  - name: set_auth
+    type: set_fact
+    vars:
+      github_api_token: "{{ token_result.body.token }}"
+
+  - name: ensure_org
+    type: github_api
+    params:
+      path: /orgs
+      method: POST
+      body:
+        login: "{{ org }}"
+      ignore_status: [422, 409]
+
+  - name: delete_metric_converter
+    type: github_api
+    params:
+      path: /repos/{{ org }}/metric-converter
+      method: DELETE
+      ignore_status: [404]
+
+  - name: delete_imperial_converter
+    type: github_api
+    params:
+      path: /repos/{{ org }}/imperial-converter
+      method: DELETE
+      ignore_status: [404]
+
+  - name: delete_experiment_registry
+    type: github_api
+    params:
+      path: /repos/{{ org }}/{{ registry_repo }}
+      method: DELETE
+      ignore_status: [404]
+
+  - name: settle_deletes
+    type: shell_exec
+    params:
+      command: sleep 2

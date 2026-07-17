@@ -1,9 +1,45 @@
 if (K8S_AVAILABLE) {
-  // FQN toggle logic
-  let fqnMode = false;
+  // Skill / FQN / Prompt mode toggle
+  let inputMode = 'skill'; // 'skill' | 'fqn' | 'prompt'
   const toggleBtn = document.getElementById('toggle-fqn');
+  const togglePromptBtn = document.getElementById('toggle-prompt');
   const skillSelect = document.getElementById('skill');
   const fqnInput = document.getElementById('skill-fqn');
+  const promptInput = document.getElementById('skill-prompt');
+  const pluginFields = document.getElementById('plugin-fields');
+
+  const togglePluginsBtn = document.getElementById('toggle-plugins');
+  let pluginsVisible = false;
+
+  function setInputMode(mode) {
+    inputMode = mode;
+    skillSelect.style.visibility = mode === 'skill' ? '' : 'hidden';
+    if (mode !== 'skill') skillSelect.value = '';
+    fqnInput.style.display = mode === 'fqn' ? '' : 'none';
+    if (mode !== 'fqn') fqnInput.value = '';
+    promptInput.style.display = mode === 'prompt' ? '' : 'none';
+    if (mode !== 'prompt') promptInput.value = '';
+    toggleBtn.style.display = mode === 'fqn' ? 'none' : '';
+    togglePromptBtn.style.display = mode === 'prompt' ? 'none' : '';
+    if (mode === 'skill') {
+      toggleBtn.textContent = 'or enter FQN...';
+      togglePromptBtn.textContent = 'or enter prompt...';
+    } else if (mode === 'fqn') {
+      togglePromptBtn.textContent = 'or enter prompt...';
+    } else if (mode === 'prompt') {
+      toggleBtn.textContent = 'or enter FQN...';
+    }
+  }
+
+  function setPluginsVisible(show) {
+    pluginsVisible = show;
+    pluginFields.style.display = show ? '' : 'none';
+    togglePluginsBtn.textContent = show ? '- registries/plugins' : '+ registries/plugins';
+  }
+
+  togglePluginsBtn.addEventListener('click', () => {
+    setPluginsVisible(!pluginsVisible);
+  });
 
   // Harness-dependent model options
   const HARNESS_MODELS = {
@@ -48,18 +84,20 @@ if (K8S_AVAILABLE) {
   });
 
   toggleBtn.addEventListener('click', () => {
-    fqnMode = !fqnMode;
-    if (fqnMode) {
-      skillSelect.style.visibility = 'hidden';
-      skillSelect.value = '';
-      fqnInput.style.display = '';
+    if (inputMode === 'skill') {
+      setInputMode('fqn');
       fqnInput.focus();
-      toggleBtn.textContent = 'or select registered skill...';
     } else {
-      fqnInput.style.display = 'none';
-      fqnInput.value = '';
-      skillSelect.style.visibility = '';
-      toggleBtn.textContent = 'or enter FQN...';
+      setInputMode('skill');
+    }
+  });
+
+  togglePromptBtn.addEventListener('click', () => {
+    if (inputMode !== 'prompt') {
+      setInputMode('prompt');
+      promptInput.focus();
+    } else {
+      setInputMode('skill');
     }
   });
 
@@ -68,6 +106,7 @@ if (K8S_AVAILABLE) {
     e.preventDefault();
     const skill = document.getElementById('skill').value;
     const fqn = document.getElementById('skill-fqn').value.trim();
+    const prompt = document.getElementById('skill-prompt').value.trim();
     const issueRaw = document.getElementById('issue').value.trim();
     const issue = issueRaw ? issueRaw.toUpperCase() : '';
     const model = document.getElementById('model').value;
@@ -75,8 +114,8 @@ if (K8S_AVAILABLE) {
     const harness = document.getElementById('harness').value;
     const statusDiv = document.getElementById('submit-status');
 
-    if (!skill && !fqn) {
-      statusDiv.innerHTML = '<strong style="color: #e74c3c;">✗ Error:</strong> Select a skill or enter an FQN';
+    if (!skill && !fqn && !prompt) {
+      statusDiv.innerHTML = '<strong style="color: #e74c3c;">✗ Error:</strong> Select a skill, enter an FQN, or enter a prompt';
       return;
     }
 
@@ -101,7 +140,24 @@ if (K8S_AVAILABLE) {
       if (!document.getElementById('enable-otel').checked) args.otel = false;
       if (!document.getElementById('enable-api-dump').checked) args.api_dump = false;
 
-      const body = fqn ? { fqn, args } : { command: skill, args };
+      const registriesVal = document.getElementById('registries').value.trim();
+      if (registriesVal) {
+        args.registries = registriesVal.split(/\n+/).map(s => s.trim()).filter(Boolean);
+      }
+      const pluginsVal = document.getElementById('plugins').value.trim();
+      if (pluginsVal) {
+        args.plugins = pluginsVal.split(/\n+/).map(s => s.trim()).filter(Boolean);
+      }
+      if (prompt) args.prompt = prompt;
+
+      let body;
+      if (prompt) {
+        body = { args };
+      } else if (fqn) {
+        body = { fqn, args };
+      } else {
+        body = { command: skill, args };
+      }
       const response = await fetch('/api/jobs/submit', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -113,6 +169,8 @@ if (K8S_AVAILABLE) {
       if (response.ok) {
         statusDiv.innerHTML = '<strong style="color: #27ae60;">✓ Job submitted:</strong> ' + data.job_name;
         document.getElementById('submit-form').reset();
+        setInputMode('skill');
+        setPluginsVisible(false);
         document.getElementById('harness').value = 'claude-code';
         document.getElementById('harness').dispatchEvent(new Event('change'));
         await refreshJobs();
@@ -252,10 +310,39 @@ if (K8S_AVAILABLE) {
         }
       }
 
+      const promptRow = document.getElementById('modal-prompt-row');
+      if (job.prompt) {
+        document.getElementById('modal-prompt').textContent = job.prompt;
+        promptRow.style.display = '';
+      } else {
+        promptRow.style.display = 'none';
+      }
+
+      const regsRow = document.getElementById('modal-registries-row');
+      const regs = job.registries ? (typeof job.registries === 'string' ? JSON.parse(job.registries) : job.registries) : [];
+      if (regs.length) {
+        document.getElementById('modal-registries').textContent = regs.join(', ');
+        regsRow.style.display = '';
+      } else {
+        regsRow.style.display = 'none';
+      }
+
+      const plugsRow = document.getElementById('modal-plugins-row');
+      const plugs = job.plugins ? (typeof job.plugins === 'string' ? JSON.parse(job.plugins) : job.plugins) : [];
+      if (plugs.length) {
+        document.getElementById('modal-plugins').textContent = plugs.join(', ');
+        plugsRow.style.display = '';
+      } else {
+        plugsRow.style.display = 'none';
+      }
+
       // Store job opts for re-run
       window._rerunOpts = {
         phase: job.phase,
         fqn: job.fqn || '',
+        prompt: job.prompt || '',
+        registries: regs,
+        plugins: plugs,
         issue: job.issue,
         model: job.model,
         runner: job.runner || 'cli',
@@ -272,7 +359,7 @@ if (K8S_AVAILABLE) {
       // Action buttons
       const actionsEl = document.getElementById('modal-actions');
       let btns = '';
-      btns += `<button class="btn-rerun" onclick="modalRerun(window._rerunOpts.phase, window._rerunOpts.issue, window._rerunOpts.model, window._rerunOpts.runner, {fqn: window._rerunOpts.fqn, harness: window._rerunOpts.harness, extra_kwargs: window._rerunOpts.extra_kwargs, extra_env: window._rerunOpts.extra_env, force: window._rerunOpts.force, strace: window._rerunOpts.strace, mlflow: window._rerunOpts.mlflow, otel: window._rerunOpts.otel, api_dump: window._rerunOpts.api_dump})">Re-run</button>`;
+      btns += `<button class="btn-rerun" onclick="modalRerun(window._rerunOpts)">Re-run</button>`;
       if (job.status === 'running' || job.status === 'pending') {
         btns += `<button class="btn-stop" onclick="modalStop('${jobName}')">Stop</button>`;
       }
@@ -328,7 +415,7 @@ if (K8S_AVAILABLE) {
           // Update actions (remove Stop button)
           const actionsEl = document.getElementById('modal-actions');
           let btns = '';
-          btns += `<button class="btn-rerun" onclick="modalRerun(window._rerunOpts.phase, window._rerunOpts.issue, window._rerunOpts.model, window._rerunOpts.runner, {fqn: window._rerunOpts.fqn, harness: window._rerunOpts.harness, extra_kwargs: window._rerunOpts.extra_kwargs, extra_env: window._rerunOpts.extra_env, force: window._rerunOpts.force, strace: window._rerunOpts.strace, mlflow: window._rerunOpts.mlflow, otel: window._rerunOpts.otel, api_dump: window._rerunOpts.api_dump})">Re-run</button>`;
+          btns += `<button class="btn-rerun" onclick="modalRerun(window._rerunOpts)">Re-run</button>`;
           btns += `<button class="btn-delete" onclick="modalDelete('${jobName}')">Delete</button>`;
           actionsEl.innerHTML = btns;
 
@@ -390,10 +477,10 @@ if (K8S_AVAILABLE) {
     }
   }
 
-  async function modalRerun(phase, issue, model, runner, opts) {
+  async function modalRerun(opts) {
     opts = opts || {};
-    const args = { model, runner, harness: opts.harness || 'claude-code' };
-    if (issue && issue !== 'all') args.issue = issue.toUpperCase();
+    const args = { model: opts.model, runner: opts.runner, harness: opts.harness || 'claude-code' };
+    if (opts.issue && opts.issue !== 'all') args.issue = opts.issue.toUpperCase();
     if (opts.extra_kwargs) args.extra_kwargs = opts.extra_kwargs;
     if (opts.extra_env && Object.keys(opts.extra_env).length) args.extra_env = opts.extra_env;
     if (opts.force) args.force = true;
@@ -401,8 +488,18 @@ if (K8S_AVAILABLE) {
     if (opts.mlflow === false) args.mlflow = false;
     if (opts.otel === false) args.otel = false;
     if (opts.api_dump === false) args.api_dump = false;
+    if (opts.registries && opts.registries.length) args.registries = opts.registries;
+    if (opts.plugins && opts.plugins.length) args.plugins = opts.plugins;
+    if (opts.prompt) args.prompt = opts.prompt;
 
-    const body = opts.fqn ? { fqn: opts.fqn, args } : { command: phase, args };
+    let body;
+    if (opts.prompt) {
+      body = { args };
+    } else if (opts.fqn) {
+      body = { fqn: opts.fqn, args };
+    } else {
+      body = { command: opts.phase, args };
+    }
 
     try {
       const res = await fetch('/api/jobs/submit', {

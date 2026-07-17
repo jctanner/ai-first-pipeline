@@ -1,0 +1,14 @@
+github_base: https://github-emulator.ai-pipeline.svc.cluster.local
+dashboard_base: http://pipeline-dashboard.ai-pipeline.svc.cluster.local:5000
+mlflow_base: http://mlflow.ai-pipeline.svc.cluster.local:5000
+github_api_token: "ghp_admin_default_token"
+
+org: experiment
+model: "claude-sonnet-4-20250514"
+runner: cli
+harness: claude-code
+
+registry_repo: experiment-registry
+registry_ref: main
+
+trials_per_prompt: 10

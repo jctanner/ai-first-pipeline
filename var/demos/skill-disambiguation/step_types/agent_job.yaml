@@ -1,0 +1,19 @@
+agent_job:
+  base: http_request
+  description: "Run a pipeline-agent skill via the dashboard API"
+  params:
+    base_url: "{{ dashboard_base }}"
+    path: /api/jobs/submit
+    method: POST
+    headers:
+      Accept: "application/json"
+  defaults:
+    body:
+      args:
+        model: "{{ model }}"
+        runner: "{{ runner }}"
+        harness: "{{ harness }}"
+        strace: true
+        mlflow: true
+        otel: true
+        api_dump: true

@@ -1,0 +1,20 @@
+# ====================================================================
+# Run Trials
+# ====================================================================
+#
+# Runs a single prompt N times (trials_per_prompt), each as an
+# isolated K8s job with both experiment plugins installed.
+
+name: run-trials
+description: "Run a single prompt for the configured number of trials"
+
+steps:
+
+  - name: run_trial
+    for_each: "{{ range(trials_per_prompt | int) | list }}"
+    as: trial_index
+    concurrency: 1
+    workflow: run-single-trial
+    vars:
+      trial_prompt: "{{ trial_prompt }}"
+      trial_number: "{{ trial_index }}"
