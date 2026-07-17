@@ -49,6 +49,7 @@ steps:
         cd "$REPO_DIR"
         git config user.name "Experiment Setup"
         git config user.email "experiment@ai-pipeline.local"
+        git checkout -B main
         git add -A
         git commit -m "Initial metric-converter plugin scaffold"
         GIT_SSL_NO_VERIFY=true git push origin main
@@ -81,6 +82,7 @@ steps:
         cd "$REPO_DIR"
         git config user.name "Experiment Setup"
         git config user.email "experiment@ai-pipeline.local"
+        git checkout -B main
         git add -A
         git commit -m "Initial imperial-converter plugin scaffold"
         GIT_SSL_NO_VERIFY=true git push origin main
@@ -113,6 +115,7 @@ steps:
         cd "$REPO_DIR"
         git config user.name "Experiment Setup"
         git config user.email "experiment@ai-pipeline.local"
+        git checkout -B main
         git add -A
         git commit -m "Initial experiment registry with metric and imperial converter plugins"
         GIT_SSL_NO_VERIFY=true git push origin main
