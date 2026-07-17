@@ -22,6 +22,10 @@ steps:
     description: "Push plugin repos and registry to github.local"
     workflow: import-repos
 
+  - name: preflight
+    description: "Smoke-test each skill invocation pattern before the full battery"
+    workflow: preflight
+
   - name: run_battery
     description: "Run the test battery across all prompt categories"
     workflow: run-battery

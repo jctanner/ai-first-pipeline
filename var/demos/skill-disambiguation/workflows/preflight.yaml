@@ -1,0 +1,93 @@
+# ====================================================================
+# Preflight
+# ====================================================================
+#
+# Quick smoke test: submit one job per invocation pattern to verify
+# skill routing before running the full battery.
+#
+#   /unit-convert                        (bare skill name)
+#   /metric-converter:unit-convert       (qualified — metric plugin)
+#   /imperial-converter:unit-convert     (qualified — imperial plugin)
+
+name: preflight
+description: "Smoke-test each skill invocation pattern"
+
+steps:
+
+  - name: submit_bare
+    type: agent_job
+    params:
+      body:
+        args:
+          prompt: "/unit-convert Convert 5 miles to kilometers"
+          registries:
+            - "github.local/{{ org }}/{{ registry_repo }}@{{ registry_ref }}"
+          plugins:
+            - metric-converter
+            - imperial-converter
+          model: "{{ model }}"
+          runner: "{{ runner }}"
+          harness: "{{ harness }}"
+          strace: false
+          mlflow: false
+          otel: true
+          api_dump: false
+    register: job_bare
+
+  - name: submit_qualified_metric
+    type: agent_job
+    params:
+      body:
+        args:
+          prompt: "/metric-converter:unit-convert Convert 5 miles to kilometers"
+          registries:
+            - "github.local/{{ org }}/{{ registry_repo }}@{{ registry_ref }}"
+          plugins:
+            - metric-converter
+            - imperial-converter
+          model: "{{ model }}"
+          runner: "{{ runner }}"
+          harness: "{{ harness }}"
+          strace: false
+          mlflow: false
+          otel: true
+          api_dump: false
+    register: job_qualified_metric
+
+  - name: submit_qualified_imperial
+    type: agent_job
+    params:
+      body:
+        args:
+          prompt: "/imperial-converter:unit-convert Convert 5 miles to kilometers"
+          registries:
+            - "github.local/{{ org }}/{{ registry_repo }}@{{ registry_ref }}"
+          plugins:
+            - metric-converter
+            - imperial-converter
+          model: "{{ model }}"
+          runner: "{{ runner }}"
+          harness: "{{ harness }}"
+          strace: false
+          mlflow: false
+          otel: true
+          api_dump: false
+    register: job_qualified_imperial
+
+  - name: wait_bare
+    type: agent_job_wait
+    params:
+      job_name: "{{ job_bare.body.job_name }}"
+    register: result_bare
+
+  - name: wait_qualified_metric
+    type: agent_job_wait
+    params:
+      job_name: "{{ job_qualified_metric.body.job_name }}"
+    register: result_qualified_metric
+
+  - name: wait_qualified_imperial
+    type: agent_job_wait
+    params:
+      job_name: "{{ job_qualified_imperial.body.job_name }}"
+    register: result_qualified_imperial
