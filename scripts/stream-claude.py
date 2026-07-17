@@ -40,6 +40,7 @@ last_block_type = None
 tool_name = None
 tool_json = ""
 _line_buf = ""
+_saw_stream_events = False
 _total_input_tokens = 0
 _total_output_tokens = 0
 _total_cache_read = 0
@@ -247,13 +248,54 @@ while True:
                     sys.exit(0)
         continue
 
+    # --print mode sends a single "assistant" message with the full response
+    # instead of streaming content_block deltas. Skip if we already streamed.
+    if msg_type == "assistant":
+        end_block()
+        if _saw_stream_events:
+            continue
+        content = msg.get("message", {}).get("content", [])
+        for block in content:
+            if not isinstance(block, dict):
+                continue
+            if block.get("type") == "text":
+                text = block.get("text", "")
+                if text:
+                    type_break("text")
+                    print(f"{CLAUDE_COLOR}\U0001f4ac Claude {text}{RESET}", flush=True)
+            elif block.get("type") == "tool_use":
+                name = block.get("name", "unknown")
+                params = block.get("input", {})
+                summary = _format_tool(name, params)
+                type_break("tool")
+                if summary:
+                    icon = "\U0001f916" if name == "Agent" else "\U0001f527"
+                    print(f"  {TOOL_COLOR}{icon} {name} {summary}{RESET}", flush=True)
+                else:
+                    print(f"  {TOOL_COLOR}\U0001f527 {name}{RESET}", flush=True)
+        usage = msg.get("message", {}).get("usage", {})
+        if usage:
+            inp = usage.get("input_tokens", 0)
+            out = usage.get("output_tokens", 0)
+            cr = usage.get("cache_read_input_tokens", 0)
+            cw = usage.get("cache_creation_input_tokens", 0)
+            total = inp + out + cr + cw
+            print(f"{TOOL_COLOR}  \U0001f4ca TOKENS in={inp} out={out} "
+                  f"cache_r={cr} cache_w={cw} total={total}{RESET}", flush=True)
+        continue
+
     if msg_type == "result":
         end_block()
+        result_text = msg.get("result", "")
+        if result_text and last_block_type != "text":
+            type_break("text")
+            print(f"{CLAUDE_COLOR}\U0001f4ac Claude {result_text}{RESET}", flush=True)
         break
 
     if msg_type != "stream_event":
         continue
 
+    _saw_stream_events = True
     event = msg.get("event", {})
     event_type = event.get("type")
 
