@@ -92,11 +92,25 @@ $CLI --server https://other-markovd.example.test \
 MARKOVD_URL=https://other-markovd.example.test $CLI projects list
 ```
 
-## Sync a Project
+## Validate a Workflow Locally
 
-Sync the project before importing changed workflow files:
+Before committing, validate the workflow directory with the local `markov` CLI
+(not `markovd-cli`):
 
 ```bash
+deploy/repos/markov/bin/markov validate var/demos/my-workflow
+```
+
+This catches missing required files (e.g. `rules.yaml`), YAML syntax errors, and
+invalid step type references without needing a server round-trip.
+
+## Sync a Project
+
+Syncing pulls the latest **pushed** commit from the remote. Commits that are
+only local are not visible to the server — you must `git push` before syncing:
+
+```bash
+git push
 $CLI projects sync ai-first-pipeline --wait
 ```
 
