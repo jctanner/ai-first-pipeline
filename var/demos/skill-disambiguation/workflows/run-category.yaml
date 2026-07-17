@@ -11,7 +11,7 @@ description: "Run all prompts in a category"
 steps:
 
   - name: run_prompts
-    for_each: "{{ category_prompts }}"
+    for_each: category_prompts
     as: prompt_text
     concurrency: 1
     workflow: run-trials

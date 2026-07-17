@@ -11,7 +11,7 @@ description: "Run a single prompt for the configured number of trials"
 steps:
 
   - name: run_trial
-    for_each: "{{ range(trials_per_prompt | int) | list }}"
+    for_each: trial_indices
     as: trial_index
     concurrency: 1
     workflow: run-single-trial

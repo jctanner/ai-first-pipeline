@@ -11,7 +11,7 @@ description: "Run all test battery prompts with the configured number of trials"
 steps:
 
   - name: run_categories
-    for_each: "{{ battery }}"
+    for_each: battery
     as: category
     concurrency: 1
     workflow: run-category
