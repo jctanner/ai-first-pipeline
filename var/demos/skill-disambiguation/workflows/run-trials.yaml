@@ -13,7 +13,7 @@ steps:
   - name: run_trial
     for_each: trial_indices
     as: trial_index
-    concurrency: 1
+    concurrency: 5
     workflow: run-single-trial
     vars:
       trial_prompt: "{{ trial_prompt }}"
