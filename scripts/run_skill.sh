@@ -239,6 +239,28 @@ if [ ${#PLUGINS[@]} -gt 0 ]; then
     echo "  Installing plugin: $PLUG"
     claude plugin install "$PLUG" || true
   done
+
+  # Enable plugins in project-level settings so Claude discovers them
+  # when running from /app (user-level enabledPlugins may be ignored)
+  echo "  Enabling plugins in project settings..."
+  python3 -c "
+import json, os
+settings_file = '/app/.claude/settings.local.json'
+settings = {}
+if os.path.exists(settings_file):
+    with open(settings_file) as f:
+        settings = json.load(f)
+ep = settings.setdefault('enabledPlugins', {})
+installed_file = os.path.expanduser('~/.claude/plugins/installed_plugins.json')
+if os.path.exists(installed_file):
+    with open(installed_file) as f:
+        installed = json.load(f)
+    for key in installed.get('plugins', {}):
+        ep[key] = True
+        print(f'    Enabled: {key}')
+with open(settings_file, 'w') as f:
+    json.dump(settings, f, indent=2)
+"
 fi
 
 # Install only the plugin needed for the current skill
