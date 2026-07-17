@@ -480,6 +480,22 @@ if [ "${FQN_LOAD_MODE_RESOLVED:-}" = "plugin" ] && [ -n "${FQN_PLUGIN_DIR:-}" ];
   PLUGIN_ARGS=(--plugin-dir "$FQN_PLUGIN_DIR")
 fi
 
+# Also pass --plugin-dir for each installed plugin so Claude discovers them
+# (the marketplace install + enabledPlugins path doesn't work in --print mode)
+if [ -d ~/.claude/plugins/cache ]; then
+  for CACHE_ROOT in ~/.claude/plugins/cache/*/; do
+    for PLUGIN_BASE in "$CACHE_ROOT"*/; do
+      for VERSION_DIR in "$PLUGIN_BASE"*/; do
+        VERSION_DIR="${VERSION_DIR%/}"
+        if [ -d "$VERSION_DIR" ] && [ -f "$VERSION_DIR/.claude-plugin/plugin.json" ]; then
+          echo "  --plugin-dir $VERSION_DIR"
+          PLUGIN_ARGS+=(--plugin-dir "$VERSION_DIR")
+        fi
+      done
+    done
+  done
+fi
+
 echo "Resolved skill load mode: ${FQN_LOAD_MODE_RESOLVED:-skill}"
 
 # Debug: Show what we're about to run
