@@ -6,8 +6,9 @@ Runs:
 - `markov-run-77f785b1` — marketplace fix
 - `markov-run-cc197efe` — reversed order + no-plugin-dir (verified)
 - `markov-run-30e9421a` — reversed install order + no-plugin-dir (verified)
-- `tmp/claude-code-binary-analysis/2.1.214/traces/local-manifest-state-v5`
-  — isolated settings/marketplace/install-order controls (verified)
+- Run 6 (local binary analysis, Claude Code 2.1.214)
+  — isolated settings/marketplace/install-order controls (verified;
+  evidence under gitignored `tmp/claude-code-binary-analysis/`)
 - `markov-run-76e9545f` — swap-order isolation controls (360 trials)
 
 Date: 2026-07-17 / 2026-07-18
@@ -120,7 +121,7 @@ ordering on the normal discovery path.
 | unambiguous-no-plugin-dir-metric-first | none | metric-first | metric-converter | 30/30 |
 | ambiguous-no-plugin-dir-metric-first | none | metric-first | metric-converter | 30/30 |
 
-### Run 6 — exact-binary installed-order controls (verified)
+### Run 6 — exact-binary installed-order controls (Claude Code 2.1.214, verified)
 
 Credential-free local controls ran the exact Claude Code 2.1.214 binary with
 a fresh `CLAUDE_CONFIG_DIR` and a loopback-only API recorder. Plugin names were
@@ -140,7 +141,7 @@ selected fixture content. A separate strace rerun retained the final commands
 and interleaved filesystem accesses without treating syscall gaps as proof of
 logical serialization.
 
-### Run 7 — swap-order isolation controls (360 trials, verified)
+### Run 7 — swap-order isolation controls (Claude Code 2.1.212, 360 trials, verified)
 
 Same 10 baseline categories as Run 5, plus two new controls that
 isolate `enabledPlugins` key order from `installed_plugins.json`
@@ -172,24 +173,20 @@ reversed file), and no `--plugin-dir` arguments were present.
 | unambiguous-swap-enabled-order | none | enabledPlugins reversed | imperial-converter | 30/30 |
 | unambiguous-swap-installed-order | none | installed_plugins.json reversed | imperial-converter | 30/30 |
 
-**Key finding:** Neither reversal changed the winner. Imperial-converter
-won 30/30 in both controls, despite metric-converter appearing first in
-the reversed file. This contradicts the Run 6 local binary analysis which
-found `enabledPlugins` key order to be the proximate source. The
-discrepancy may stem from:
+**Key finding:** Neither reversal changed the winner. This agrees with the
+exact settings merge once the settings scopes are included. `plugin install`
+first wrote imperial then metric into user-level `settings.json`. The runner
+then copied those IDs into project-local `settings.local.json` and reversed
+only that higher-layer object. Deep merge overwrote the existing values but,
+under JavaScript object insertion semantics, did not move the key slots first
+created by the lower user layer. The effective merged order therefore remained
+imperial then metric. Reversing `installed_plugins.json` separately also had no
+effect, as predicted by the exact loader.
 
-1. **Plugin cache directory order** — `~/.claude/plugins/cache/` filesystem
-   directory ordering may control plugin load order independently of both
-   JSON files. The cache is populated at `claude plugin install` time.
-2. **In-memory state** — Claude Code may internally cache plugin order
-   during the `claude plugin install` calls and not re-read either JSON
-   file when resolving skills at `claude --print` time.
-3. **Version difference** — The container image may run a different Claude
-   Code version than the 2.1.214 binary used in Run 6.
-
-This result maps to the "imperial wins / imperial wins" cell in the
-decision table from the TODO plan: "Neither file controls; some third
-source."
+Run 7 is not a reversal of the effective merged `enabledPlugins` insertion
+order. To reverse that order, the lower-layer keys must be removed/reordered or
+the controlled IDs must first appear only in the reversed layer. Run 6 used a
+single isolated settings layer and exercised that discriminating condition.
 
 ## What the data supports
 
@@ -198,12 +195,12 @@ controls in Run 6:
 
 1. **Qualified invocations route correctly.** `/metric-converter:unit-convert`
    always dispatched to metric-converter, `/imperial-converter:unit-convert`
-   always dispatched to imperial-converter. 300/300 across all runs.
+   always dispatched to imperial-converter. 360/360 across all runs.
 
 2. **Unqualified `/unit-convert` is deterministic, not random.** When both
    plugins register the same skill name, Claude Code always picked one
    winner consistently. There is no round-robin, random selection, or
-   content-aware routing. 720/720 unqualified invocations across all runs.
+   content-aware routing. 1020/1020 unqualified invocations across all runs.
 
 3. **The agent does not disambiguate based on prompt content.** Ambiguous
    prompts like "Convert 100 degrees to the other system" were handled
@@ -212,28 +209,23 @@ controls in Run 6:
    would give a more useful answer.
 
 4. **`--plugin-dir` argument order determines the collision winner.** When
-   imperial-converter was the first `--plugin-dir`, imperial won 420/420.
-   When metric-converter was first, metric won 120/120. This is a pure
-   first-registration-wins model. (Runs 4 and 5, verified by pod logs.)
+   imperial-converter was the first `--plugin-dir`, imperial won 480/480.
+   When metric-converter was first, metric won 180/180. This is a pure
+   first-registration-wins model. (Runs 1–5 and 7, verified by pod logs.)
 
-5. **Normal installed-plugin discovery follows installation order, but the
-   proximate ordering source is not fully isolated.** Run 5 ruled out fixed
-   alphabetical order: reversing installation order reversed the winner.
-   Run 6 (local binary analysis) found that reversing `enabledPlugins` key
-   order reversed the winner, while reversing marketplace order did not.
-   However, Run 7 (containerized Markov run) reversed `enabledPlugins` and
-   `installed_plugins.json` independently and neither reversal changed the
-   winner. This discrepancy suggests the ordering may come from a third
-   source (e.g., plugin cache directory order or in-memory state from
-   `claude plugin install`) that was not varied in Run 7, or that the
-   container environment differs from the local binary analysis environment
-   in a way that changes the loading path.
+5. **Normal installed-plugin discovery follows effective merged
+   `enabledPlugins` insertion order.** Run 5 ruled out fixed alphabetical
+   order. Run 6 independently varied effective settings order, marketplace
+   order, installation records, and lexical order. Run 7 reversed only a
+   higher duplicate settings layer, so lower user-settings insertion slots
+   remained unchanged; its imperial winner is the expected result, not a
+   contradiction. Reversing `installed_plugins.json` had no effect.
 
 6. **The collision rule is: first plugin to register a skill name owns it
    for unqualified invocations.** With `--plugin-dir`, "first" means CLI
-   argument order. With normal discovery, "first" follows installation
-   order, though the exact internal mechanism remains under investigation
-   (see Run 7 findings).
+   argument order. With normal discovery, "first" follows effective merged
+   `enabledPlugins` insertion order. Normal installation often creates that
+   order, but later higher-layer overwrites do not move existing slots.
 
 ## Skill routing mechanism (from API body analysis)
 
@@ -435,7 +427,7 @@ plugin workflow.
   manifest conflict.
 
   The source path is `finishLoadingPluginFromPath()` in
-  `deleteme/claude-code/src/utils/plugins/pluginLoader.ts`: when a plugin has a
+  `src/utils/plugins/pluginLoader.ts` (Claude Code bundle): when a plugin has a
   manifest, `strict` is false, and the marketplace entry declares `skills` or
   another component, the loader records a `generic-error` and returns `null`.
   Session-only plugins supplied through `--plugin-dir` instead go through
@@ -492,15 +484,13 @@ SKILL.md. There is no content-aware disambiguation: the prompt "Convert
 The collision rule is **first-registration-wins**. Whichever plugin
 registers a skill name first owns that name for all unqualified
 invocations. With `--plugin-dir`, "first" is determined by CLI argument
-order (proven by reversing it — metric-converter won 120/120 when listed
-first). On the normal installed-plugin discovery path, "first" follows
-installation order — reversing which plugin is installed first reverses
-the winner (Run 5, 60/60). The exact internal ordering source is not
-fully isolated: Run 6 (local binary) attributed it to `enabledPlugins`
-key order, but Run 7 (containerized) found that reversing
-`enabledPlugins` after installation did not change the winner. A third
-source such as plugin cache directory order or in-memory install state
-may be the actual driver.
+order (proven by reversing it — metric-converter won 180/180 when listed
+first). On the normal installed-plugin discovery path, "first" follows the
+effective merged `enabledPlugins` insertion order. Run 6 isolated that order.
+Run 7 changed a higher duplicate settings layer but left the lower user layer's
+original insertion slots intact, so its unchanged winner is consistent with
+the exact merge semantics. `installed_plugins.json` is cache/install metadata,
+not the ordering producer.
 
 Qualified invocations (`/metric-converter:unit-convert`) bypass the
 collision entirely and always route correctly.
@@ -509,7 +499,10 @@ Practical implications:
 
 - **Plugin authors** who share a skill name with another plugin cannot
   rely on winning unqualified invocations — the outcome depends on load
-  order, which the end user does not control.
+  order, which plugin authors cannot control across other users'
+  environments. Users can influence it through CLI ordering or
+  installation/settings insertion order, but qualified names are the
+  reliable path.
 - **Users** who care about which plugin handles an ambiguous skill should
   use qualified names.
 - **There is no mechanism today** for Claude Code to inspect the prompt
@@ -521,8 +514,8 @@ Practical implications:
 
 - **Does CLI argument order or internal alphabetical sort determine the
   collision winner?** CLI argument order. Reversing `--plugin-dir` so
-  metric-converter appeared first caused metric-converter to win 120/120.
-  Confirmed by Runs 4 and 5 pod logs.
+  metric-converter appeared first caused metric-converter to win 180/180.
+  Confirmed by Runs 4, 5, and 7 pod logs.
 
 - **Does the collision behavior hold on the normal installed-plugin
   discovery path?** Yes — collisions are deterministic on the normal path.
@@ -531,20 +524,13 @@ Practical implications:
 
 - **What determines iteration order on the normal discovery path —
   installation order, settings order, or alphabetical plugin name?**
-  Partially resolved. Installation order controls the winner (Run 5). Run 6
-  (local binary) attributed it to `enabledPlugins` key order; Run 7
-  (containerized) contradicted this — reversing `enabledPlugins` or
-  `installed_plugins.json` after installation did not change the winner.
-  The proximate ordering source remains under investigation.
+  Effective merged `enabledPlugins` insertion order. Installation order
+  usually establishes first insertion; later higher-scope overwrites do not
+  move existing keys. Run 6 varied the effective order. Run 7 did not, because
+  its user-settings layer already contained both keys.
 
 ## Open questions
 
-- **What is the actual proximate ordering source for normal discovery?**
-  Run 7 ruled out post-install `enabledPlugins` key order and
-  `installed_plugins.json` record order. Candidates: plugin cache directory
-  order (`~/.claude/plugins/cache/`), in-memory state from
-  `claude plugin install`, or a version-specific code path difference
-  between the local binary (2.1.214) and the container image.
 - Is there a way to make Claude Code content-aware when routing unqualified
   skill names to competing plugins?
 - Would a single plugin with multiple skill variants (e.g.
