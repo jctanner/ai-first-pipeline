@@ -5,6 +5,7 @@ Runs:
 - `markov-run-f60ec749` — intended plugin-dir ordering test
 - `markov-run-77f785b1` — marketplace fix
 - `markov-run-cc197efe` — reversed order + no-plugin-dir (verified)
+- `markov-run-30e9421a` — reversed install order + no-plugin-dir (verified)
 
 Date: 2026-07-17 / 2026-07-18
 Model: `claude-sonnet-4-20250514`
@@ -88,19 +89,46 @@ Executing: claude --model claude-sonnet-4-20250514 --print "/unit-convert ..."
 | unambiguous-no-plugin-dir | none | imperial-converter | 30/30 |
 | ambiguous-no-plugin-dir | none | imperial-converter | 30/30 |
 
+### Run 5 — reversed install order + no-plugin-dir (300 trials, verified)
+
+Same battery as Run 4 plus two new categories that install
+metric-converter before imperial-converter with `--no-plugin-dir`.
+Pod logs confirm metric was installed first, no `--plugin-dir` in
+the `execve`, and metric-converter won — ruling out alphabetical
+ordering on the normal discovery path.
+
+```
+  Installing plugin: metric-converter
+  Installing plugin: imperial-converter
+  --no-plugin-dir: skipping --plugin-dir workaround, using normal plugin discovery
+  Executing: claude --model claude-sonnet-4-20250514 --print "/unit-convert ..."
+```
+
+| Category | Plugin-dir mode | Install order | Plugin used | Count |
+|----------|----------------|--------------|------------|-------|
+| unambiguous | imperial-first | imperial-first | imperial-converter | 30/30 |
+| ambiguous-unqualified | imperial-first | imperial-first | imperial-converter | 30/30 |
+| qualified-metric | imperial-first | imperial-first | metric-converter | 30/30 |
+| qualified-imperial | imperial-first | imperial-first | imperial-converter | 30/30 |
+| unambiguous-metric-first | metric-first | imperial-first | metric-converter | 30/30 |
+| ambiguous-metric-first | metric-first | imperial-first | metric-converter | 30/30 |
+| unambiguous-no-plugin-dir | none | imperial-first | imperial-converter | 30/30 |
+| ambiguous-no-plugin-dir | none | imperial-first | imperial-converter | 30/30 |
+| unambiguous-no-plugin-dir-metric-first | none | metric-first | metric-converter | 30/30 |
+| ambiguous-no-plugin-dir-metric-first | none | metric-first | metric-converter | 30/30 |
+
 ## What the data supports
 
-Across 720 trials (480 with identical conditions + 240 with verified
-variations):
+Across 1020 trials (5 runs):
 
 1. **Qualified invocations route correctly.** `/metric-converter:unit-convert`
    always dispatched to metric-converter, `/imperial-converter:unit-convert`
-   always dispatched to imperial-converter. 240/240 across all runs.
+   always dispatched to imperial-converter. 300/300 across all runs.
 
 2. **Unqualified `/unit-convert` is deterministic, not random.** When both
    plugins register the same skill name, Claude Code always picked one
    winner consistently. There is no round-robin, random selection, or
-   content-aware routing. 480/480 unqualified invocations across all runs.
+   content-aware routing. 720/720 unqualified invocations across all runs.
 
 3. **The agent does not disambiguate based on prompt content.** Ambiguous
    prompts like "Convert 100 degrees to the other system" were handled
@@ -109,24 +137,21 @@ variations):
    would give a more useful answer.
 
 4. **`--plugin-dir` argument order determines the collision winner.** When
-   imperial-converter was the first `--plugin-dir`, imperial won 360/360.
-   When metric-converter was first, metric won 60/60. This is a pure
-   first-registration-wins model. (Run 4, verified by pod logs.)
+   imperial-converter was the first `--plugin-dir`, imperial won 420/420.
+   When metric-converter was first, metric won 120/120. This is a pure
+   first-registration-wins model. (Runs 4 and 5, verified by pod logs.)
 
-5. **Normal installed-plugin discovery is deterministic under the tested
-   installation order.** Without `--plugin-dir`, imperial-converter won
-   60/60. Plugins were installed imperial-first in all no-plugin-dir
-   trials. Whether the winner is determined by installation order,
-   settings order, or alphabetical plugin name remains untested — a
-   reversed-install/no-plugin-dir combination would distinguish them.
-   (Run 4, verified by pod logs showing no `--plugin-dir` in `execve`.)
+5. **Normal installed-plugin discovery follows installation order, not
+   alphabetical order.** Without `--plugin-dir`, the first-installed plugin
+   won. Imperial-first installation → imperial won 120/120. Metric-first
+   installation → metric won 60/60. This rules out alphabetical ordering
+   as the determining factor. (Run 5, verified by pod logs showing install
+   order and no `--plugin-dir` in `execve`.)
 
 6. **The collision rule is: first plugin to register a skill name owns it
    for unqualified invocations.** With `--plugin-dir`, "first" means CLI
-   argument order. With normal discovery, "first" means whatever order
-   Claude Code iterates installed plugins — empirically the
-   alphabetically first plugin won, but installation order was also
-   alphabetical in the tested configuration.
+   argument order. With normal discovery, "first" means installation
+   order (the order in which `claude plugin install` was called).
 
 ## Skill routing mechanism (from API body analysis)
 
@@ -360,10 +385,11 @@ plugin workflow.
   and `strict: false` fields from these marketplace entries and let each
   plugin's manifest plus root `skills/` directory be authoritative. After that
   correction, the project-settings enablement and `--plugin-dir` cache-walking
-  code in `run_skill.sh` should not be necessary. Run 4 confirmed that
-  normal installed-plugin discovery works with the corrected marketplace
-  entries (no `--plugin-dir` needed). A reversed-install/no-plugin-dir
-  combination remains untested.
+  code in `run_skill.sh` should not be necessary. Runs 4 and 5 confirmed
+  that normal installed-plugin discovery works with the corrected
+  marketplace entries (no `--plugin-dir` needed). Run 5 further confirmed
+  that installation order, not alphabetical order, determines the
+  collision winner on the normal discovery path.
 
 - **`--output-format stream-json` with `--print`:** The stream parser
   (`stream-claude.py`) was only handling `stream_event` messages. In
@@ -382,11 +408,11 @@ SKILL.md. There is no content-aware disambiguation: the prompt "Convert
 The collision rule is **first-registration-wins**. Whichever plugin
 registers a skill name first owns that name for all unqualified
 invocations. With `--plugin-dir`, "first" is determined by CLI argument
-order (proven by reversing it — metric-converter won 60/60 when listed
-first). On the normal installed-plugin discovery path, the
-alphabetically first plugin won, but installation order was also
-alphabetical in the tested configuration, so the exact ordering signal
-remains ambiguous.
+order (proven by reversing it — metric-converter won 120/120 when listed
+first). On the normal installed-plugin discovery path, "first" is
+determined by installation order (proven by reversing it —
+metric-converter won 60/60 when installed first, despite sorting
+alphabetically after imperial-converter).
 
 Qualified invocations (`/metric-converter:unit-convert`) bypass the
 collision entirely and always route correctly.
@@ -407,21 +433,23 @@ Practical implications:
 
 - **Does CLI argument order or internal alphabetical sort determine the
   collision winner?** CLI argument order. Reversing `--plugin-dir` so
-  metric-converter appeared first caused metric-converter to win 60/60.
-  Confirmed by Run 4 pod logs.
+  metric-converter appeared first caused metric-converter to win 120/120.
+  Confirmed by Runs 4 and 5 pod logs.
 
 - **Does the collision behavior hold on the normal installed-plugin
   discovery path?** Yes — collisions are deterministic on the normal path.
-  Without `--plugin-dir`, imperial-converter won 60/60. However, plugins
-  were installed imperial-first in all no-plugin-dir trials, so the winner
-  could reflect installation order, settings order, or alphabetical order.
-  Confirmed by Run 4 pod logs showing no `--plugin-dir` in the `execve`.
+  Confirmed by Runs 4 and 5 pod logs showing no `--plugin-dir` in the
+  `execve`.
+
+- **What determines iteration order on the normal discovery path —
+  installation order, settings order, or alphabetical plugin name?**
+  Installation order. When metric-converter was installed first (despite
+  sorting alphabetically after imperial-converter), metric won 60/60.
+  When imperial was installed first, imperial won 120/120. Confirmed by
+  Run 5 pod logs showing install order and no `--plugin-dir`.
 
 ## Open questions
 
-- What determines iteration order on the normal installed-plugin discovery
-  path — installation order, settings order, or alphabetical plugin name?
-  (Requires a reversed-install/no-plugin-dir run.)
 - Is there a way to make Claude Code content-aware when routing unqualified
   skill names to competing plugins?
 - Would a single plugin with multiple skill variants (e.g.
