@@ -482,7 +482,29 @@ fi
 
 # Also pass --plugin-dir for each installed plugin so Claude discovers them
 # (the marketplace install + enabledPlugins path doesn't work in --print mode)
-if [ -d ~/.claude/plugins/cache ]; then
+#
+# When PLUGINS were explicitly provided, resolve them in the given order so the
+# caller controls which plugin wins unqualified name collisions.  Fall back to
+# a glob (alphabetical) when no explicit list was given.
+if [ ${#PLUGINS[@]} -gt 0 ] && [ -d ~/.claude/plugins/cache ]; then
+  for PLUG_NAME in "${PLUGINS[@]}"; do
+    FOUND=""
+    for CACHE_ROOT in ~/.claude/plugins/cache/*/; do
+      for VERSION_DIR in "$CACHE_ROOT$PLUG_NAME"/*/; do
+        VERSION_DIR="${VERSION_DIR%/}"
+        if [ -d "$VERSION_DIR" ] && [ -f "$VERSION_DIR/.claude-plugin/plugin.json" ]; then
+          echo "  --plugin-dir $VERSION_DIR"
+          PLUGIN_ARGS+=(--plugin-dir "$VERSION_DIR")
+          FOUND=1
+          break 2
+        fi
+      done
+    done
+    if [ -z "$FOUND" ]; then
+      echo "  WARNING: plugin $PLUG_NAME not found in cache"
+    fi
+  done
+elif [ -d ~/.claude/plugins/cache ]; then
   for CACHE_ROOT in ~/.claude/plugins/cache/*/; do
     for PLUGIN_BASE in "$CACHE_ROOT"*/; do
       for VERSION_DIR in "$PLUGIN_BASE"*/; do

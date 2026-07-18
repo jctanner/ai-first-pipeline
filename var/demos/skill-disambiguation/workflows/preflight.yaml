@@ -5,7 +5,8 @@
 # Quick smoke test: submit one job per invocation pattern to verify
 # skill routing before running the full battery.
 #
-#   /unit-convert                        (bare skill name)
+#   /unit-convert (imperial-first)        (bare skill name, default order)
+#   /unit-convert (metric-first)          (bare skill name, reversed order)
 #   /metric-converter:unit-convert       (qualified — metric plugin)
 #   /imperial-converter:unit-convert     (qualified — imperial plugin)
 
@@ -14,7 +15,27 @@ description: "Smoke-test each skill invocation pattern"
 
 steps:
 
-  - name: submit_bare
+  - name: submit_bare_imperial_first
+    type: agent_job
+    params:
+      body:
+        args:
+          prompt: "/unit-convert Convert 5 miles to kilometers"
+          registries:
+            - "github.local/{{ org }}/{{ registry_repo }}@{{ registry_ref }}"
+          plugins:
+            - imperial-converter
+            - metric-converter
+          model: "{{ model }}"
+          runner: "{{ runner }}"
+          harness: "{{ harness }}"
+          strace: false
+          mlflow: false
+          otel: true
+          api_dump: false
+    register: job_bare_imperial_first
+
+  - name: submit_bare_metric_first
     type: agent_job
     params:
       body:
@@ -32,7 +53,7 @@ steps:
           mlflow: false
           otel: true
           api_dump: false
-    register: job_bare
+    register: job_bare_metric_first
 
   - name: submit_qualified_metric
     type: agent_job
@@ -74,11 +95,17 @@ steps:
           api_dump: false
     register: job_qualified_imperial
 
-  - name: wait_bare
+  - name: wait_bare_imperial_first
     type: agent_job_wait
     params:
-      job_name: "{{ job_bare.body.job_name }}"
-    register: result_bare
+      job_name: "{{ job_bare_imperial_first.body.job_name }}"
+    register: result_bare_imperial_first
+
+  - name: wait_bare_metric_first
+    type: agent_job_wait
+    params:
+      job_name: "{{ job_bare_metric_first.body.job_name }}"
+    register: result_bare_metric_first
 
   - name: wait_qualified_metric
     type: agent_job_wait

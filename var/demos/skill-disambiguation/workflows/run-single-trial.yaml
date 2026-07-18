@@ -18,9 +18,7 @@ steps:
           prompt: "{{ trial_prompt }}"
           registries:
             - "github.local/{{ org }}/{{ registry_repo }}@{{ registry_ref }}"
-          plugins:
-            - metric-converter
-            - imperial-converter
+          plugins: "{{ category_plugins }}"
           model: "{{ model }}"
           runner: "{{ runner }}"
           harness: "{{ harness }}"

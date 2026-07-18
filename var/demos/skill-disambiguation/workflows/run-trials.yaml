@@ -18,3 +18,4 @@ steps:
     vars:
       trial_prompt: "{{ trial_prompt }}"
       trial_number: "{{ trial_index }}"
+      category_plugins: "{{ category_plugins }}"

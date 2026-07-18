@@ -17,25 +17,55 @@ trial_indices: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
 battery:
   - id: unambiguous
     description: "Unambiguous requests where both plugins should give identical answers"
+    plugins:
+      - imperial-converter
+      - metric-converter
     prompts:
       - "/unit-convert Convert 5 miles to kilometers"
       - "/unit-convert Convert 100 kilograms to pounds"
       - "/unit-convert What is 32 degrees Fahrenheit in Celsius?"
   - id: ambiguous-unqualified
     description: "Ambiguous requests via unqualified skill name — answer depends on which plugin runs"
+    plugins:
+      - imperial-converter
+      - metric-converter
     prompts:
       - "/unit-convert Convert 100 degrees to the other system"
       - "/unit-convert What is 212 degrees in the other temperature scale?"
       - "/unit-convert Convert 50 degrees"
   - id: qualified-metric
     description: "Qualified invocations targeting metric-converter — should always route correctly"
+    plugins:
+      - imperial-converter
+      - metric-converter
     prompts:
       - "/metric-converter:unit-convert Convert 100 degrees"
       - "/metric-converter:unit-convert Convert 50 degrees"
       - "/metric-converter:unit-convert What is 212 degrees in the other system?"
   - id: qualified-imperial
     description: "Qualified invocations targeting imperial-converter — should always route correctly"
+    plugins:
+      - imperial-converter
+      - metric-converter
     prompts:
       - "/imperial-converter:unit-convert Convert 100 degrees"
       - "/imperial-converter:unit-convert Convert 50 degrees"
       - "/imperial-converter:unit-convert What is 212 degrees in the other system?"
+  - id: unambiguous-metric-first
+    description: "Unambiguous requests with metric-converter loaded first (reversed --plugin-dir order)"
+    plugins:
+      - metric-converter
+      - imperial-converter
+    prompts:
+      - "/unit-convert Convert 5 miles to kilometers"
+      - "/unit-convert Convert 100 kilograms to pounds"
+      - "/unit-convert What is 32 degrees Fahrenheit in Celsius?"
+  - id: ambiguous-metric-first
+    description: "Ambiguous requests with metric-converter loaded first (reversed --plugin-dir order)"
+    plugins:
+      - metric-converter
+      - imperial-converter
+    prompts:
+      - "/unit-convert Convert 100 degrees to the other system"
+      - "/unit-convert What is 212 degrees in the other temperature scale?"
+      - "/unit-convert Convert 50 degrees"

@@ -17,3 +17,4 @@ steps:
     workflow: run-trials
     vars:
       trial_prompt: "{{ prompt_text }}"
+      category_plugins: "{{ category_plugins }}"
