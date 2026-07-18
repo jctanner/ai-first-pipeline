@@ -371,6 +371,38 @@ plugin workflow.
   response instead of streaming `content_block_delta` events. The parser
   needed to handle both paths.
 
+## Preliminary conclusion
+
+Skill routing in Claude Code is a CLI-level decision, not an LLM decision.
+When two plugins register the same skill name, the resolver picks a winner
+before the API request is sent — the model only ever sees one plugin's
+SKILL.md. There is no content-aware disambiguation: the prompt "Convert
+100 degrees" routes to the same plugin as "Convert 5 miles to kilometers."
+
+The collision rule is **first-registration-wins**. Whichever plugin
+registers a skill name first owns that name for all unqualified
+invocations. With `--plugin-dir`, "first" is determined by CLI argument
+order (proven by reversing it — metric-converter won 60/60 when listed
+first). On the normal installed-plugin discovery path, the
+alphabetically first plugin won, but installation order was also
+alphabetical in the tested configuration, so the exact ordering signal
+remains ambiguous.
+
+Qualified invocations (`/metric-converter:unit-convert`) bypass the
+collision entirely and always route correctly.
+
+Practical implications:
+
+- **Plugin authors** who share a skill name with another plugin cannot
+  rely on winning unqualified invocations — the outcome depends on load
+  order, which the end user does not control.
+- **Users** who care about which plugin handles an ambiguous skill should
+  use qualified names.
+- **There is no mechanism today** for Claude Code to inspect the prompt
+  and pick the more appropriate plugin. That would require a different
+  routing architecture — comparing skill descriptions or performing a
+  pre-routing LLM call.
+
 ## Resolved questions
 
 - **Does CLI argument order or internal alphabetical sort determine the

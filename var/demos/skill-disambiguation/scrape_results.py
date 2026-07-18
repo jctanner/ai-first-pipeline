@@ -20,6 +20,8 @@ CATEGORIES = [
     "ambiguous-metric-first",
     "unambiguous-no-plugin-dir",
     "ambiguous-no-plugin-dir",
+    "unambiguous-no-plugin-dir-metric-first",
+    "ambiguous-no-plugin-dir-metric-first",
 ]
 
 os.makedirs(RESULTS_DIR, exist_ok=True)
