@@ -16,6 +16,8 @@ MODEL="opus"
 FORCE=""
 RAW_PROMPT=""
 NO_PLUGIN_DIR=""
+SWAP_ENABLED_ORDER=""
+SWAP_INSTALLED_ORDER=""
 declare -a EXTRA_VARS=()
 declare -a REGISTRIES=()
 declare -a PLUGINS=()
@@ -64,6 +66,14 @@ while [[ $# -gt 0 ]]; do
       ;;
     --no-plugin-dir)
       NO_PLUGIN_DIR=1
+      shift
+      ;;
+    --swap-enabled-order)
+      SWAP_ENABLED_ORDER=1
+      shift
+      ;;
+    --swap-installed-order)
+      SWAP_INSTALLED_ORDER=1
       shift
       ;;
     *)
@@ -265,6 +275,39 @@ if os.path.exists(installed_file):
         print(f'    Enabled: {key}')
 with open(settings_file, 'w') as f:
     json.dump(settings, f, indent=2)
+"
+fi
+
+# Post-install order manipulation for discovery-order isolation experiments
+if [ -n "$SWAP_ENABLED_ORDER" ]; then
+  echo "  Reversing enabledPlugins key order..."
+  python3 -c "
+import json
+f = '/app/.claude/settings.local.json'
+with open(f) as fh:
+    s = json.load(fh)
+ep = s.get('enabledPlugins', {})
+s['enabledPlugins'] = dict(reversed(list(ep.items())))
+with open(f, 'w') as fh:
+    json.dump(s, fh, indent=2)
+for k in s['enabledPlugins']:
+    print(f'    {k}')
+"
+fi
+
+if [ -n "$SWAP_INSTALLED_ORDER" ]; then
+  echo "  Reversing installed_plugins.json record order..."
+  python3 -c "
+import json, os
+f = os.path.expanduser('~/.claude/plugins/installed_plugins.json')
+with open(f) as fh:
+    d = json.load(fh)
+plugins = d.get('plugins', {})
+d['plugins'] = dict(reversed(list(plugins.items())))
+with open(f, 'w') as fh:
+    json.dump(d, fh, indent=2)
+for k in d['plugins']:
+    print(f'    {k}')
 "
 fi
 

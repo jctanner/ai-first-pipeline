@@ -22,6 +22,8 @@ CATEGORIES = [
     "ambiguous-no-plugin-dir",
     "unambiguous-no-plugin-dir-metric-first",
     "ambiguous-no-plugin-dir-metric-first",
+    "unambiguous-swap-enabled-order",
+    "unambiguous-swap-installed-order",
 ]
 
 os.makedirs(RESULTS_DIR, exist_ok=True)

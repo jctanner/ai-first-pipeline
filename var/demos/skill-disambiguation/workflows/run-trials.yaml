@@ -20,3 +20,5 @@ steps:
       trial_number: "{{ trial_index }}"
       category_plugins: "{{ category_plugins }}"
       category_no_plugin_dir: "{{ category_no_plugin_dir }}"
+      category_swap_enabled_order: "{{ category_swap_enabled_order }}"
+      category_swap_installed_order: "{{ category_swap_installed_order }}"

@@ -302,6 +302,12 @@ class PipelineOrchestrator:
         if args.get("no_plugin_dir"):
             cmd_args.append("--no-plugin-dir")
 
+        if args.get("swap_enabled_order"):
+            cmd_args.append("--swap-enabled-order")
+
+        if args.get("swap_installed_order"):
+            cmd_args.append("--swap-installed-order")
+
         job = client.V1Job(
             api_version="batch/v1",
             kind="Job",

@@ -20,6 +20,8 @@ steps:
             - "github.local/{{ org }}/{{ registry_repo }}@{{ registry_ref }}"
           plugins: "{{ category_plugins }}"
           no_plugin_dir: "{{ category_no_plugin_dir }}"
+          swap_enabled_order: "{{ category_swap_enabled_order }}"
+          swap_installed_order: "{{ category_swap_installed_order }}"
           model: "{{ model }}"
           runner: "{{ runner }}"
           harness: "{{ harness }}"

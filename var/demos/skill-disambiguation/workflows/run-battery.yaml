@@ -20,3 +20,5 @@ steps:
       category_prompts: "{{ category.prompts }}"
       category_plugins: "{{ category.plugins }}"
       category_no_plugin_dir: "{{ category.no_plugin_dir }}"
+      category_swap_enabled_order: "{{ category.swap_enabled_order }}"
+      category_swap_installed_order: "{{ category.swap_installed_order }}"

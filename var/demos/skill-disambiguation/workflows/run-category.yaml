@@ -19,3 +19,5 @@ steps:
       trial_prompt: "{{ prompt_text }}"
       category_plugins: "{{ category_plugins }}"
       category_no_plugin_dir: "{{ category_no_plugin_dir }}"
+      category_swap_enabled_order: "{{ category_swap_enabled_order }}"
+      category_swap_installed_order: "{{ category_swap_installed_order }}"

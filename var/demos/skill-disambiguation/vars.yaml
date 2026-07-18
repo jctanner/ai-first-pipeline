@@ -21,6 +21,8 @@ battery:
       - imperial-converter
       - metric-converter
     no_plugin_dir: false
+    swap_enabled_order: false
+    swap_installed_order: false
     prompts:
       - "/unit-convert Convert 5 miles to kilometers"
       - "/unit-convert Convert 100 kilograms to pounds"
@@ -31,6 +33,8 @@ battery:
       - imperial-converter
       - metric-converter
     no_plugin_dir: false
+    swap_enabled_order: false
+    swap_installed_order: false
     prompts:
       - "/unit-convert Convert 100 degrees to the other system"
       - "/unit-convert What is 212 degrees in the other temperature scale?"
@@ -41,6 +45,8 @@ battery:
       - imperial-converter
       - metric-converter
     no_plugin_dir: false
+    swap_enabled_order: false
+    swap_installed_order: false
     prompts:
       - "/metric-converter:unit-convert Convert 100 degrees"
       - "/metric-converter:unit-convert Convert 50 degrees"
@@ -51,6 +57,8 @@ battery:
       - imperial-converter
       - metric-converter
     no_plugin_dir: false
+    swap_enabled_order: false
+    swap_installed_order: false
     prompts:
       - "/imperial-converter:unit-convert Convert 100 degrees"
       - "/imperial-converter:unit-convert Convert 50 degrees"
@@ -61,6 +69,8 @@ battery:
       - metric-converter
       - imperial-converter
     no_plugin_dir: false
+    swap_enabled_order: false
+    swap_installed_order: false
     prompts:
       - "/unit-convert Convert 5 miles to kilometers"
       - "/unit-convert Convert 100 kilograms to pounds"
@@ -71,6 +81,8 @@ battery:
       - metric-converter
       - imperial-converter
     no_plugin_dir: false
+    swap_enabled_order: false
+    swap_installed_order: false
     prompts:
       - "/unit-convert Convert 100 degrees to the other system"
       - "/unit-convert What is 212 degrees in the other temperature scale?"
@@ -81,6 +93,8 @@ battery:
       - imperial-converter
       - metric-converter
     no_plugin_dir: true
+    swap_enabled_order: false
+    swap_installed_order: false
     prompts:
       - "/unit-convert Convert 5 miles to kilometers"
       - "/unit-convert Convert 100 kilograms to pounds"
@@ -91,6 +105,8 @@ battery:
       - imperial-converter
       - metric-converter
     no_plugin_dir: true
+    swap_enabled_order: false
+    swap_installed_order: false
     prompts:
       - "/unit-convert Convert 100 degrees to the other system"
       - "/unit-convert What is 212 degrees in the other temperature scale?"
@@ -101,6 +117,8 @@ battery:
       - metric-converter
       - imperial-converter
     no_plugin_dir: true
+    swap_enabled_order: false
+    swap_installed_order: false
     prompts:
       - "/unit-convert Convert 5 miles to kilometers"
       - "/unit-convert Convert 100 kilograms to pounds"
@@ -111,7 +129,33 @@ battery:
       - metric-converter
       - imperial-converter
     no_plugin_dir: true
+    swap_enabled_order: false
+    swap_installed_order: false
     prompts:
       - "/unit-convert Convert 100 degrees to the other system"
       - "/unit-convert What is 212 degrees in the other temperature scale?"
       - "/unit-convert Convert 50 degrees"
+  - id: unambiguous-swap-enabled-order
+    description: "Control A: install imperial-first, reverse enabledPlugins only"
+    plugins:
+      - imperial-converter
+      - metric-converter
+    no_plugin_dir: true
+    swap_enabled_order: true
+    swap_installed_order: false
+    prompts:
+      - "/unit-convert Convert 5 miles to kilometers"
+      - "/unit-convert Convert 100 kilograms to pounds"
+      - "/unit-convert What is 32 degrees Fahrenheit in Celsius?"
+  - id: unambiguous-swap-installed-order
+    description: "Control B: install imperial-first, reverse installed_plugins.json only"
+    plugins:
+      - imperial-converter
+      - metric-converter
+    no_plugin_dir: true
+    swap_enabled_order: false
+    swap_installed_order: true
+    prompts:
+      - "/unit-convert Convert 5 miles to kilometers"
+      - "/unit-convert Convert 100 kilograms to pounds"
+      - "/unit-convert What is 32 degrees Fahrenheit in Celsius?"
