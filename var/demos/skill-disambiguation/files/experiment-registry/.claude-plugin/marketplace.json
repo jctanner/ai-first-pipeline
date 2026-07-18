@@ -19,15 +19,11 @@
         "experiment"
       ],
       "name": "metric-converter",
-      "skills": [
-        "./.claude/skills"
-      ],
       "source": {
         "ref": "main",
         "repo": "experiment/metric-converter",
         "source": "github"
       },
-      "strict": false,
       "version": "1.0.0"
     },
     {
@@ -42,15 +38,11 @@
         "experiment"
       ],
       "name": "imperial-converter",
-      "skills": [
-        "./.claude/skills"
-      ],
       "source": {
         "ref": "main",
         "repo": "experiment/imperial-converter",
         "source": "github"
       },
-      "strict": false,
       "version": "1.0.0"
     }
   ]
