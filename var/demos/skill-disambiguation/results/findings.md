@@ -13,7 +13,7 @@ Trials per prompt: 10
 
 ## Results
 
-All three runs used `--plugin-dir` with imperial-converter before
+Runs 1–3 used `--plugin-dir` with imperial-converter before
 metric-converter (alphabetical glob order from `run_skill.sh`). The intended
 variation in Runs 2 and 3 did not reach the container — see Provenance below.
 
@@ -141,17 +141,23 @@ Across 1020 trials (5 runs):
    When metric-converter was first, metric won 120/120. This is a pure
    first-registration-wins model. (Runs 4 and 5, verified by pod logs.)
 
-5. **Normal installed-plugin discovery follows installation order, not
-   alphabetical order.** Without `--plugin-dir`, the first-installed plugin
-   won. Imperial-first installation → imperial won 120/120. Metric-first
-   installation → metric won 60/60. This rules out alphabetical ordering
-   as the determining factor. (Run 5, verified by pod logs showing install
-   order and no `--plugin-dir` in `execve`.)
+5. **Normal installed-plugin discovery follows an order derived from
+   installation state, not alphabetical order.** Without `--plugin-dir`,
+   reversing installation order reversed the winner. Imperial-first
+   installation → imperial won 120/120. Metric-first installation →
+   metric won 60/60. This rules out fixed alphabetical ordering. However,
+   the runner changed both `installed_plugins.json` records and
+   `enabledPlugins` settings together, so the proximate ordering
+   source — installation records vs. settings iteration — has not been
+   isolated. (Run 5, verified by pod logs showing install order and no
+   `--plugin-dir` in `execve`.)
 
 6. **The collision rule is: first plugin to register a skill name owns it
    for unqualified invocations.** With `--plugin-dir`, "first" means CLI
-   argument order. With normal discovery, "first" means installation
-   order (the order in which `claude plugin install` was called).
+   argument order. With normal discovery, "first" follows an order
+   derived from installation state — the proximate source
+   (`installed_plugins.json` order vs. `enabledPlugins` key order)
+   remains unisolated.
 
 ## Skill routing mechanism (from API body analysis)
 
@@ -409,10 +415,13 @@ The collision rule is **first-registration-wins**. Whichever plugin
 registers a skill name first owns that name for all unqualified
 invocations. With `--plugin-dir`, "first" is determined by CLI argument
 order (proven by reversing it — metric-converter won 120/120 when listed
-first). On the normal installed-plugin discovery path, "first" is
-determined by installation order (proven by reversing it —
-metric-converter won 60/60 when installed first, despite sorting
-alphabetically after imperial-converter).
+first). On the normal installed-plugin discovery path, "first" follows
+an order derived from installation state: reversing installation order
+reversed the winner (metric-converter won 60/60 when installed first,
+despite sorting alphabetically after imperial-converter). The proximate
+ordering source — `installed_plugins.json` record order vs.
+`enabledPlugins` key iteration order — has not been isolated, because
+the runner changed both together.
 
 Qualified invocations (`/metric-converter:unit-convert`) bypass the
 collision entirely and always route correctly.
@@ -443,13 +452,21 @@ Practical implications:
 
 - **What determines iteration order on the normal discovery path —
   installation order, settings order, or alphabetical plugin name?**
-  Installation order. When metric-converter was installed first (despite
-  sorting alphabetically after imperial-converter), metric won 60/60.
-  When imperial was installed first, imperial won 120/120. Confirmed by
-  Run 5 pod logs showing install order and no `--plugin-dir`.
+  Partially resolved. Reversing installation order reversed the winner
+  (metric won 60/60 when installed first; imperial won 120/120 when
+  installed first), ruling out fixed alphabetical ordering. However,
+  the runner changed both `installed_plugins.json` records and
+  `enabledPlugins` settings together, so the proximate ordering source
+  has not been isolated. Confirmed by Run 5 pod logs.
 
 ## Open questions
 
+- What is the proximate ordering source on the normal discovery path —
+  `installed_plugins.json` record order or `enabledPlugins` key iteration
+  order? Discriminating controls: (1) install in a fixed order, then
+  independently reverse only `enabledPlugins` key order while leaving
+  `installed_plugins.json` unchanged; (2) reverse only the
+  installed-plugin record order.
 - Is there a way to make Claude Code content-aware when routing unqualified
   skill names to competing plugins?
 - Would a single plugin with multiple skill variants (e.g.
