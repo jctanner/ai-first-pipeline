@@ -18,3 +18,4 @@ steps:
     vars:
       trial_prompt: "{{ prompt_text }}"
       category_plugins: "{{ category_plugins }}"
+      category_no_plugin_dir: "{{ category_no_plugin_dir }}"

@@ -15,6 +15,7 @@ ISSUE_KEY=""
 MODEL="opus"
 FORCE=""
 RAW_PROMPT=""
+NO_PLUGIN_DIR=""
 declare -a EXTRA_VARS=()
 declare -a REGISTRIES=()
 declare -a PLUGINS=()
@@ -60,6 +61,10 @@ while [[ $# -gt 0 ]]; do
     --prompt)
       RAW_PROMPT="$2"
       shift 2
+      ;;
+    --no-plugin-dir)
+      NO_PLUGIN_DIR=1
+      shift
       ;;
     *)
       echo "Unknown argument: $1"
@@ -483,10 +488,15 @@ fi
 # Also pass --plugin-dir for each installed plugin so Claude discovers them
 # (the marketplace install + enabledPlugins path doesn't work in --print mode)
 #
+# When --no-plugin-dir is set, skip this entirely and rely on normal
+# installed-plugin discovery (marketplace + enabledPlugins).
+#
 # When PLUGINS were explicitly provided, resolve them in the given order so the
 # caller controls which plugin wins unqualified name collisions.  Fall back to
 # a glob (alphabetical) when no explicit list was given.
-if [ ${#PLUGINS[@]} -gt 0 ] && [ -d ~/.claude/plugins/cache ]; then
+if [ -n "$NO_PLUGIN_DIR" ]; then
+  echo "  --no-plugin-dir: skipping --plugin-dir workaround, using normal plugin discovery"
+elif [ ${#PLUGINS[@]} -gt 0 ] && [ -d ~/.claude/plugins/cache ]; then
   for PLUG_NAME in "${PLUGINS[@]}"; do
     FOUND=""
     for CACHE_ROOT in ~/.claude/plugins/cache/*/; do

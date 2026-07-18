@@ -95,6 +95,27 @@ steps:
           api_dump: false
     register: job_qualified_imperial
 
+  - name: submit_bare_no_plugin_dir
+    type: agent_job
+    params:
+      body:
+        args:
+          prompt: "/unit-convert Convert 5 miles to kilometers"
+          registries:
+            - "github.local/{{ org }}/{{ registry_repo }}@{{ registry_ref }}"
+          plugins:
+            - imperial-converter
+            - metric-converter
+          no_plugin_dir: true
+          model: "{{ model }}"
+          runner: "{{ runner }}"
+          harness: "{{ harness }}"
+          strace: false
+          mlflow: false
+          otel: true
+          api_dump: false
+    register: job_bare_no_plugin_dir
+
   - name: wait_bare_imperial_first
     type: agent_job_wait
     params:
@@ -118,3 +139,9 @@ steps:
     params:
       job_name: "{{ job_qualified_imperial.body.job_name }}"
     register: result_qualified_imperial
+
+  - name: wait_bare_no_plugin_dir
+    type: agent_job_wait
+    params:
+      job_name: "{{ job_bare_no_plugin_dir.body.job_name }}"
+    register: result_bare_no_plugin_dir

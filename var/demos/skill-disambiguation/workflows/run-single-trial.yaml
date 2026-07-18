@@ -19,6 +19,7 @@ steps:
           registries:
             - "github.local/{{ org }}/{{ registry_repo }}@{{ registry_ref }}"
           plugins: "{{ category_plugins }}"
+          no_plugin_dir: "{{ category_no_plugin_dir }}"
           model: "{{ model }}"
           runner: "{{ runner }}"
           harness: "{{ harness }}"

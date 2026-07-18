@@ -19,3 +19,4 @@ steps:
       category_id: "{{ category.id }}"
       category_prompts: "{{ category.prompts }}"
       category_plugins: "{{ category.plugins }}"
+      category_no_plugin_dir: "{{ category.no_plugin_dir | default('') }}"

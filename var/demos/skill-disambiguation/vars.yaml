@@ -69,3 +69,23 @@ battery:
       - "/unit-convert Convert 100 degrees to the other system"
       - "/unit-convert What is 212 degrees in the other temperature scale?"
       - "/unit-convert Convert 50 degrees"
+  - id: unambiguous-no-plugin-dir
+    description: "Unambiguous requests using normal installed-plugin discovery (no --plugin-dir)"
+    plugins:
+      - imperial-converter
+      - metric-converter
+    no_plugin_dir: true
+    prompts:
+      - "/unit-convert Convert 5 miles to kilometers"
+      - "/unit-convert Convert 100 kilograms to pounds"
+      - "/unit-convert What is 32 degrees Fahrenheit in Celsius?"
+  - id: ambiguous-no-plugin-dir
+    description: "Ambiguous requests using normal installed-plugin discovery (no --plugin-dir)"
+    plugins:
+      - imperial-converter
+      - metric-converter
+    no_plugin_dir: true
+    prompts:
+      - "/unit-convert Convert 100 degrees to the other system"
+      - "/unit-convert What is 212 degrees in the other temperature scale?"
+      - "/unit-convert Convert 50 degrees"

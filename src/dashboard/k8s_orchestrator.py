@@ -299,6 +299,9 @@ class PipelineOrchestrator:
         for plugin in args.get("plugins") or []:
             cmd_args.extend(["--plugin", plugin])
 
+        if args.get("no_plugin_dir"):
+            cmd_args.append("--no-plugin-dir")
+
         job = client.V1Job(
             api_version="batch/v1",
             kind="Job",

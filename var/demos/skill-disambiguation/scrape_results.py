@@ -18,6 +18,8 @@ CATEGORIES = [
     "qualified-imperial",
     "unambiguous-metric-first",
     "ambiguous-metric-first",
+    "unambiguous-no-plugin-dir",
+    "ambiguous-no-plugin-dir",
 ]
 
 os.makedirs(RESULTS_DIR, exist_ok=True)
