@@ -20,6 +20,7 @@ battery:
     plugins:
       - imperial-converter
       - metric-converter
+    no_plugin_dir: false
     prompts:
       - "/unit-convert Convert 5 miles to kilometers"
       - "/unit-convert Convert 100 kilograms to pounds"
@@ -29,6 +30,7 @@ battery:
     plugins:
       - imperial-converter
       - metric-converter
+    no_plugin_dir: false
     prompts:
       - "/unit-convert Convert 100 degrees to the other system"
       - "/unit-convert What is 212 degrees in the other temperature scale?"
@@ -38,6 +40,7 @@ battery:
     plugins:
       - imperial-converter
       - metric-converter
+    no_plugin_dir: false
     prompts:
       - "/metric-converter:unit-convert Convert 100 degrees"
       - "/metric-converter:unit-convert Convert 50 degrees"
@@ -47,6 +50,7 @@ battery:
     plugins:
       - imperial-converter
       - metric-converter
+    no_plugin_dir: false
     prompts:
       - "/imperial-converter:unit-convert Convert 100 degrees"
       - "/imperial-converter:unit-convert Convert 50 degrees"
@@ -56,6 +60,7 @@ battery:
     plugins:
       - metric-converter
       - imperial-converter
+    no_plugin_dir: false
     prompts:
       - "/unit-convert Convert 5 miles to kilometers"
       - "/unit-convert Convert 100 kilograms to pounds"
@@ -65,6 +70,7 @@ battery:
     plugins:
       - metric-converter
       - imperial-converter
+    no_plugin_dir: false
     prompts:
       - "/unit-convert Convert 100 degrees to the other system"
       - "/unit-convert What is 212 degrees in the other temperature scale?"
