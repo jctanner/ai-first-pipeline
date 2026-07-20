@@ -1,0 +1,116 @@
+{
+  "schema_version": 1,
+  "evidence_precedence": ["runtime", "exact-bundle", "old-source"],
+  "claims": [
+    {
+      "id": "primary-application-representation",
+      "claim": "The executable application bundle is the printable CommonJS span [152220936,172378272); the earlier manifest-conflict literal at 38812961 is serialized runtime/heap data.",
+      "binary": {"version": "2.1.214", "sha256": "3c029136f7c81f54ed4a38e9d52e655aad536433dbbde50519c8c31bb646ad14"},
+      "bundle": {"offsets": [[38812961, 38812986], [152220936, 172378272], [161265125, 161265150]], "anchors": ["// @bun @bytecode @bun-cjs", "has conflicting manifests", "installed_plugins.json", "<command-message>"]},
+      "old_source": {"files": [], "commit": "6a2590911df240ff5ea56aa355696cfb94d128cb"},
+      "runtime": {"runs": [], "strace_artifacts": []},
+      "verdict": "bundle-confirmed",
+      "limitations": ["The wider Bun record format was classified only as far as necessary to isolate executable application code."]
+    },
+    {
+      "id": "manifest-ownership-matrix",
+      "claim": "Conventional root skills load; dual non-strict marketplace/plugin component ownership is rejected; marketplace-only components load; custom plugin skill paths are additive; undeclared .claude/skills does not load as a plugin component.",
+      "binary": {"version": "2.1.214", "sha256": "3c029136f7c81f54ed4a38e9d52e655aad536433dbbde50519c8c31bb646ad14"},
+      "bundle": {"offsets": [[161263525, 161265429], [161133389, 161140649]], "anchors": ["has conflicting manifests", "Set strict: true in marketplace entry", "SKILL.md", "Failed to load skill from"]},
+      "old_source": {"files": ["src/utils/plugins/pluginLoader.ts", "src/utils/plugins/loadPluginCommands.ts"], "commit": "6a2590911df240ff5ea56aa355696cfb94d128cb"},
+      "runtime": {"runs": ["tmp/claude-code-binary-analysis/2.1.214/traces/local-manifest-state-strace-v4"], "strace_artifacts": ["tmp/claude-code-binary-analysis/2.1.214/traces/local-manifest-state-strace-v4/commands"]},
+      "verdict": "runtime-confirmed",
+      "limitations": ["The matrix covers skills, not every plugin component type."]
+    },
+    {
+      "id": "installed-collision-settings-order",
+      "claim": "Normal installed-plugin collision order follows merged enabledPlugins key insertion order, not marketplace order, alphabetical order, or installed_plugins.json installation record order.",
+      "binary": {"version": "2.1.214", "sha256": "3c029136f7c81f54ed4a38e9d52e655aad536433dbbde50519c8c31bb646ad14"},
+      "bundle": {"offsets": [[153505505, 153505739], [153645295, 153646523], [161255719, 161261537], [158908260, 158908383]], "anchors": ["enabledPlugins", "userSettings", "flagSettings", "policySettings", "aliases"]},
+      "old_source": {"files": ["src/utils/settings/settings.ts", "src/utils/plugins/pluginLoader.ts", "src/commands.ts"], "commit": "6a2590911df240ff5ea56aa355696cfb94d128cb"},
+      "runtime": {"runs": ["tmp/claude-code-binary-analysis/2.1.214/traces/local-manifest-state-strace-v4/installed-collision", "var/demos/skill-disambiguation/results/markov-run-76e9545f.json"], "strace_artifacts": ["tmp/claude-code-binary-analysis/2.1.214/traces/local-manifest-state-strace-v4/installed-collision"]},
+      "verdict": "runtime-confirmed",
+      "limitations": ["Policy-managed overrides were reconstructed from the bundle but not varied in this local collision matrix.", "Container Run 7 reversed only a higher duplicate settings layer; the lower user layer retained the original insertion slots, so it was not an effective-order reversal."]
+    },
+    {
+      "id": "inline-collision-cli-order",
+      "claim": "For session-only plugins, the first --plugin-dir argument wins an ambiguous unqualified skill collision; reversing only CLI argument order reverses the winner.",
+      "binary": {"version": "2.1.214", "sha256": "3c029136f7c81f54ed4a38e9d52e655aad536433dbbde50519c8c31bb646ad14"},
+      "bundle": {"offsets": [[161267252, 161270212], [161273018, 161276302], [158908260, 158908383]], "anchors": ["session-only plugins from --plugin-dir", "Loaded inline plugin from path:", "Unknown command:"]},
+      "old_source": {"files": ["src/utils/plugins/pluginLoader.ts", "src/commands.ts"], "commit": "6a2590911df240ff5ea56aa355696cfb94d128cb"},
+      "runtime": {"runs": ["tmp/claude-code-binary-analysis/2.1.214/traces/local-manifest-state-strace-v4/api-captures", "var/demos/skill-disambiguation/results/findings.md"], "strace_artifacts": ["tmp/claude-code-binary-analysis/2.1.214/traces/local-manifest-state-strace-v4/commands/14-plugin-dir-zulu-first", "tmp/claude-code-binary-analysis/2.1.214/traces/local-manifest-state-strace-v4/commands/15-plugin-dir-alpha-first"]},
+      "verdict": "runtime-confirmed",
+      "limitations": []
+    },
+    {
+      "id": "qualified-command-resolution-before-api",
+      "claim": "Qualified plugin:skill input selects that exact command; bare input uses the first array match, and the selected qualified name plus only that skill's expanded content are placed in model input before the API call.",
+      "binary": {"version": "2.1.214", "sha256": "3c029136f7c81f54ed4a38e9d52e655aad536433dbbde50519c8c31bb646ad14"},
+      "bundle": {"offsets": [[158857555, 158861730], [158908260, 158908383]], "anchors": ["Unknown command:", "Expected 'prompt' command", "command_permissions", "<command-message>"]},
+      "old_source": {"files": ["src/utils/processUserInput/processSlashCommand.tsx", "src/commands.ts"], "commit": "6a2590911df240ff5ea56aa355696cfb94d128cb"},
+      "runtime": {"runs": ["tmp/claude-code-binary-analysis/2.1.214/traces/local-manifest-state-strace-v4/api-captures", "var/demos/skill-disambiguation/results/findings.md"], "strace_artifacts": ["tmp/claude-code-binary-analysis/2.1.214/traces/local-manifest-state-strace-v4/installed-collision"]},
+      "verdict": "runtime-confirmed",
+      "limitations": ["The loopback response server intentionally retains only fixture-bearing message excerpts, not full proprietary system/tool payloads."]
+    },
+    {
+      "id": "skill-directory-sort-and-plugin-order",
+      "claim": "Each skill directory is explicitly sorted by qualified skill name after concurrent reads, but plugin-level Promise.all results preserve enabled plugin order and are flattened in that order.",
+      "binary": {"version": "2.1.214", "sha256": "3c029136f7c81f54ed4a38e9d52e655aad536433dbbde50519c8c31bb646ad14"},
+      "bundle": {"offsets": [[161133389, 161140649], [163210421, 163211349]], "anchors": ["SKILL.md", "Failed to load skill from", "Failed to load skills from directory", "getSkills returning:"]},
+      "old_source": {"files": ["src/utils/plugins/loadPluginCommands.ts", "src/commands.ts"], "commit": "6a2590911df240ff5ea56aa355696cfb94d128cb"},
+      "runtime": {"runs": [], "strace_artifacts": []},
+      "verdict": "bundle-confirmed",
+      "limitations": ["Filesystem enumeration order is neutralized within a directory, but not used to reorder plugins."]
+    },
+    {
+      "id": "plugin-loading-concurrency",
+      "claim": "Marketplace, session, and skill-folder sources are logically scheduled concurrently; per-plugin and per-path skill work also overlaps, while Promise.all/allSettled preserve input result order.",
+      "binary": {"version": "2.1.214", "sha256": "3c029136f7c81f54ed4a38e9d52e655aad536433dbbde50519c8c31bb646ad14"},
+      "bundle": {"offsets": [[161133389, 161140649], [161255719, 161261537], [161267252, 161276302]], "anchors": ["Failed to load session plugin from", "Total plugin skills loaded:", "marketplace-blocked-by-policy"]},
+      "old_source": {"files": ["src/utils/plugins/pluginLoader.ts", "src/utils/plugins/loadPluginCommands.ts"], "commit": "6a2590911df240ff5ea56aa355696cfb94d128cb"},
+      "runtime": {"runs": ["tmp/claude-code-binary-analysis/2.1.214/traces/local-manifest-state-strace-v4"], "strace_artifacts": ["tmp/claude-code-binary-analysis/2.1.214/traces/local-manifest-state-strace-v4/commands/14-plugin-dir-zulu-first", "tmp/claude-code-binary-analysis/2.1.214/traces/local-manifest-state-strace-v4/installed-collision/case-e/commands/04-case-e-ambiguous"]},
+      "verdict": "runtime-confirmed",
+      "limitations": ["Strace establishes observed interleaving only; the concurrency conclusion depends on exact Promise control flow in the bundle."]
+    },
+    {
+      "id": "initial-snapshot-after-command-discovery",
+      "claim": "Both interactive and print startup discover initial commands before starting installed snapshot synchronization; interactive does not await it, while print/headless registers cleanup that awaits completion before exit.",
+      "binary": {"version": "2.1.214", "sha256": "3c029136f7c81f54ed4a38e9d52e655aad536433dbbde50519c8c31bb646ad14"},
+      "bundle": {"offsets": [[161188680, 161196357], [171310384, 171310694], [171337614, 171347577]], "anchors": ["Syncing installed_plugins.json", "Creating installed_plugins.json", "[STARTUP] Loading commands and agents...", "action_commands_loaded", "A5f({deferToCleanup:Dt})"]},
+      "old_source": {"files": ["src/main.tsx", "src/cli/print.ts", "src/utils/plugins/headlessPluginInstall.ts", "src/utils/plugins/installedPluginsManager.ts"], "commit": "6a2590911df240ff5ea56aa355696cfb94d128cb"},
+      "runtime": {"runs": [], "strace_artifacts": []},
+      "verdict": "bundle-confirmed",
+      "limitations": ["Interactive mode was not driven through a terminal UI trial; its branch and lack of await are exact-bundle evidence."]
+    },
+    {
+      "id": "settings-cascade-order",
+      "claim": "Plugin settings merge in user, project, local, flag, policy order over plugin defaults; later values win while the first insertion position of an enabledPlugins key is retained.",
+      "binary": {"version": "2.1.214", "sha256": "3c029136f7c81f54ed4a38e9d52e655aad536433dbbde50519c8c31bb646ad14"},
+      "bundle": {"offsets": [[153505505, 153505739], [153645295, 153646523]], "anchors": ["userSettings", "projectSettings", "localSettings", "flagSettings", "policySettings", "fallbackModel"]},
+      "old_source": {"files": ["src/utils/settings/settings.ts", "src/utils/settings/pluginOnlyPolicy.ts"], "commit": "6a2590911df240ff5ea56aa355696cfb94d128cb"},
+      "runtime": {"runs": ["tmp/claude-code-binary-analysis/2.1.214/traces/local-manifest-state-strace-v4/installed-collision"], "strace_artifacts": []},
+      "verdict": "runtime-confirmed",
+      "limitations": ["The local runtime matrix directly varied the final merged object, not all five physical settings files."]
+    },
+    {
+      "id": "plugin-install-settings-first-transaction",
+      "claim": "Plugin installation writes the resolved closure to scoped enabledPlugins before materialization, rolls those proposed values back after materialization failure, then applies materialized defaultEnabled corrections and clears caches on success.",
+      "binary": {"version": "2.1.214", "sha256": "3c029136f7c81f54ed4a38e9d52e655aad536433dbbde50519c8c31bb646ad14"},
+      "bundle": {"offsets": [[161215646, 161224391], [164811776, 164815186]], "anchors": ["local-source-no-location", "settings-write-failed", "dependency-blocked-by-policy", "enabledPlugins", "Successfully installed plugin:"]},
+      "old_source": {"files": ["src/services/plugins/pluginOperations.ts", "src/utils/plugins/pluginInstallationHelpers.ts", "src/utils/plugins/installedPluginsManager.ts"], "commit": "6a2590911df240ff5ea56aa355696cfb94d128cb"},
+      "runtime": {"runs": ["tmp/claude-code-binary-analysis/2.1.214/traces/local-manifest-state-strace-v4/state", "tmp/claude-code-binary-analysis/2.1.214/traces/local-manifest-state-strace-v4/results.json"], "strace_artifacts": ["tmp/claude-code-binary-analysis/2.1.214/traces/local-manifest-state-strace-v4/commands"]},
+      "verdict": "bundle-confirmed",
+      "limitations": ["The successful local installs corroborate settings/cache registration; failure rollback is exact-bundle confirmed rather than fault-injected at runtime."]
+    },
+    {
+      "id": "old-build-training-pair-unavailable",
+      "claim": "A faithful old-source minified/unminified training pair is incomplete because the snapshot omits generated/internal modules and locked package coverage needed by its build script.",
+      "binary": {"version": "2.1.214", "sha256": "3c029136f7c81f54ed4a38e9d52e655aad536433dbbde50519c8c31bb646ad14"},
+      "bundle": {"offsets": [], "anchors": []},
+      "old_source": {"files": ["scripts/build-bundle.ts", "bun.lock", "package.json"], "commit": "6a2590911df240ff5ea56aa355696cfb94d128cb"},
+      "runtime": {"runs": [], "strace_artifacts": []},
+      "verdict": "incomplete",
+      "limitations": ["Pinned Bun 1.1.0 dependency installation succeeded in an isolated clone, but esbuild reported numerous absent generated, internal, and undeclared modules. No build options were weakened to force a misleading pair."]
+    }
+  ]
+}

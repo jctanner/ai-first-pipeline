@@ -1,0 +1,65 @@
+{
+  "schema_version": 1,
+  "recorded_at": "2026-07-18T16:15:24Z",
+  "binary": {
+    "source_path": "/home/jtanner/.local/share/claude/versions/2.1.214",
+    "version": "2.1.214 (Claude Code)",
+    "size": 265210864,
+    "mode": "755",
+    "owner": "jtanner",
+    "group": "jtanner",
+    "mtime": "2026-07-17 21:43:47.645089468 -0400",
+    "sha256": "3c029136f7c81f54ed4a38e9d52e655aad536433dbbde50519c8c31bb646ad14",
+    "elf_build_id": "788318c9115981678ca1a25f40cdb3b39df71403"
+  },
+  "bun_section": {
+    "offset": 86315008,
+    "offset_hex": "0x5251000",
+    "size": 178847228,
+    "size_hex": "0xaa8fdfc",
+    "sha256": "a94ea3ca79d28c95a009cbdbed9962e300e9c0de6118d16380bd6f46a35440f5"
+  },
+  "primary_application_representation": {
+    "start": 152220936,
+    "start_hex": "0x912b508",
+    "end_exclusive": 172378272,
+    "end_exclusive_hex": "0xa4648a0",
+    "length": 20157336,
+    "sha256": "a62b69a387ee62aa779c37242ef51aa861fb52550decf144c085853939050078",
+    "ordered_anchor_count": 7
+  },
+  "duplicate_representation_control": {
+    "anchor": "has conflicting manifests",
+    "serialized_runtime_offset": 38812961,
+    "serialized_runtime_offset_hex": "0x2503d21",
+    "primary_application_offset": 161265125,
+    "primary_application_offset_hex": "0x99cb5e5"
+  },
+  "old_source_baseline": {
+    "origin": "unofficial unlicensed snapshot; correspondence aid only",
+    "path": "deleteme/claude-code",
+    "head": "6a2590911df240ff5ea56aa355696cfb94d128cb",
+    "substantive_snapshot_commit": "b564857c",
+    "dirty": false,
+    "package_manager": "bun@1.1.0"
+  },
+  "runtime_identifiers": {
+    "bun": [
+      "Bun/1.4.0",
+      "Bun v1.4.0 (f6d0fcd24) Linux x64 (baseline)"
+    ],
+    "javascriptcore": [
+      "vendor/WebKit/Source/JavaScriptCore/runtime/JSArray.cpp",
+      "vendor/WebKit/Source/JavaScriptCore/dfg/DFGOperations.cpp"
+    ]
+  },
+  "toolchain": {
+    "file": "5.46",
+    "binutils": "2.46-3.fc44",
+    "jq": "1.8.1",
+    "git": "2.54.0",
+    "formatter": "prettier@3.6.2",
+    "fixture_bun": "1.3.14",
+    "target_runtime_identifier": "Bun v1.4.0 (f6d0fcd24) Linux x64 (baseline)"
+  }
+}

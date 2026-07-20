@@ -1,0 +1,849 @@
+{
+  "schema_version": 1,
+  "source": {
+    "dirty": [],
+    "head": "6a2590911df240ff5ea56aa355696cfb94d128cb",
+    "path": "/home/jtanner/workspace/github/jctanner.redhat/ai-first-pipeline/deleteme/claude-code"
+  },
+  "topics": [
+    {
+      "direct_calls": [
+        "loadAndCacheMarketplace",
+        "updateKnownMarketplaces",
+        "writeFile"
+      ],
+      "id": "marketplace-registration",
+      "old_source": {
+        "commit": "6a2590911df240ff5ea56aa355696cfb94d128cb",
+        "file": "src/utils/plugins/marketplaceManager.ts",
+        "function": "addMarketplaceSource",
+        "function_lines": [
+          1782
+        ]
+      },
+      "ordered_anchors": [
+        {
+          "distinctive": true,
+          "order": 0,
+          "source_lines": [
+            13,
+            103,
+            220,
+            243,
+            322,
+            354,
+            356,
+            439,
+            447,
+            456,
+            1628,
+            1639,
+            1656,
+            1774,
+            2143,
+            2422,
+            2430
+          ],
+          "text": "known_marketplaces.json"
+        },
+        {
+          "distinctive": true,
+          "order": 1,
+          "source_lines": [
+            1838
+          ],
+          "text": "Source already materialized as"
+        },
+        {
+          "distinctive": true,
+          "order": 2,
+          "source_lines": [
+            1874
+          ],
+          "text": "exists with different source"
+        },
+        {
+          "distinctive": true,
+          "order": 3,
+          "source_lines": [
+            1921
+          ],
+          "text": "Added marketplace source:"
+        },
+        {
+          "distinctive": true,
+          "order": 4,
+          "source_lines": [
+            1802,
+            1810
+          ],
+          "text": "Marketplace source '"
+        }
+      ]
+    },
+    {
+      "direct_calls": [
+        "getSettings_DEPRECATED",
+        "loadInstalledPluginsV2",
+        "Promise.all"
+      ],
+      "id": "installed-marketplace-loading",
+      "old_source": {
+        "commit": "6a2590911df240ff5ea56aa355696cfb94d128cb",
+        "file": "src/utils/plugins/pluginLoader.ts",
+        "function": "loadPluginsFromMarketplaces",
+        "function_lines": [
+          1888
+        ]
+      },
+      "ordered_anchors": [
+        {
+          "distinctive": true,
+          "order": 0,
+          "source_lines": [
+            1882,
+            1898,
+            1900,
+            1906,
+            1975,
+            3019,
+            3198,
+            3200,
+            3204,
+            3207,
+            3222
+          ],
+          "text": "enabledPlugins"
+        },
+        {
+          "distinctive": true,
+          "order": 1,
+          "source_lines": [
+            1990,
+            2010
+          ],
+          "text": "marketplace-blocked-by-policy"
+        },
+        {
+          "distinctive": true,
+          "order": 2,
+          "source_lines": [
+            1977,
+            2040
+          ],
+          "text": "plugin-not-found"
+        },
+        {
+          "distinctive": true,
+          "order": 3,
+          "source_lines": [
+            2096,
+            2118,
+            2132,
+            2157,
+            3116,
+            3134
+          ],
+          "text": "plugin-cache-miss"
+        },
+        {
+          "distinctive": true,
+          "order": 4,
+          "source_lines": [
+            2048,
+            2183,
+            2281,
+            3105,
+            3115,
+            3127
+          ],
+          "text": "installed_plugins.json"
+        }
+      ]
+    },
+    {
+      "direct_calls": [
+        "updateSettingsForSource",
+        "cacheAndRegisterPlugin",
+        "clearAllCaches"
+      ],
+      "id": "plugin-install-state-mutation",
+      "old_source": {
+        "commit": "6a2590911df240ff5ea56aa355696cfb94d128cb",
+        "file": "src/utils/plugins/pluginInstallationHelpers.ts",
+        "function": "installResolvedPlugin",
+        "function_lines": [
+          348
+        ]
+      },
+      "ordered_anchors": [
+        {
+          "distinctive": true,
+          "order": 0,
+          "source_lines": [
+            284,
+            383,
+            529
+          ],
+          "text": "local-source-no-location"
+        },
+        {
+          "distinctive": true,
+          "order": 1,
+          "source_lines": [
+            285,
+            441,
+            534
+          ],
+          "text": "settings-write-failed"
+        },
+        {
+          "distinctive": true,
+          "order": 2,
+          "source_lines": [
+            294,
+            422,
+            549
+          ],
+          "text": "dependency-blocked-by-policy"
+        },
+        {
+          "distinctive": true,
+          "order": 3,
+          "source_lines": [
+            291,
+            294,
+            366,
+            422,
+            544,
+            549
+          ],
+          "text": "blocked-by-policy"
+        },
+        {
+          "distinctive": true,
+          "order": 4,
+          "source_lines": [
+            338,
+            362,
+            433,
+            434
+          ],
+          "text": "enabledPlugins"
+        }
+      ]
+    },
+    {
+      "direct_calls": [
+        "createPluginFromPath",
+        "validatePluginPaths",
+        "Promise.all"
+      ],
+      "id": "manifest-conflict",
+      "old_source": {
+        "commit": "6a2590911df240ff5ea56aa355696cfb94d128cb",
+        "file": "src/utils/plugins/pluginLoader.ts",
+        "function": "finishLoadingPluginFromPath",
+        "function_lines": [
+          2420
+        ]
+      },
+      "ordered_anchors": [
+        {
+          "distinctive": true,
+          "order": 0,
+          "source_lines": [
+            2694,
+            2697
+          ],
+          "text": "both plugin.json and marketplace manifest entries"
+        },
+        {
+          "distinctive": true,
+          "order": 1,
+          "source_lines": [
+            2704
+          ],
+          "text": "has conflicting manifests"
+        },
+        {
+          "distinctive": true,
+          "order": 2,
+          "source_lines": [
+            2704
+          ],
+          "text": "Set strict: true in marketplace entry"
+        },
+        {
+          "distinctive": true,
+          "order": 3,
+          "source_lines": [
+            2080,
+            2220,
+            2374,
+            2702,
+            2979,
+            3037
+          ],
+          "text": "generic-error"
+        },
+        {
+          "distinctive": true,
+          "order": 4,
+          "source_lines": [
+            2605
+          ],
+          "text": "Processing ${Array.isArray(entry.skills)"
+        },
+        {
+          "distinctive": true,
+          "order": 5,
+          "source_lines": [
+            2648
+          ],
+          "text": "Found ${validPaths.length} valid skill paths"
+        }
+      ]
+    },
+    {
+      "direct_calls": [
+        "createPluginFromPath",
+        "Promise.all",
+        "flatMap"
+      ],
+      "id": "session-only-plugin-loading",
+      "old_source": {
+        "commit": "6a2590911df240ff5ea56aa355696cfb94d128cb",
+        "file": "src/utils/plugins/pluginLoader.ts",
+        "function": "loadSessionOnlyPlugins",
+        "function_lines": [
+          2928
+        ]
+      },
+      "ordered_anchors": [
+        {
+          "distinctive": true,
+          "order": 0,
+          "source_lines": [
+            2920,
+            2988
+          ],
+          "text": "session-only plugins from --plugin-dir"
+        },
+        {
+          "distinctive": true,
+          "order": 1,
+          "source_lines": [
+            2944
+          ],
+          "text": "Plugin path does not exist:"
+        },
+        {
+          "distinctive": true,
+          "order": 2,
+          "source_lines": [
+            2971
+          ],
+          "text": "Loaded inline plugin from path:"
+        },
+        {
+          "distinctive": true,
+          "order": 3,
+          "source_lines": [
+            2975
+          ],
+          "text": "Failed to load session plugin from"
+        },
+        {
+          "distinctive": true,
+          "order": 4,
+          "source_lines": [
+            2981
+          ],
+          "text": "Failed to load plugin:"
+        }
+      ]
+    },
+    {
+      "direct_calls": [
+        "readdir",
+        "readFile",
+        "createPluginCommand"
+      ],
+      "id": "skill-enumeration",
+      "old_source": {
+        "commit": "6a2590911df240ff5ea56aa355696cfb94d128cb",
+        "file": "src/utils/plugins/loadPluginCommands.ts",
+        "function": "loadSkillsFromDirectory",
+        "function_lines": [
+          687
+        ]
+      },
+      "ordered_anchors": [
+        {
+          "distinctive": false,
+          "order": 0,
+          "source_lines": [
+            51,
+            499,
+            685,
+            698,
+            699,
+            712,
+            759,
+            781,
+            783
+          ],
+          "text": "SKILL.md"
+        },
+        {
+          "distinctive": true,
+          "order": 1,
+          "source_lines": [
+            707,
+            750,
+            789,
+            830
+          ],
+          "text": "Failed to load skill from"
+        },
+        {
+          "distinctive": true,
+          "order": 2,
+          "source_lines": [
+            766
+          ],
+          "text": "Failed to load skills from directory"
+        },
+        {
+          "distinctive": true,
+          "order": 3,
+          "source_lines": [
+            856
+          ],
+          "text": "getPluginSkills: Processing"
+        },
+        {
+          "distinctive": true,
+          "order": 4,
+          "source_lines": [
+            872,
+            899
+          ],
+          "text": "Attempting to load skills from plugin"
+        },
+        {
+          "distinctive": true,
+          "order": 5,
+          "source_lines": [
+            940
+          ],
+          "text": "Total plugin skills loaded:"
+        }
+      ]
+    },
+    {
+      "direct_calls": [
+        "Promise.all",
+        "getPluginCommands",
+        "getPluginSkills"
+      ],
+      "id": "command-list-construction",
+      "old_source": {
+        "commit": "6a2590911df240ff5ea56aa355696cfb94d128cb",
+        "file": "src/commands.ts",
+        "function": "getCommands",
+        "function_lines": [
+          478
+        ]
+      },
+      "ordered_anchors": [
+        {
+          "distinctive": true,
+          "order": 0,
+          "source_lines": [
+            381
+          ],
+          "text": "getSkills returning:"
+        },
+        {
+          "distinctive": true,
+          "order": 1,
+          "source_lines": [
+            372
+          ],
+          "text": "Plugin skills failed to load"
+        },
+        {
+          "distinctive": true,
+          "order": 2,
+          "source_lines": [
+            366
+          ],
+          "text": "Skill directory commands failed to load"
+        },
+        {
+          "distinctive": true,
+          "order": 3,
+          "source_lines": [
+            710
+          ],
+          "text": "Available commands:"
+        },
+        {
+          "distinctive": true,
+          "order": 4,
+          "source_lines": [
+            357,
+            362,
+            381,
+            385,
+            395,
+            453,
+            468
+          ],
+          "text": "pluginSkills"
+        }
+      ]
+    },
+    {
+      "direct_calls": [
+        "findCommand",
+        "getPromptForCommand",
+        "addInvokedSkill"
+      ],
+      "id": "slash-command-resolution",
+      "old_source": {
+        "commit": "6a2590911df240ff5ea56aa355696cfb94d128cb",
+        "file": "src/utils/processUserInput/processSlashCommand.tsx",
+        "function": "processPromptSlashCommand",
+        "function_lines": [
+          817
+        ]
+      },
+      "ordered_anchors": [
+        {
+          "distinctive": true,
+          "order": 0,
+          "source_lines": [
+            453,
+            820
+          ],
+          "text": "Unknown command:"
+        },
+        {
+          "distinctive": true,
+          "order": 1,
+          "source_lines": [
+            817
+          ],
+          "text": "processPromptSlashCommand"
+        },
+        {
+          "distinctive": true,
+          "order": 2,
+          "source_lines": [
+            823
+          ],
+          "text": "Expected 'prompt' command"
+        },
+        {
+          "distinctive": true,
+          "order": 3,
+          "source_lines": [
+            909
+          ],
+          "text": "command_permissions"
+        },
+        {
+          "distinctive": true,
+          "order": 4,
+          "source_lines": [
+            893,
+            900
+          ],
+          "text": "skipSkillDiscovery"
+        },
+        {
+          "distinctive": true,
+          "order": 5,
+          "source_lines": [
+            839
+          ],
+          "text": "Skill \"/${command.name}\" is available for workers"
+        }
+      ]
+    },
+    {
+      "direct_calls": [
+        "migrateToSinglePluginFile",
+        "migrateFromEnabledPlugins",
+        "loadInstalledPluginsV2"
+      ],
+      "id": "installed-snapshot-initialization",
+      "old_source": {
+        "commit": "6a2590911df240ff5ea56aa355696cfb94d128cb",
+        "file": "src/utils/plugins/installedPluginsManager.ts",
+        "function": "initializeVersionedPlugins",
+        "function_lines": [
+          714
+        ]
+      },
+      "ordered_anchors": [
+        {
+          "distinctive": true,
+          "order": 0,
+          "source_lines": [
+            2,
+            5,
+            76,
+            79,
+            109,
+            110,
+            129,
+            164,
+            255,
+            310,
+            349,
+            356,
+            367,
+            718,
+            737,
+            787,
+            828,
+            1028,
+            1040,
+            1089,
+            1090,
+            1265
+          ],
+          "text": "installed_plugins.json"
+        },
+        {
+          "distinctive": true,
+          "order": 1,
+          "source_lines": [
+            1089
+          ],
+          "text": "Syncing installed_plugins.json with enabledPlugins"
+        },
+        {
+          "distinctive": true,
+          "order": 2,
+          "source_lines": [
+            1090
+          ],
+          "text": "Creating installed_plugins.json from settings.json files"
+        },
+        {
+          "distinctive": true,
+          "order": 3,
+          "source_lines": [
+            1265
+          ],
+          "text": "Sync completed:"
+        },
+        {
+          "distinctive": true,
+          "order": 4,
+          "source_lines": [
+            718,
+            827,
+            828,
+            830,
+            859,
+            861,
+            1028,
+            1033,
+            1040,
+            1045,
+            1051,
+            1054,
+            1073,
+            1089,
+            1115
+          ],
+          "text": "enabledPlugins"
+        }
+      ]
+    },
+    {
+      "direct_calls": [
+        "Set",
+        "filter",
+        "map"
+      ],
+      "id": "plugin-source-merge",
+      "old_source": {
+        "commit": "6a2590911df240ff5ea56aa355696cfb94d128cb",
+        "file": "src/utils/plugins/pluginLoader.ts",
+        "function": "mergePluginSources",
+        "function_lines": [
+          3009
+        ]
+      },
+      "ordered_anchors": [
+        {
+          "distinctive": true,
+          "order": 0,
+          "source_lines": [
+            3033
+          ],
+          "text": "from --plugin-dir is blocked by managed settings"
+        },
+        {
+          "distinctive": true,
+          "order": 1,
+          "source_lines": [
+            3051
+          ],
+          "text": "overrides installed version"
+        },
+        {
+          "distinctive": true,
+          "order": 2,
+          "source_lines": [
+            2080,
+            2220,
+            2374,
+            2702,
+            2979,
+            3037
+          ],
+          "text": "generic-error"
+        },
+        {
+          "distinctive": true,
+          "order": 3,
+          "source_lines": [
+            3019
+          ],
+          "text": "policySettings.enabledPlugins"
+        },
+        {
+          "distinctive": true,
+          "order": 4,
+          "source_lines": [
+            3057
+          ],
+          "text": "Session first, then non-overridden marketplace"
+        }
+      ]
+    },
+    {
+      "direct_calls": [
+        "loadAllPluginsCacheOnly",
+        "loadSkillsFromDirectory",
+        "Promise.all"
+      ],
+      "id": "plugin-skill-construction",
+      "old_source": {
+        "commit": "6a2590911df240ff5ea56aa355696cfb94d128cb",
+        "file": "src/utils/plugins/loadPluginCommands.ts",
+        "function": "getPluginSkills",
+        "function_lines": []
+      },
+      "ordered_anchors": [
+        {
+          "distinctive": true,
+          "order": 0,
+          "source_lines": [
+            856
+          ],
+          "text": "getPluginSkills: Processing"
+        },
+        {
+          "distinctive": true,
+          "order": 1,
+          "source_lines": [
+            872,
+            899
+          ],
+          "text": "Attempting to load skills from plugin"
+        },
+        {
+          "distinctive": true,
+          "order": 2,
+          "source_lines": [
+            886,
+            919
+          ],
+          "text": "Loaded ${skills.length} skills from plugin"
+        },
+        {
+          "distinctive": true,
+          "order": 3,
+          "source_lines": [
+            890,
+            924
+          ],
+          "text": "Failed to load skills from plugin"
+        },
+        {
+          "distinctive": true,
+          "order": 4,
+          "source_lines": [
+            940
+          ],
+          "text": "Total plugin skills loaded:"
+        }
+      ]
+    },
+    {
+      "direct_calls": [
+        "findCommand",
+        "getCommandName",
+        "sort"
+      ],
+      "id": "command-lookup",
+      "old_source": {
+        "commit": "6a2590911df240ff5ea56aa355696cfb94d128cb",
+        "file": "src/commands.ts",
+        "function": "getCommand",
+        "function_lines": [
+          478,
+          706
+        ]
+      },
+      "ordered_anchors": [
+        {
+          "distinctive": true,
+          "order": 0,
+          "source_lines": [
+            710
+          ],
+          "text": "not found. Available commands:"
+        },
+        {
+          "distinctive": false,
+          "order": 1,
+          "source_lines": [
+            713
+          ],
+          "text": "aliases: "
+        },
+        {
+          "distinctive": false,
+          "order": 2,
+          "source_lines": [
+            66,
+            70,
+            76,
+            80,
+            174,
+            190,
+            326,
+            327,
+            329,
+            330,
+            661,
+            693,
+            706,
+            710
+          ],
+          "text": "Command "
+        }
+      ]
+    }
+  ]
+}

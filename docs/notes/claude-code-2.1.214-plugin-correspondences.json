@@ -1,0 +1,170 @@
+{
+  "schema_version": 1,
+  "binary_sha256": "3c029136f7c81f54ed4a38e9d52e655aad536433dbbde50519c8c31bb646ad14",
+  "payload_sha256": "a94ea3ca79d28c95a009cbdbed9962e300e9c0de6118d16380bd6f46a35440f5",
+  "old_source_head": "6a2590911df240ff5ea56aa355696cfb94d128cb",
+  "correspondences": [
+    {
+      "topic": "marketplace registration",
+      "segments": [{"start": 161170925, "end_exclusive": 161172738, "sha256": "6912a5c396415d9413986e22a0742dfb8eccf788697ba9832bb44cce7d80da29"}],
+      "anchor_hits": [
+        {"text": "Source already materialized as", "offset": 161171643},
+        {"text": "exists with different source", "offset": 161172091},
+        {"text": "Added marketplace source:", "offset": 161172646}
+      ],
+      "old_source": {"file": "src/utils/plugins/marketplaceManager.ts", "function": "addMarketplaceSource", "line": 1782},
+      "confidence": "bundle-confirmed",
+      "differences": ["The target adds an explicit guarded cleanup check that refuses to delete outside its cache root."]
+    },
+    {
+      "topic": "settings source order and merge customizer",
+      "segments": [
+        {"start": 153505505, "end_exclusive": 153505739, "sha256": "435594225b91110869c05f85cbc19eb5a4731b1fbc49fd1f1220d0a1e0c104bf"},
+        {"start": 153645295, "end_exclusive": 153645416, "sha256": "88ed09f0d7a67826bedd9f482157a2e4d14a714e17a229d5def25e00d122dbe6"},
+        {"start": 153645416, "end_exclusive": 153646523, "sha256": "6c33561da7aa3d7b77a7aabcf9f6c4b47639627c0d9f5fbd82d8dad8e474c979"}
+      ],
+      "anchor_hits": [
+        {"text": "userSettings", "offset": 153505547},
+        {"text": "projectSettings", "offset": 153505562},
+        {"text": "localSettings", "offset": 153505580},
+        {"text": "flagSettings", "offset": 153505596},
+        {"text": "policySettings", "offset": 153505611},
+        {"text": "fallbackModel", "offset": 153645362}
+      ],
+      "old_source": {"file": "src/utils/settings/settings.ts", "function": "loadSettingsFromDisk/settingsMergeCustomizer", "line": 538},
+      "confidence": "bundle-confirmed",
+      "differences": ["The target's explicit source list includes flagSettings before policySettings; the old snapshot's nearby documentation omits flagSettings even though its implementation handles it."]
+    },
+    {
+      "topic": "installed marketplace loading",
+      "segments": [
+        {"start": 161255719, "end_exclusive": 161259815, "sha256": "fa2f2af5edd462d7b68a21e644d2b5c46b419895913a308f3bcd937876c1e9e8"},
+        {"start": 161259815, "end_exclusive": 161261537, "sha256": "69e62a78484c61557faaa25c246b934a45ddc03b9de9acd20f356655dfc85164"}
+      ],
+      "anchor_hits": [
+        {"text": "enabledPlugins", "offset": 161255794},
+        {"text": "plugin-not-found", "offset": 161256686},
+        {"text": "marketplace-blocked-by-policy", "offset": 161257556},
+        {"text": "Skipping orphaned enabledPlugins entry", "offset": 161258338},
+        {"text": "plugin-cache-miss", "offset": 161259996}
+      ],
+      "old_source": {"file": "src/utils/plugins/pluginLoader.ts", "function": "loadPluginsFromMarketplaces", "line": 1888},
+      "confidence": "bundle-confirmed",
+      "differences": ["The exact loader contains rename handling and both full and cache-only per-entry paths beyond the older snapshot's shape."]
+    },
+    {
+      "topic": "plugin install state mutation",
+      "segments": [
+        {"start": 161215646, "end_exclusive": 161224391, "sha256": "b6747549273dbd7d99dbab49240fab4ca0bc039de9e3b77849118a45e13032af", "kind": "install-resolved-helper"},
+        {"start": 164811776, "end_exclusive": 164815186, "sha256": "fcbd6fd7b9856bb0fb362b432f974ea99e58b2e2e0f44af118cbfe79438958fe", "kind": "cli-install-wrapper"}
+      ],
+      "anchor_hits": [
+        {"text": "local-source-no-location", "offset": 161216028},
+        {"text": "enabledPlugins", "offset": 161216508},
+        {"text": "dependency-blocked-by-policy", "offset": 161217178},
+        {"text": "settings-write-failed", "offset": 161218378},
+        {"text": "Successfully installed plugin:", "offset": 164815081}
+      ],
+      "old_source": {"file": "src/utils/plugins/pluginInstallationHelpers.ts", "function": "installResolvedPlugin", "line": 348},
+      "confidence": "runtime-confirmed",
+      "differences": ["2.1.214 resolves and materializes a version-aware dependency closure, writes enabledPlugins before materialization, rolls settings back after materialization failures, then applies defaultEnabled corrections and clears caches."]
+    },
+    {
+      "topic": "manifest and marketplace component merge",
+      "segments": [{"start": 161263525, "end_exclusive": 161265429, "sha256": "b333f4315b25cdccebc79e7e86285427eb2c895a22a06180f07b8808e86e30fb"}],
+      "anchor_hits": [
+        {"text": "generic-error", "offset": 161265077},
+        {"text": "has conflicting manifests", "offset": 161265125},
+        {"text": "Set strict: true in marketplace entry", "offset": 161265211}
+      ],
+      "old_source": {"file": "src/utils/plugins/pluginLoader.ts", "function": "finishLoadingPluginFromPath", "line": 2420},
+      "confidence": "runtime-confirmed",
+      "differences": ["2.1.214 also merges themes, propagates warnings, and canonicalizes manifest-less marketplace entries."]
+    },
+    {
+      "topic": "session-only plugin loading",
+      "segments": [{"start": 161267252, "end_exclusive": 161270212, "sha256": "07660075e8b98ca7815b78fd435b9ba42b8bdd7d078ea1d95f0429e53ae05032"}],
+      "anchor_hits": [
+        {"text": "Plugin path does not exist:", "offset": 161268748},
+        {"text": "Loaded inline plugin from path:", "offset": 161269639},
+        {"text": "Failed to load session plugin from", "offset": 161269783},
+        {"text": "session-only plugins from --plugin-dir", "offset": 161270133}
+      ],
+      "old_source": {"file": "src/utils/plugins/pluginLoader.ts", "function": "loadSessionOnlyPlugins", "line": 2928},
+      "confidence": "runtime-confirmed",
+      "differences": ["The target maps all CLI specifications through Promise.all, preserving argument order while overlapping path, URL, and archive work."]
+    },
+    {
+      "topic": "skill enumeration and plugin command construction",
+      "segments": [
+        {"start": 161133389, "end_exclusive": 161135003, "sha256": "1849f228fb53ae89954d77aa0558abc270c0384e4c7ac25aa2397b38244abf4e"},
+        {"start": 161135003, "end_exclusive": 161140649, "sha256": "8d8509280f3180d77d66f0812843b3053481bd32570e0b3f3e350d861303c537"}
+      ],
+      "anchor_hits": [
+        {"text": "SKILL.md", "offset": 161133450},
+        {"text": "Failed to load skill from", "offset": 161133629},
+        {"text": "Failed to load skills from directory", "offset": 161134159},
+        {"text": "SKILL.md", "offset": 161134361}
+      ],
+      "old_source": {"file": "src/utils/plugins/loadPluginCommands.ts", "function": "loadSkillsFromDirectory", "line": 687},
+      "confidence": "bundle-confirmed",
+      "differences": ["2.1.214 explicitly sorts the directory result by qualified skill name after concurrent reads."]
+    },
+    {
+      "topic": "command list construction and fallback deduplication",
+      "segments": [
+        {"start": 163210421, "end_exclusive": 163211349, "sha256": "a3d960c0f69718e8f60af00ebafec8754a9f3e38e93b43e34ab59e603c6d2870"},
+        {"start": 163214009, "end_exclusive": 163214524, "sha256": "13b6e3c4f31fc645eb69c68222c9daaf76f1cc05257bdd97c2e72452c901c887"},
+        {"start": 163220137, "end_exclusive": 163220556, "sha256": "15c2ebccbba4f87bfcdad0c258d28dab68b44290f6c1c0e3bc7b10167949fbda"}
+      ],
+      "anchor_hits": [
+        {"text": "Skill directory commands failed to load", "offset": 163210517},
+        {"text": "Plugin skills failed to load", "offset": 163210804},
+        {"text": "getSkills returning:", "offset": 163210889},
+        {"text": "Dropping fallback skill", "offset": 163214424}
+      ],
+      "old_source": {"file": "src/commands.ts", "function": "getCommands", "line": 478},
+      "confidence": "bundle-confirmed",
+      "differences": ["The target's base order is skill-directory, workflow, plugin-command, plugin-skill, bundled-skill, builtin-plugin-skill, builtin-command; this differs from the older snapshot."]
+    },
+    {
+      "topic": "slash resolution and skill expansion",
+      "segments": [
+        {"start": 158857555, "end_exclusive": 158857808, "sha256": "7131ddf51bcfb3d85130385f3acb648aed8424018728db73d20fd48d5d18f35e"},
+        {"start": 158857808, "end_exclusive": 158861730, "sha256": "31cda6a188da682ebe6e091537d97d1020c27b1681b5740505ce51f4a69f630d"},
+        {"start": 158908260, "end_exclusive": 158908337, "sha256": "f8ac29be1253556b737cd0af7579e1187d71866c52c7d486cbdc7fa4d16db016"},
+        {"start": 158908337, "end_exclusive": 158908383, "sha256": "8996df1a9b511948288ce181051661806e7ff71a7090be74de24eefb7a6462fb"}
+      ],
+      "anchor_hits": [
+        {"text": "Unknown command:", "offset": 158857623},
+        {"text": "Expected 'prompt' command", "offset": 158857711},
+        {"text": "Skill \"/", "offset": 158858135},
+        {"text": "command_permissions", "offset": 158861198}
+      ],
+      "old_source": {"file": "src/utils/processUserInput/processSlashCommand.tsx", "function": "processPromptSlashCommand", "line": 817},
+      "confidence": "runtime-confirmed",
+      "differences": ["The exact predicate compares qualified name, user-facing name, and aliases in array order; Array.find makes the first match authoritative."]
+    },
+    {
+      "topic": "installed snapshot initialization",
+      "segments": [
+        {"start": 161188680, "end_exclusive": 161188984, "sha256": "19cab76a86b4137ca14a1fde3e86452e8946223d8edc797c8aaaf94a5e49e241"},
+        {"start": 161191018, "end_exclusive": 161196357, "sha256": "30332a3b966b62f189bc810d1c01aa07b949f3e29dc928295c87b7b5db2dac48"},
+        {"start": 171310384, "end_exclusive": 171310694, "sha256": "c92942498ca96dfe6d6ae59a228d4f73f8749c3258a3c883b492b1beb9bd7496"},
+        {"start": 171337614, "end_exclusive": 171347577, "sha256": "2dc6a772787449e286a1153ca4c0b470fe32d327f26f86b66b8473d507d5c2cf", "kind": "control-flow-neighborhood"}
+      ],
+      "anchor_hits": [
+        {"text": "All plugins already exist", "offset": 161192081},
+        {"text": "Syncing installed_plugins.json", "offset": 161192143},
+        {"text": "Creating installed_plugins.json", "offset": 161192225},
+        {"text": "enabledPlugins", "offset": 161192179},
+        {"text": "[STARTUP] Loading commands and agents...", "offset": 171337614},
+        {"text": "action_commands_loaded", "offset": 171338878},
+        {"text": "A5f({deferToCleanup:Dt})", "offset": 171347550}
+      ],
+      "old_source": {"file": "src/utils/plugins/installedPluginsManager.ts", "function": "initializeVersionedPlugins", "line": 714},
+      "confidence": "bundle-confirmed",
+      "differences": ["2.1.214 begins initialization only after initial command discovery in both interactive and print startup; interactive is fire-and-forget and headless registers cleanup to await it before exit."]
+    }
+  ]
+}

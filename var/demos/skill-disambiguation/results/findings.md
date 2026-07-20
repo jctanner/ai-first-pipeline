@@ -130,6 +130,8 @@ with both qualified controls.
 
 | Case | Install record order | Marketplace order | `enabledPlugins` key order | Winner |
 |------|----------------------|-------------------|----------------------------|--------|
+| A | alpha, zulu | alpha, zulu | alpha, zulu | alpha |
+| B | zulu, alpha | alpha, zulu | zulu, alpha | zulu |
 | C | zulu, alpha | alpha, zulu | zulu, alpha | zulu |
 | D | alpha, zulu | zulu, alpha | alpha, zulu | alpha |
 | E | alpha, zulu | alpha, zulu | zulu, alpha | zulu |
@@ -144,16 +146,18 @@ logical serialization.
 ### Run 7 — swap-order isolation controls (Claude Code 2.1.212, 360 trials, verified)
 
 Same 10 baseline categories as Run 5, plus two new controls that
-isolate `enabledPlugins` key order from `installed_plugins.json`
-record order. Both controls install imperial-first, metric-second, with
+attempted to isolate `enabledPlugins` file-level key order from
+`installed_plugins.json` record order by reversing each file after
+installation. Both controls install imperial-first, metric-second, with
 `--no-plugin-dir`.
 
 - **Control A (`unambiguous-swap-enabled-order`):** After installation,
-  reversed `enabledPlugins` so metric-converter key appeared first.
-  Left `installed_plugins.json` unchanged.
+  reversed `enabledPlugins` key order in the project-local settings file
+  so metric-converter appeared first. Left `installed_plugins.json` and
+  user-level settings unchanged.
 - **Control B (`unambiguous-swap-installed-order`):** After installation,
-  reversed `installed_plugins.json` so metric-converter record appeared
-  first. Left `enabledPlugins` unchanged.
+  reversed `installed_plugins.json` record order so metric-converter
+  appeared first. Left `enabledPlugins` in both settings layers unchanged.
 
 Pod logs confirm both reversals executed (metric listed first in the
 reversed file), and no `--plugin-dir` arguments were present.
@@ -270,8 +274,7 @@ This confirms:
   plugin Claude Code's resolver selects gets its SKILL.md injected as the
   prompt context.
 
-No MLflow traces were captured — the runs (~5-7 seconds) were too short for
-the MLflow Stop hook to flush data before the container exited.
+No MLflow traces were captured; the cause was not isolated.
 
 ## Strace analysis — skill discovery internals
 
@@ -505,10 +508,98 @@ Practical implications:
   reliable path.
 - **Users** who care about which plugin handles an ambiguous skill should
   use qualified names.
-- **There is no mechanism today** for Claude Code to inspect the prompt
-  and pick the more appropriate plugin. That would require a different
-  routing architecture — comparing skill descriptions or performing a
-  pre-routing LLM call.
+- **In the tested Claude Code versions (2.1.212/2.1.214), there is no
+  mechanism** for Claude Code to inspect the prompt and pick the more
+  appropriate plugin. That would require a different routing
+  architecture — comparing skill descriptions or performing a pre-routing
+  LLM call.
+
+## Best practices for plugin developers
+
+These recommendations follow directly from the experimental findings
+(Claude Code 2.1.212/2.1.214).
+
+### Use qualified names for cross-skill references
+
+If a plugin's skills invoke each other, those references should use
+qualified names. For user-facing invocations this means
+`/my-plugin:other-skill`; for model or nested invocations it means calling
+the Skill tool with `my-plugin:other-skill`. Unqualified references are
+subject to first-registration-wins routing. In isolation the author's own
+skills always win, so the problem is invisible during development. It
+surfaces only when a user installs a second plugin that registers the same
+skill name — at which point unqualified cross-references can silently route
+to the wrong plugin depending on effective load order. This is the same
+class of problem as unqualified imports in a flat namespace.
+
+Note: the experiment directly tested user slash invocation routing. The
+recommendation for nested Skill tool calls is a defensive extension based
+on the loader analysis, not a separately demonstrated result.
+
+### Avoid skill name collisions when possible
+
+Unqualified skill names share a flat session-wide lookup namespace. Two
+plugins that register the same unqualified skill name will collide, and the
+winner for unqualified invocations is determined entirely by effective load
+order — not by prompt content, plugin quality, or user intent. Qualified
+names (`plugin:skill`) coexist without collision. If your skill name is
+generic (e.g., `unit-convert`, `summarize`, `translate`), consider a more
+specific name or expect users to need qualified invocations.
+
+### Expect that users will have multiple plugins installed
+
+A skill that works correctly in a single-plugin environment may behave
+differently when other plugins are present. Test with at least one other
+plugin installed that registers overlapping skill names, and verify that
+cross-references still resolve to your own plugin.
+
+### Use qualified names in documentation and examples
+
+If your plugin documentation shows `/unit-convert`, users will type that.
+When another plugin collides, they'll get unexpected results with no
+indication of why. Showing `/my-plugin:unit-convert` in docs makes the
+routing explicit and resilient.
+
+### Registry order has no effect on routing
+
+The marketplace/registry JSON determines where plugins are fetched from,
+not the order they are discovered. Reordering entries in `marketplace.json`
+does not change which plugin wins a collision. On the normal installed-plugin
+path, effective load order follows merged `enabledPlugins` insertion order.
+Installation typically establishes that order, but merged settings layers
+can also influence it.
+
+### Put plugin skills under root `skills/`, not `.claude/skills/`
+
+Plugins must use `skills/` at the plugin repository root. `.claude/skills/`
+is for project-local skills only. Plugins with `.claude/skills/` appear in
+the plugin list but their skills are not discovered by the loader.
+
+### Reserve `--plugin-dir` for development and testing
+
+`--plugin-dir` creates session-only plugins that bypass normal
+installed-plugin discovery. It is useful for local development and testing
+but is not part of the expected installed-plugin workflow. Normal
+marketplace registration and `plugin install` should be sufficient for
+distribution.
+
+### Verify load success after installation
+
+`plugin install` reports success when it caches and registers the plugin.
+This does not guarantee the plugin loaded successfully — conflicting
+manifests or misconfigured marketplace entries can cause silent load
+failures. After installation, run `claude plugin list` to verify the plugin
+is reported as loaded, and smoke-test at least one qualified skill
+invocation.
+
+### Let `plugin.json` be authoritative
+
+Do not declare `skills`, `commands`, or other components in both a
+marketplace entry (with `strict: false`) and a plugin repository containing
+`plugin.json`. Claude Code treats this as conflicting manifests and rejects
+the plugin at load time — even though `plugin install` reports success. Let
+the plugin's own `plugin.json` and root `skills/` directory be the single
+source of truth.
 
 ## Resolved questions
 

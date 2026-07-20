@@ -68,10 +68,11 @@ Invoke the skill with the plugin namespace and skill directory name:
 
 - `plugin.json` needs only `name` when a manifest is present. The name supplies
   the plugin namespace, such as `unit-tools`.
-- The directory below `skills/` supplies the command name, such as
+- The directory below `skills/` supplies the fallback command name, such as
   `unit-convert`.
-- The `name` field in `SKILL.md` is optional. For this layout it affects the
-  display label, not the command derived from the directory.
+- The `name` field in `SKILL.md` is optional. When present in 2.1.214 it
+  supplies the namespaced command suffix; otherwise the child-directory name
+  is used.
 - `description` is recommended for automatic model discovery but is not
   required for manual invocation.
 - `user-invocable` defaults to `true`; setting it explicitly is unnecessary.
@@ -95,15 +96,20 @@ A plugin can declare a nonstandard skill directory explicitly:
 ```
 
 Custom component paths must begin with `./` and are resolved relative to the
-plugin root. When `plugin.json` contains a `skills` property, that property is
-authoritative. The conventional top-level `skills/` layout is preferred.
+plugin root. In Claude Code 2.1.214, a `skills` path in `plugin.json` is
+additive: valid skills from both that path and the conventional top-level
+`skills/` directory are registered. The conventional layout remains the
+preferred simple form. Do not also declare the component in a `strict:false`
+marketplace entry; a plugin manifest plus non-strict marketplace component
+ownership is rejected as conflicting.
 
 ## Reloading and validation
 
-After changing the layout, restart Claude Code or run:
+After changing the layout, restart Claude Code or run the reload command
+available in the current client (2.1.214 exposes `/reload-skills`):
 
 ```text
-/reload-plugins
+/reload-skills
 ```
 
 Useful validation and debugging commands are:
@@ -118,3 +124,7 @@ References:
 - [Create plugins](https://code.claude.com/docs/en/plugins)
 - [Extend Claude with skills](https://code.claude.com/docs/en/slash-commands)
 - [Plugins reference](https://code.claude.com/docs/en/plugins-reference)
+
+The version-specific statements above are backed by the exact 2.1.214 bundle
+and the controlled cases in
+[`claude-code-2.1.214-plugin-analysis.md`](claude-code-2.1.214-plugin-analysis.md).

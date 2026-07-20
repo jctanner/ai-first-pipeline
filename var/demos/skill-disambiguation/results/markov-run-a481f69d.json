@@ -1,0 +1,3362 @@
+[
+  {
+    "run_id": "markov-run-a481f69d",
+    "job_name": "prompt-all-claude-sonnet-4-20250514-0717-222531-89f0a2",
+    "category": "unambiguous",
+    "category_index": 0,
+    "prompt_index": 0,
+    "trial": 0,
+    "prompt": "/unit-convert Convert 5 miles to kilometers",
+    "response_raw": "```json\n{\n  \"result\": \"8.05 km\",\n  \"input_value\": \"5 miles\",\n  \"from_system\": \"imperial\",\n  \"to_system\": \"metric\",\n  \"from_unit\": \"miles\",\n  \"to_unit\": \"kilometers\",\n  \"reasoning\": \"Both source and target units were explicitly specified, so no system assumption was needed.\",\n  \"plugin\": \"imperial-converter\"\n}\n```",
+    "response_json": {
+      "result": "8.05 km",
+      "input_value": "5 miles",
+      "from_system": "imperial",
+      "to_system": "metric",
+      "from_unit": "miles",
+      "to_unit": "kilometers",
+      "reasoning": "Both source and target units were explicitly specified, so no system assumption was needed.",
+      "plugin": "imperial-converter"
+    },
+    "tokens": {
+      "input": 10,
+      "output": 326,
+      "cache_read": 32453,
+      "cache_write": 0,
+      "total": 32789
+    },
+    "plugin_used": "imperial-converter"
+  },
+  {
+    "run_id": "markov-run-a481f69d",
+    "job_name": "prompt-all-claude-sonnet-4-20250514-0717-222531-2fdfea",
+    "category": "unambiguous",
+    "category_index": 0,
+    "prompt_index": 0,
+    "trial": 1,
+    "prompt": "/unit-convert Convert 5 miles to kilometers",
+    "response_raw": "```json\n{\n  \"result\": \"8.05 kilometers\",\n  \"input_value\": \"5\",\n  \"from_system\": \"imperial\",\n  \"to_system\": \"metric\", \n  \"from_unit\": \"miles\",\n  \"to_unit\": \"kilometers\",\n  \"reasoning\": \"Both source and target units were specified, so converting 5 miles to kilometers as requested.\",\n  \"plugin\": \"imperial-converter\"\n}\n```",
+    "response_json": {
+      "result": "8.05 kilometers",
+      "input_value": "5",
+      "from_system": "imperial",
+      "to_system": "metric",
+      "from_unit": "miles",
+      "to_unit": "kilometers",
+      "reasoning": "Both source and target units were specified, so converting 5 miles to kilometers as requested.",
+      "plugin": "imperial-converter"
+    },
+    "tokens": {
+      "input": 10,
+      "output": 246,
+      "cache_read": 32453,
+      "cache_write": 0,
+      "total": 32709
+    },
+    "plugin_used": "imperial-converter"
+  },
+  {
+    "run_id": "markov-run-a481f69d",
+    "job_name": "prompt-all-claude-sonnet-4-20250514-0717-222531-94548d",
+    "category": "unambiguous",
+    "category_index": 0,
+    "prompt_index": 0,
+    "trial": 2,
+    "prompt": "/unit-convert Convert 5 miles to kilometers",
+    "response_raw": "```json\n{\n  \"result\": \"8.05 kilometers\",\n  \"input_value\": \"5\",\n  \"from_system\": \"imperial\",\n  \"to_system\": \"metric\",\n  \"from_unit\": \"miles\",\n  \"to_unit\": \"kilometers\",\n  \"reasoning\": \"Converting from imperial miles to metric kilometers as explicitly requested.\",\n  \"plugin\": \"imperial-converter\"\n}\n```",
+    "response_json": {
+      "result": "8.05 kilometers",
+      "input_value": "5",
+      "from_system": "imperial",
+      "to_system": "metric",
+      "from_unit": "miles",
+      "to_unit": "kilometers",
+      "reasoning": "Converting from imperial miles to metric kilometers as explicitly requested.",
+      "plugin": "imperial-converter"
+    },
+    "tokens": {
+      "input": 10,
+      "output": 287,
+      "cache_read": 32453,
+      "cache_write": 0,
+      "total": 32750
+    },
+    "plugin_used": "imperial-converter"
+  },
+  {
+    "run_id": "markov-run-a481f69d",
+    "job_name": "prompt-all-claude-sonnet-4-20250514-0717-222531-30ba9e",
+    "category": "unambiguous",
+    "category_index": 0,
+    "prompt_index": 0,
+    "trial": 3,
+    "prompt": "/unit-convert Convert 5 miles to kilometers",
+    "response_raw": "```json\n{\n  \"result\": \"8.05 km\",\n  \"input_value\": \"5\",\n  \"from_system\": \"imperial\",\n  \"to_system\": \"metric\",\n  \"from_unit\": \"miles\",\n  \"to_unit\": \"kilometers\",\n  \"reasoning\": \"Miles are imperial units and kilometers are metric units, so converting from imperial to metric system.\",\n  \"plugin\": \"imperial-converter\"\n}\n```",
+    "response_json": {
+      "result": "8.05 km",
+      "input_value": "5",
+      "from_system": "imperial",
+      "to_system": "metric",
+      "from_unit": "miles",
+      "to_unit": "kilometers",
+      "reasoning": "Miles are imperial units and kilometers are metric units, so converting from imperial to metric system.",
+      "plugin": "imperial-converter"
+    },
+    "tokens": {
+      "input": 10,
+      "output": 304,
+      "cache_read": 32453,
+      "cache_write": 0,
+      "total": 32767
+    },
+    "plugin_used": "imperial-converter"
+  },
+  {
+    "run_id": "markov-run-a481f69d",
+    "job_name": "prompt-all-claude-sonnet-4-20250514-0717-222531-b3b831",
+    "category": "unambiguous",
+    "category_index": 0,
+    "prompt_index": 0,
+    "trial": 4,
+    "prompt": "/unit-convert Convert 5 miles to kilometers",
+    "response_raw": "```json\n{\n  \"result\": \"8.05 kilometers\",\n  \"input_value\": \"5 miles\",\n  \"from_system\": \"imperial\",\n  \"to_system\": \"metric\",\n  \"from_unit\": \"miles\",\n  \"to_unit\": \"kilometers\",\n  \"reasoning\": \"Both units were explicitly specified, no assumption needed.\",\n  \"plugin\": \"imperial-converter\"\n}\n```",
+    "response_json": {
+      "result": "8.05 kilometers",
+      "input_value": "5 miles",
+      "from_system": "imperial",
+      "to_system": "metric",
+      "from_unit": "miles",
+      "to_unit": "kilometers",
+      "reasoning": "Both units were explicitly specified, no assumption needed.",
+      "plugin": "imperial-converter"
+    },
+    "tokens": {
+      "input": 10,
+      "output": 219,
+      "cache_read": 32453,
+      "cache_write": 0,
+      "total": 32682
+    },
+    "plugin_used": "imperial-converter"
+  },
+  {
+    "run_id": "markov-run-a481f69d",
+    "job_name": "prompt-all-claude-sonnet-4-20250514-0717-222647-d44dd9",
+    "category": "unambiguous",
+    "category_index": 0,
+    "prompt_index": 0,
+    "trial": 5,
+    "prompt": "/unit-convert Convert 5 miles to kilometers",
+    "response_raw": "```json\n{\n  \"result\": \"8.05 kilometers\",\n  \"input_value\": \"5\",\n  \"from_system\": \"imperial\",\n  \"to_system\": \"metric\",\n  \"from_unit\": \"miles\",\n  \"to_unit\": \"kilometers\",\n  \"reasoning\": \"Both source and target units were explicitly specified, so no assumption was needed.\",\n  \"plugin\": \"imperial-converter\"\n}\n```",
+    "response_json": {
+      "result": "8.05 kilometers",
+      "input_value": "5",
+      "from_system": "imperial",
+      "to_system": "metric",
+      "from_unit": "miles",
+      "to_unit": "kilometers",
+      "reasoning": "Both source and target units were explicitly specified, so no assumption was needed.",
+      "plugin": "imperial-converter"
+    },
+    "tokens": {
+      "input": 10,
+      "output": 238,
+      "cache_read": 32453,
+      "cache_write": 0,
+      "total": 32701
+    },
+    "plugin_used": "imperial-converter"
+  },
+  {
+    "run_id": "markov-run-a481f69d",
+    "job_name": "prompt-all-claude-sonnet-4-20250514-0717-222647-4616ea",
+    "category": "unambiguous",
+    "category_index": 0,
+    "prompt_index": 0,
+    "trial": 6,
+    "prompt": "/unit-convert Convert 5 miles to kilometers",
+    "response_raw": "```json\n{\n  \"result\": \"8.05 kilometers\",\n  \"input_value\": \"5\",\n  \"from_system\": \"imperial\",\n  \"to_system\": \"metric\",\n  \"from_unit\": \"miles\",\n  \"to_unit\": \"kilometers\",\n  \"reasoning\": \"Both source and target units were explicitly specified, converting from imperial miles to metric kilometers.\",\n  \"plugin\": \"imperial-converter\"\n}\n```",
+    "response_json": {
+      "result": "8.05 kilometers",
+      "input_value": "5",
+      "from_system": "imperial",
+      "to_system": "metric",
+      "from_unit": "miles",
+      "to_unit": "kilometers",
+      "reasoning": "Both source and target units were explicitly specified, converting from imperial miles to metric kilometers.",
+      "plugin": "imperial-converter"
+    },
+    "tokens": {
+      "input": 10,
+      "output": 242,
+      "cache_read": 32453,
+      "cache_write": 0,
+      "total": 32705
+    },
+    "plugin_used": "imperial-converter"
+  },
+  {
+    "run_id": "markov-run-a481f69d",
+    "job_name": "prompt-all-claude-sonnet-4-20250514-0717-222657-c608ab",
+    "category": "unambiguous",
+    "category_index": 0,
+    "prompt_index": 0,
+    "trial": 7,
+    "prompt": "/unit-convert Convert 5 miles to kilometers",
+    "response_raw": "```json\n{\n  \"result\": \"8.0 kilometers\",\n  \"input_value\": \"5 miles\",\n  \"from_system\": \"imperial\",\n  \"to_system\": \"metric\",\n  \"from_unit\": \"miles\",\n  \"to_unit\": \"kilometers\",\n  \"reasoning\": \"Both units were explicitly specified so no assumption was needed.\",\n  \"plugin\": \"imperial-converter\"\n}\n```",
+    "response_json": {
+      "result": "8.0 kilometers",
+      "input_value": "5 miles",
+      "from_system": "imperial",
+      "to_system": "metric",
+      "from_unit": "miles",
+      "to_unit": "kilometers",
+      "reasoning": "Both units were explicitly specified so no assumption was needed.",
+      "plugin": "imperial-converter"
+    },
+    "tokens": {
+      "input": 10,
+      "output": 253,
+      "cache_read": 32453,
+      "cache_write": 0,
+      "total": 32716
+    },
+    "plugin_used": "imperial-converter"
+  },
+  {
+    "run_id": "markov-run-a481f69d",
+    "job_name": "prompt-all-claude-sonnet-4-20250514-0717-222657-661da2",
+    "category": "unambiguous",
+    "category_index": 0,
+    "prompt_index": 0,
+    "trial": 8,
+    "prompt": "/unit-convert Convert 5 miles to kilometers",
+    "response_raw": "```json\n{\n  \"result\": \"8.05 kilometers\",\n  \"input_value\": \"5\",\n  \"from_system\": \"imperial\",\n  \"to_system\": \"metric\",\n  \"from_unit\": \"miles\",\n  \"to_unit\": \"kilometers\",\n  \"reasoning\": \"Converting from imperial miles to metric kilometers using the standard conversion factor of 1 mile = 1.60934 kilometers\",\n  \"plugin\": \"imperial-converter\"\n}\n```",
+    "response_json": {
+      "result": "8.05 kilometers",
+      "input_value": "5",
+      "from_system": "imperial",
+      "to_system": "metric",
+      "from_unit": "miles",
+      "to_unit": "kilometers",
+      "reasoning": "Converting from imperial miles to metric kilometers using the standard conversion factor of 1 mile = 1.60934 kilometers",
+      "plugin": "imperial-converter"
+    },
+    "tokens": {
+      "input": 10,
+      "output": 312,
+      "cache_read": 32453,
+      "cache_write": 0,
+      "total": 32775
+    },
+    "plugin_used": "imperial-converter"
+  },
+  {
+    "run_id": "markov-run-a481f69d",
+    "job_name": "prompt-all-claude-sonnet-4-20250514-0717-222658-b4bb7b",
+    "category": "unambiguous",
+    "category_index": 0,
+    "prompt_index": 0,
+    "trial": 9,
+    "prompt": "/unit-convert Convert 5 miles to kilometers",
+    "response_raw": "```json\n{\n  \"result\": \"8.05 kilometers\",\n  \"input_value\": \"5\",\n  \"from_system\": \"imperial\",\n  \"to_system\": \"metric\",\n  \"from_unit\": \"miles\",\n  \"to_unit\": \"kilometers\",\n  \"reasoning\": \"Both source and target units were specified, so converted 5 miles to kilometers using the conversion factor 1 mile = 1.60934 km.\",\n  \"plugin\": \"imperial-converter\"\n}\n```",
+    "response_json": {
+      "result": "8.05 kilometers",
+      "input_value": "5",
+      "from_system": "imperial",
+      "to_system": "metric",
+      "from_unit": "miles",
+      "to_unit": "kilometers",
+      "reasoning": "Both source and target units were specified, so converted 5 miles to kilometers using the conversion factor 1 mile = 1.60934 km.",
+      "plugin": "imperial-converter"
+    },
+    "tokens": {
+      "input": 10,
+      "output": 231,
+      "cache_read": 32453,
+      "cache_write": 0,
+      "total": 32694
+    },
+    "plugin_used": "imperial-converter"
+  },
+  {
+    "run_id": "markov-run-a481f69d",
+    "job_name": "prompt-all-claude-sonnet-4-20250514-0717-222531-cf5d9d",
+    "category": "unambiguous",
+    "category_index": 0,
+    "prompt_index": 1,
+    "trial": 0,
+    "prompt": "/unit-convert Convert 100 kilograms to pounds",
+    "response_raw": "```json\n{\n  \"result\": \"220.46 pounds\",\n  \"input_value\": \"100\",\n  \"from_system\": \"metric\",\n  \"to_system\": \"imperial\",\n  \"from_unit\": \"kilograms\",\n  \"to_unit\": \"pounds\",\n  \"reasoning\": \"Converting from metric kilograms to imperial pounds as explicitly requested.\",\n  \"plugin\": \"imperial-converter\"\n}\n```",
+    "response_json": {
+      "result": "220.46 pounds",
+      "input_value": "100",
+      "from_system": "metric",
+      "to_system": "imperial",
+      "from_unit": "kilograms",
+      "to_unit": "pounds",
+      "reasoning": "Converting from metric kilograms to imperial pounds as explicitly requested.",
+      "plugin": "imperial-converter"
+    },
+    "tokens": {
+      "input": 10,
+      "output": 282,
+      "cache_read": 32457,
+      "cache_write": 0,
+      "total": 32749
+    },
+    "plugin_used": "imperial-converter"
+  },
+  {
+    "run_id": "markov-run-a481f69d",
+    "job_name": "prompt-all-claude-sonnet-4-20250514-0717-222531-54a2fd",
+    "category": "unambiguous",
+    "category_index": 0,
+    "prompt_index": 1,
+    "trial": 1,
+    "prompt": "/unit-convert Convert 100 kilograms to pounds",
+    "response_raw": "```json\n{\n  \"result\": \"220.46 pounds\",\n  \"input_value\": \"100\",\n  \"from_system\": \"metric\",\n  \"to_system\": \"imperial\",\n  \"from_unit\": \"kilograms\",\n  \"to_unit\": \"pounds\",\n  \"reasoning\": \"Both source (kilograms) and target (pounds) units were explicitly specified.\",\n  \"plugin\": \"imperial-converter\"\n}\n```",
+    "response_json": {
+      "result": "220.46 pounds",
+      "input_value": "100",
+      "from_system": "metric",
+      "to_system": "imperial",
+      "from_unit": "kilograms",
+      "to_unit": "pounds",
+      "reasoning": "Both source (kilograms) and target (pounds) units were explicitly specified.",
+      "plugin": "imperial-converter"
+    },
+    "tokens": {
+      "input": 10,
+      "output": 225,
+      "cache_read": 32457,
+      "cache_write": 0,
+      "total": 32692
+    },
+    "plugin_used": "imperial-converter"
+  },
+  {
+    "run_id": "markov-run-a481f69d",
+    "job_name": "prompt-all-claude-sonnet-4-20250514-0717-222531-edeceb",
+    "category": "unambiguous",
+    "category_index": 0,
+    "prompt_index": 1,
+    "trial": 2,
+    "prompt": "/unit-convert Convert 100 kilograms to pounds",
+    "response_raw": "```json\n{\n  \"result\": \"220.46 pounds\",\n  \"input_value\": \"100\",\n  \"from_system\": \"metric\",\n  \"to_system\": \"imperial\",\n  \"from_unit\": \"kilograms\",\n  \"to_unit\": \"pounds\",\n  \"reasoning\": \"Both source (kilograms) and target (pounds) units were specified, converting from metric to imperial system.\",\n  \"plugin\": \"imperial-converter\"\n}\n```",
+    "response_json": {
+      "result": "220.46 pounds",
+      "input_value": "100",
+      "from_system": "metric",
+      "to_system": "imperial",
+      "from_unit": "kilograms",
+      "to_unit": "pounds",
+      "reasoning": "Both source (kilograms) and target (pounds) units were specified, converting from metric to imperial system.",
+      "plugin": "imperial-converter"
+    },
+    "tokens": {
+      "input": 10,
+      "output": 339,
+      "cache_read": 32457,
+      "cache_write": 0,
+      "total": 32806
+    },
+    "plugin_used": "imperial-converter"
+  },
+  {
+    "run_id": "markov-run-a481f69d",
+    "job_name": "prompt-all-claude-sonnet-4-20250514-0717-222531-106231",
+    "category": "unambiguous",
+    "category_index": 0,
+    "prompt_index": 1,
+    "trial": 3,
+    "prompt": "/unit-convert Convert 100 kilograms to pounds",
+    "response_raw": "```json\n{\n  \"result\": \"220.46 pounds\",\n  \"input_value\": \"100\",\n  \"from_system\": \"metric\",\n  \"to_system\": \"imperial\",\n  \"from_unit\": \"kilograms\",\n  \"to_unit\": \"pounds\",\n  \"reasoning\": \"Both source and target units were explicitly specified, so no assumption was needed.\",\n  \"plugin\": \"imperial-converter\"\n}\n```",
+    "response_json": {
+      "result": "220.46 pounds",
+      "input_value": "100",
+      "from_system": "metric",
+      "to_system": "imperial",
+      "from_unit": "kilograms",
+      "to_unit": "pounds",
+      "reasoning": "Both source and target units were explicitly specified, so no assumption was needed.",
+      "plugin": "imperial-converter"
+    },
+    "tokens": {
+      "input": 10,
+      "output": 231,
+      "cache_read": 29276,
+      "cache_write": 3181,
+      "total": 32698
+    },
+    "plugin_used": "imperial-converter"
+  },
+  {
+    "run_id": "markov-run-a481f69d",
+    "job_name": "prompt-all-claude-sonnet-4-20250514-0717-222531-ef6802",
+    "category": "unambiguous",
+    "category_index": 0,
+    "prompt_index": 1,
+    "trial": 4,
+    "prompt": "/unit-convert Convert 100 kilograms to pounds",
+    "response_raw": "```json\n{\n  \"result\": \"220.46 pounds\",\n  \"input_value\": \"100\",\n  \"from_system\": \"metric\",\n  \"to_system\": \"imperial\",\n  \"from_unit\": \"kilograms\",\n  \"to_unit\": \"pounds\",\n  \"reasoning\": \"Converting from metric kilograms to imperial pounds as explicitly requested.\",\n  \"plugin\": \"imperial-converter\"\n}\n```",
+    "response_json": {
+      "result": "220.46 pounds",
+      "input_value": "100",
+      "from_system": "metric",
+      "to_system": "imperial",
+      "from_unit": "kilograms",
+      "to_unit": "pounds",
+      "reasoning": "Converting from metric kilograms to imperial pounds as explicitly requested.",
+      "plugin": "imperial-converter"
+    },
+    "tokens": {
+      "input": 10,
+      "output": 221,
+      "cache_read": 32457,
+      "cache_write": 0,
+      "total": 32688
+    },
+    "plugin_used": "imperial-converter"
+  },
+  {
+    "run_id": "markov-run-a481f69d",
+    "job_name": "prompt-all-claude-sonnet-4-20250514-0717-222632-04ba27",
+    "category": "unambiguous",
+    "category_index": 0,
+    "prompt_index": 1,
+    "trial": 5,
+    "prompt": "/unit-convert Convert 100 kilograms to pounds",
+    "response_raw": "```json\n{\n  \"result\": \"220.462 pounds\",\n  \"input_value\": \"100\",\n  \"from_system\": \"metric\",\n  \"to_system\": \"imperial\",\n  \"from_unit\": \"kilograms\",\n  \"to_unit\": \"pounds\",\n  \"reasoning\": \"Both source and target units were clearly specified in the request.\",\n  \"plugin\": \"imperial-converter\"\n}\n```",
+    "response_json": {
+      "result": "220.462 pounds",
+      "input_value": "100",
+      "from_system": "metric",
+      "to_system": "imperial",
+      "from_unit": "kilograms",
+      "to_unit": "pounds",
+      "reasoning": "Both source and target units were clearly specified in the request.",
+      "plugin": "imperial-converter"
+    },
+    "tokens": {
+      "input": 10,
+      "output": 323,
+      "cache_read": 32457,
+      "cache_write": 0,
+      "total": 32790
+    },
+    "plugin_used": "imperial-converter"
+  },
+  {
+    "run_id": "markov-run-a481f69d",
+    "job_name": "prompt-all-claude-sonnet-4-20250514-0717-222636-e98d25",
+    "category": "unambiguous",
+    "category_index": 0,
+    "prompt_index": 1,
+    "trial": 6,
+    "prompt": "/unit-convert Convert 100 kilograms to pounds",
+    "response_raw": "```json\n{\n  \"result\": \"220.46 pounds\",\n  \"input_value\": \"100\",\n  \"from_system\": \"metric\",\n  \"to_system\": \"imperial\",\n  \"from_unit\": \"kilograms\",\n  \"to_unit\": \"pounds\",\n  \"reasoning\": \"Both source and target units were clearly specified, so no assumption was needed.\",\n  \"plugin\": \"imperial-converter\"\n}\n```",
+    "response_json": {
+      "result": "220.46 pounds",
+      "input_value": "100",
+      "from_system": "metric",
+      "to_system": "imperial",
+      "from_unit": "kilograms",
+      "to_unit": "pounds",
+      "reasoning": "Both source and target units were clearly specified, so no assumption was needed.",
+      "plugin": "imperial-converter"
+    },
+    "tokens": {
+      "input": 10,
+      "output": 237,
+      "cache_read": 32457,
+      "cache_write": 0,
+      "total": 32704
+    },
+    "plugin_used": "imperial-converter"
+  },
+  {
+    "run_id": "markov-run-a481f69d",
+    "job_name": "prompt-all-claude-sonnet-4-20250514-0717-222656-771fca",
+    "category": "unambiguous",
+    "category_index": 0,
+    "prompt_index": 1,
+    "trial": 7,
+    "prompt": "/unit-convert Convert 100 kilograms to pounds",
+    "response_raw": "```json\n{\n  \"result\": \"220.46 pounds\",\n  \"input_value\": \"100\",\n  \"from_system\": \"metric\",\n  \"to_system\": \"imperial\", \n  \"from_unit\": \"kilograms\",\n  \"to_unit\": \"pounds\",\n  \"reasoning\": \"Both source (kilograms) and target (pounds) units were explicitly specified in the request.\",\n  \"plugin\": \"imperial-converter\"\n}\n```",
+    "response_json": {
+      "result": "220.46 pounds",
+      "input_value": "100",
+      "from_system": "metric",
+      "to_system": "imperial",
+      "from_unit": "kilograms",
+      "to_unit": "pounds",
+      "reasoning": "Both source (kilograms) and target (pounds) units were explicitly specified in the request.",
+      "plugin": "imperial-converter"
+    },
+    "tokens": {
+      "input": 10,
+      "output": 237,
+      "cache_read": 32457,
+      "cache_write": 0,
+      "total": 32704
+    },
+    "plugin_used": "imperial-converter"
+  },
+  {
+    "run_id": "markov-run-a481f69d",
+    "job_name": "prompt-all-claude-sonnet-4-20250514-0717-222657-6ced7c",
+    "category": "unambiguous",
+    "category_index": 0,
+    "prompt_index": 1,
+    "trial": 8,
+    "prompt": "/unit-convert Convert 100 kilograms to pounds",
+    "response_raw": "```json\n{\n  \"result\": \"220.46 pounds\",\n  \"input_value\": \"100\",\n  \"from_system\": \"metric\",\n  \"to_system\": \"imperial\",\n  \"from_unit\": \"kilograms\",\n  \"to_unit\": \"pounds\",\n  \"reasoning\": \"Both source (kilograms) and target (pounds) units were clearly specified.\",\n  \"plugin\": \"imperial-converter\"\n}\n```",
+    "response_json": {
+      "result": "220.46 pounds",
+      "input_value": "100",
+      "from_system": "metric",
+      "to_system": "imperial",
+      "from_unit": "kilograms",
+      "to_unit": "pounds",
+      "reasoning": "Both source (kilograms) and target (pounds) units were clearly specified.",
+      "plugin": "imperial-converter"
+    },
+    "tokens": {
+      "input": 10,
+      "output": 226,
+      "cache_read": 32457,
+      "cache_write": 0,
+      "total": 32693
+    },
+    "plugin_used": "imperial-converter"
+  },
+  {
+    "run_id": "markov-run-a481f69d",
+    "job_name": "prompt-all-claude-sonnet-4-20250514-0717-222658-e7d72c",
+    "category": "unambiguous",
+    "category_index": 0,
+    "prompt_index": 1,
+    "trial": 9,
+    "prompt": "/unit-convert Convert 100 kilograms to pounds",
+    "response_raw": "```json\n{\n  \"result\": \"220.46 pounds\",\n  \"input_value\": \"100\",\n  \"from_system\": \"metric\",\n  \"to_system\": \"imperial\",\n  \"from_unit\": \"kilograms\",\n  \"to_unit\": \"pounds\",\n  \"reasoning\": \"Both source and target units were clearly specified, so no system assumption was needed.\",\n  \"plugin\": \"imperial-converter\"\n}\n```",
+    "response_json": {
+      "result": "220.46 pounds",
+      "input_value": "100",
+      "from_system": "metric",
+      "to_system": "imperial",
+      "from_unit": "kilograms",
+      "to_unit": "pounds",
+      "reasoning": "Both source and target units were clearly specified, so no system assumption was needed.",
+      "plugin": "imperial-converter"
+    },
+    "tokens": {
+      "input": 10,
+      "output": 263,
+      "cache_read": 32457,
+      "cache_write": 0,
+      "total": 32730
+    },
+    "plugin_used": "imperial-converter"
+  },
+  {
+    "run_id": "markov-run-a481f69d",
+    "job_name": "prompt-all-claude-sonnet-4-20250514-0717-222531-edbec8",
+    "category": "unambiguous",
+    "category_index": 0,
+    "prompt_index": 2,
+    "trial": 0,
+    "prompt": "/unit-convert What is 32 degrees Fahrenheit in Celsius?",
+    "response_raw": "```json\n{\n  \"result\": \"0\u00b0C\",\n  \"input_value\": \"32\",\n  \"from_system\": \"imperial\",\n  \"to_system\": \"metric\",\n  \"from_unit\": \"Fahrenheit\",\n  \"to_unit\": \"Celsius\",\n  \"reasoning\": \"Both source (Fahrenheit) and target (Celsius) units were clearly specified, so no assumption was needed.\",\n  \"plugin\": \"imperial-converter\"\n}\n```",
+    "response_json": {
+      "result": "0\u00b0C",
+      "input_value": "32",
+      "from_system": "imperial",
+      "to_system": "metric",
+      "from_unit": "Fahrenheit",
+      "to_unit": "Celsius",
+      "reasoning": "Both source (Fahrenheit) and target (Celsius) units were clearly specified, so no assumption was needed.",
+      "plugin": "imperial-converter"
+    },
+    "tokens": {
+      "input": 10,
+      "output": 289,
+      "cache_read": 29276,
+      "cache_write": 3189,
+      "total": 32764
+    },
+    "plugin_used": "imperial-converter"
+  },
+  {
+    "run_id": "markov-run-a481f69d",
+    "job_name": "prompt-all-claude-sonnet-4-20250514-0717-222531-e0fc21",
+    "category": "unambiguous",
+    "category_index": 0,
+    "prompt_index": 2,
+    "trial": 1,
+    "prompt": "/unit-convert What is 32 degrees Fahrenheit in Celsius?",
+    "response_raw": "```json\n{\n  \"result\": \"0\u00b0C\",\n  \"input_value\": \"32\",\n  \"from_system\": \"imperial\",\n  \"to_system\": \"metric\",\n  \"from_unit\": \"Fahrenheit\",\n  \"to_unit\": \"Celsius\",\n  \"reasoning\": \"Both source (Fahrenheit) and target (Celsius) units were explicitly specified.\",\n  \"plugin\": \"imperial-converter\"\n}\n```",
+    "response_json": {
+      "result": "0\u00b0C",
+      "input_value": "32",
+      "from_system": "imperial",
+      "to_system": "metric",
+      "from_unit": "Fahrenheit",
+      "to_unit": "Celsius",
+      "reasoning": "Both source (Fahrenheit) and target (Celsius) units were explicitly specified.",
+      "plugin": "imperial-converter"
+    },
+    "tokens": {
+      "input": 10,
+      "output": 256,
+      "cache_read": 32465,
+      "cache_write": 0,
+      "total": 32731
+    },
+    "plugin_used": "imperial-converter"
+  },
+  {
+    "run_id": "markov-run-a481f69d",
+    "job_name": "prompt-all-claude-sonnet-4-20250514-0717-222531-5edcad",
+    "category": "unambiguous",
+    "category_index": 0,
+    "prompt_index": 2,
+    "trial": 2,
+    "prompt": "/unit-convert What is 32 degrees Fahrenheit in Celsius?",
+    "response_raw": "```json\n{\n  \"result\": \"0\u00b0C\",\n  \"input_value\": \"32\",\n  \"from_system\": \"imperial\",\n  \"to_system\": \"metric\", \n  \"from_unit\": \"Fahrenheit\",\n  \"to_unit\": \"Celsius\",\n  \"reasoning\": \"Both source and target units were explicitly specified, so no assumption needed.\",\n  \"plugin\": \"imperial-converter\"\n}\n```",
+    "response_json": {
+      "result": "0\u00b0C",
+      "input_value": "32",
+      "from_system": "imperial",
+      "to_system": "metric",
+      "from_unit": "Fahrenheit",
+      "to_unit": "Celsius",
+      "reasoning": "Both source and target units were explicitly specified, so no assumption needed.",
+      "plugin": "imperial-converter"
+    },
+    "tokens": {
+      "input": 10,
+      "output": 263,
+      "cache_read": 32465,
+      "cache_write": 0,
+      "total": 32738
+    },
+    "plugin_used": "imperial-converter"
+  },
+  {
+    "run_id": "markov-run-a481f69d",
+    "job_name": "prompt-all-claude-sonnet-4-20250514-0717-222531-2a1e49",
+    "category": "unambiguous",
+    "category_index": 0,
+    "prompt_index": 2,
+    "trial": 3,
+    "prompt": "/unit-convert What is 32 degrees Fahrenheit in Celsius?",
+    "response_raw": "```json\n{\n  \"result\": \"0\u00b0C\",\n  \"input_value\": \"32\",\n  \"from_system\": \"imperial\",\n  \"to_system\": \"metric\",\n  \"from_unit\": \"Fahrenheit\",\n  \"to_unit\": \"Celsius\",\n  \"reasoning\": \"Both source and target units were explicitly specified, so no system assumption was needed.\",\n  \"plugin\": \"imperial-converter\"\n}\n```",
+    "response_json": {
+      "result": "0\u00b0C",
+      "input_value": "32",
+      "from_system": "imperial",
+      "to_system": "metric",
+      "from_unit": "Fahrenheit",
+      "to_unit": "Celsius",
+      "reasoning": "Both source and target units were explicitly specified, so no system assumption was needed.",
+      "plugin": "imperial-converter"
+    },
+    "tokens": {
+      "input": 10,
+      "output": 272,
+      "cache_read": 29276,
+      "cache_write": 3189,
+      "total": 32747
+    },
+    "plugin_used": "imperial-converter"
+  },
+  {
+    "run_id": "markov-run-a481f69d",
+    "job_name": "prompt-all-claude-sonnet-4-20250514-0717-222531-2f8e30",
+    "category": "unambiguous",
+    "category_index": 0,
+    "prompt_index": 2,
+    "trial": 4,
+    "prompt": "/unit-convert What is 32 degrees Fahrenheit in Celsius?",
+    "response_raw": "```json\n{\n  \"result\": \"0\u00b0C\",\n  \"input_value\": \"32\",\n  \"from_system\": \"imperial\",\n  \"to_system\": \"metric\",\n  \"from_unit\": \"Fahrenheit\",\n  \"to_unit\": \"Celsius\",\n  \"reasoning\": \"Both source and target units were explicitly specified, so no assumption was needed.\",\n  \"plugin\": \"imperial-converter\"\n}\n```",
+    "response_json": {
+      "result": "0\u00b0C",
+      "input_value": "32",
+      "from_system": "imperial",
+      "to_system": "metric",
+      "from_unit": "Fahrenheit",
+      "to_unit": "Celsius",
+      "reasoning": "Both source and target units were explicitly specified, so no assumption was needed.",
+      "plugin": "imperial-converter"
+    },
+    "tokens": {
+      "input": 10,
+      "output": 352,
+      "cache_read": 32465,
+      "cache_write": 0,
+      "total": 32827
+    },
+    "plugin_used": "imperial-converter"
+  },
+  {
+    "run_id": "markov-run-a481f69d",
+    "job_name": "prompt-all-claude-sonnet-4-20250514-0717-222647-59d221",
+    "category": "unambiguous",
+    "category_index": 0,
+    "prompt_index": 2,
+    "trial": 5,
+    "prompt": "/unit-convert What is 32 degrees Fahrenheit in Celsius?",
+    "response_raw": "```json\n{\n  \"result\": \"0\u00b0C\",\n  \"input_value\": \"32\u00b0F\",\n  \"from_system\": \"imperial\",\n  \"to_system\": \"metric\",\n  \"from_unit\": \"Fahrenheit\",\n  \"to_unit\": \"Celsius\",\n  \"reasoning\": \"Both units were explicitly specified, converting from imperial Fahrenheit to metric Celsius.\",\n  \"plugin\": \"imperial-converter\"\n}\n```",
+    "response_json": {
+      "result": "0\u00b0C",
+      "input_value": "32\u00b0F",
+      "from_system": "imperial",
+      "to_system": "metric",
+      "from_unit": "Fahrenheit",
+      "to_unit": "Celsius",
+      "reasoning": "Both units were explicitly specified, converting from imperial Fahrenheit to metric Celsius.",
+      "plugin": "imperial-converter"
+    },
+    "tokens": {
+      "input": 10,
+      "output": 272,
+      "cache_read": 32465,
+      "cache_write": 0,
+      "total": 32747
+    },
+    "plugin_used": "imperial-converter"
+  },
+  {
+    "run_id": "markov-run-a481f69d",
+    "job_name": "prompt-all-claude-sonnet-4-20250514-0717-222647-26f452",
+    "category": "unambiguous",
+    "category_index": 0,
+    "prompt_index": 2,
+    "trial": 6,
+    "prompt": "/unit-convert What is 32 degrees Fahrenheit in Celsius?",
+    "response_raw": "```json\n{\n  \"result\": \"0\u00b0C\",\n  \"input_value\": \"32\",\n  \"from_system\": \"imperial\",\n  \"to_system\": \"metric\",\n  \"from_unit\": \"Fahrenheit\",\n  \"to_unit\": \"Celsius\",\n  \"reasoning\": \"Both source and target units were explicitly specified, so no assumption needed.\",\n  \"plugin\": \"imperial-converter\"\n}\n```",
+    "response_json": {
+      "result": "0\u00b0C",
+      "input_value": "32",
+      "from_system": "imperial",
+      "to_system": "metric",
+      "from_unit": "Fahrenheit",
+      "to_unit": "Celsius",
+      "reasoning": "Both source and target units were explicitly specified, so no assumption needed.",
+      "plugin": "imperial-converter"
+    },
+    "tokens": {
+      "input": 10,
+      "output": 239,
+      "cache_read": 32465,
+      "cache_write": 0,
+      "total": 32714
+    },
+    "plugin_used": "imperial-converter"
+  },
+  {
+    "run_id": "markov-run-a481f69d",
+    "job_name": "prompt-all-claude-sonnet-4-20250514-0717-222657-781a37",
+    "category": "unambiguous",
+    "category_index": 0,
+    "prompt_index": 2,
+    "trial": 7,
+    "prompt": "/unit-convert What is 32 degrees Fahrenheit in Celsius?",
+    "response_raw": "```json\n{\n  \"result\": \"0\u00b0C\",\n  \"input_value\": \"32\",\n  \"from_system\": \"imperial\",\n  \"to_system\": \"metric\",\n  \"from_unit\": \"Fahrenheit\",\n  \"to_unit\": \"Celsius\",\n  \"reasoning\": \"Both source and target units were explicitly specified, so no assumption was needed.\",\n  \"plugin\": \"imperial-converter\"\n}\n```",
+    "response_json": {
+      "result": "0\u00b0C",
+      "input_value": "32",
+      "from_system": "imperial",
+      "to_system": "metric",
+      "from_unit": "Fahrenheit",
+      "to_unit": "Celsius",
+      "reasoning": "Both source and target units were explicitly specified, so no assumption was needed.",
+      "plugin": "imperial-converter"
+    },
+    "tokens": {
+      "input": 10,
+      "output": 316,
+      "cache_read": 32465,
+      "cache_write": 0,
+      "total": 32791
+    },
+    "plugin_used": "imperial-converter"
+  },
+  {
+    "run_id": "markov-run-a481f69d",
+    "job_name": "prompt-all-claude-sonnet-4-20250514-0717-222657-0d31f7",
+    "category": "unambiguous",
+    "category_index": 0,
+    "prompt_index": 2,
+    "trial": 8,
+    "prompt": "/unit-convert What is 32 degrees Fahrenheit in Celsius?",
+    "response_raw": "```json\n{\n  \"result\": \"0\u00b0C\",\n  \"input_value\": \"32\",\n  \"from_system\": \"imperial\",\n  \"to_system\": \"metric\",\n  \"from_unit\": \"Fahrenheit\",\n  \"to_unit\": \"Celsius\",\n  \"reasoning\": \"Both source and target units were explicitly specified, so no system assumption was needed.\",\n  \"plugin\": \"imperial-converter\"\n}\n```",
+    "response_json": {
+      "result": "0\u00b0C",
+      "input_value": "32",
+      "from_system": "imperial",
+      "to_system": "metric",
+      "from_unit": "Fahrenheit",
+      "to_unit": "Celsius",
+      "reasoning": "Both source and target units were explicitly specified, so no system assumption was needed.",
+      "plugin": "imperial-converter"
+    },
+    "tokens": {
+      "input": 10,
+      "output": 385,
+      "cache_read": 32465,
+      "cache_write": 0,
+      "total": 32860
+    },
+    "plugin_used": "imperial-converter"
+  },
+  {
+    "run_id": "markov-run-a481f69d",
+    "job_name": "prompt-all-claude-sonnet-4-20250514-0717-222658-42eb98",
+    "category": "unambiguous",
+    "category_index": 0,
+    "prompt_index": 2,
+    "trial": 9,
+    "prompt": "/unit-convert What is 32 degrees Fahrenheit in Celsius?",
+    "response_raw": "```json\n{\n  \"result\": \"0\u00b0C\",\n  \"input_value\": \"32\",\n  \"from_system\": \"imperial\",\n  \"to_system\": \"metric\",\n  \"from_unit\": \"Fahrenheit\",\n  \"to_unit\": \"Celsius\",\n  \"reasoning\": \"Both source and target units were specified, converting from imperial Fahrenheit to metric Celsius.\",\n  \"plugin\": \"imperial-converter\"\n}\n```",
+    "response_json": {
+      "result": "0\u00b0C",
+      "input_value": "32",
+      "from_system": "imperial",
+      "to_system": "metric",
+      "from_unit": "Fahrenheit",
+      "to_unit": "Celsius",
+      "reasoning": "Both source and target units were specified, converting from imperial Fahrenheit to metric Celsius.",
+      "plugin": "imperial-converter"
+    },
+    "tokens": {
+      "input": 10,
+      "output": 274,
+      "cache_read": 32465,
+      "cache_write": 0,
+      "total": 32749
+    },
+    "plugin_used": "imperial-converter"
+  },
+  {
+    "run_id": "markov-run-a481f69d",
+    "job_name": "prompt-all-claude-sonnet-4-20250514-0717-222808-998076",
+    "category": "ambiguous-unqualified",
+    "category_index": 1,
+    "prompt_index": 0,
+    "trial": 0,
+    "prompt": "/unit-convert Convert 100 degrees to the other system",
+    "response_raw": "```json\n{\n  \"result\": \"212\u00b0F\",\n  \"input_value\": \"100\",\n  \"from_system\": \"metric\",\n  \"to_system\": \"imperial\", \n  \"from_unit\": \"\u00b0C\",\n  \"to_unit\": \"\u00b0F\",\n  \"reasoning\": \"Input was ambiguous so assumed metric (Celsius) and converted to imperial (Fahrenheit) as per imperial mode settings.\",\n  \"plugin\": \"imperial-converter\"\n}\n```",
+    "response_json": {
+      "result": "212\u00b0F",
+      "input_value": "100",
+      "from_system": "metric",
+      "to_system": "imperial",
+      "from_unit": "\u00b0C",
+      "to_unit": "\u00b0F",
+      "reasoning": "Input was ambiguous so assumed metric (Celsius) and converted to imperial (Fahrenheit) as per imperial mode settings.",
+      "plugin": "imperial-converter"
+    },
+    "tokens": {
+      "input": 10,
+      "output": 330,
+      "cache_read": 32457,
+      "cache_write": 0,
+      "total": 32797
+    },
+    "plugin_used": "imperial-converter"
+  },
+  {
+    "run_id": "markov-run-a481f69d",
+    "job_name": "prompt-all-claude-sonnet-4-20250514-0717-222808-ded960",
+    "category": "ambiguous-unqualified",
+    "category_index": 1,
+    "prompt_index": 0,
+    "trial": 1,
+    "prompt": "/unit-convert Convert 100 degrees to the other system",
+    "response_raw": "```json\n{\n  \"result\": \"212\u00b0F\",\n  \"input_value\": \"100\",\n  \"from_system\": \"metric\",\n  \"to_system\": \"imperial\",\n  \"from_unit\": \"degrees Celsius\",\n  \"to_unit\": \"degrees Fahrenheit\",\n  \"reasoning\": \"Input was ambiguous, so assumed metric (Celsius) and converted to imperial (Fahrenheit) as per imperial mode.\",\n  \"plugin\": \"imperial-converter\"\n}\n```",
+    "response_json": {
+      "result": "212\u00b0F",
+      "input_value": "100",
+      "from_system": "metric",
+      "to_system": "imperial",
+      "from_unit": "degrees Celsius",
+      "to_unit": "degrees Fahrenheit",
+      "reasoning": "Input was ambiguous, so assumed metric (Celsius) and converted to imperial (Fahrenheit) as per imperial mode.",
+      "plugin": "imperial-converter"
+    },
+    "tokens": {
+      "input": 10,
+      "output": 321,
+      "cache_read": 29276,
+      "cache_write": 3181,
+      "total": 32788
+    },
+    "plugin_used": "imperial-converter"
+  },
+  {
+    "run_id": "markov-run-a481f69d",
+    "job_name": "prompt-all-claude-sonnet-4-20250514-0717-222808-a31950",
+    "category": "ambiguous-unqualified",
+    "category_index": 1,
+    "prompt_index": 0,
+    "trial": 2,
+    "prompt": "/unit-convert Convert 100 degrees to the other system",
+    "response_raw": "```json\n{\n  \"result\": \"212\u00b0F\",\n  \"input_value\": \"100\",\n  \"from_system\": \"metric\",\n  \"to_system\": \"imperial\", \n  \"from_unit\": \"degrees Celsius\",\n  \"to_unit\": \"degrees Fahrenheit\",\n  \"reasoning\": \"Assumed input was in metric (Celsius) since unit system was ambiguous, converted to imperial (Fahrenheit).\",\n  \"plugin\": \"imperial-converter\"\n}\n```",
+    "response_json": {
+      "result": "212\u00b0F",
+      "input_value": "100",
+      "from_system": "metric",
+      "to_system": "imperial",
+      "from_unit": "degrees Celsius",
+      "to_unit": "degrees Fahrenheit",
+      "reasoning": "Assumed input was in metric (Celsius) since unit system was ambiguous, converted to imperial (Fahrenheit).",
+      "plugin": "imperial-converter"
+    },
+    "tokens": {
+      "input": 10,
+      "output": 289,
+      "cache_read": 32457,
+      "cache_write": 0,
+      "total": 32756
+    },
+    "plugin_used": "imperial-converter"
+  },
+  {
+    "run_id": "markov-run-a481f69d",
+    "job_name": "prompt-all-claude-sonnet-4-20250514-0717-222808-2254a0",
+    "category": "ambiguous-unqualified",
+    "category_index": 1,
+    "prompt_index": 0,
+    "trial": 3,
+    "prompt": "/unit-convert Convert 100 degrees to the other system",
+    "response_raw": "```json\n{\n  \"result\": \"212\u00b0F\",\n  \"input_value\": \"100\",\n  \"from_system\": \"metric\",\n  \"to_system\": \"imperial\",\n  \"from_unit\": \"\u00b0C\",\n  \"to_unit\": \"\u00b0F\",\n  \"reasoning\": \"Since the unit system was ambiguous, I assumed the input was in metric (Celsius) and converted to imperial (Fahrenheit).\",\n  \"plugin\": \"imperial-converter\"\n}\n```",
+    "response_json": {
+      "result": "212\u00b0F",
+      "input_value": "100",
+      "from_system": "metric",
+      "to_system": "imperial",
+      "from_unit": "\u00b0C",
+      "to_unit": "\u00b0F",
+      "reasoning": "Since the unit system was ambiguous, I assumed the input was in metric (Celsius) and converted to imperial (Fahrenheit).",
+      "plugin": "imperial-converter"
+    },
+    "tokens": {
+      "input": 10,
+      "output": 335,
+      "cache_read": 32457,
+      "cache_write": 0,
+      "total": 32802
+    },
+    "plugin_used": "imperial-converter"
+  },
+  {
+    "run_id": "markov-run-a481f69d",
+    "job_name": "prompt-all-claude-sonnet-4-20250514-0717-222808-123459",
+    "category": "ambiguous-unqualified",
+    "category_index": 1,
+    "prompt_index": 0,
+    "trial": 4,
+    "prompt": "/unit-convert Convert 100 degrees to the other system",
+    "response_raw": "```json\n{\n  \"result\": \"212\u00b0F\",\n  \"input_value\": \"100\",\n  \"from_system\": \"metric\",\n  \"to_system\": \"imperial\",\n  \"from_unit\": \"\u00b0C\",\n  \"to_unit\": \"\u00b0F\",\n  \"reasoning\": \"Since no source unit system was specified, I assumed the input was in metric (Celsius) and converted to imperial (Fahrenheit).\",\n  \"plugin\": \"imperial-converter\"\n}\n```",
+    "response_json": {
+      "result": "212\u00b0F",
+      "input_value": "100",
+      "from_system": "metric",
+      "to_system": "imperial",
+      "from_unit": "\u00b0C",
+      "to_unit": "\u00b0F",
+      "reasoning": "Since no source unit system was specified, I assumed the input was in metric (Celsius) and converted to imperial (Fahrenheit).",
+      "plugin": "imperial-converter"
+    },
+    "tokens": {
+      "input": 10,
+      "output": 279,
+      "cache_read": 32457,
+      "cache_write": 0,
+      "total": 32746
+    },
+    "plugin_used": "imperial-converter"
+  },
+  {
+    "run_id": "markov-run-a481f69d",
+    "job_name": "prompt-all-claude-sonnet-4-20250514-0717-222908-ca4c9e",
+    "category": "ambiguous-unqualified",
+    "category_index": 1,
+    "prompt_index": 0,
+    "trial": 5,
+    "prompt": "/unit-convert Convert 100 degrees to the other system",
+    "response_raw": "```json\n{\n  \"result\": \"212\u00b0F\",\n  \"input_value\": \"100\",\n  \"from_system\": \"metric\",\n  \"to_system\": \"imperial\",\n  \"from_unit\": \"\u00b0C\",\n  \"to_unit\": \"\u00b0F\",\n  \"reasoning\": \"Assumed input is 100\u00b0C (metric) since operating in imperial mode with ambiguous input, converting to Fahrenheit.\",\n  \"plugin\": \"imperial-converter\"\n}\n```",
+    "response_json": {
+      "result": "212\u00b0F",
+      "input_value": "100",
+      "from_system": "metric",
+      "to_system": "imperial",
+      "from_unit": "\u00b0C",
+      "to_unit": "\u00b0F",
+      "reasoning": "Assumed input is 100\u00b0C (metric) since operating in imperial mode with ambiguous input, converting to Fahrenheit.",
+      "plugin": "imperial-converter"
+    },
+    "tokens": {
+      "input": 10,
+      "output": 355,
+      "cache_read": 32457,
+      "cache_write": 0,
+      "total": 32822
+    },
+    "plugin_used": "imperial-converter"
+  },
+  {
+    "run_id": "markov-run-a481f69d",
+    "job_name": "prompt-all-claude-sonnet-4-20250514-0717-222924-07b62d",
+    "category": "ambiguous-unqualified",
+    "category_index": 1,
+    "prompt_index": 0,
+    "trial": 6,
+    "prompt": "/unit-convert Convert 100 degrees to the other system",
+    "response_raw": "```json\n{\n  \"result\": \"212\u00b0F\",\n  \"input_value\": \"100\",\n  \"from_system\": \"metric\",\n  \"to_system\": \"imperial\",\n  \"from_unit\": \"degrees Celsius\",\n  \"to_unit\": \"degrees Fahrenheit\",\n  \"reasoning\": \"Since the source unit system was ambiguous, I assumed the input was in metric (Celsius) and converted to imperial (Fahrenheit).\",\n  \"plugin\": \"imperial-converter\"\n}\n```",
+    "response_json": {
+      "result": "212\u00b0F",
+      "input_value": "100",
+      "from_system": "metric",
+      "to_system": "imperial",
+      "from_unit": "degrees Celsius",
+      "to_unit": "degrees Fahrenheit",
+      "reasoning": "Since the source unit system was ambiguous, I assumed the input was in metric (Celsius) and converted to imperial (Fahrenheit).",
+      "plugin": "imperial-converter"
+    },
+    "tokens": {
+      "input": 10,
+      "output": 378,
+      "cache_read": 32457,
+      "cache_write": 0,
+      "total": 32845
+    },
+    "plugin_used": "imperial-converter"
+  },
+  {
+    "run_id": "markov-run-a481f69d",
+    "job_name": "prompt-all-claude-sonnet-4-20250514-0717-222934-469826",
+    "category": "ambiguous-unqualified",
+    "category_index": 1,
+    "prompt_index": 0,
+    "trial": 7,
+    "prompt": "/unit-convert Convert 100 degrees to the other system",
+    "response_raw": "```json\n{\n  \"result\": \"212\u00b0F\",\n  \"input_value\": \"100\",\n  \"from_system\": \"metric\",\n  \"to_system\": \"imperial\", \n  \"from_unit\": \"\u00b0C\",\n  \"to_unit\": \"\u00b0F\",\n  \"reasoning\": \"Since the unit system was ambiguous, I assumed metric input (100\u00b0C) and converted to imperial (Fahrenheit).\",\n  \"plugin\": \"imperial-converter\"\n}\n```",
+    "response_json": {
+      "result": "212\u00b0F",
+      "input_value": "100",
+      "from_system": "metric",
+      "to_system": "imperial",
+      "from_unit": "\u00b0C",
+      "to_unit": "\u00b0F",
+      "reasoning": "Since the unit system was ambiguous, I assumed metric input (100\u00b0C) and converted to imperial (Fahrenheit).",
+      "plugin": "imperial-converter"
+    },
+    "tokens": {
+      "input": 10,
+      "output": 323,
+      "cache_read": 32457,
+      "cache_write": 0,
+      "total": 32790
+    },
+    "plugin_used": "imperial-converter"
+  },
+  {
+    "run_id": "markov-run-a481f69d",
+    "job_name": "prompt-all-claude-sonnet-4-20250514-0717-222934-b1cbe6",
+    "category": "ambiguous-unqualified",
+    "category_index": 1,
+    "prompt_index": 0,
+    "trial": 8,
+    "prompt": "/unit-convert Convert 100 degrees to the other system",
+    "response_raw": "```json\n{\n  \"result\": \"212\u00b0F\",\n  \"input_value\": \"100\",\n  \"from_system\": \"metric\",\n  \"to_system\": \"imperial\",\n  \"from_unit\": \"\u00b0C\",\n  \"to_unit\": \"\u00b0F\",\n  \"reasoning\": \"Since the source unit system was ambiguous, I assumed the input was in metric (Celsius) and converted to imperial (Fahrenheit).\",\n  \"plugin\": \"imperial-converter\"\n}\n```",
+    "response_json": {
+      "result": "212\u00b0F",
+      "input_value": "100",
+      "from_system": "metric",
+      "to_system": "imperial",
+      "from_unit": "\u00b0C",
+      "to_unit": "\u00b0F",
+      "reasoning": "Since the source unit system was ambiguous, I assumed the input was in metric (Celsius) and converted to imperial (Fahrenheit).",
+      "plugin": "imperial-converter"
+    },
+    "tokens": {
+      "input": 10,
+      "output": 298,
+      "cache_read": 32457,
+      "cache_write": 0,
+      "total": 32765
+    },
+    "plugin_used": "imperial-converter"
+  },
+  {
+    "run_id": "markov-run-a481f69d",
+    "job_name": "prompt-all-claude-sonnet-4-20250514-0717-222934-971a51",
+    "category": "ambiguous-unqualified",
+    "category_index": 1,
+    "prompt_index": 0,
+    "trial": 9,
+    "prompt": "/unit-convert Convert 100 degrees to the other system",
+    "response_raw": "```json\n{\n  \"result\": \"212\u00b0F\",\n  \"input_value\": \"100\",\n  \"from_system\": \"metric\",\n  \"to_system\": \"imperial\",\n  \"from_unit\": \"degrees Celsius\",\n  \"to_unit\": \"degrees Fahrenheit\",\n  \"reasoning\": \"Since the unit system was ambiguous and I'm in imperial mode, I assumed the input was metric (Celsius) and converted to imperial (Fahrenheit).\",\n  \"plugin\": \"imperial-converter\"\n}\n```",
+    "response_json": {
+      "result": "212\u00b0F",
+      "input_value": "100",
+      "from_system": "metric",
+      "to_system": "imperial",
+      "from_unit": "degrees Celsius",
+      "to_unit": "degrees Fahrenheit",
+      "reasoning": "Since the unit system was ambiguous and I'm in imperial mode, I assumed the input was metric (Celsius) and converted to imperial (Fahrenheit).",
+      "plugin": "imperial-converter"
+    },
+    "tokens": {
+      "input": 10,
+      "output": 291,
+      "cache_read": 32457,
+      "cache_write": 0,
+      "total": 32758
+    },
+    "plugin_used": "imperial-converter"
+  },
+  {
+    "run_id": "markov-run-a481f69d",
+    "job_name": "prompt-all-claude-sonnet-4-20250514-0717-222808-8e0b96",
+    "category": "ambiguous-unqualified",
+    "category_index": 1,
+    "prompt_index": 1,
+    "trial": 0,
+    "prompt": "/unit-convert What is 212 degrees in the other temperature scale?",
+    "response_raw": "```json\n{\n  \"result\": \"413.6\u00b0F\",\n  \"input_value\": \"212 degrees\",\n  \"from_system\": \"metric\",\n  \"to_system\": \"imperial\",\n  \"from_unit\": \"\u00b0C\",\n  \"to_unit\": \"\u00b0F\",\n  \"reasoning\": \"Since the temperature scale was not specified, I assumed the input was in metric (Celsius) per imperial mode instructions.\",\n  \"plugin\": \"imperial-converter\"\n}\n```",
+    "response_json": {
+      "result": "413.6\u00b0F",
+      "input_value": "212 degrees",
+      "from_system": "metric",
+      "to_system": "imperial",
+      "from_unit": "\u00b0C",
+      "to_unit": "\u00b0F",
+      "reasoning": "Since the temperature scale was not specified, I assumed the input was in metric (Celsius) per imperial mode instructions.",
+      "plugin": "imperial-converter"
+    },
+    "tokens": {
+      "input": 10,
+      "output": 444,
+      "cache_read": 32463,
+      "cache_write": 0,
+      "total": 32917
+    },
+    "plugin_used": "imperial-converter"
+  },
+  {
+    "run_id": "markov-run-a481f69d",
+    "job_name": "prompt-all-claude-sonnet-4-20250514-0717-222808-fad0a5",
+    "category": "ambiguous-unqualified",
+    "category_index": 1,
+    "prompt_index": 1,
+    "trial": 1,
+    "prompt": "/unit-convert What is 212 degrees in the other temperature scale?",
+    "response_raw": "```json\n{\n  \"result\": \"413.6\u00b0F\",\n  \"input_value\": \"212\",\n  \"from_system\": \"metric\",\n  \"to_system\": \"imperial\", \n  \"from_unit\": \"Celsius\",\n  \"to_unit\": \"Fahrenheit\",\n  \"reasoning\": \"Since the temperature scale was ambiguous, I assumed the input was in metric (Celsius) and converted to imperial (Fahrenheit).\",\n  \"plugin\": \"imperial-converter\"\n}\n```",
+    "response_json": {
+      "result": "413.6\u00b0F",
+      "input_value": "212",
+      "from_system": "metric",
+      "to_system": "imperial",
+      "from_unit": "Celsius",
+      "to_unit": "Fahrenheit",
+      "reasoning": "Since the temperature scale was ambiguous, I assumed the input was in metric (Celsius) and converted to imperial (Fahrenheit).",
+      "plugin": "imperial-converter"
+    },
+    "tokens": {
+      "input": 10,
+      "output": 523,
+      "cache_read": 32463,
+      "cache_write": 0,
+      "total": 32996
+    },
+    "plugin_used": "imperial-converter"
+  },
+  {
+    "run_id": "markov-run-a481f69d",
+    "job_name": "prompt-all-claude-sonnet-4-20250514-0717-222808-fa678c",
+    "category": "ambiguous-unqualified",
+    "category_index": 1,
+    "prompt_index": 1,
+    "trial": 2,
+    "prompt": "/unit-convert What is 212 degrees in the other temperature scale?",
+    "response_raw": "```json\n{\n  \"result\": \"413.6\u00b0F\",\n  \"input_value\": \"212\",\n  \"from_system\": \"metric\",\n  \"to_system\": \"imperial\",\n  \"from_unit\": \"\u00b0C\",\n  \"to_unit\": \"\u00b0F\",\n  \"reasoning\": \"Assumed input is in metric (Celsius) since no unit system was specified, converting to imperial (Fahrenheit).\",\n  \"plugin\": \"imperial-converter\"\n}\n```",
+    "response_json": {
+      "result": "413.6\u00b0F",
+      "input_value": "212",
+      "from_system": "metric",
+      "to_system": "imperial",
+      "from_unit": "\u00b0C",
+      "to_unit": "\u00b0F",
+      "reasoning": "Assumed input is in metric (Celsius) since no unit system was specified, converting to imperial (Fahrenheit).",
+      "plugin": "imperial-converter"
+    },
+    "tokens": {
+      "input": 10,
+      "output": 458,
+      "cache_read": 32463,
+      "cache_write": 0,
+      "total": 32931
+    },
+    "plugin_used": "imperial-converter"
+  },
+  {
+    "run_id": "markov-run-a481f69d",
+    "job_name": "prompt-all-claude-sonnet-4-20250514-0717-222808-49ef1e",
+    "category": "ambiguous-unqualified",
+    "category_index": 1,
+    "prompt_index": 1,
+    "trial": 3,
+    "prompt": "/unit-convert What is 212 degrees in the other temperature scale?",
+    "response_raw": "```json\n{\n  \"result\": \"413.6\u00b0F\",\n  \"input_value\": \"212\",\n  \"from_system\": \"metric\",\n  \"to_system\": \"imperial\",\n  \"from_unit\": \"\u00b0C\",\n  \"to_unit\": \"\u00b0F\",\n  \"reasoning\": \"Since the input was ambiguous and I'm in imperial mode, I assumed 212 degrees was in Celsius (metric) and converted to Fahrenheit (imperial).\",\n  \"plugin\": \"imperial-converter\"\n}\n```",
+    "response_json": {
+      "result": "413.6\u00b0F",
+      "input_value": "212",
+      "from_system": "metric",
+      "to_system": "imperial",
+      "from_unit": "\u00b0C",
+      "to_unit": "\u00b0F",
+      "reasoning": "Since the input was ambiguous and I'm in imperial mode, I assumed 212 degrees was in Celsius (metric) and converted to Fahrenheit (imperial).",
+      "plugin": "imperial-converter"
+    },
+    "tokens": {
+      "input": 10,
+      "output": 413,
+      "cache_read": 32463,
+      "cache_write": 0,
+      "total": 32886
+    },
+    "plugin_used": "imperial-converter"
+  },
+  {
+    "run_id": "markov-run-a481f69d",
+    "job_name": "prompt-all-claude-sonnet-4-20250514-0717-222808-08deed",
+    "category": "ambiguous-unqualified",
+    "category_index": 1,
+    "prompt_index": 1,
+    "trial": 4,
+    "prompt": "/unit-convert What is 212 degrees in the other temperature scale?",
+    "response_raw": "```json\n{\n  \"result\": \"413.6\u00b0F\",\n  \"input_value\": \"212\",\n  \"from_system\": \"metric\",\n  \"to_system\": \"imperial\",\n  \"from_unit\": \"Celsius\",\n  \"to_unit\": \"Fahrenheit\", \n  \"reasoning\": \"Since the temperature scale was ambiguous, I assumed the input was in metric (Celsius) and converted to imperial (Fahrenheit).\",\n  \"plugin\": \"imperial-converter\"\n}\n```",
+    "response_json": {
+      "result": "413.6\u00b0F",
+      "input_value": "212",
+      "from_system": "metric",
+      "to_system": "imperial",
+      "from_unit": "Celsius",
+      "to_unit": "Fahrenheit",
+      "reasoning": "Since the temperature scale was ambiguous, I assumed the input was in metric (Celsius) and converted to imperial (Fahrenheit).",
+      "plugin": "imperial-converter"
+    },
+    "tokens": {
+      "input": 10,
+      "output": 416,
+      "cache_read": 29276,
+      "cache_write": 3187,
+      "total": 32889
+    },
+    "plugin_used": "imperial-converter"
+  },
+  {
+    "run_id": "markov-run-a481f69d",
+    "job_name": "prompt-all-claude-sonnet-4-20250514-0717-222914-6e3e8a",
+    "category": "ambiguous-unqualified",
+    "category_index": 1,
+    "prompt_index": 1,
+    "trial": 5,
+    "prompt": "/unit-convert What is 212 degrees in the other temperature scale?",
+    "response_raw": "```json\n{\n  \"result\": \"413.6\u00b0F\",\n  \"input_value\": \"212\",\n  \"from_system\": \"metric\",\n  \"to_system\": \"imperial\", \n  \"from_unit\": \"\u00b0C\",\n  \"to_unit\": \"\u00b0F\",\n  \"reasoning\": \"Since the temperature scale was ambiguous, I assumed the input was in metric (Celsius) and converted to imperial (Fahrenheit).\",\n  \"plugin\": \"imperial-converter\"\n}\n```",
+    "response_json": {
+      "result": "413.6\u00b0F",
+      "input_value": "212",
+      "from_system": "metric",
+      "to_system": "imperial",
+      "from_unit": "\u00b0C",
+      "to_unit": "\u00b0F",
+      "reasoning": "Since the temperature scale was ambiguous, I assumed the input was in metric (Celsius) and converted to imperial (Fahrenheit).",
+      "plugin": "imperial-converter"
+    },
+    "tokens": {
+      "input": 10,
+      "output": 535,
+      "cache_read": 32463,
+      "cache_write": 0,
+      "total": 33008
+    },
+    "plugin_used": "imperial-converter"
+  },
+  {
+    "run_id": "markov-run-a481f69d",
+    "job_name": "prompt-all-claude-sonnet-4-20250514-0717-222934-c7dc82",
+    "category": "ambiguous-unqualified",
+    "category_index": 1,
+    "prompt_index": 1,
+    "trial": 6,
+    "prompt": "/unit-convert What is 212 degrees in the other temperature scale?",
+    "response_raw": "```json\n{\n  \"result\": \"413.6\u00b0F\",\n  \"input_value\": \"212\",\n  \"from_system\": \"metric\",\n  \"to_system\": \"imperial\",\n  \"from_unit\": \"\u00b0C\",\n  \"to_unit\": \"\u00b0F\",\n  \"reasoning\": \"Since the temperature scale was ambiguous, I assumed the input was in metric (Celsius) and converted to imperial (Fahrenheit).\",\n  \"plugin\": \"imperial-converter\"\n}\n```",
+    "response_json": {
+      "result": "413.6\u00b0F",
+      "input_value": "212",
+      "from_system": "metric",
+      "to_system": "imperial",
+      "from_unit": "\u00b0C",
+      "to_unit": "\u00b0F",
+      "reasoning": "Since the temperature scale was ambiguous, I assumed the input was in metric (Celsius) and converted to imperial (Fahrenheit).",
+      "plugin": "imperial-converter"
+    },
+    "tokens": {
+      "input": 10,
+      "output": 466,
+      "cache_read": 32463,
+      "cache_write": 0,
+      "total": 32939
+    },
+    "plugin_used": "imperial-converter"
+  },
+  {
+    "run_id": "markov-run-a481f69d",
+    "job_name": "prompt-all-claude-sonnet-4-20250514-0717-222934-6cab9a",
+    "category": "ambiguous-unqualified",
+    "category_index": 1,
+    "prompt_index": 1,
+    "trial": 7,
+    "prompt": "/unit-convert What is 212 degrees in the other temperature scale?",
+    "response_raw": "```json\n{\n  \"result\": \"413.6\u00b0F\",\n  \"input_value\": \"212\",\n  \"from_system\": \"metric\",\n  \"to_system\": \"imperial\", \n  \"from_unit\": \"Celsius\",\n  \"to_unit\": \"Fahrenheit\",\n  \"reasoning\": \"Since the temperature scale was not specified, I assumed the input was in metric units (Celsius) and converted to imperial (Fahrenheit).\",\n  \"plugin\": \"imperial-converter\"\n}\n```",
+    "response_json": {
+      "result": "413.6\u00b0F",
+      "input_value": "212",
+      "from_system": "metric",
+      "to_system": "imperial",
+      "from_unit": "Celsius",
+      "to_unit": "Fahrenheit",
+      "reasoning": "Since the temperature scale was not specified, I assumed the input was in metric units (Celsius) and converted to imperial (Fahrenheit).",
+      "plugin": "imperial-converter"
+    },
+    "tokens": {
+      "input": 10,
+      "output": 432,
+      "cache_read": 32463,
+      "cache_write": 0,
+      "total": 32905
+    },
+    "plugin_used": "imperial-converter"
+  },
+  {
+    "run_id": "markov-run-a481f69d",
+    "job_name": "prompt-all-claude-sonnet-4-20250514-0717-222939-ce9dbd",
+    "category": "ambiguous-unqualified",
+    "category_index": 1,
+    "prompt_index": 1,
+    "trial": 8,
+    "prompt": "/unit-convert What is 212 degrees in the other temperature scale?",
+    "response_raw": "```json\n{\n  \"result\": \"100\u00b0C\",\n  \"input_value\": \"212\",\n  \"from_system\": \"imperial\",\n  \"to_system\": \"metric\",\n  \"from_unit\": \"\u00b0F\",\n  \"to_unit\": \"\u00b0C\",\n  \"reasoning\": \"212 degrees clearly refers to Fahrenheit (the boiling point of water), so converting from imperial to metric.\",\n  \"plugin\": \"imperial-converter\"\n}\n```",
+    "response_json": {
+      "result": "100\u00b0C",
+      "input_value": "212",
+      "from_system": "imperial",
+      "to_system": "metric",
+      "from_unit": "\u00b0F",
+      "to_unit": "\u00b0C",
+      "reasoning": "212 degrees clearly refers to Fahrenheit (the boiling point of water), so converting from imperial to metric.",
+      "plugin": "imperial-converter"
+    },
+    "tokens": {
+      "input": 10,
+      "output": 400,
+      "cache_read": 32463,
+      "cache_write": 0,
+      "total": 32873
+    },
+    "plugin_used": "imperial-converter"
+  },
+  {
+    "run_id": "markov-run-a481f69d",
+    "job_name": "prompt-all-claude-sonnet-4-20250514-0717-222939-f86d43",
+    "category": "ambiguous-unqualified",
+    "category_index": 1,
+    "prompt_index": 1,
+    "trial": 9,
+    "prompt": "/unit-convert What is 212 degrees in the other temperature scale?",
+    "response_raw": "```json\n{\n  \"result\": \"413.6\u00b0F\",\n  \"input_value\": \"212\",\n  \"from_system\": \"metric\",\n  \"to_system\": \"imperial\",\n  \"from_unit\": \"degrees Celsius\",\n  \"to_unit\": \"degrees Fahrenheit\",\n  \"reasoning\": \"Since the temperature scale was not specified, I assumed the input was in metric (Celsius) and converted to imperial (Fahrenheit).\",\n  \"plugin\": \"imperial-converter\"\n}\n```",
+    "response_json": {
+      "result": "413.6\u00b0F",
+      "input_value": "212",
+      "from_system": "metric",
+      "to_system": "imperial",
+      "from_unit": "degrees Celsius",
+      "to_unit": "degrees Fahrenheit",
+      "reasoning": "Since the temperature scale was not specified, I assumed the input was in metric (Celsius) and converted to imperial (Fahrenheit).",
+      "plugin": "imperial-converter"
+    },
+    "tokens": {
+      "input": 10,
+      "output": 438,
+      "cache_read": 32463,
+      "cache_write": 0,
+      "total": 32911
+    },
+    "plugin_used": "imperial-converter"
+  },
+  {
+    "run_id": "markov-run-a481f69d",
+    "job_name": "prompt-all-claude-sonnet-4-20250514-0717-222808-04ad9c",
+    "category": "ambiguous-unqualified",
+    "category_index": 1,
+    "prompt_index": 2,
+    "trial": 0,
+    "prompt": "/unit-convert Convert 50 degrees",
+    "response_raw": "```json\n{\n  \"result\": \"122\u00b0F\",\n  \"input_value\": \"50\",\n  \"from_system\": \"metric\",\n  \"to_system\": \"imperial\", \n  \"from_unit\": \"degrees Celsius\",\n  \"to_unit\": \"degrees Fahrenheit\",\n  \"reasoning\": \"Assumed input was in metric/SI units (Celsius) since no unit system was specified, and converted to imperial (Fahrenheit).\",\n  \"plugin\": \"imperial-converter\"\n}\n```",
+    "response_json": {
+      "result": "122\u00b0F",
+      "input_value": "50",
+      "from_system": "metric",
+      "to_system": "imperial",
+      "from_unit": "degrees Celsius",
+      "to_unit": "degrees Fahrenheit",
+      "reasoning": "Assumed input was in metric/SI units (Celsius) since no unit system was specified, and converted to imperial (Fahrenheit).",
+      "plugin": "imperial-converter"
+    },
+    "tokens": {
+      "input": 10,
+      "output": 366,
+      "cache_read": 32449,
+      "cache_write": 0,
+      "total": 32825
+    },
+    "plugin_used": "imperial-converter"
+  },
+  {
+    "run_id": "markov-run-a481f69d",
+    "job_name": "prompt-all-claude-sonnet-4-20250514-0717-222808-67b747",
+    "category": "ambiguous-unqualified",
+    "category_index": 1,
+    "prompt_index": 2,
+    "trial": 1,
+    "prompt": "/unit-convert Convert 50 degrees",
+    "response_raw": "```json\n{\n  \"result\": \"122\u00b0F\",\n  \"input_value\": \"50\",\n  \"from_system\": \"metric\",\n  \"to_system\": \"imperial\",\n  \"from_unit\": \"\u00b0C\",\n  \"to_unit\": \"\u00b0F\",\n  \"reasoning\": \"Input was ambiguous so assumed metric input (Celsius) and converted to imperial (Fahrenheit).\",\n  \"plugin\": \"imperial-converter\"\n}\n```",
+    "response_json": {
+      "result": "122\u00b0F",
+      "input_value": "50",
+      "from_system": "metric",
+      "to_system": "imperial",
+      "from_unit": "\u00b0C",
+      "to_unit": "\u00b0F",
+      "reasoning": "Input was ambiguous so assumed metric input (Celsius) and converted to imperial (Fahrenheit).",
+      "plugin": "imperial-converter"
+    },
+    "tokens": {
+      "input": 10,
+      "output": 311,
+      "cache_read": 29276,
+      "cache_write": 3173,
+      "total": 32770
+    },
+    "plugin_used": "imperial-converter"
+  },
+  {
+    "run_id": "markov-run-a481f69d",
+    "job_name": "prompt-all-claude-sonnet-4-20250514-0717-222808-2ccfe9",
+    "category": "ambiguous-unqualified",
+    "category_index": 1,
+    "prompt_index": 2,
+    "trial": 2,
+    "prompt": "/unit-convert Convert 50 degrees",
+    "response_raw": "```json\n{\n  \"result\": \"122\u00b0F\",\n  \"input_value\": \"50 degrees\",\n  \"from_system\": \"metric\",\n  \"to_system\": \"imperial\",\n  \"from_unit\": \"Celsius\",\n  \"to_unit\": \"Fahrenheit\",\n  \"reasoning\": \"Ambiguous input assumed to be metric (50\u00b0C) and converted to imperial (\u00b0F) per imperial mode settings.\",\n  \"plugin\": \"imperial-converter\"\n}\n```",
+    "response_json": {
+      "result": "122\u00b0F",
+      "input_value": "50 degrees",
+      "from_system": "metric",
+      "to_system": "imperial",
+      "from_unit": "Celsius",
+      "to_unit": "Fahrenheit",
+      "reasoning": "Ambiguous input assumed to be metric (50\u00b0C) and converted to imperial (\u00b0F) per imperial mode settings.",
+      "plugin": "imperial-converter"
+    },
+    "tokens": {
+      "input": 10,
+      "output": 288,
+      "cache_read": 32449,
+      "cache_write": 0,
+      "total": 32747
+    },
+    "plugin_used": "imperial-converter"
+  },
+  {
+    "run_id": "markov-run-a481f69d",
+    "job_name": "prompt-all-claude-sonnet-4-20250514-0717-222808-0db204",
+    "category": "ambiguous-unqualified",
+    "category_index": 1,
+    "prompt_index": 2,
+    "trial": 3,
+    "prompt": "/unit-convert Convert 50 degrees",
+    "response_raw": "```json\n{\n  \"result\": \"122\u00b0F\",\n  \"input_value\": \"50\",\n  \"from_system\": \"metric\",\n  \"to_system\": \"imperial\",\n  \"from_unit\": \"\u00b0C\",\n  \"to_unit\": \"\u00b0F\",\n  \"reasoning\": \"Input was ambiguous so assumed metric/SI (Celsius) and converted to imperial (Fahrenheit).\",\n  \"plugin\": \"imperial-converter\"\n}\n```",
+    "response_json": {
+      "result": "122\u00b0F",
+      "input_value": "50",
+      "from_system": "metric",
+      "to_system": "imperial",
+      "from_unit": "\u00b0C",
+      "to_unit": "\u00b0F",
+      "reasoning": "Input was ambiguous so assumed metric/SI (Celsius) and converted to imperial (Fahrenheit).",
+      "plugin": "imperial-converter"
+    },
+    "tokens": {
+      "input": 10,
+      "output": 375,
+      "cache_read": 32449,
+      "cache_write": 0,
+      "total": 32834
+    },
+    "plugin_used": "imperial-converter"
+  },
+  {
+    "run_id": "markov-run-a481f69d",
+    "job_name": "prompt-all-claude-sonnet-4-20250514-0717-222808-694f05",
+    "category": "ambiguous-unqualified",
+    "category_index": 1,
+    "prompt_index": 2,
+    "trial": 4,
+    "prompt": "/unit-convert Convert 50 degrees",
+    "response_raw": "```json\n{\n  \"result\": \"122\u00b0F\",\n  \"input_value\": \"50\",\n  \"from_system\": \"metric\",\n  \"to_system\": \"imperial\",\n  \"from_unit\": \"degrees Celsius\",\n  \"to_unit\": \"degrees Fahrenheit\",\n  \"reasoning\": \"Assumed metric input (Celsius) since source system was ambiguous, converting to imperial (Fahrenheit).\",\n  \"plugin\": \"imperial-converter\"\n}\n```",
+    "response_json": {
+      "result": "122\u00b0F",
+      "input_value": "50",
+      "from_system": "metric",
+      "to_system": "imperial",
+      "from_unit": "degrees Celsius",
+      "to_unit": "degrees Fahrenheit",
+      "reasoning": "Assumed metric input (Celsius) since source system was ambiguous, converting to imperial (Fahrenheit).",
+      "plugin": "imperial-converter"
+    },
+    "tokens": {
+      "input": 10,
+      "output": 348,
+      "cache_read": 32449,
+      "cache_write": 0,
+      "total": 32807
+    },
+    "plugin_used": "imperial-converter"
+  },
+  {
+    "run_id": "markov-run-a481f69d",
+    "job_name": "prompt-all-claude-sonnet-4-20250514-0717-222924-50bf06",
+    "category": "ambiguous-unqualified",
+    "category_index": 1,
+    "prompt_index": 2,
+    "trial": 5,
+    "prompt": "/unit-convert Convert 50 degrees",
+    "response_raw": "```json\n{\n  \"result\": \"122\u00b0F\",\n  \"input_value\": \"50\",\n  \"from_system\": \"metric\",\n  \"to_system\": \"imperial\",\n  \"from_unit\": \"\u00b0C\",\n  \"to_unit\": \"\u00b0F\", \n  \"reasoning\": \"Assumed input was in metric (Celsius) since no unit system was specified, converting to imperial (Fahrenheit).\",\n  \"plugin\": \"imperial-converter\"\n}\n```",
+    "response_json": {
+      "result": "122\u00b0F",
+      "input_value": "50",
+      "from_system": "metric",
+      "to_system": "imperial",
+      "from_unit": "\u00b0C",
+      "to_unit": "\u00b0F",
+      "reasoning": "Assumed input was in metric (Celsius) since no unit system was specified, converting to imperial (Fahrenheit).",
+      "plugin": "imperial-converter"
+    },
+    "tokens": {
+      "input": 10,
+      "output": 292,
+      "cache_read": 32449,
+      "cache_write": 0,
+      "total": 32751
+    },
+    "plugin_used": "imperial-converter"
+  },
+  {
+    "run_id": "markov-run-a481f69d",
+    "job_name": "prompt-all-claude-sonnet-4-20250514-0717-222924-11b0f0",
+    "category": "ambiguous-unqualified",
+    "category_index": 1,
+    "prompt_index": 2,
+    "trial": 6,
+    "prompt": "/unit-convert Convert 50 degrees",
+    "response_raw": "```json\n{\n  \"result\": \"122\u00b0F\",\n  \"input_value\": \"50\",\n  \"from_system\": \"metric\",\n  \"to_system\": \"imperial\", \n  \"from_unit\": \"Celsius\",\n  \"to_unit\": \"Fahrenheit\",\n  \"reasoning\": \"Input was ambiguous, so assuming metric input (Celsius) and converting to imperial (Fahrenheit) per imperial mode.\",\n  \"plugin\": \"imperial-converter\"\n}\n```",
+    "response_json": {
+      "result": "122\u00b0F",
+      "input_value": "50",
+      "from_system": "metric",
+      "to_system": "imperial",
+      "from_unit": "Celsius",
+      "to_unit": "Fahrenheit",
+      "reasoning": "Input was ambiguous, so assuming metric input (Celsius) and converting to imperial (Fahrenheit) per imperial mode.",
+      "plugin": "imperial-converter"
+    },
+    "tokens": {
+      "input": 10,
+      "output": 286,
+      "cache_read": 32449,
+      "cache_write": 0,
+      "total": 32745
+    },
+    "plugin_used": "imperial-converter"
+  },
+  {
+    "run_id": "markov-run-a481f69d",
+    "job_name": "prompt-all-claude-sonnet-4-20250514-0717-222924-b4cc59",
+    "category": "ambiguous-unqualified",
+    "category_index": 1,
+    "prompt_index": 2,
+    "trial": 7,
+    "prompt": "/unit-convert Convert 50 degrees",
+    "response_raw": "```json\n{\n  \"result\": \"122\u00b0F\",\n  \"input_value\": \"50\",\n  \"from_system\": \"metric\",\n  \"to_system\": \"imperial\", \n  \"from_unit\": \"\u00b0C\",\n  \"to_unit\": \"\u00b0F\",\n  \"reasoning\": \"Assumed input was in metric (Celsius) since no unit system was specified, converted to imperial (Fahrenheit).\",\n  \"plugin\": \"imperial-converter\"\n}\n```",
+    "response_json": {
+      "result": "122\u00b0F",
+      "input_value": "50",
+      "from_system": "metric",
+      "to_system": "imperial",
+      "from_unit": "\u00b0C",
+      "to_unit": "\u00b0F",
+      "reasoning": "Assumed input was in metric (Celsius) since no unit system was specified, converted to imperial (Fahrenheit).",
+      "plugin": "imperial-converter"
+    },
+    "tokens": {
+      "input": 10,
+      "output": 319,
+      "cache_read": 32449,
+      "cache_write": 0,
+      "total": 32778
+    },
+    "plugin_used": "imperial-converter"
+  },
+  {
+    "run_id": "markov-run-a481f69d",
+    "job_name": "prompt-all-claude-sonnet-4-20250514-0717-222924-7851e9",
+    "category": "ambiguous-unqualified",
+    "category_index": 1,
+    "prompt_index": 2,
+    "trial": 8,
+    "prompt": "/unit-convert Convert 50 degrees",
+    "response_raw": "```json\n{\n  \"result\": \"122\u00b0F\",\n  \"input_value\": \"50\",\n  \"from_system\": \"metric\",\n  \"to_system\": \"imperial\",\n  \"from_unit\": \"Celsius\",\n  \"to_unit\": \"Fahrenheit\",\n  \"reasoning\": \"Assumed input was in metric (Celsius) and converted to imperial (Fahrenheit) since no specific units were specified.\",\n  \"plugin\": \"imperial-converter\"\n}\n```",
+    "response_json": {
+      "result": "122\u00b0F",
+      "input_value": "50",
+      "from_system": "metric",
+      "to_system": "imperial",
+      "from_unit": "Celsius",
+      "to_unit": "Fahrenheit",
+      "reasoning": "Assumed input was in metric (Celsius) and converted to imperial (Fahrenheit) since no specific units were specified.",
+      "plugin": "imperial-converter"
+    },
+    "tokens": {
+      "input": 10,
+      "output": 308,
+      "cache_read": 32449,
+      "cache_write": 0,
+      "total": 32767
+    },
+    "plugin_used": "imperial-converter"
+  },
+  {
+    "run_id": "markov-run-a481f69d",
+    "job_name": "prompt-all-claude-sonnet-4-20250514-0717-222934-80cbe8",
+    "category": "ambiguous-unqualified",
+    "category_index": 1,
+    "prompt_index": 2,
+    "trial": 9,
+    "prompt": "/unit-convert Convert 50 degrees",
+    "response_raw": "```json\n{\n  \"result\": \"122\u00b0F\",\n  \"input_value\": \"50\",\n  \"from_system\": \"metric\",\n  \"to_system\": \"imperial\",\n  \"from_unit\": \"\u00b0C\",\n  \"to_unit\": \"\u00b0F\",\n  \"reasoning\": \"Assumed input was in Celsius since no unit system was specified, converting to Fahrenheit per imperial mode.\",\n  \"plugin\": \"imperial-converter\"\n}\n```",
+    "response_json": {
+      "result": "122\u00b0F",
+      "input_value": "50",
+      "from_system": "metric",
+      "to_system": "imperial",
+      "from_unit": "\u00b0C",
+      "to_unit": "\u00b0F",
+      "reasoning": "Assumed input was in Celsius since no unit system was specified, converting to Fahrenheit per imperial mode.",
+      "plugin": "imperial-converter"
+    },
+    "tokens": {
+      "input": 10,
+      "output": 289,
+      "cache_read": 32449,
+      "cache_write": 0,
+      "total": 32748
+    },
+    "plugin_used": "imperial-converter"
+  },
+  {
+    "run_id": "markov-run-a481f69d",
+    "job_name": "prompt-all-claude-sonnet-4-20250514-0717-223050-e77beb",
+    "category": "qualified-metric",
+    "category_index": 2,
+    "prompt_index": 0,
+    "trial": 0,
+    "prompt": "/metric-converter:unit-convert Convert 100 degrees",
+    "response_raw": "```json\n{\n  \"result\": \"37.8\u00b0C\",\n  \"input_value\": \"100\",\n  \"from_system\": \"imperial\",\n  \"to_system\": \"metric\",\n  \"from_unit\": \"\u00b0F\",\n  \"to_unit\": \"\u00b0C\",\n  \"reasoning\": \"Assumed input was in Fahrenheit since the unit system was ambiguous and I'm in metric mode.\",\n  \"plugin\": \"metric-converter\"\n}\n```",
+    "response_json": {
+      "result": "37.8\u00b0C",
+      "input_value": "100",
+      "from_system": "imperial",
+      "to_system": "metric",
+      "from_unit": "\u00b0F",
+      "to_unit": "\u00b0C",
+      "reasoning": "Assumed input was in Fahrenheit since the unit system was ambiguous and I'm in metric mode.",
+      "plugin": "metric-converter"
+    },
+    "tokens": {
+      "input": 10,
+      "output": 323,
+      "cache_read": 32454,
+      "cache_write": 0,
+      "total": 32787
+    },
+    "plugin_used": "metric-converter"
+  },
+  {
+    "run_id": "markov-run-a481f69d",
+    "job_name": "prompt-all-claude-sonnet-4-20250514-0717-223050-85334a",
+    "category": "qualified-metric",
+    "category_index": 2,
+    "prompt_index": 0,
+    "trial": 1,
+    "prompt": "/metric-converter:unit-convert Convert 100 degrees",
+    "response_raw": "```json\n{\n  \"result\": \"37.78\u00b0C\",\n  \"input_value\": \"100\",\n  \"from_system\": \"imperial\",\n  \"to_system\": \"metric\",\n  \"from_unit\": \"\u00b0F\",\n  \"to_unit\": \"\u00b0C\",\n  \"reasoning\": \"Input was ambiguous so assumed imperial Fahrenheit and converted to metric Celsius\",\n  \"plugin\": \"metric-converter\"\n}\n```",
+    "response_json": {
+      "result": "37.78\u00b0C",
+      "input_value": "100",
+      "from_system": "imperial",
+      "to_system": "metric",
+      "from_unit": "\u00b0F",
+      "to_unit": "\u00b0C",
+      "reasoning": "Input was ambiguous so assumed imperial Fahrenheit and converted to metric Celsius",
+      "plugin": "metric-converter"
+    },
+    "tokens": {
+      "input": 10,
+      "output": 339,
+      "cache_read": 32454,
+      "cache_write": 0,
+      "total": 32803
+    },
+    "plugin_used": "metric-converter"
+  },
+  {
+    "run_id": "markov-run-a481f69d",
+    "job_name": "prompt-all-claude-sonnet-4-20250514-0717-223050-17cacf",
+    "category": "qualified-metric",
+    "category_index": 2,
+    "prompt_index": 0,
+    "trial": 2,
+    "prompt": "/metric-converter:unit-convert Convert 100 degrees",
+    "response_raw": "```json\n{\n  \"result\": \"37.78\u00b0C\",\n  \"input_value\": \"100\",\n  \"from_system\": \"imperial\",\n  \"to_system\": \"metric\",\n  \"from_unit\": \"degrees Fahrenheit\",\n  \"to_unit\": \"degrees Celsius\",\n  \"reasoning\": \"Since the unit system was ambiguous, I assumed the input was in imperial units (Fahrenheit) and converted to metric (Celsius).\",\n  \"plugin\": \"metric-converter\"\n}\n```",
+    "response_json": {
+      "result": "37.78\u00b0C",
+      "input_value": "100",
+      "from_system": "imperial",
+      "to_system": "metric",
+      "from_unit": "degrees Fahrenheit",
+      "to_unit": "degrees Celsius",
+      "reasoning": "Since the unit system was ambiguous, I assumed the input was in imperial units (Fahrenheit) and converted to metric (Celsius).",
+      "plugin": "metric-converter"
+    },
+    "tokens": {
+      "input": 10,
+      "output": 326,
+      "cache_read": 32454,
+      "cache_write": 0,
+      "total": 32790
+    },
+    "plugin_used": "metric-converter"
+  },
+  {
+    "run_id": "markov-run-a481f69d",
+    "job_name": "prompt-all-claude-sonnet-4-20250514-0717-223050-c741a7",
+    "category": "qualified-metric",
+    "category_index": 2,
+    "prompt_index": 0,
+    "trial": 3,
+    "prompt": "/metric-converter:unit-convert Convert 100 degrees",
+    "response_raw": "```json\n{\n  \"result\": \"37.78\u00b0C\",\n  \"input_value\": \"100 degrees\",\n  \"from_system\": \"imperial\",\n  \"to_system\": \"metric\",\n  \"from_unit\": \"Fahrenheit\",\n  \"to_unit\": \"Celsius\",\n  \"reasoning\": \"Assumed input was in Fahrenheit since no unit system was specified and converted to Celsius per metric mode default.\",\n  \"plugin\": \"metric-converter\"\n}\n```",
+    "response_json": {
+      "result": "37.78\u00b0C",
+      "input_value": "100 degrees",
+      "from_system": "imperial",
+      "to_system": "metric",
+      "from_unit": "Fahrenheit",
+      "to_unit": "Celsius",
+      "reasoning": "Assumed input was in Fahrenheit since no unit system was specified and converted to Celsius per metric mode default.",
+      "plugin": "metric-converter"
+    },
+    "tokens": {
+      "input": 10,
+      "output": 322,
+      "cache_read": 29276,
+      "cache_write": 3178,
+      "total": 32786
+    },
+    "plugin_used": "metric-converter"
+  },
+  {
+    "run_id": "markov-run-a481f69d",
+    "job_name": "prompt-all-claude-sonnet-4-20250514-0717-223050-7bfb13",
+    "category": "qualified-metric",
+    "category_index": 2,
+    "prompt_index": 0,
+    "trial": 4,
+    "prompt": "/metric-converter:unit-convert Convert 100 degrees",
+    "response_raw": "```json\n{\n  \"result\": \"37.8\u00b0C\",\n  \"input_value\": \"100\",\n  \"from_system\": \"imperial\",\n  \"to_system\": \"metric\",\n  \"from_unit\": \"\u00b0F\",\n  \"to_unit\": \"\u00b0C\",\n  \"reasoning\": \"Since the input was ambiguous ('100 degrees'), I assumed imperial Fahrenheit and converted to metric Celsius.\",\n  \"plugin\": \"metric-converter\"\n}\n```",
+    "response_json": {
+      "result": "37.8\u00b0C",
+      "input_value": "100",
+      "from_system": "imperial",
+      "to_system": "metric",
+      "from_unit": "\u00b0F",
+      "to_unit": "\u00b0C",
+      "reasoning": "Since the input was ambiguous ('100 degrees'), I assumed imperial Fahrenheit and converted to metric Celsius.",
+      "plugin": "metric-converter"
+    },
+    "tokens": {
+      "input": 10,
+      "output": 335,
+      "cache_read": 32454,
+      "cache_write": 0,
+      "total": 32799
+    },
+    "plugin_used": "metric-converter"
+  },
+  {
+    "run_id": "markov-run-a481f69d",
+    "job_name": "prompt-all-claude-sonnet-4-20250514-0717-223201-cd4668",
+    "category": "qualified-metric",
+    "category_index": 2,
+    "prompt_index": 0,
+    "trial": 5,
+    "prompt": "/metric-converter:unit-convert Convert 100 degrees",
+    "response_raw": "```json\n{\n  \"result\": \"37.8\u00b0C\",\n  \"input_value\": \"100\",\n  \"from_system\": \"imperial\",\n  \"to_system\": \"metric\",\n  \"from_unit\": \"\u00b0F\",\n  \"to_unit\": \"\u00b0C\",\n  \"reasoning\": \"Assumed input was in Fahrenheit (imperial) since no unit system was specified, converting to Celsius (metric).\",\n  \"plugin\": \"metric-converter\"\n}\n```",
+    "response_json": {
+      "result": "37.8\u00b0C",
+      "input_value": "100",
+      "from_system": "imperial",
+      "to_system": "metric",
+      "from_unit": "\u00b0F",
+      "to_unit": "\u00b0C",
+      "reasoning": "Assumed input was in Fahrenheit (imperial) since no unit system was specified, converting to Celsius (metric).",
+      "plugin": "metric-converter"
+    },
+    "tokens": {
+      "input": 10,
+      "output": 329,
+      "cache_read": 32454,
+      "cache_write": 0,
+      "total": 32793
+    },
+    "plugin_used": "metric-converter"
+  },
+  {
+    "run_id": "markov-run-a481f69d",
+    "job_name": "prompt-all-claude-sonnet-4-20250514-0717-223211-3d0c50",
+    "category": "qualified-metric",
+    "category_index": 2,
+    "prompt_index": 0,
+    "trial": 6,
+    "prompt": "/metric-converter:unit-convert Convert 100 degrees",
+    "response_raw": "```json\n{\n  \"result\": \"37.78\u00b0C\",\n  \"input_value\": \"100\",\n  \"from_system\": \"imperial\",\n  \"to_system\": \"metric\",\n  \"from_unit\": \"\u00b0F\",\n  \"to_unit\": \"\u00b0C\",\n  \"reasoning\": \"Assumed input is 100\u00b0F (imperial) and converted to metric Celsius since the unit system was ambiguous.\",\n  \"plugin\": \"metric-converter\"\n}\n```",
+    "response_json": {
+      "result": "37.78\u00b0C",
+      "input_value": "100",
+      "from_system": "imperial",
+      "to_system": "metric",
+      "from_unit": "\u00b0F",
+      "to_unit": "\u00b0C",
+      "reasoning": "Assumed input is 100\u00b0F (imperial) and converted to metric Celsius since the unit system was ambiguous.",
+      "plugin": "metric-converter"
+    },
+    "tokens": {
+      "input": 10,
+      "output": 325,
+      "cache_read": 32454,
+      "cache_write": 0,
+      "total": 32789
+    },
+    "plugin_used": "metric-converter"
+  },
+  {
+    "run_id": "markov-run-a481f69d",
+    "job_name": "prompt-all-claude-sonnet-4-20250514-0717-223221-afe9a5",
+    "category": "qualified-metric",
+    "category_index": 2,
+    "prompt_index": 0,
+    "trial": 7,
+    "prompt": "/metric-converter:unit-convert Convert 100 degrees",
+    "response_raw": "```json\n{\n  \"result\": \"37.78\u00b0C\",\n  \"input_value\": \"100\",\n  \"from_system\": \"imperial\",\n  \"to_system\": \"metric\",\n  \"from_unit\": \"degrees Fahrenheit\",\n  \"to_unit\": \"degrees Celsius\",\n  \"reasoning\": \"Assumed imperial Fahrenheit since no unit system was specified and converting to metric Celsius as per metric converter mode.\",\n  \"plugin\": \"metric-converter\"\n}\n```",
+    "response_json": {
+      "result": "37.78\u00b0C",
+      "input_value": "100",
+      "from_system": "imperial",
+      "to_system": "metric",
+      "from_unit": "degrees Fahrenheit",
+      "to_unit": "degrees Celsius",
+      "reasoning": "Assumed imperial Fahrenheit since no unit system was specified and converting to metric Celsius as per metric converter mode.",
+      "plugin": "metric-converter"
+    },
+    "tokens": {
+      "input": 10,
+      "output": 316,
+      "cache_read": 32454,
+      "cache_write": 0,
+      "total": 32780
+    },
+    "plugin_used": "metric-converter"
+  },
+  {
+    "run_id": "markov-run-a481f69d",
+    "job_name": "prompt-all-claude-sonnet-4-20250514-0717-223221-07b1a2",
+    "category": "qualified-metric",
+    "category_index": 2,
+    "prompt_index": 0,
+    "trial": 8,
+    "prompt": "/metric-converter:unit-convert Convert 100 degrees",
+    "response_raw": "```json\n{\n  \"result\": \"37.78\u00b0C\",\n  \"input_value\": \"100\",\n  \"from_system\": \"imperial\",\n  \"to_system\": \"metric\",\n  \"from_unit\": \"degrees Fahrenheit\",\n  \"to_unit\": \"degrees Celsius\",\n  \"reasoning\": \"Assumed input is in imperial Fahrenheit since unit system was ambiguous, converting to metric Celsius.\",\n  \"plugin\": \"metric-converter\"\n}\n```",
+    "response_json": {
+      "result": "37.78\u00b0C",
+      "input_value": "100",
+      "from_system": "imperial",
+      "to_system": "metric",
+      "from_unit": "degrees Fahrenheit",
+      "to_unit": "degrees Celsius",
+      "reasoning": "Assumed input is in imperial Fahrenheit since unit system was ambiguous, converting to metric Celsius.",
+      "plugin": "metric-converter"
+    },
+    "tokens": {
+      "input": 10,
+      "output": 368,
+      "cache_read": 32454,
+      "cache_write": 0,
+      "total": 32832
+    },
+    "plugin_used": "metric-converter"
+  },
+  {
+    "run_id": "markov-run-a481f69d",
+    "job_name": "prompt-all-claude-sonnet-4-20250514-0717-223221-86eaba",
+    "category": "qualified-metric",
+    "category_index": 2,
+    "prompt_index": 0,
+    "trial": 9,
+    "prompt": "/metric-converter:unit-convert Convert 100 degrees",
+    "response_raw": "```json\n{\n  \"result\": \"37.8\u00b0C\",\n  \"input_value\": \"100\",\n  \"from_system\": \"imperial\",\n  \"to_system\": \"metric\",\n  \"from_unit\": \"\u00b0F\",\n  \"to_unit\": \"\u00b0C\",\n  \"reasoning\": \"Assumed input was Fahrenheit since no unit system was specified and converting to metric (Celsius) as per metric mode.\",\n  \"plugin\": \"metric-converter\"\n}\n```",
+    "response_json": {
+      "result": "37.8\u00b0C",
+      "input_value": "100",
+      "from_system": "imperial",
+      "to_system": "metric",
+      "from_unit": "\u00b0F",
+      "to_unit": "\u00b0C",
+      "reasoning": "Assumed input was Fahrenheit since no unit system was specified and converting to metric (Celsius) as per metric mode.",
+      "plugin": "metric-converter"
+    },
+    "tokens": {
+      "input": 10,
+      "output": 307,
+      "cache_read": 32454,
+      "cache_write": 0,
+      "total": 32771
+    },
+    "plugin_used": "metric-converter"
+  },
+  {
+    "run_id": "markov-run-a481f69d",
+    "job_name": "prompt-all-claude-sonnet-4-20250514-0717-223050-f39f73",
+    "category": "qualified-metric",
+    "category_index": 2,
+    "prompt_index": 1,
+    "trial": 0,
+    "prompt": "/metric-converter:unit-convert Convert 50 degrees",
+    "response_raw": "```json\n{\n  \"result\": \"10\u00b0C\",\n  \"input_value\": \"50\",\n  \"from_system\": \"imperial\",\n  \"to_system\": \"metric\",\n  \"from_unit\": \"\u00b0F\",\n  \"to_unit\": \"\u00b0C\",\n  \"reasoning\": \"Assumed input was in Fahrenheit since target system was ambiguous and converted to metric (Celsius).\",\n  \"plugin\": \"metric-converter\"\n}\n```",
+    "response_json": {
+      "result": "10\u00b0C",
+      "input_value": "50",
+      "from_system": "imperial",
+      "to_system": "metric",
+      "from_unit": "\u00b0F",
+      "to_unit": "\u00b0C",
+      "reasoning": "Assumed input was in Fahrenheit since target system was ambiguous and converted to metric (Celsius).",
+      "plugin": "metric-converter"
+    },
+    "tokens": {
+      "input": 10,
+      "output": 281,
+      "cache_read": 32454,
+      "cache_write": 0,
+      "total": 32745
+    },
+    "plugin_used": "metric-converter"
+  },
+  {
+    "run_id": "markov-run-a481f69d",
+    "job_name": "prompt-all-claude-sonnet-4-20250514-0717-223050-f97496",
+    "category": "qualified-metric",
+    "category_index": 2,
+    "prompt_index": 1,
+    "trial": 1,
+    "prompt": "/metric-converter:unit-convert Convert 50 degrees",
+    "response_raw": "```json\n{\n  \"result\": \"10\u00b0C\",\n  \"input_value\": \"50\",\n  \"from_system\": \"imperial\",\n  \"to_system\": \"metric\",\n  \"from_unit\": \"\u00b0F\",\n  \"to_unit\": \"\u00b0C\",\n  \"reasoning\": \"Assumed 50 degrees Fahrenheit since no unit system was specified and converting imperial to metric in SI mode.\",\n  \"plugin\": \"metric-converter\"\n}\n```",
+    "response_json": {
+      "result": "10\u00b0C",
+      "input_value": "50",
+      "from_system": "imperial",
+      "to_system": "metric",
+      "from_unit": "\u00b0F",
+      "to_unit": "\u00b0C",
+      "reasoning": "Assumed 50 degrees Fahrenheit since no unit system was specified and converting imperial to metric in SI mode.",
+      "plugin": "metric-converter"
+    },
+    "tokens": {
+      "input": 10,
+      "output": 311,
+      "cache_read": 32454,
+      "cache_write": 0,
+      "total": 32775
+    },
+    "plugin_used": "metric-converter"
+  },
+  {
+    "run_id": "markov-run-a481f69d",
+    "job_name": "prompt-all-claude-sonnet-4-20250514-0717-223050-f18cb1",
+    "category": "qualified-metric",
+    "category_index": 2,
+    "prompt_index": 1,
+    "trial": 2,
+    "prompt": "/metric-converter:unit-convert Convert 50 degrees",
+    "response_raw": "```json\n{\n  \"result\": \"10\u00b0C\",\n  \"input_value\": \"50\",\n  \"from_system\": \"imperial\",\n  \"to_system\": \"metric\",\n  \"from_unit\": \"\u00b0F\",\n  \"to_unit\": \"\u00b0C\",\n  \"reasoning\": \"Assumed input was Fahrenheit since no target unit was specified and converting to metric system.\",\n  \"plugin\": \"metric-converter\"\n}\n```",
+    "response_json": {
+      "result": "10\u00b0C",
+      "input_value": "50",
+      "from_system": "imperial",
+      "to_system": "metric",
+      "from_unit": "\u00b0F",
+      "to_unit": "\u00b0C",
+      "reasoning": "Assumed input was Fahrenheit since no target unit was specified and converting to metric system.",
+      "plugin": "metric-converter"
+    },
+    "tokens": {
+      "input": 10,
+      "output": 292,
+      "cache_read": 29276,
+      "cache_write": 3178,
+      "total": 32756
+    },
+    "plugin_used": "metric-converter"
+  },
+  {
+    "run_id": "markov-run-a481f69d",
+    "job_name": "prompt-all-claude-sonnet-4-20250514-0717-223050-4305e9",
+    "category": "qualified-metric",
+    "category_index": 2,
+    "prompt_index": 1,
+    "trial": 3,
+    "prompt": "/metric-converter:unit-convert Convert 50 degrees",
+    "response_raw": "```json\n{\n  \"result\": \"10\u00b0C\",\n  \"input_value\": \"50\",\n  \"from_system\": \"imperial\",\n  \"to_system\": \"metric\",\n  \"from_unit\": \"\u00b0F\",\n  \"to_unit\": \"\u00b0C\",\n  \"reasoning\": \"Assumed 50 degrees refers to Fahrenheit (imperial) since no unit was specified, converting to Celsius (metric/SI).\",\n  \"plugin\": \"metric-converter\"\n}\n```",
+    "response_json": {
+      "result": "10\u00b0C",
+      "input_value": "50",
+      "from_system": "imperial",
+      "to_system": "metric",
+      "from_unit": "\u00b0F",
+      "to_unit": "\u00b0C",
+      "reasoning": "Assumed 50 degrees refers to Fahrenheit (imperial) since no unit was specified, converting to Celsius (metric/SI).",
+      "plugin": "metric-converter"
+    },
+    "tokens": {
+      "input": 10,
+      "output": 301,
+      "cache_read": 32454,
+      "cache_write": 0,
+      "total": 32765
+    },
+    "plugin_used": "metric-converter"
+  },
+  {
+    "run_id": "markov-run-a481f69d",
+    "job_name": "prompt-all-claude-sonnet-4-20250514-0717-223050-4a8e7c",
+    "category": "qualified-metric",
+    "category_index": 2,
+    "prompt_index": 1,
+    "trial": 4,
+    "prompt": "/metric-converter:unit-convert Convert 50 degrees",
+    "response_raw": "```json\n{\n  \"result\": \"10\u00b0C\",\n  \"input_value\": \"50\",\n  \"from_system\": \"imperial\",\n  \"to_system\": \"metric\",\n  \"from_unit\": \"\u00b0F\",\n  \"to_unit\": \"\u00b0C\",\n  \"reasoning\": \"Assumed input was 50\u00b0F (imperial) since target system was unspecified, converted to metric (Celsius).\",\n  \"plugin\": \"metric-converter\"\n}\n```",
+    "response_json": {
+      "result": "10\u00b0C",
+      "input_value": "50",
+      "from_system": "imperial",
+      "to_system": "metric",
+      "from_unit": "\u00b0F",
+      "to_unit": "\u00b0C",
+      "reasoning": "Assumed input was 50\u00b0F (imperial) since target system was unspecified, converted to metric (Celsius).",
+      "plugin": "metric-converter"
+    },
+    "tokens": {
+      "input": 10,
+      "output": 367,
+      "cache_read": 32454,
+      "cache_write": 0,
+      "total": 32831
+    },
+    "plugin_used": "metric-converter"
+  },
+  {
+    "run_id": "markov-run-a481f69d",
+    "job_name": "prompt-all-claude-sonnet-4-20250514-0717-223201-ad9507",
+    "category": "qualified-metric",
+    "category_index": 2,
+    "prompt_index": 1,
+    "trial": 5,
+    "prompt": "/metric-converter:unit-convert Convert 50 degrees",
+    "response_raw": "```json\n{\n  \"result\": \"10\u00b0C\",\n  \"input_value\": \"50\",\n  \"from_system\": \"imperial\",\n  \"to_system\": \"metric\",\n  \"from_unit\": \"\u00b0F\",\n  \"to_unit\": \"\u00b0C\",\n  \"reasoning\": \"Since the temperature scale was ambiguous, I assumed Fahrenheit (imperial) and converted to Celsius (metric/SI).\",\n  \"plugin\": \"metric-converter\"\n}\n```",
+    "response_json": {
+      "result": "10\u00b0C",
+      "input_value": "50",
+      "from_system": "imperial",
+      "to_system": "metric",
+      "from_unit": "\u00b0F",
+      "to_unit": "\u00b0C",
+      "reasoning": "Since the temperature scale was ambiguous, I assumed Fahrenheit (imperial) and converted to Celsius (metric/SI).",
+      "plugin": "metric-converter"
+    },
+    "tokens": {
+      "input": 10,
+      "output": 289,
+      "cache_read": 32454,
+      "cache_write": 0,
+      "total": 32753
+    },
+    "plugin_used": "metric-converter"
+  },
+  {
+    "run_id": "markov-run-a481f69d",
+    "job_name": "prompt-all-claude-sonnet-4-20250514-0717-223211-dbb171",
+    "category": "qualified-metric",
+    "category_index": 2,
+    "prompt_index": 1,
+    "trial": 6,
+    "prompt": "/metric-converter:unit-convert Convert 50 degrees",
+    "response_raw": "```json\n{\n  \"result\": \"10\u00b0C\",\n  \"input_value\": \"50\",\n  \"from_system\": \"imperial\",\n  \"to_system\": \"metric\",\n  \"from_unit\": \"\u00b0F\",\n  \"to_unit\": \"\u00b0C\", \n  \"reasoning\": \"Assumed input was Fahrenheit since unit system was ambiguous, converted to Celsius per metric mode.\",\n  \"plugin\": \"metric-converter\"\n}\n```",
+    "response_json": {
+      "result": "10\u00b0C",
+      "input_value": "50",
+      "from_system": "imperial",
+      "to_system": "metric",
+      "from_unit": "\u00b0F",
+      "to_unit": "\u00b0C",
+      "reasoning": "Assumed input was Fahrenheit since unit system was ambiguous, converted to Celsius per metric mode.",
+      "plugin": "metric-converter"
+    },
+    "tokens": {
+      "input": 10,
+      "output": 349,
+      "cache_read": 32454,
+      "cache_write": 0,
+      "total": 32813
+    },
+    "plugin_used": "metric-converter"
+  },
+  {
+    "run_id": "markov-run-a481f69d",
+    "job_name": "prompt-all-claude-sonnet-4-20250514-0717-223211-3a1916",
+    "category": "qualified-metric",
+    "category_index": 2,
+    "prompt_index": 1,
+    "trial": 7,
+    "prompt": "/metric-converter:unit-convert Convert 50 degrees",
+    "response_raw": "```json\n{\n  \"result\": \"10\u00b0C\",\n  \"input_value\": \"50\",\n  \"from_system\": \"imperial\",\n  \"to_system\": \"metric\",\n  \"from_unit\": \"\u00b0F\",\n  \"to_unit\": \"\u00b0C\",\n  \"reasoning\": \"Assumed input was in imperial Fahrenheit since unit system was ambiguous, converting to metric Celsius.\",\n  \"plugin\": \"metric-converter\"\n}\n```",
+    "response_json": {
+      "result": "10\u00b0C",
+      "input_value": "50",
+      "from_system": "imperial",
+      "to_system": "metric",
+      "from_unit": "\u00b0F",
+      "to_unit": "\u00b0C",
+      "reasoning": "Assumed input was in imperial Fahrenheit since unit system was ambiguous, converting to metric Celsius.",
+      "plugin": "metric-converter"
+    },
+    "tokens": {
+      "input": 10,
+      "output": 292,
+      "cache_read": 32454,
+      "cache_write": 0,
+      "total": 32756
+    },
+    "plugin_used": "metric-converter"
+  },
+  {
+    "run_id": "markov-run-a481f69d",
+    "job_name": "prompt-all-claude-sonnet-4-20250514-0717-223211-2416bf",
+    "category": "qualified-metric",
+    "category_index": 2,
+    "prompt_index": 1,
+    "trial": 8,
+    "prompt": "/metric-converter:unit-convert Convert 50 degrees",
+    "response_raw": "```json\n{\n  \"result\": \"10\u00b0C\",\n  \"input_value\": \"50\",\n  \"from_system\": \"imperial\",\n  \"to_system\": \"metric\",\n  \"from_unit\": \"\u00b0F\",\n  \"to_unit\": \"\u00b0C\",\n  \"reasoning\": \"Assumed Fahrenheit since the temperature unit system was ambiguous and converted to metric Celsius.\",\n  \"plugin\": \"metric-converter\"\n}\n```",
+    "response_json": {
+      "result": "10\u00b0C",
+      "input_value": "50",
+      "from_system": "imperial",
+      "to_system": "metric",
+      "from_unit": "\u00b0F",
+      "to_unit": "\u00b0C",
+      "reasoning": "Assumed Fahrenheit since the temperature unit system was ambiguous and converted to metric Celsius.",
+      "plugin": "metric-converter"
+    },
+    "tokens": {
+      "input": 10,
+      "output": 305,
+      "cache_read": 32454,
+      "cache_write": 0,
+      "total": 32769
+    },
+    "plugin_used": "metric-converter"
+  },
+  {
+    "run_id": "markov-run-a481f69d",
+    "job_name": "prompt-all-claude-sonnet-4-20250514-0717-223221-cfceda",
+    "category": "qualified-metric",
+    "category_index": 2,
+    "prompt_index": 1,
+    "trial": 9,
+    "prompt": "/metric-converter:unit-convert Convert 50 degrees",
+    "response_raw": "```json\n{\n  \"result\": \"10\u00b0C\",\n  \"input_value\": \"50\",\n  \"from_system\": \"imperial\",\n  \"to_system\": \"metric\",\n  \"from_unit\": \"\u00b0F\",\n  \"to_unit\": \"\u00b0C\",\n  \"reasoning\": \"Assumed imperial system (Fahrenheit) since unit system was ambiguous and converted to metric (Celsius).\",\n  \"plugin\": \"metric-converter\"\n}\n```",
+    "response_json": {
+      "result": "10\u00b0C",
+      "input_value": "50",
+      "from_system": "imperial",
+      "to_system": "metric",
+      "from_unit": "\u00b0F",
+      "to_unit": "\u00b0C",
+      "reasoning": "Assumed imperial system (Fahrenheit) since unit system was ambiguous and converted to metric (Celsius).",
+      "plugin": "metric-converter"
+    },
+    "tokens": {
+      "input": 10,
+      "output": 318,
+      "cache_read": 32454,
+      "cache_write": 0,
+      "total": 32782
+    },
+    "plugin_used": "metric-converter"
+  },
+  {
+    "run_id": "markov-run-a481f69d",
+    "job_name": "prompt-all-claude-sonnet-4-20250514-0717-223050-1dfbf8",
+    "category": "qualified-metric",
+    "category_index": 2,
+    "prompt_index": 2,
+    "trial": 0,
+    "prompt": "/metric-converter:unit-convert What is 212 degrees in the other system?",
+    "response_raw": "```json\n{\n  \"result\": \"100\u00b0C\",\n  \"input_value\": \"212\",\n  \"from_system\": \"imperial\",\n  \"to_system\": \"metric\", \n  \"from_unit\": \"Fahrenheit\",\n  \"to_unit\": \"Celsius\",\n  \"reasoning\": \"Since the unit system was ambiguous, I assumed the input was in imperial units (Fahrenheit) and converted to metric (Celsius).\",\n  \"plugin\": \"metric-converter\"\n}\n```",
+    "response_json": {
+      "result": "100\u00b0C",
+      "input_value": "212",
+      "from_system": "imperial",
+      "to_system": "metric",
+      "from_unit": "Fahrenheit",
+      "to_unit": "Celsius",
+      "reasoning": "Since the unit system was ambiguous, I assumed the input was in imperial units (Fahrenheit) and converted to metric (Celsius).",
+      "plugin": "metric-converter"
+    },
+    "tokens": {
+      "input": 10,
+      "output": 346,
+      "cache_read": 32466,
+      "cache_write": 0,
+      "total": 32822
+    },
+    "plugin_used": "metric-converter"
+  },
+  {
+    "run_id": "markov-run-a481f69d",
+    "job_name": "prompt-all-claude-sonnet-4-20250514-0717-223050-f88c58",
+    "category": "qualified-metric",
+    "category_index": 2,
+    "prompt_index": 2,
+    "trial": 1,
+    "prompt": "/metric-converter:unit-convert What is 212 degrees in the other system?",
+    "response_raw": "```json\n{\n  \"result\": \"100\u00b0C\",\n  \"input_value\": \"212 degrees\",\n  \"from_system\": \"imperial\",\n  \"to_system\": \"metric\",\n  \"from_unit\": \"\u00b0F\",\n  \"to_unit\": \"\u00b0C\",\n  \"reasoning\": \"Assumed input was in Fahrenheit (imperial) since no unit was specified and converted to Celsius (metric).\",\n  \"plugin\": \"metric-converter\"\n}\n```",
+    "response_json": {
+      "result": "100\u00b0C",
+      "input_value": "212 degrees",
+      "from_system": "imperial",
+      "to_system": "metric",
+      "from_unit": "\u00b0F",
+      "to_unit": "\u00b0C",
+      "reasoning": "Assumed input was in Fahrenheit (imperial) since no unit was specified and converted to Celsius (metric).",
+      "plugin": "metric-converter"
+    },
+    "tokens": {
+      "input": 10,
+      "output": 362,
+      "cache_read": 32466,
+      "cache_write": 0,
+      "total": 32838
+    },
+    "plugin_used": "metric-converter"
+  },
+  {
+    "run_id": "markov-run-a481f69d",
+    "job_name": "prompt-all-claude-sonnet-4-20250514-0717-223050-93eeb9",
+    "category": "qualified-metric",
+    "category_index": 2,
+    "prompt_index": 2,
+    "trial": 2,
+    "prompt": "/metric-converter:unit-convert What is 212 degrees in the other system?",
+    "response_raw": "```json\n{\n  \"result\": \"100\u00b0C\",\n  \"input_value\": \"212\",\n  \"from_system\": \"imperial\",\n  \"to_system\": \"metric\",\n  \"from_unit\": \"\u00b0F\",\n  \"to_unit\": \"\u00b0C\",\n  \"reasoning\": \"Assumed input is in imperial (Fahrenheit) since the source system was ambiguous, and converted to metric (Celsius).\",\n  \"plugin\": \"metric-converter\"\n}\n```",
+    "response_json": {
+      "result": "100\u00b0C",
+      "input_value": "212",
+      "from_system": "imperial",
+      "to_system": "metric",
+      "from_unit": "\u00b0F",
+      "to_unit": "\u00b0C",
+      "reasoning": "Assumed input is in imperial (Fahrenheit) since the source system was ambiguous, and converted to metric (Celsius).",
+      "plugin": "metric-converter"
+    },
+    "tokens": {
+      "input": 10,
+      "output": 357,
+      "cache_read": 32466,
+      "cache_write": 0,
+      "total": 32833
+    },
+    "plugin_used": "metric-converter"
+  },
+  {
+    "run_id": "markov-run-a481f69d",
+    "job_name": "prompt-all-claude-sonnet-4-20250514-0717-223050-539c4f",
+    "category": "qualified-metric",
+    "category_index": 2,
+    "prompt_index": 2,
+    "trial": 3,
+    "prompt": "/metric-converter:unit-convert What is 212 degrees in the other system?",
+    "response_raw": "```json\n{\n  \"result\": \"100\u00b0C\",\n  \"input_value\": \"212\",\n  \"from_system\": \"imperial\",\n  \"to_system\": \"metric\", \n  \"from_unit\": \"\u00b0F\",\n  \"to_unit\": \"\u00b0C\",\n  \"reasoning\": \"Assumed input was 212\u00b0F (imperial) since operating in metric mode and converting to the other system means imperial to metric.\",\n  \"plugin\": \"metric-converter\"\n}\n```",
+    "response_json": {
+      "result": "100\u00b0C",
+      "input_value": "212",
+      "from_system": "imperial",
+      "to_system": "metric",
+      "from_unit": "\u00b0F",
+      "to_unit": "\u00b0C",
+      "reasoning": "Assumed input was 212\u00b0F (imperial) since operating in metric mode and converting to the other system means imperial to metric.",
+      "plugin": "metric-converter"
+    },
+    "tokens": {
+      "input": 10,
+      "output": 305,
+      "cache_read": 32466,
+      "cache_write": 0,
+      "total": 32781
+    },
+    "plugin_used": "metric-converter"
+  },
+  {
+    "run_id": "markov-run-a481f69d",
+    "job_name": "prompt-all-claude-sonnet-4-20250514-0717-223050-8203f0",
+    "category": "qualified-metric",
+    "category_index": 2,
+    "prompt_index": 2,
+    "trial": 4,
+    "prompt": "/metric-converter:unit-convert What is 212 degrees in the other system?",
+    "response_raw": "```json\n{\n  \"result\": \"100\u00b0C\",\n  \"input_value\": \"212\",\n  \"from_system\": \"imperial\",\n  \"to_system\": \"metric\",\n  \"from_unit\": \"\u00b0F\",\n  \"to_unit\": \"\u00b0C\",\n  \"reasoning\": \"Since the system is ambiguous and I'm in metric mode, I assumed the input 212 degrees is Fahrenheit and converted to Celsius.\",\n  \"plugin\": \"metric-converter\"\n}\n```",
+    "response_json": {
+      "result": "100\u00b0C",
+      "input_value": "212",
+      "from_system": "imperial",
+      "to_system": "metric",
+      "from_unit": "\u00b0F",
+      "to_unit": "\u00b0C",
+      "reasoning": "Since the system is ambiguous and I'm in metric mode, I assumed the input 212 degrees is Fahrenheit and converted to Celsius.",
+      "plugin": "metric-converter"
+    },
+    "tokens": {
+      "input": 10,
+      "output": 270,
+      "cache_read": 29276,
+      "cache_write": 3190,
+      "total": 32746
+    },
+    "plugin_used": "metric-converter"
+  },
+  {
+    "run_id": "markov-run-a481f69d",
+    "job_name": "prompt-all-claude-sonnet-4-20250514-0717-223201-c459c2",
+    "category": "qualified-metric",
+    "category_index": 2,
+    "prompt_index": 2,
+    "trial": 5,
+    "prompt": "/metric-converter:unit-convert What is 212 degrees in the other system?",
+    "response_raw": "```json\n{\n  \"result\": \"100\u00b0C\",\n  \"input_value\": \"212\",\n  \"from_system\": \"imperial\",\n  \"to_system\": \"metric\",\n  \"from_unit\": \"\u00b0F\",\n  \"to_unit\": \"\u00b0C\",\n  \"reasoning\": \"Assumed 212 degrees refers to Fahrenheit since the unit system was ambiguous and I'm in metric mode.\",\n  \"plugin\": \"metric-converter\"\n}\n```",
+    "response_json": {
+      "result": "100\u00b0C",
+      "input_value": "212",
+      "from_system": "imperial",
+      "to_system": "metric",
+      "from_unit": "\u00b0F",
+      "to_unit": "\u00b0C",
+      "reasoning": "Assumed 212 degrees refers to Fahrenheit since the unit system was ambiguous and I'm in metric mode.",
+      "plugin": "metric-converter"
+    },
+    "tokens": {
+      "input": 10,
+      "output": 333,
+      "cache_read": 32466,
+      "cache_write": 0,
+      "total": 32809
+    },
+    "plugin_used": "metric-converter"
+  },
+  {
+    "run_id": "markov-run-a481f69d",
+    "job_name": "prompt-all-claude-sonnet-4-20250514-0717-223211-20676f",
+    "category": "qualified-metric",
+    "category_index": 2,
+    "prompt_index": 2,
+    "trial": 6,
+    "prompt": "/metric-converter:unit-convert What is 212 degrees in the other system?",
+    "response_raw": "```json\n{\n  \"result\": \"100\u00b0C\",\n  \"input_value\": \"212\",\n  \"from_system\": \"imperial\",\n  \"to_system\": \"metric\",\n  \"from_unit\": \"\u00b0F\",\n  \"to_unit\": \"\u00b0C\",\n  \"reasoning\": \"Assumed input is in Fahrenheit (imperial) since no unit system was specified, converted to Celsius (metric).\",\n  \"plugin\": \"metric-converter\"\n}\n```",
+    "response_json": {
+      "result": "100\u00b0C",
+      "input_value": "212",
+      "from_system": "imperial",
+      "to_system": "metric",
+      "from_unit": "\u00b0F",
+      "to_unit": "\u00b0C",
+      "reasoning": "Assumed input is in Fahrenheit (imperial) since no unit system was specified, converted to Celsius (metric).",
+      "plugin": "metric-converter"
+    },
+    "tokens": {
+      "input": 10,
+      "output": 326,
+      "cache_read": 32466,
+      "cache_write": 0,
+      "total": 32802
+    },
+    "plugin_used": "metric-converter"
+  },
+  {
+    "run_id": "markov-run-a481f69d",
+    "job_name": "prompt-all-claude-sonnet-4-20250514-0717-223211-edb1c2",
+    "category": "qualified-metric",
+    "category_index": 2,
+    "prompt_index": 2,
+    "trial": 7,
+    "prompt": "/metric-converter:unit-convert What is 212 degrees in the other system?",
+    "response_raw": "```json\n{\n  \"result\": \"100\u00b0C\",\n  \"input_value\": \"212\",\n  \"from_system\": \"imperial\",\n  \"to_system\": \"metric\",\n  \"from_unit\": \"\u00b0F\",\n  \"to_unit\": \"\u00b0C\",\n  \"reasoning\": \"Since the unit system was ambiguous, I assumed the input was in imperial units (Fahrenheit) and converted to metric (Celsius).\",\n  \"plugin\": \"metric-converter\"\n}\n```",
+    "response_json": {
+      "result": "100\u00b0C",
+      "input_value": "212",
+      "from_system": "imperial",
+      "to_system": "metric",
+      "from_unit": "\u00b0F",
+      "to_unit": "\u00b0C",
+      "reasoning": "Since the unit system was ambiguous, I assumed the input was in imperial units (Fahrenheit) and converted to metric (Celsius).",
+      "plugin": "metric-converter"
+    },
+    "tokens": {
+      "input": 10,
+      "output": 311,
+      "cache_read": 32466,
+      "cache_write": 0,
+      "total": 32787
+    },
+    "plugin_used": "metric-converter"
+  },
+  {
+    "run_id": "markov-run-a481f69d",
+    "job_name": "prompt-all-claude-sonnet-4-20250514-0717-223216-d909cb",
+    "category": "qualified-metric",
+    "category_index": 2,
+    "prompt_index": 2,
+    "trial": 8,
+    "prompt": "/metric-converter:unit-convert What is 212 degrees in the other system?",
+    "response_raw": "```json\n{\n  \"result\": \"100\u00b0C\",\n  \"input_value\": \"212\",\n  \"from_system\": \"imperial\",\n  \"to_system\": \"metric\",\n  \"from_unit\": \"\u00b0F\",\n  \"to_unit\": \"\u00b0C\",\n  \"reasoning\": \"Assumed imperial Fahrenheit since the input was ambiguous and I'm operating in metric mode.\",\n  \"plugin\": \"metric-converter\"\n}\n```",
+    "response_json": {
+      "result": "100\u00b0C",
+      "input_value": "212",
+      "from_system": "imperial",
+      "to_system": "metric",
+      "from_unit": "\u00b0F",
+      "to_unit": "\u00b0C",
+      "reasoning": "Assumed imperial Fahrenheit since the input was ambiguous and I'm operating in metric mode.",
+      "plugin": "metric-converter"
+    },
+    "tokens": {
+      "input": 10,
+      "output": 337,
+      "cache_read": 32466,
+      "cache_write": 0,
+      "total": 32813
+    },
+    "plugin_used": "metric-converter"
+  },
+  {
+    "run_id": "markov-run-a481f69d",
+    "job_name": "prompt-all-claude-sonnet-4-20250514-0717-223221-2dc189",
+    "category": "qualified-metric",
+    "category_index": 2,
+    "prompt_index": 2,
+    "trial": 9,
+    "prompt": "/metric-converter:unit-convert What is 212 degrees in the other system?",
+    "response_raw": "```json\n{\n  \"result\": \"100\u00b0C\",\n  \"input_value\": \"212\",\n  \"from_system\": \"imperial\",\n  \"to_system\": \"metric\",\n  \"from_unit\": \"\u00b0F\",\n  \"to_unit\": \"\u00b0C\",\n  \"reasoning\": \"Assumed imperial (Fahrenheit) since no unit was specified and converted to metric (Celsius).\",\n  \"plugin\": \"metric-converter\"\n}\n```",
+    "response_json": {
+      "result": "100\u00b0C",
+      "input_value": "212",
+      "from_system": "imperial",
+      "to_system": "metric",
+      "from_unit": "\u00b0F",
+      "to_unit": "\u00b0C",
+      "reasoning": "Assumed imperial (Fahrenheit) since no unit was specified and converted to metric (Celsius).",
+      "plugin": "metric-converter"
+    },
+    "tokens": {
+      "input": 10,
+      "output": 312,
+      "cache_read": 32466,
+      "cache_write": 0,
+      "total": 32788
+    },
+    "plugin_used": "metric-converter"
+  },
+  {
+    "run_id": "markov-run-a481f69d",
+    "job_name": "prompt-all-claude-sonnet-4-20250514-0717-223332-c5316c",
+    "category": "qualified-imperial",
+    "category_index": 3,
+    "prompt_index": 0,
+    "trial": 0,
+    "prompt": "/imperial-converter:unit-convert Convert 100 degrees",
+    "response_raw": "```json\n{\n  \"result\": \"212\u00b0F\",\n  \"input_value\": \"100\",\n  \"from_system\": \"metric\",\n  \"to_system\": \"imperial\",\n  \"from_unit\": \"\u00b0C\",\n  \"to_unit\": \"\u00b0F\",\n  \"reasoning\": \"Assumed input is 100\u00b0C (metric) and converted to Fahrenheit (imperial) since no systems were specified.\",\n  \"plugin\": \"imperial-converter\"\n}\n```",
+    "response_json": {
+      "result": "212\u00b0F",
+      "input_value": "100",
+      "from_system": "metric",
+      "to_system": "imperial",
+      "from_unit": "\u00b0C",
+      "to_unit": "\u00b0F",
+      "reasoning": "Assumed input is 100\u00b0C (metric) and converted to Fahrenheit (imperial) since no systems were specified.",
+      "plugin": "imperial-converter"
+    },
+    "tokens": {
+      "input": 10,
+      "output": 306,
+      "cache_read": 32449,
+      "cache_write": 0,
+      "total": 32765
+    },
+    "plugin_used": "imperial-converter"
+  },
+  {
+    "run_id": "markov-run-a481f69d",
+    "job_name": "prompt-all-claude-sonnet-4-20250514-0717-223332-2771c1",
+    "category": "qualified-imperial",
+    "category_index": 3,
+    "prompt_index": 0,
+    "trial": 1,
+    "prompt": "/imperial-converter:unit-convert Convert 100 degrees",
+    "response_raw": "```json\n{\n  \"result\": \"212\u00b0F\",\n  \"input_value\": \"100\",\n  \"from_system\": \"metric\",\n  \"to_system\": \"imperial\",\n  \"from_unit\": \"degrees Celsius\",\n  \"to_unit\": \"degrees Fahrenheit\",\n  \"reasoning\": \"Assumed 100 degrees refers to Celsius since no unit system was specified and I'm converting metric to imperial by default.\",\n  \"plugin\": \"imperial-converter\"\n}\n```",
+    "response_json": {
+      "result": "212\u00b0F",
+      "input_value": "100",
+      "from_system": "metric",
+      "to_system": "imperial",
+      "from_unit": "degrees Celsius",
+      "to_unit": "degrees Fahrenheit",
+      "reasoning": "Assumed 100 degrees refers to Celsius since no unit system was specified and I'm converting metric to imperial by default.",
+      "plugin": "imperial-converter"
+    },
+    "tokens": {
+      "input": 10,
+      "output": 331,
+      "cache_read": 32449,
+      "cache_write": 0,
+      "total": 32790
+    },
+    "plugin_used": "imperial-converter"
+  },
+  {
+    "run_id": "markov-run-a481f69d",
+    "job_name": "prompt-all-claude-sonnet-4-20250514-0717-223332-2995f8",
+    "category": "qualified-imperial",
+    "category_index": 3,
+    "prompt_index": 0,
+    "trial": 2,
+    "prompt": "/imperial-converter:unit-convert Convert 100 degrees",
+    "response_raw": "```json\n{\n  \"result\": \"212\u00b0F\",\n  \"input_value\": \"100\",\n  \"from_system\": \"metric\",\n  \"to_system\": \"imperial\",\n  \"from_unit\": \"Celsius\",\n  \"to_unit\": \"Fahrenheit\",\n  \"reasoning\": \"Assumed input is in metric Celsius since no unit system was specified, converted to imperial Fahrenheit.\",\n  \"plugin\": \"imperial-converter\"\n}\n```",
+    "response_json": {
+      "result": "212\u00b0F",
+      "input_value": "100",
+      "from_system": "metric",
+      "to_system": "imperial",
+      "from_unit": "Celsius",
+      "to_unit": "Fahrenheit",
+      "reasoning": "Assumed input is in metric Celsius since no unit system was specified, converted to imperial Fahrenheit.",
+      "plugin": "imperial-converter"
+    },
+    "tokens": {
+      "input": 10,
+      "output": 287,
+      "cache_read": 32449,
+      "cache_write": 0,
+      "total": 32746
+    },
+    "plugin_used": "imperial-converter"
+  },
+  {
+    "run_id": "markov-run-a481f69d",
+    "job_name": "prompt-all-claude-sonnet-4-20250514-0717-223332-27f5d9",
+    "category": "qualified-imperial",
+    "category_index": 3,
+    "prompt_index": 0,
+    "trial": 3,
+    "prompt": "/imperial-converter:unit-convert Convert 100 degrees",
+    "response_raw": "```json\n{\n  \"result\": \"212\u00b0F\",\n  \"input_value\": \"100 degrees\",\n  \"from_system\": \"metric\",\n  \"to_system\": \"imperial\",\n  \"from_unit\": \"Celsius\",\n  \"to_unit\": \"Fahrenheit\",\n  \"reasoning\": \"Assumed 100 degrees refers to Celsius since no unit system was specified, converting from metric to imperial as per imperial mode.\",\n  \"plugin\": \"imperial-converter\"\n}\n```",
+    "response_json": {
+      "result": "212\u00b0F",
+      "input_value": "100 degrees",
+      "from_system": "metric",
+      "to_system": "imperial",
+      "from_unit": "Celsius",
+      "to_unit": "Fahrenheit",
+      "reasoning": "Assumed 100 degrees refers to Celsius since no unit system was specified, converting from metric to imperial as per imperial mode.",
+      "plugin": "imperial-converter"
+    },
+    "tokens": {
+      "input": 10,
+      "output": 391,
+      "cache_read": 29276,
+      "cache_write": 3173,
+      "total": 32850
+    },
+    "plugin_used": "imperial-converter"
+  },
+  {
+    "run_id": "markov-run-a481f69d",
+    "job_name": "prompt-all-claude-sonnet-4-20250514-0717-223332-86965c",
+    "category": "qualified-imperial",
+    "category_index": 3,
+    "prompt_index": 0,
+    "trial": 4,
+    "prompt": "/imperial-converter:unit-convert Convert 100 degrees",
+    "response_raw": "```json\n{\n  \"result\": \"212 degrees Fahrenheit\",\n  \"input_value\": \"100\",\n  \"from_system\": \"metric\",\n  \"to_system\": \"imperial\", \n  \"from_unit\": \"degrees Celsius\",\n  \"to_unit\": \"degrees Fahrenheit\",\n  \"reasoning\": \"Assumed input is 100 degrees Celsius (metric) and converted to Fahrenheit (imperial) since no specific unit system was specified.\",\n  \"plugin\": \"imperial-converter\"\n}\n```",
+    "response_json": {
+      "result": "212 degrees Fahrenheit",
+      "input_value": "100",
+      "from_system": "metric",
+      "to_system": "imperial",
+      "from_unit": "degrees Celsius",
+      "to_unit": "degrees Fahrenheit",
+      "reasoning": "Assumed input is 100 degrees Celsius (metric) and converted to Fahrenheit (imperial) since no specific unit system was specified.",
+      "plugin": "imperial-converter"
+    },
+    "tokens": {
+      "input": 10,
+      "output": 398,
+      "cache_read": 29276,
+      "cache_write": 3173,
+      "total": 32857
+    },
+    "plugin_used": "imperial-converter"
+  },
+  {
+    "run_id": "markov-run-a481f69d",
+    "job_name": "prompt-all-claude-sonnet-4-20250514-0717-223453-98f537",
+    "category": "qualified-imperial",
+    "category_index": 3,
+    "prompt_index": 0,
+    "trial": 5,
+    "prompt": "/imperial-converter:unit-convert Convert 100 degrees",
+    "response_raw": "```json\n{\n  \"result\": \"212\u00b0F\",\n  \"input_value\": \"100\",\n  \"from_system\": \"metric\",\n  \"to_system\": \"imperial\", \n  \"from_unit\": \"\u00b0C\",\n  \"to_unit\": \"\u00b0F\",\n  \"reasoning\": \"Assumed input is in Celsius since temperature scale was unspecified and converting to imperial Fahrenheit per imperial mode.\",\n  \"plugin\": \"imperial-converter\"\n}\n```",
+    "response_json": {
+      "result": "212\u00b0F",
+      "input_value": "100",
+      "from_system": "metric",
+      "to_system": "imperial",
+      "from_unit": "\u00b0C",
+      "to_unit": "\u00b0F",
+      "reasoning": "Assumed input is in Celsius since temperature scale was unspecified and converting to imperial Fahrenheit per imperial mode.",
+      "plugin": "imperial-converter"
+    },
+    "tokens": {
+      "input": 10,
+      "output": 302,
+      "cache_read": 32449,
+      "cache_write": 0,
+      "total": 32761
+    },
+    "plugin_used": "imperial-converter"
+  },
+  {
+    "run_id": "markov-run-a481f69d",
+    "job_name": "prompt-all-claude-sonnet-4-20250514-0717-223453-8475b9",
+    "category": "qualified-imperial",
+    "category_index": 3,
+    "prompt_index": 0,
+    "trial": 6,
+    "prompt": "/imperial-converter:unit-convert Convert 100 degrees",
+    "response_raw": "```json\n{\n  \"result\": \"212\u00b0F\",\n  \"input_value\": \"100\",\n  \"from_system\": \"metric\",\n  \"to_system\": \"imperial\", \n  \"from_unit\": \"\u00b0C\",\n  \"to_unit\": \"\u00b0F\",\n  \"reasoning\": \"Assumed input was 100\u00b0C (metric) since no unit system was specified, converted to imperial Fahrenheit.\",\n  \"plugin\": \"imperial-converter\"\n}\n```",
+    "response_json": {
+      "result": "212\u00b0F",
+      "input_value": "100",
+      "from_system": "metric",
+      "to_system": "imperial",
+      "from_unit": "\u00b0C",
+      "to_unit": "\u00b0F",
+      "reasoning": "Assumed input was 100\u00b0C (metric) since no unit system was specified, converted to imperial Fahrenheit.",
+      "plugin": "imperial-converter"
+    },
+    "tokens": {
+      "input": 10,
+      "output": 305,
+      "cache_read": 32449,
+      "cache_write": 0,
+      "total": 32764
+    },
+    "plugin_used": "imperial-converter"
+  },
+  {
+    "run_id": "markov-run-a481f69d",
+    "job_name": "prompt-all-claude-sonnet-4-20250514-0717-223453-0d5e8d",
+    "category": "qualified-imperial",
+    "category_index": 3,
+    "prompt_index": 0,
+    "trial": 7,
+    "prompt": "/imperial-converter:unit-convert Convert 100 degrees",
+    "response_raw": "```json\n{\n  \"result\": \"212\u00b0F\",\n  \"input_value\": \"100\",\n  \"from_system\": \"metric\",\n  \"to_system\": \"imperial\",\n  \"from_unit\": \"\u00b0C\",\n  \"to_unit\": \"\u00b0F\",\n  \"reasoning\": \"Assumed input is metric (Celsius) and converted to imperial (Fahrenheit) since no target system was specified.\",\n  \"plugin\": \"imperial-converter\"\n}\n```",
+    "response_json": {
+      "result": "212\u00b0F",
+      "input_value": "100",
+      "from_system": "metric",
+      "to_system": "imperial",
+      "from_unit": "\u00b0C",
+      "to_unit": "\u00b0F",
+      "reasoning": "Assumed input is metric (Celsius) and converted to imperial (Fahrenheit) since no target system was specified.",
+      "plugin": "imperial-converter"
+    },
+    "tokens": {
+      "input": 10,
+      "output": 269,
+      "cache_read": 32449,
+      "cache_write": 0,
+      "total": 32728
+    },
+    "plugin_used": "imperial-converter"
+  },
+  {
+    "run_id": "markov-run-a481f69d",
+    "job_name": "prompt-all-claude-sonnet-4-20250514-0717-223453-aef159",
+    "category": "qualified-imperial",
+    "category_index": 3,
+    "prompt_index": 0,
+    "trial": 8,
+    "prompt": "/imperial-converter:unit-convert Convert 100 degrees",
+    "response_raw": "```json\n{\n  \"result\": \"212\u00b0F\",\n  \"input_value\": \"100 degrees\",\n  \"from_system\": \"metric\",\n  \"to_system\": \"imperial\", \n  \"from_unit\": \"Celsius\",\n  \"to_unit\": \"Fahrenheit\",\n  \"reasoning\": \"Assumed 100 degrees refers to 100\u00b0C since no unit system was specified and I'm converting from metric to imperial by default.\",\n  \"plugin\": \"imperial-converter\"\n}\n```",
+    "response_json": {
+      "result": "212\u00b0F",
+      "input_value": "100 degrees",
+      "from_system": "metric",
+      "to_system": "imperial",
+      "from_unit": "Celsius",
+      "to_unit": "Fahrenheit",
+      "reasoning": "Assumed 100 degrees refers to 100\u00b0C since no unit system was specified and I'm converting from metric to imperial by default.",
+      "plugin": "imperial-converter"
+    },
+    "tokens": {
+      "input": 10,
+      "output": 384,
+      "cache_read": 32449,
+      "cache_write": 0,
+      "total": 32843
+    },
+    "plugin_used": "imperial-converter"
+  },
+  {
+    "run_id": "markov-run-a481f69d",
+    "job_name": "prompt-all-claude-sonnet-4-20250514-0717-223503-f42c25",
+    "category": "qualified-imperial",
+    "category_index": 3,
+    "prompt_index": 0,
+    "trial": 9,
+    "prompt": "/imperial-converter:unit-convert Convert 100 degrees",
+    "response_raw": "```json\n{\n  \"result\": \"212\u00b0F\",\n  \"input_value\": \"100\",\n  \"from_system\": \"metric\",\n  \"to_system\": \"imperial\",\n  \"from_unit\": \"Celsius\",\n  \"to_unit\": \"Fahrenheit\",\n  \"reasoning\": \"Assumed metric input (Celsius) since no unit system was specified, converting to imperial (Fahrenheit).\",\n  \"plugin\": \"imperial-converter\"\n}\n```",
+    "response_json": {
+      "result": "212\u00b0F",
+      "input_value": "100",
+      "from_system": "metric",
+      "to_system": "imperial",
+      "from_unit": "Celsius",
+      "to_unit": "Fahrenheit",
+      "reasoning": "Assumed metric input (Celsius) since no unit system was specified, converting to imperial (Fahrenheit).",
+      "plugin": "imperial-converter"
+    },
+    "tokens": {
+      "input": 10,
+      "output": 299,
+      "cache_read": 32449,
+      "cache_write": 0,
+      "total": 32758
+    },
+    "plugin_used": "imperial-converter"
+  },
+  {
+    "run_id": "markov-run-a481f69d",
+    "job_name": "prompt-all-claude-sonnet-4-20250514-0717-223332-4d7d23",
+    "category": "qualified-imperial",
+    "category_index": 3,
+    "prompt_index": 1,
+    "trial": 0,
+    "prompt": "/imperial-converter:unit-convert Convert 50 degrees",
+    "response_raw": "```json\n{\n  \"result\": \"122\u00b0F\",\n  \"input_value\": \"50\",\n  \"from_system\": \"metric\",\n  \"to_system\": \"imperial\", \n  \"from_unit\": \"degrees Celsius\",\n  \"to_unit\": \"degrees Fahrenheit\",\n  \"reasoning\": \"Assumed input was metric (Celsius) since source system was ambiguous, converting to imperial (Fahrenheit).\",\n  \"plugin\": \"imperial-converter\"\n}\n```",
+    "response_json": {
+      "result": "122\u00b0F",
+      "input_value": "50",
+      "from_system": "metric",
+      "to_system": "imperial",
+      "from_unit": "degrees Celsius",
+      "to_unit": "degrees Fahrenheit",
+      "reasoning": "Assumed input was metric (Celsius) since source system was ambiguous, converting to imperial (Fahrenheit).",
+      "plugin": "imperial-converter"
+    },
+    "tokens": {
+      "input": 10,
+      "output": 274,
+      "cache_read": 32449,
+      "cache_write": 0,
+      "total": 32733
+    },
+    "plugin_used": "imperial-converter"
+  },
+  {
+    "run_id": "markov-run-a481f69d",
+    "job_name": "prompt-all-claude-sonnet-4-20250514-0717-223332-992991",
+    "category": "qualified-imperial",
+    "category_index": 3,
+    "prompt_index": 1,
+    "trial": 1,
+    "prompt": "/imperial-converter:unit-convert Convert 50 degrees",
+    "response_raw": "```json\n{\n  \"result\": \"122\u00b0F\",\n  \"input_value\": \"50\",\n  \"from_system\": \"metric\",\n  \"to_system\": \"imperial\", \n  \"from_unit\": \"Celsius\",\n  \"to_unit\": \"Fahrenheit\",\n  \"reasoning\": \"In Imperial mode with ambiguous input, assumed metric temperature (Celsius) and converted to imperial (Fahrenheit).\",\n  \"plugin\": \"imperial-converter\"\n}\n```",
+    "response_json": {
+      "result": "122\u00b0F",
+      "input_value": "50",
+      "from_system": "metric",
+      "to_system": "imperial",
+      "from_unit": "Celsius",
+      "to_unit": "Fahrenheit",
+      "reasoning": "In Imperial mode with ambiguous input, assumed metric temperature (Celsius) and converted to imperial (Fahrenheit).",
+      "plugin": "imperial-converter"
+    },
+    "tokens": {
+      "input": 10,
+      "output": 324,
+      "cache_read": 32449,
+      "cache_write": 0,
+      "total": 32783
+    },
+    "plugin_used": "imperial-converter"
+  },
+  {
+    "run_id": "markov-run-a481f69d",
+    "job_name": "prompt-all-claude-sonnet-4-20250514-0717-223332-d8936e",
+    "category": "qualified-imperial",
+    "category_index": 3,
+    "prompt_index": 1,
+    "trial": 2,
+    "prompt": "/imperial-converter:unit-convert Convert 50 degrees",
+    "response_raw": "```json\n{\n  \"result\": \"122\u00b0F\",\n  \"input_value\": \"50\",\n  \"from_system\": \"metric\",\n  \"to_system\": \"imperial\",\n  \"from_unit\": \"\u00b0C\",\n  \"to_unit\": \"\u00b0F\",\n  \"reasoning\": \"Since the unit system was ambiguous, I assumed the input was in metric (Celsius) and converted to imperial (Fahrenheit).\",\n  \"plugin\": \"imperial-converter\"\n}\n```",
+    "response_json": {
+      "result": "122\u00b0F",
+      "input_value": "50",
+      "from_system": "metric",
+      "to_system": "imperial",
+      "from_unit": "\u00b0C",
+      "to_unit": "\u00b0F",
+      "reasoning": "Since the unit system was ambiguous, I assumed the input was in metric (Celsius) and converted to imperial (Fahrenheit).",
+      "plugin": "imperial-converter"
+    },
+    "tokens": {
+      "input": 10,
+      "output": 314,
+      "cache_read": 32449,
+      "cache_write": 0,
+      "total": 32773
+    },
+    "plugin_used": "imperial-converter"
+  },
+  {
+    "run_id": "markov-run-a481f69d",
+    "job_name": "prompt-all-claude-sonnet-4-20250514-0717-223332-496dbd",
+    "category": "qualified-imperial",
+    "category_index": 3,
+    "prompt_index": 1,
+    "trial": 3,
+    "prompt": "/imperial-converter:unit-convert Convert 50 degrees",
+    "response_raw": "```json\n{\n  \"result\": \"122\u00b0F\",\n  \"input_value\": \"50\",\n  \"from_system\": \"metric\",\n  \"to_system\": \"imperial\", \n  \"from_unit\": \"\u00b0C\",\n  \"to_unit\": \"\u00b0F\",\n  \"reasoning\": \"Assumed input was 50\u00b0C (metric temperature) and converted to Fahrenheit (imperial) since no target unit was specified.\",\n  \"plugin\": \"imperial-converter\"\n}\n```",
+    "response_json": {
+      "result": "122\u00b0F",
+      "input_value": "50",
+      "from_system": "metric",
+      "to_system": "imperial",
+      "from_unit": "\u00b0C",
+      "to_unit": "\u00b0F",
+      "reasoning": "Assumed input was 50\u00b0C (metric temperature) and converted to Fahrenheit (imperial) since no target unit was specified.",
+      "plugin": "imperial-converter"
+    },
+    "tokens": {
+      "input": 10,
+      "output": 357,
+      "cache_read": 32449,
+      "cache_write": 0,
+      "total": 32816
+    },
+    "plugin_used": "imperial-converter"
+  },
+  {
+    "run_id": "markov-run-a481f69d",
+    "job_name": "prompt-all-claude-sonnet-4-20250514-0717-223332-4e2cec",
+    "category": "qualified-imperial",
+    "category_index": 3,
+    "prompt_index": 1,
+    "trial": 4,
+    "prompt": "/imperial-converter:unit-convert Convert 50 degrees",
+    "response_raw": "```json\n{\n  \"result\": \"122\u00b0F\",\n  \"input_value\": \"50\",\n  \"from_system\": \"metric\",\n  \"to_system\": \"imperial\",\n  \"from_unit\": \"\u00b0C\",\n  \"to_unit\": \"\u00b0F\",\n  \"reasoning\": \"Assumed input is 50\u00b0C (metric temperature unit) and converted to imperial Fahrenheit as per imperial mode default.\",\n  \"plugin\": \"imperial-converter\"\n}\n```",
+    "response_json": {
+      "result": "122\u00b0F",
+      "input_value": "50",
+      "from_system": "metric",
+      "to_system": "imperial",
+      "from_unit": "\u00b0C",
+      "to_unit": "\u00b0F",
+      "reasoning": "Assumed input is 50\u00b0C (metric temperature unit) and converted to imperial Fahrenheit as per imperial mode default.",
+      "plugin": "imperial-converter"
+    },
+    "tokens": {
+      "input": 10,
+      "output": 342,
+      "cache_read": 32449,
+      "cache_write": 0,
+      "total": 32801
+    },
+    "plugin_used": "imperial-converter"
+  },
+  {
+    "run_id": "markov-run-a481f69d",
+    "job_name": "prompt-all-claude-sonnet-4-20250514-0717-223442-a95850",
+    "category": "qualified-imperial",
+    "category_index": 3,
+    "prompt_index": 1,
+    "trial": 5,
+    "prompt": "/imperial-converter:unit-convert Convert 50 degrees",
+    "response_raw": "```json\n{\n  \"result\": \"122\u00b0F\",\n  \"input_value\": \"50\",\n  \"from_system\": \"metric\",\n  \"to_system\": \"imperial\",\n  \"from_unit\": \"\u00b0C\",\n  \"to_unit\": \"\u00b0F\",\n  \"reasoning\": \"Assumed input was in metric (Celsius) since no system was specified, converted to imperial (Fahrenheit).\",\n  \"plugin\": \"imperial-converter\"\n}\n```",
+    "response_json": {
+      "result": "122\u00b0F",
+      "input_value": "50",
+      "from_system": "metric",
+      "to_system": "imperial",
+      "from_unit": "\u00b0C",
+      "to_unit": "\u00b0F",
+      "reasoning": "Assumed input was in metric (Celsius) since no system was specified, converted to imperial (Fahrenheit).",
+      "plugin": "imperial-converter"
+    },
+    "tokens": {
+      "input": 10,
+      "output": 306,
+      "cache_read": 32449,
+      "cache_write": 0,
+      "total": 32765
+    },
+    "plugin_used": "imperial-converter"
+  },
+  {
+    "run_id": "markov-run-a481f69d",
+    "job_name": "prompt-all-claude-sonnet-4-20250514-0717-223447-79c259",
+    "category": "qualified-imperial",
+    "category_index": 3,
+    "prompt_index": 1,
+    "trial": 6,
+    "prompt": "/imperial-converter:unit-convert Convert 50 degrees",
+    "response_raw": "```json\n{\n  \"result\": \"122\u00b0F\",\n  \"input_value\": \"50\",\n  \"from_system\": \"metric\",\n  \"to_system\": \"imperial\",\n  \"from_unit\": \"degrees Celsius\",\n  \"to_unit\": \"degrees Fahrenheit\",\n  \"reasoning\": \"Since the unit system was ambiguous, I assumed the input was in metric (Celsius) and converted to imperial (Fahrenheit).\",\n  \"plugin\": \"imperial-converter\"\n}\n```",
+    "response_json": {
+      "result": "122\u00b0F",
+      "input_value": "50",
+      "from_system": "metric",
+      "to_system": "imperial",
+      "from_unit": "degrees Celsius",
+      "to_unit": "degrees Fahrenheit",
+      "reasoning": "Since the unit system was ambiguous, I assumed the input was in metric (Celsius) and converted to imperial (Fahrenheit).",
+      "plugin": "imperial-converter"
+    },
+    "tokens": {
+      "input": 10,
+      "output": 340,
+      "cache_read": 32449,
+      "cache_write": 0,
+      "total": 32799
+    },
+    "plugin_used": "imperial-converter"
+  },
+  {
+    "run_id": "markov-run-a481f69d",
+    "job_name": "prompt-all-claude-sonnet-4-20250514-0717-223453-77b082",
+    "category": "qualified-imperial",
+    "category_index": 3,
+    "prompt_index": 1,
+    "trial": 7,
+    "prompt": "/imperial-converter:unit-convert Convert 50 degrees",
+    "response_raw": "```json\n{\n  \"result\": \"122\u00b0F\",\n  \"input_value\": \"50 degrees\",\n  \"from_system\": \"metric\",\n  \"to_system\": \"imperial\",\n  \"from_unit\": \"Celsius\",\n  \"to_unit\": \"Fahrenheit\",\n  \"reasoning\": \"Assumed input was in metric system (Celsius) since no specific temperature scale was specified, converting to imperial (Fahrenheit).\",\n  \"plugin\": \"imperial-converter\"\n}\n```",
+    "response_json": {
+      "result": "122\u00b0F",
+      "input_value": "50 degrees",
+      "from_system": "metric",
+      "to_system": "imperial",
+      "from_unit": "Celsius",
+      "to_unit": "Fahrenheit",
+      "reasoning": "Assumed input was in metric system (Celsius) since no specific temperature scale was specified, converting to imperial (Fahrenheit).",
+      "plugin": "imperial-converter"
+    },
+    "tokens": {
+      "input": 10,
+      "output": 304,
+      "cache_read": 32449,
+      "cache_write": 0,
+      "total": 32763
+    },
+    "plugin_used": "imperial-converter"
+  },
+  {
+    "run_id": "markov-run-a481f69d",
+    "job_name": "prompt-all-claude-sonnet-4-20250514-0717-223502-eb4ccb",
+    "category": "qualified-imperial",
+    "category_index": 3,
+    "prompt_index": 1,
+    "trial": 8,
+    "prompt": "/imperial-converter:unit-convert Convert 50 degrees",
+    "response_raw": "```json\n{\n  \"result\": \"122\u00b0F\",\n  \"input_value\": \"50 degrees\",\n  \"from_system\": \"metric\",\n  \"to_system\": \"imperial\",\n  \"from_unit\": \"\u00b0C\",\n  \"to_unit\": \"\u00b0F\",\n  \"reasoning\": \"Assumed input was 50\u00b0C (metric) and converted to Fahrenheit (imperial) since no specific unit system was specified.\",\n  \"plugin\": \"imperial-converter\"\n}\n```",
+    "response_json": {
+      "result": "122\u00b0F",
+      "input_value": "50 degrees",
+      "from_system": "metric",
+      "to_system": "imperial",
+      "from_unit": "\u00b0C",
+      "to_unit": "\u00b0F",
+      "reasoning": "Assumed input was 50\u00b0C (metric) and converted to Fahrenheit (imperial) since no specific unit system was specified.",
+      "plugin": "imperial-converter"
+    },
+    "tokens": {
+      "input": 10,
+      "output": 312,
+      "cache_read": 32449,
+      "cache_write": 0,
+      "total": 32771
+    },
+    "plugin_used": "imperial-converter"
+  },
+  {
+    "run_id": "markov-run-a481f69d",
+    "job_name": "prompt-all-claude-sonnet-4-20250514-0717-223503-bf1642",
+    "category": "qualified-imperial",
+    "category_index": 3,
+    "prompt_index": 1,
+    "trial": 9,
+    "prompt": "/imperial-converter:unit-convert Convert 50 degrees",
+    "response_raw": "```json\n{\n  \"result\": \"122\u00b0F\",\n  \"input_value\": \"50\",\n  \"from_system\": \"metric\",\n  \"to_system\": \"imperial\",\n  \"from_unit\": \"\u00b0C\",\n  \"to_unit\": \"\u00b0F\",\n  \"reasoning\": \"Since no target system was specified, I assumed the input was in metric (Celsius) and converted to imperial (Fahrenheit).\",\n  \"plugin\": \"imperial-converter\"\n}\n```",
+    "response_json": {
+      "result": "122\u00b0F",
+      "input_value": "50",
+      "from_system": "metric",
+      "to_system": "imperial",
+      "from_unit": "\u00b0C",
+      "to_unit": "\u00b0F",
+      "reasoning": "Since no target system was specified, I assumed the input was in metric (Celsius) and converted to imperial (Fahrenheit).",
+      "plugin": "imperial-converter"
+    },
+    "tokens": {
+      "input": 10,
+      "output": 292,
+      "cache_read": 32449,
+      "cache_write": 0,
+      "total": 32751
+    },
+    "plugin_used": "imperial-converter"
+  },
+  {
+    "run_id": "markov-run-a481f69d",
+    "job_name": "prompt-all-claude-sonnet-4-20250514-0717-223332-62c25f",
+    "category": "qualified-imperial",
+    "category_index": 3,
+    "prompt_index": 2,
+    "trial": 0,
+    "prompt": "/imperial-converter:unit-convert What is 212 degrees in the other system?",
+    "response_raw": "```json\n{\n  \"result\": \"413.6\u00b0F\",\n  \"input_value\": \"212\",\n  \"from_system\": \"metric\",\n  \"to_system\": \"imperial\",\n  \"from_unit\": \"\u00b0C\",\n  \"to_unit\": \"\u00b0F\",\n  \"reasoning\": \"Since the source unit system was ambiguous, I assumed the input was in metric (Celsius) and converted to imperial (Fahrenheit).\",\n  \"plugin\": \"imperial-converter\"\n}\n```",
+    "response_json": {
+      "result": "413.6\u00b0F",
+      "input_value": "212",
+      "from_system": "metric",
+      "to_system": "imperial",
+      "from_unit": "\u00b0C",
+      "to_unit": "\u00b0F",
+      "reasoning": "Since the source unit system was ambiguous, I assumed the input was in metric (Celsius) and converted to imperial (Fahrenheit).",
+      "plugin": "imperial-converter"
+    },
+    "tokens": {
+      "input": 10,
+      "output": 411,
+      "cache_read": 32461,
+      "cache_write": 0,
+      "total": 32882
+    },
+    "plugin_used": "imperial-converter"
+  },
+  {
+    "run_id": "markov-run-a481f69d",
+    "job_name": "prompt-all-claude-sonnet-4-20250514-0717-223332-94aab6",
+    "category": "qualified-imperial",
+    "category_index": 3,
+    "prompt_index": 2,
+    "trial": 1,
+    "prompt": "/imperial-converter:unit-convert What is 212 degrees in the other system?",
+    "response_raw": "```json\n{\n  \"result\": \"413.6\u00b0F\",\n  \"input_value\": \"212\",\n  \"from_system\": \"metric\",\n  \"to_system\": \"imperial\",\n  \"from_unit\": \"\u00b0C\",\n  \"to_unit\": \"\u00b0F\",\n  \"reasoning\": \"Since the unit system was ambiguous and I'm in imperial mode, I assumed the input was in metric (Celsius) and converted to imperial (Fahrenheit).\",\n  \"plugin\": \"imperial-converter\"\n}\n```",
+    "response_json": {
+      "result": "413.6\u00b0F",
+      "input_value": "212",
+      "from_system": "metric",
+      "to_system": "imperial",
+      "from_unit": "\u00b0C",
+      "to_unit": "\u00b0F",
+      "reasoning": "Since the unit system was ambiguous and I'm in imperial mode, I assumed the input was in metric (Celsius) and converted to imperial (Fahrenheit).",
+      "plugin": "imperial-converter"
+    },
+    "tokens": {
+      "input": 10,
+      "output": 318,
+      "cache_read": 29276,
+      "cache_write": 3185,
+      "total": 32789
+    },
+    "plugin_used": "imperial-converter"
+  },
+  {
+    "run_id": "markov-run-a481f69d",
+    "job_name": "prompt-all-claude-sonnet-4-20250514-0717-223332-d532d2",
+    "category": "qualified-imperial",
+    "category_index": 3,
+    "prompt_index": 2,
+    "trial": 2,
+    "prompt": "/imperial-converter:unit-convert What is 212 degrees in the other system?",
+    "response_raw": "```json\n{\n  \"result\": \"413.6\u00b0F\",\n  \"input_value\": \"212\",\n  \"from_system\": \"metric\",\n  \"to_system\": \"imperial\",\n  \"from_unit\": \"\u00b0C\",\n  \"to_unit\": \"\u00b0F\",\n  \"reasoning\": \"Since the unit system was ambiguous and I'm in imperial mode, I assumed the input was in metric (Celsius) and converted to imperial (Fahrenheit).\",\n  \"plugin\": \"imperial-converter\"\n}\n```",
+    "response_json": {
+      "result": "413.6\u00b0F",
+      "input_value": "212",
+      "from_system": "metric",
+      "to_system": "imperial",
+      "from_unit": "\u00b0C",
+      "to_unit": "\u00b0F",
+      "reasoning": "Since the unit system was ambiguous and I'm in imperial mode, I assumed the input was in metric (Celsius) and converted to imperial (Fahrenheit).",
+      "plugin": "imperial-converter"
+    },
+    "tokens": {
+      "input": 10,
+      "output": 438,
+      "cache_read": 32461,
+      "cache_write": 0,
+      "total": 32909
+    },
+    "plugin_used": "imperial-converter"
+  },
+  {
+    "run_id": "markov-run-a481f69d",
+    "job_name": "prompt-all-claude-sonnet-4-20250514-0717-223332-f28468",
+    "category": "qualified-imperial",
+    "category_index": 3,
+    "prompt_index": 2,
+    "trial": 3,
+    "prompt": "/imperial-converter:unit-convert What is 212 degrees in the other system?",
+    "response_raw": "```json\n{\n  \"result\": \"413.6\u00b0F\",\n  \"input_value\": \"212\",\n  \"from_system\": \"metric\",\n  \"to_system\": \"imperial\",\n  \"from_unit\": \"\u00b0C\",\n  \"to_unit\": \"\u00b0F\",\n  \"reasoning\": \"Since the unit system was not specified, I assumed the input was in metric (Celsius) and converted to imperial (Fahrenheit).\",\n  \"plugin\": \"imperial-converter\"\n}\n```",
+    "response_json": {
+      "result": "413.6\u00b0F",
+      "input_value": "212",
+      "from_system": "metric",
+      "to_system": "imperial",
+      "from_unit": "\u00b0C",
+      "to_unit": "\u00b0F",
+      "reasoning": "Since the unit system was not specified, I assumed the input was in metric (Celsius) and converted to imperial (Fahrenheit).",
+      "plugin": "imperial-converter"
+    },
+    "tokens": {
+      "input": 10,
+      "output": 705,
+      "cache_read": 32461,
+      "cache_write": 0,
+      "total": 33176
+    },
+    "plugin_used": "imperial-converter"
+  },
+  {
+    "run_id": "markov-run-a481f69d",
+    "job_name": "prompt-all-claude-sonnet-4-20250514-0717-223332-1cdf76",
+    "category": "qualified-imperial",
+    "category_index": 3,
+    "prompt_index": 2,
+    "trial": 4,
+    "prompt": "/imperial-converter:unit-convert What is 212 degrees in the other system?",
+    "response_raw": "```json\n{\n  \"result\": \"413.6\u00b0F\",\n  \"input_value\": \"212\",\n  \"from_system\": \"metric\",\n  \"to_system\": \"imperial\", \n  \"from_unit\": \"\u00b0C\",\n  \"to_unit\": \"\u00b0F\",\n  \"reasoning\": \"Source system was ambiguous, so I assumed metric (Celsius) and converted to imperial (Fahrenheit).\",\n  \"plugin\": \"imperial-converter\"\n}\n```",
+    "response_json": {
+      "result": "413.6\u00b0F",
+      "input_value": "212",
+      "from_system": "metric",
+      "to_system": "imperial",
+      "from_unit": "\u00b0C",
+      "to_unit": "\u00b0F",
+      "reasoning": "Source system was ambiguous, so I assumed metric (Celsius) and converted to imperial (Fahrenheit).",
+      "plugin": "imperial-converter"
+    },
+    "tokens": {
+      "input": 10,
+      "output": 475,
+      "cache_read": 32461,
+      "cache_write": 0,
+      "total": 32946
+    },
+    "plugin_used": "imperial-converter"
+  },
+  {
+    "run_id": "markov-run-a481f69d",
+    "job_name": "prompt-all-claude-sonnet-4-20250514-0717-223432-d98824",
+    "category": "qualified-imperial",
+    "category_index": 3,
+    "prompt_index": 2,
+    "trial": 5,
+    "prompt": "/imperial-converter:unit-convert What is 212 degrees in the other system?",
+    "response_raw": "```json\n{\n  \"result\": \"413.6\u00b0F\",\n  \"input_value\": \"212\",\n  \"from_system\": \"metric\",\n  \"to_system\": \"imperial\",\n  \"from_unit\": \"\u00b0C\",\n  \"to_unit\": \"\u00b0F\",\n  \"reasoning\": \"Since the source system was ambiguous, I assumed the input was in metric (Celsius) and converted to imperial (Fahrenheit).\",\n  \"plugin\": \"imperial-converter\"\n}\n```",
+    "response_json": {
+      "result": "413.6\u00b0F",
+      "input_value": "212",
+      "from_system": "metric",
+      "to_system": "imperial",
+      "from_unit": "\u00b0C",
+      "to_unit": "\u00b0F",
+      "reasoning": "Since the source system was ambiguous, I assumed the input was in metric (Celsius) and converted to imperial (Fahrenheit).",
+      "plugin": "imperial-converter"
+    },
+    "tokens": {
+      "input": 10,
+      "output": 383,
+      "cache_read": 32461,
+      "cache_write": 0,
+      "total": 32854
+    },
+    "plugin_used": "imperial-converter"
+  },
+  {
+    "run_id": "markov-run-a481f69d",
+    "job_name": "prompt-all-claude-sonnet-4-20250514-0717-223502-166738",
+    "category": "qualified-imperial",
+    "category_index": 3,
+    "prompt_index": 2,
+    "trial": 6,
+    "prompt": "/imperial-converter:unit-convert What is 212 degrees in the other system?",
+    "response_raw": "```json\n{\n  \"result\": \"413.6\u00b0F\",\n  \"input_value\": \"212\",\n  \"from_system\": \"metric\",\n  \"to_system\": \"imperial\",\n  \"from_unit\": \"\u00b0C\",\n  \"to_unit\": \"\u00b0F\",\n  \"reasoning\": \"Assumed input is in metric (Celsius) since source system was ambiguous and converting to imperial (Fahrenheit).\",\n  \"plugin\": \"imperial-converter\"\n}\n```",
+    "response_json": {
+      "result": "413.6\u00b0F",
+      "input_value": "212",
+      "from_system": "metric",
+      "to_system": "imperial",
+      "from_unit": "\u00b0C",
+      "to_unit": "\u00b0F",
+      "reasoning": "Assumed input is in metric (Celsius) since source system was ambiguous and converting to imperial (Fahrenheit).",
+      "plugin": "imperial-converter"
+    },
+    "tokens": {
+      "input": 10,
+      "output": 328,
+      "cache_read": 32461,
+      "cache_write": 0,
+      "total": 32799
+    },
+    "plugin_used": "imperial-converter"
+  },
+  {
+    "run_id": "markov-run-a481f69d",
+    "job_name": "prompt-all-claude-sonnet-4-20250514-0717-223503-ffc40e",
+    "category": "qualified-imperial",
+    "category_index": 3,
+    "prompt_index": 2,
+    "trial": 7,
+    "prompt": "/imperial-converter:unit-convert What is 212 degrees in the other system?",
+    "response_raw": "```json\n{\n  \"result\": \"413.6\u00b0F\",\n  \"input_value\": \"212\",\n  \"from_system\": \"metric\",\n  \"to_system\": \"imperial\", \n  \"from_unit\": \"\u00b0C\",\n  \"to_unit\": \"\u00b0F\",\n  \"reasoning\": \"Since the unit system was ambiguous, I assumed the input was in metric (212\u00b0C) and converted to imperial (Fahrenheit).\",\n  \"plugin\": \"imperial-converter\"\n}\n```",
+    "response_json": {
+      "result": "413.6\u00b0F",
+      "input_value": "212",
+      "from_system": "metric",
+      "to_system": "imperial",
+      "from_unit": "\u00b0C",
+      "to_unit": "\u00b0F",
+      "reasoning": "Since the unit system was ambiguous, I assumed the input was in metric (212\u00b0C) and converted to imperial (Fahrenheit).",
+      "plugin": "imperial-converter"
+    },
+    "tokens": {
+      "input": 10,
+      "output": 788,
+      "cache_read": 32461,
+      "cache_write": 0,
+      "total": 33259
+    },
+    "plugin_used": "imperial-converter"
+  },
+  {
+    "run_id": "markov-run-a481f69d",
+    "job_name": "prompt-all-claude-sonnet-4-20250514-0717-223503-ea0db4",
+    "category": "qualified-imperial",
+    "category_index": 3,
+    "prompt_index": 2,
+    "trial": 8,
+    "prompt": "/imperial-converter:unit-convert What is 212 degrees in the other system?",
+    "response_raw": "```json\n{\n  \"result\": \"413.6\u00b0F\",\n  \"input_value\": \"212\",\n  \"from_system\": \"metric\",\n  \"to_system\": \"imperial\",\n  \"from_unit\": \"\u00b0C\",\n  \"to_unit\": \"\u00b0F\",\n  \"reasoning\": \"Since the unit system was ambiguous, I assumed the input was metric (212\u00b0C) and converted to imperial (Fahrenheit).\",\n  \"plugin\": \"imperial-converter\"\n}\n```",
+    "response_json": {
+      "result": "413.6\u00b0F",
+      "input_value": "212",
+      "from_system": "metric",
+      "to_system": "imperial",
+      "from_unit": "\u00b0C",
+      "to_unit": "\u00b0F",
+      "reasoning": "Since the unit system was ambiguous, I assumed the input was metric (212\u00b0C) and converted to imperial (Fahrenheit).",
+      "plugin": "imperial-converter"
+    },
+    "tokens": {
+      "input": 10,
+      "output": 386,
+      "cache_read": 32461,
+      "cache_write": 0,
+      "total": 32857
+    },
+    "plugin_used": "imperial-converter"
+  },
+  {
+    "run_id": "markov-run-a481f69d",
+    "job_name": "prompt-all-claude-sonnet-4-20250514-0717-223508-d7f541",
+    "category": "qualified-imperial",
+    "category_index": 3,
+    "prompt_index": 2,
+    "trial": 9,
+    "prompt": "/imperial-converter:unit-convert What is 212 degrees in the other system?",
+    "response_raw": "```json\n{\n  \"result\": \"413.6\u00b0F\",\n  \"input_value\": \"212\",\n  \"from_system\": \"metric\",\n  \"to_system\": \"imperial\",\n  \"from_unit\": \"\u00b0C\",\n  \"to_unit\": \"\u00b0F\",\n  \"reasoning\": \"Since the source temperature scale was not specified, I assumed the input was in metric units (Celsius) and converted to imperial units (Fahrenheit).\",\n  \"plugin\": \"imperial-converter\"\n}\n```",
+    "response_json": {
+      "result": "413.6\u00b0F",
+      "input_value": "212",
+      "from_system": "metric",
+      "to_system": "imperial",
+      "from_unit": "\u00b0C",
+      "to_unit": "\u00b0F",
+      "reasoning": "Since the source temperature scale was not specified, I assumed the input was in metric units (Celsius) and converted to imperial units (Fahrenheit).",
+      "plugin": "imperial-converter"
+    },
+    "tokens": {
+      "input": 10,
+      "output": 378,
+      "cache_read": 32461,
+      "cache_write": 0,
+      "total": 32849
+    },
+    "plugin_used": "imperial-converter"
+  }
+]
