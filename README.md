@@ -1,3 +1,5 @@
+<img width="1269" height="353" alt="image" src="https://github.com/user-attachments/assets/0c011487-67f1-4fef-9def-72f686a8ac12" />
+
 # AI-First Pipeline
 
 Integration and deployment repository for the RHOAI (Red Hat OpenShift AI)
