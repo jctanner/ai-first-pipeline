@@ -1,0 +1,37 @@
+name: reset-services
+description: "Reset observatory, MLflow, and shared pipeline volumes"
+
+steps:
+  - name: wipe_observatory
+    type: observatory_api
+    params:
+      path: /api/admin/wipe-runtime-data
+      method: POST
+
+  - name: seed_observatory
+    type: observatory_api
+    params:
+      path: /api/admin/seed
+      method: POST
+
+  - name: clear_mlflow
+    type: dashboard_api
+    params:
+      path: /api/mlflow/hard-clear
+      method: POST
+
+  - name: clear_volumes
+    type: dashboard_api
+    params:
+      path: /api/volumes/clear
+      method: POST
+      body:
+        volumes:
+          - artifacts
+          - context
+    register: clear_result
+
+  - name: wait_for_clear
+    type: agent_job_wait
+    params:
+      job_name: "{{ clear_result.body.job_name }}"

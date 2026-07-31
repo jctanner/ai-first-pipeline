@@ -1,0 +1,106 @@
+name: continue-sme-loop
+description: "Apply SME input, re-refine, and review an inspected strategy"
+
+vars:
+  sme_user: sme-reviewer
+  sme_token: sme-reviewer-token
+  strategy_refine_fqn: "github.com/jctanner-opendatahub-io/strat-creator@feature/dashboard-sme-and-loop-metrics:strategy-refine"
+  strategy_review_fqn: "github.com/jctanner-opendatahub-io/strat-creator@feature/dashboard-sme-and-loop-metrics:strategy-review"
+
+steps:
+  - name: verify_sme_account
+    type: jira_api
+    params:
+      path: "/rest/api/2/user?username={{ sme_user }}"
+      method: GET
+
+  - name: populate_sme_input
+    description: "Record an authenticated SME comment and populate the artifact section"
+    type: shell_exec
+    params:
+      command: |
+        set -euo pipefail
+        curl -sfk -u "{{ sme_user }}:{{ sme_token }}" \
+          -H 'Content-Type: application/json' \
+          -X POST \
+          "{{ jira_base }}/rest/api/2/issue/{{ strat_issue }}/comment" \
+          -d '{"body":"SME review entered for the strategy refine-loop integration test."}' \
+          >/tmp/strat-sme-comment.json
+        python3 - <<'PY'
+        import json
+        from pathlib import Path
+
+        comment = json.loads(Path("/tmp/strat-sme-comment.json").read_text())
+        author = comment.get("author", {})
+        if author.get("name") != "{{ sme_user }}":
+            raise SystemExit(f"comment was not authored by {{ sme_user }}: {author}")
+        PY
+        python3 - <<'PY'
+        import json
+        import re
+        from pathlib import Path
+
+        state = json.loads(Path("/app/artifacts/.integration/strat-sme-loop-initial.json").read_text())
+        path = Path(state["path"])
+        text = path.read_text()
+        marker = "## Staff Engineer / SME Input"
+        if marker not in text:
+            raise SystemExit(f"SME section missing from {path}")
+        start = text.index(marker) + len(marker)
+        next_header = re.search(r"\n## ", text[start:])
+        end = start + next_header.start() if next_header else len(text)
+        sme = """\n\n<!-- entered by sme-reviewer -->
+        The strategy must keep the diagnostic command read-only. Certificate-expiry
+        checks should produce actionable warnings, while already-invalid certificates
+        must be treated as critical failures.
+        """
+        path.write_text(text[:start] + sme + text[end:])
+        print(f"SME input written by sme-reviewer to {path}")
+        PY
+
+  - name: re_refine_strategy
+    description: "Re-run strategy-refine against the existing inspected strategy"
+    workflow: run-skill
+    vars:
+      skill_fqn: "{{ strategy_refine_fqn }}"
+      skill_issue: "{{ strat_issue }}"
+
+  - name: assert_sme_refine_count
+    description: "Require the SME-driven productive refine to increment the counter"
+    type: shell_exec
+    params:
+      command: |
+        set -euo pipefail
+        python3 - <<'PY'
+        import hashlib
+        import json
+        import re
+        from pathlib import Path
+
+        state = json.loads(Path("/app/artifacts/.integration/strat-sme-loop-initial.json").read_text())
+        path = Path(state["path"])
+        text = path.read_text()
+        count = re.search(r"(?m)^refine_count:\s*(\d+)\s*$", text)
+        if not count or int(count.group(1)) != state["refine_count"] + 1:
+            raise SystemExit(f"expected refine_count=2 in {path}")
+        if "<!-- entered by sme-reviewer -->" not in text:
+            raise SystemExit("SME input marker was removed")
+        if "Certificate-expiry" not in text:
+            raise SystemExit("SME input text was removed")
+        business_start = text.index("## Business Need")
+        strategy_start = text.index("## Strategy")
+        business_hash = hashlib.sha256(text[business_start:strategy_start].encode()).hexdigest()
+        if business_hash != state["business_need_sha256"]:
+            raise SystemExit("Business Need section was modified during refinement")
+        body_hash = hashlib.sha256(text.encode()).hexdigest()
+        if body_hash == state["body_sha256"]:
+            raise SystemExit("strategy artifact did not change after SME input")
+        print(json.dumps({"path": str(path), "refine_count": 2, "status": "passed"}))
+        PY
+
+  - name: review_refined_strategy
+    description: "Review the SME-refined strategy"
+    workflow: run-skill
+    vars:
+      skill_fqn: "{{ strategy_review_fqn }}"
+      skill_issue: "{{ strat_issue }}"

@@ -1,0 +1,47 @@
+name: seed-rfe
+description: "Create a detailed RFE for the strategy integration test"
+
+steps:
+  - name: create_rfe
+    type: jira_api
+    params:
+      path: /rest/api/2/issue
+      method: POST
+      body:
+        fields:
+          project:
+            key: RHAIRFE
+          issuetype:
+            name: "Feature Request"
+          summary: "Add rhai-cli diagnose subcommand for deployment health checks"
+          description: |
+            h2. Problem Statement
+
+            RHOAI administrators troubleshooting deployment issues must manually inspect operator status, CRD conditions, component pod health, route availability, and certificate expiry. There is no single command that reports actionable deployment-health findings.
+
+            h2. Desired Outcome
+
+            Add a `rhai-cli diagnose` command that runs health checks and emits a structured human-readable and JSON report with pass, fail, warning, and remediation information.
+
+            h2. Acceptance Criteria
+
+            * Connects to the active OpenShift context
+            * Checks operator, DSC/DSCI conditions, component readiness, routes, and TLS certificates
+            * Detects version mismatches between the operator and components
+            * Emits JSON and human-readable output
+            * Exits non-zero when a critical check fails
+
+            h2. Technical Notes
+
+            Follow the existing `rhai-cli lint` command pattern. Health checks should be pluggable so new checks can be added without changing the command dispatcher.
+          priority:
+            name: Major
+          components:
+            - name: CLI
+    register: rfe_result
+
+  - name: verify_rfe
+    type: jira_api
+    params:
+      path: "/rest/api/2/issue/{{ rfe_issue }}"
+      method: GET

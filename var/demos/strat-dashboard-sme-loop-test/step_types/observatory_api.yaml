@@ -1,0 +1,7 @@
+observatory_api:
+  base: http_request
+  description: "Observatory API call"
+  params:
+    base_url: "{{ observatory_base }}"
+    headers:
+      Accept: "application/json"

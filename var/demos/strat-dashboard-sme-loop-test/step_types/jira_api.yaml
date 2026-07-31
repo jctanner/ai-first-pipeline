@@ -1,0 +1,11 @@
+jira_api:
+  base: http_request
+  description: "Jira REST API call with basic auth"
+  params:
+    base_url: "{{ jira_base }}"
+    tls_insecure: true
+    basic_auth:
+      username: "{{ jira_user }}"
+      password: "{{ jira_token }}"
+    headers:
+      Accept: "application/json"

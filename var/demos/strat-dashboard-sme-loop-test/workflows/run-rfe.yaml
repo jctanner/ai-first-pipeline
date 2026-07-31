@@ -1,0 +1,40 @@
+name: run-rfe
+description: "Run RFE speedrun, submit, and rubric gate"
+
+vars:
+  rfe_speedrun_fqn: "github.com/opendatahub-io/rfe-creator@main:rfe.speedrun"
+  rfe_submit_fqn: "github.com/opendatahub-io/rfe-creator@main:rfe.submit"
+
+steps:
+  - name: rfe_speedrun
+    workflow: run-skill
+    vars:
+      skill_fqn: "{{ rfe_speedrun_fqn }}"
+      skill_issue: "{{ rfe_issue }}"
+
+  - name: rfe_submit
+    workflow: run-skill
+    vars:
+      skill_fqn: "{{ rfe_submit_fqn }}"
+      skill_issue: "{{ rfe_issue }}"
+
+  - name: check_rubric_pass
+    type: shell_exec
+    params:
+      command: |
+        set -euo pipefail
+        labels=$(curl -sfk -u "{{ jira_user }}:{{ jira_token }}" \
+          "{{ jira_base }}/rest/api/2/issue/{{ rfe_issue }}?fields=labels" \
+          | python3 -c 'import json,sys; print(" ".join(json.load(sys.stdin)["fields"]["labels"]))')
+        echo "Labels on {{ rfe_issue }}: $labels"
+        echo "$labels" | grep -q "rfe-creator-autofix-rubric-pass"
+
+  - name: add_strat_label
+    type: jira_api
+    params:
+      path: /rest/api/2/issue/{{ rfe_issue }}
+      method: PUT
+      body:
+        update:
+          labels:
+            - add: "strat-creator-3.6"

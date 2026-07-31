@@ -1,0 +1,157 @@
+# ====================================================================
+# Strategy SME/refine-loop integration test
+# ====================================================================
+#
+# Exercises the dashboard/strategy instrumentation branch through the real
+# Jira, dashboard, shared-artifact, and agent-job boundaries:
+#
+#   reset → RFE speedrun → strategy create/refine/review → SME edit → refine
+#
+# The first strategy pass must produce refine_count=1.  The SME edit then
+# supplies new input to the existing strategy and the second productive pass
+# must produce refine_count=2.
+
+name: main
+description: "Integration test for SME input and refine_count instrumentation"
+
+vars:
+  rfe_issue: RHAIRFE-1
+  sme_user: sme-reviewer
+  sme_token: sme-reviewer-token
+  strat_skill_owner: jctanner-opendatahub-io
+  strat_skill_repo: strat-creator
+  strat_skill_branch: feature/dashboard-sme-and-loop-metrics
+  rfe_speedrun_fqn: "github.com/opendatahub-io/rfe-creator@main:rfe.speedrun"
+  rfe_submit_fqn: "github.com/opendatahub-io/rfe-creator@main:rfe.submit"
+  strategy_create_fqn: "github.com/{{ strat_skill_owner }}/{{ strat_skill_repo }}@{{ strat_skill_branch }}:strategy-create"
+  strategy_refine_fqn: "github.com/{{ strat_skill_owner }}/{{ strat_skill_repo }}@{{ strat_skill_branch }}:strategy-refine"
+  strategy_review_fqn: "github.com/{{ strat_skill_owner }}/{{ strat_skill_repo }}@{{ strat_skill_branch }}:strategy-review"
+
+steps:
+
+  - name: reset_jira
+    description: "Clear Jira and recreate the configured projects"
+    workflow: reset-jira
+
+  - name: reset_services
+    description: "Clear shared artifacts and runtime data"
+    workflow: reset-services
+
+  - name: create_sme_account
+    description: "Create the account used to represent the SME reviewer"
+    type: jira_api
+    params:
+      path: /rest/api/2/user
+      method: POST
+      body:
+        name: "{{ sme_user }}"
+        password: "{{ sme_token }}"
+        emailAddress: "{{ sme_user }}@ai-pipeline.local"
+        displayName: "SME Reviewer"
+
+  - name: verify_sme_account
+    type: jira_api
+    params:
+      path: "/rest/api/2/user?username={{ sme_user }}"
+      method: GET
+
+  - name: seed_rfe
+    description: "Create the test RFE"
+    workflow: seed-rfe
+    vars:
+      rfe_issue: "{{ rfe_issue }}"
+
+  - name: run_rfe
+    description: "Run RFE speedrun, submit, and rubric gate"
+    workflow: run-rfe
+    vars:
+      rfe_issue: "{{ rfe_issue }}"
+      rfe_speedrun_fqn: "{{ rfe_speedrun_fqn }}"
+      rfe_submit_fqn: "{{ rfe_submit_fqn }}"
+
+  - name: run_initial_strategy
+    description: "Create and refine the initial strategy, then stop for inspection"
+    workflow: run-strat-create-refine
+    vars:
+      rfe_issue: "{{ rfe_issue }}"
+      strategy_create_fqn: "{{ strategy_create_fqn }}"
+      strategy_refine_fqn: "{{ strategy_refine_fqn }}"
+
+  - name: discover_strat_key
+    description: "Find the strategy created from the test RFE"
+    type: shell_exec
+    params:
+      command: |
+        set -euo pipefail
+        curl -sfk -u "{{ jira_user }}:{{ jira_token }}" \
+          "{{ jira_base }}/rest/api/2/issue/{{ rfe_issue }}?fields=issuelinks" \
+          | python3 -c '
+        import json, sys
+        data = json.load(sys.stdin)
+        for link in data.get("fields", {}).get("issuelinks", []):
+            if link.get("type", {}).get("name") != "Cloners":
+                continue
+            for direction in ("inwardIssue", "outwardIssue"):
+                key = link.get(direction, {}).get("key", "")
+                if key.startswith("RHAISTRAT-"):
+                    print(key)
+                    raise SystemExit(0)
+        print("No linked RHAISTRAT issue found", file=sys.stderr)
+        raise SystemExit(1)
+        '
+    register: strat_discovery
+
+  - name: set_strat_issue
+    type: set_fact
+    vars:
+      strat_issue: "{{ strat_discovery.stdout | trim }}"
+
+  - name: assert_initial_refine_count
+    description: "Require the initial productive refine to be counted"
+    type: shell_exec
+    params:
+      command: |
+        set -euo pipefail
+        python3 - <<'PY'
+        import hashlib
+        import json
+        import re
+        from pathlib import Path
+
+        issue = "{{ strat_issue }}"
+        root = Path("/app/artifacts/strat-tasks")
+        matches = []
+        for path in sorted(root.glob("*.md")):
+            text = path.read_text()
+            frontmatter = text.split("---", 2)[1] if text.startswith("---") else ""
+            if re.search(rf"(?m)^jira_key:\s*{re.escape(issue)}\s*$", frontmatter):
+                matches.append((path, text))
+        if len(matches) != 1:
+            raise SystemExit(f"expected one strategy artifact for {issue}, got {len(matches)}")
+
+        path, text = matches[0]
+        count = re.search(r"(?m)^refine_count:\s*(\d+)\s*$", text)
+        if not count or int(count.group(1)) != 1:
+            raise SystemExit(f"expected initial refine_count=1 in {path}")
+        marker = "## Staff Engineer / SME Input"
+        if marker not in text:
+            raise SystemExit(f"SME section missing from {path}")
+        start = text.index(marker) + len(marker)
+        next_header = re.search(r"\n## ", text[start:])
+        section = text[start:start + next_header.start() if next_header else None]
+        if "entered by sme-reviewer" in section:
+            raise SystemExit("SME section was populated before the SME step")
+
+        state_dir = Path("/app/artifacts/.integration")
+        state_dir.mkdir(parents=True, exist_ok=True)
+        state = {
+            "path": str(path),
+            "refine_count": 1,
+            "business_need_sha256": hashlib.sha256(
+                text[text.index("## Business Need"):text.index("## Strategy")].encode()
+            ).hexdigest(),
+            "body_sha256": hashlib.sha256(text.encode()).hexdigest(),
+        }
+        (state_dir / "strat-sme-loop-initial.json").write_text(json.dumps(state, indent=2))
+        print(json.dumps(state))
+        PY
