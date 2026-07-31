@@ -22,21 +22,15 @@ Run it from the repository root:
 
 ```bash
 CLI=deploy/repos/markovd/bin/markovd-cli
-$CLI projects sync ai-first-pipeline --wait
-$CLI projects import ai-first-pipeline var/demos/strat-dashboard-sme-loop-test --kind directory
-$CLI runs create var-demos-strat-dashboard-sme-loop-test \
-  --workflow main \
-  --wait
+scripts/run_strat_dashboard_sme_loop_test.sh
 ```
 
 Inspect the resulting `RHAISTRAT` issue and artifact. Then continue the same
 environment using the discovered strategy key:
 
 ```bash
-$CLI runs create var-demos-strat-dashboard-sme-loop-test \
-  --workflow continue-sme-loop \
-  --var strat_issue=RHAISTRAT-1 \
-  --wait
+scripts/run_strat_dashboard_sme_loop_test.sh continue-sme-loop \
+  --var strat_issue=RHAISTRAT-1
 ```
 
 The runner must have access to the configured pipeline volumes, Jira,
