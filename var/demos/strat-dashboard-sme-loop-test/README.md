@@ -1,5 +1,7 @@
 # Strat-creator SME/refine-loop integration test
 
+https://redhat.atlassian.net/browse/RHAIFIRST-390
+
 This standalone Markov demo exercises the dashboard metrics work on
 `jctanner-opendatahub-io/strat-creator@feature/dashboard-sme-and-loop-metrics`.
 
