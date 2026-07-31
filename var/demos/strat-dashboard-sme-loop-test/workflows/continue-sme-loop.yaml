@@ -4,6 +4,14 @@ description: "Apply SME input, re-refine, and review an inspected strategy"
 vars:
   sme_user: sme-reviewer
   sme_token: sme-reviewer-token
+  expected_refine_count: "2"
+  sme_feedback: >-
+    SME review entered for the strategy refine-loop integration test.
+
+    The strategy must keep the diagnostic command read-only. Certificate-expiry
+    checks should produce actionable warnings, while already-invalid certificates
+    must be treated as critical failures. The rhai-cli midstream project is
+    opendatahub-io/odh-cli; use that repository as the implementation target.
   strategy_refine_fqn: "github.com/jctanner-opendatahub-io/strat-creator@feature/dashboard-sme-and-loop-metrics:strategy-refine"
   strategy_review_fqn: "github.com/jctanner-opendatahub-io/strat-creator@feature/dashboard-sme-and-loop-metrics:strategy-review"
 
@@ -29,12 +37,8 @@ steps:
         import json
         from pathlib import Path
 
-        sme_input = """SME review entered for the strategy refine-loop integration test.
-
-        The strategy must keep the diagnostic command read-only. Certificate-expiry
-        checks should produce actionable warnings, while already-invalid certificates
-        must be treated as critical failures. The rhai-cli midstream project is
-        opendatahub-io/odh-cli; use that repository as the implementation target."""
+        sme_input = {{ sme_feedback | tojson }}
+        Path("/tmp/strat-sme-input.txt").write_text(sme_input)
         Path("/tmp/strat-sme-comment-request.json").write_text(json.dumps({
             "body": {
                 "version": 1,
@@ -114,6 +118,13 @@ steps:
         def paragraph(text):
             return {"type": "paragraph", "content": [{"type": "text", "text": text}]}
 
+        sme_input = Path("/tmp/strat-sme-input.txt").read_text()
+        feedback_paragraphs = [
+            " ".join(line.strip() for line in block.splitlines()).strip()
+            for block in sme_input.split("\n\n")
+            if block.strip()
+        ]
+
         description["content"] = content[:section_index] + [
             {
                 "type": "heading",
@@ -121,15 +132,7 @@ steps:
                 "content": [{"type": "text", "text": "Staff Engineer / SME Input"}],
             },
             paragraph("Entered by sme-reviewer."),
-            paragraph("SME review entered for the strategy refine-loop integration test."),
-            paragraph(
-                "The strategy must keep the diagnostic command read-only. "
-                "Certificate-expiry checks should produce actionable warnings, "
-                "while already-invalid certificates must be treated as critical "
-                "failures. The rhai-cli midstream project is opendatahub-io/odh-cli; "
-                "use that repository as the implementation target."
-            ),
-        ] + content[section_end:]
+        ] + [paragraph(text) for text in feedback_paragraphs] + content[section_end:]
         Path("/tmp/strat-sme-description-update.json").write_text(
             json.dumps({"fields": {"description": description}})
         )
@@ -226,8 +229,9 @@ steps:
         path = Path(state["path"])
         text = path.read_text()
         count = re.search(r"(?m)^refine_count:\s*(\d+)\s*$", text)
-        if not count or int(count.group(1)) != state["refine_count"] + 1:
-            raise SystemExit(f"expected refine_count=2 in {path}")
+        expected_count = int("{{ expected_refine_count }}")
+        if not count or int(count.group(1)) != expected_count:
+            raise SystemExit(f"expected refine_count={expected_count} in {path}")
         if "Entered by sme-reviewer" not in text:
             raise SystemExit("SME input marker was removed")
         if "Certificate-expiry" not in text:

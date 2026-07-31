@@ -4,11 +4,12 @@ This standalone Markov demo exercises the dashboard metrics work on
 `jctanner-opendatahub-io/strat-creator@feature/dashboard-sme-and-loop-metrics`.
 
 It resets Jira and shared pipeline services, creates a seeded/refined RFE with
-the expected RFE Creator labels, and runs strategy-create, strategy-refine, and
-strategy-review. The `main` workflow deliberately ends after the initial review
-so the Jira issue and shared artifacts can be inspected.
+the expected RFE Creator labels, and runs the complete strategy-create,
+strategy-refine, strategy-review, SME-edit, strategy-refine, strategy-review
+loop in one invocation, with two successive SME edits and final
+`refine_count: 3`.
 
-The continuation workflow then records an authenticated Jira comment as
+The reusable continuation workflow records an authenticated Jira comment as
 `sme-reviewer`, updates only the Jira description's SME section, and asks the
 `strategy-refine` agent to import that Jira-authored section into its local
 artifact before refining and reviewing the result. The workflow itself never
@@ -19,7 +20,8 @@ formatting is preserved.
 The workflow asserts that:
 
 - the initial productive refine writes `refine_count: 1`;
-- the SME-driven productive refine writes `refine_count: 2`;
+- the first SME-driven productive refine writes `refine_count: 2`;
+- the second SME-driven productive refine writes `refine_count: 3`;
 - the SME section survives refinement; and
 - the Business Need section remains unchanged.
 
@@ -30,8 +32,8 @@ CLI=deploy/repos/markovd/bin/markovd-cli
 scripts/run_strat_dashboard_sme_loop_test.sh
 ```
 
-Inspect the resulting `RHAISTRAT` issue and artifact. Then continue the same
-environment using the discovered strategy key:
+The default run leaves the final `RHAISTRAT` issue and artifact ready for
+inspection. To rerun only the continuation against an already-created strategy:
 
 ```bash
 scripts/run_strat_dashboard_sme_loop_test.sh continue-sme-loop \

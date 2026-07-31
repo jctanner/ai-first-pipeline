@@ -45,7 +45,8 @@ def test_sme_loop_uses_supplied_branch_and_reuses_existing_strategy():
     initial_names = [step["name"] for step in initial["steps"]]
     assert initial_names.index("run_initial_strategy") < initial_names.index("discover_strat_key")
     assert initial_names.index("discover_strat_key") < initial_names.index("assert_initial_refine_count")
-    assert initial_names[-1] == "assert_initial_refine_count"
+    assert initial_names.index("assert_initial_refine_count") < initial_names.index("continue_sme_loop")
+    assert initial_names.index("continue_sme_loop") < initial_names.index("continue_sme_loop_again")
     assert "run_rfe" not in initial_names
     initial_strategy = next(step for step in initial["steps"] if step["name"] == "run_initial_strategy")
     assert initial_strategy["workflow"] == "run-strat"
@@ -54,6 +55,12 @@ def test_sme_loop_uses_supplied_branch_and_reuses_existing_strategy():
         "github.com/jctanner-opendatahub-io/strat-creator@feature/dashboard-sme-and-loop-metrics:"
     )
     assert initial["vars"]["strategy_refine_fqn"].endswith(":strategy-refine")
+    continuation_step = next(step for step in initial["steps"] if step["name"] == "continue_sme_loop")
+    assert continuation_step["workflow"] == "continue-sme-loop"
+    assert continuation_step["vars"]["strat_issue"] == "{{ strat_issue }}"
+    second_continuation = next(step for step in initial["steps"] if step["name"] == "continue_sme_loop_again")
+    assert second_continuation["vars"]["expected_refine_count"] == "3"
+    assert "stable check" in second_continuation["vars"]["sme_feedback"]
 
     continuation = load("workflows/continue-sme-loop.yaml")
     continuation_names = [step["name"] for step in continuation["steps"]]
@@ -72,13 +79,15 @@ def test_sme_loop_assertions_cover_counter_and_protected_sections():
     final = continuation_steps["assert_sme_refine_count"]["params"]["command"]
     populate = continuation_steps["populate_sme_input"]["params"]["command"]
     assert "refine_count=1" in initial_command
-    assert "refine_count=2" in final
+    assert "expected_refine_count" in final
     assert "business_need_sha256" in initial_command
     assert "Business Need section was modified" in final
     assert "strat-reviews" in initial_command
     assert "Entered by sme-reviewer" in populate
-    assert "Certificate-expiry" in populate
-    assert "opendatahub-io/odh-cli" in populate
+    continuation_vars = continuation["vars"]
+    assert continuation_vars["expected_refine_count"] == "2"
+    assert "Certificate-expiry" in continuation_vars["sme_feedback"]
+    assert "opendatahub-io/odh-cli" in continuation_vars["sme_feedback"]
 
 
 def test_sme_account_is_created_before_authenticated_sme_action():

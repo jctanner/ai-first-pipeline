@@ -5,11 +5,11 @@
 # Exercises the dashboard/strategy instrumentation branch through the real
 # Jira, dashboard, shared-artifact, and agent-job boundaries:
 #
-#   reset → seeded/refined RFE → strategy create/refine/review → SME edit → refine
+#   reset → seeded/refined RFE → strategy create/refine/review → SME edit → refine/review
 #
-# The first strategy pass must produce refine_count=1.  The SME edit then
-# supplies new input to the existing strategy and the second productive pass
-# must produce refine_count=2.
+# The first strategy pass must produce refine_count=1. Two successive SME edits
+# then drive productive refinements to refine_count=2 and refine_count=3. The
+# default run executes the entire loop.
 
 name: main
 description: "Integration test for SME input and refine_count instrumentation"
@@ -150,3 +150,30 @@ steps:
         (state_dir / "strat-sme-loop-initial.json").write_text(json.dumps(state, indent=2))
         print(json.dumps(state))
         PY
+
+  - name: continue_sme_loop
+    description: "Apply the SME Jira edit, re-refine, and re-review without stopping"
+    workflow: continue-sme-loop
+    vars:
+      strat_issue: "{{ strat_issue }}"
+      strategy_refine_fqn: "{{ strategy_refine_fqn }}"
+      strategy_review_fqn: "{{ strategy_review_fqn }}"
+      expected_refine_count: "2"
+
+  - name: continue_sme_loop_again
+    description: "Apply a second cumulative SME edit, refine, and re-review"
+    workflow: continue-sme-loop
+    vars:
+      strat_issue: "{{ strat_issue }}"
+      strategy_refine_fqn: "{{ strategy_refine_fqn }}"
+      strategy_review_fqn: "{{ strategy_review_fqn }}"
+      expected_refine_count: "3"
+      sme_feedback: |
+        SME follow-up review for the strategy refine-loop integration test.
+
+        Retain the prior requirements: the diagnostic command is read-only,
+        certificate-expiry checks produce actionable warnings, already-invalid
+        certificates are critical failures, and the implementation target is
+        opendatahub-io/odh-cli. In addition, the JSON report must use stable check
+        identifiers and include a remediation hint for every failed or warning
+        result, so CI consumers can act without parsing human-readable output.
