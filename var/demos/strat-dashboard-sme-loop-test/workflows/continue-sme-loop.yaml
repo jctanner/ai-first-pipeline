@@ -157,34 +157,39 @@ steps:
         description = actual.get("fields", {}).get("description", {})
         if not isinstance(description, dict):
             raise SystemExit("Jira description was not retained as ADF")
+
+        def node_text(node):
+            if isinstance(node, dict):
+                return node.get("text", "") + "".join(
+                    node_text(child) for child in node.get("content", [])
+                )
+            if isinstance(node, list):
+                return "".join(node_text(child) for child in node)
+            return ""
+
         content = description.get("content", [])
         expected_headings = json.loads(
             Path("/tmp/strat-sme-existing-headings.json").read_text()
         )
         actual_headings = [
-            node.get("content", [{}])[0].get("text", "").strip()
+            node_text(node).strip()
             for node in content
             if isinstance(node, dict)
             and node.get("type") == "heading"
-            and node.get("content", [{}])[0].get("text", "").strip()
-            != "Staff Engineer / SME Input"
+            and node_text(node).strip() != "Staff Engineer / SME Input"
         ]
         if actual_headings != expected_headings:
             raise SystemExit("Jira description formatting changed outside the SME section")
-        text = " ".join(
-            child.get("text", "")
-            for node in content
-            if isinstance(node, dict)
-            for child in node.get("content", [])
-            if isinstance(child, dict)
-        )
-        if "SME review entered for the strategy refine-loop integration test." not in text:
-            raise SystemExit("Jira description did not retain the SME edit")
+        text = node_text(description)
+        expected_feedback = Path("/tmp/strat-sme-input.txt").read_text()
+        for paragraph in expected_feedback.split("\n\n"):
+            expected = " ".join(line.strip() for line in paragraph.splitlines()).strip()
+            if expected and expected not in text:
+                raise SystemExit("Jira description did not retain the SME edit")
         if not any(
             node.get("type") == "heading"
             and node.get("attrs", {}).get("level") == 2
-            and any(child.get("text") == "Staff Engineer / SME Input"
-                    for child in node.get("content", []))
+            and node_text(node).strip() == "Staff Engineer / SME Input"
             for node in content
             if isinstance(node, dict)
         ):

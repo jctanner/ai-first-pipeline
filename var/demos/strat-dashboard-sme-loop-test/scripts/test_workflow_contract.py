@@ -107,6 +107,7 @@ def test_sme_account_is_created_before_authenticated_sme_action():
     assert "Jira description lost the formatted SME heading" in populate["params"]["command"]
     assert 'description["content"] = content[:section_index]' in populate["params"]["command"]
     assert "Jira description formatting changed outside the SME section" in populate["params"]["command"]
+    assert 'Path("/tmp/strat-sme-input.txt").read_text()' in populate["params"]["command"]
     assert "path.write_text" not in populate["params"]["command"]
     re_refine = next(step for step in continuation["steps"] if step["name"] == "re_refine_strategy")
     assert "sme_input_sync=" in re_refine["vars"]["skill_extra_kwargs"]
