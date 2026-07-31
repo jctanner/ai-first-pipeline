@@ -15,7 +15,7 @@ steps:
       method: GET
 
   - name: populate_sme_input
-    description: "Edit the RHAISTRAT description through Jira as the SME, then sync it for strategy-refine"
+    description: "Edit the RHAISTRAT description through Jira as the SME"
     type: shell_exec
     params:
       command: |
@@ -27,6 +27,7 @@ steps:
 
         python3 - <<'PY'
         import json
+        import re
         from pathlib import Path
 
         sme_input = """SME review entered for the strategy refine-loop integration test.
@@ -69,12 +70,12 @@ steps:
         description = data.get("fields", {}).get("description", "")
         if not isinstance(description, str):
             raise SystemExit("Jira description is not markdown text")
-        state = json.loads(Path("/app/artifacts/.integration/strat-sme-loop-initial.json").read_text())
-        path = Path(state["path"])
-        marker = "## Staff Engineer / SME Input"
-        if marker not in description:
+        heading = re.search(
+            r"(?m)^(?:##\s*)?Staff Engineer / SME Input\s*$", description
+        )
+        if not heading:
             raise SystemExit("SME section missing from Jira description")
-        start = description.index(marker) + len(marker)
+        start = heading.end()
         next_header = re.search(r"\n## ", description[start:])
         end = start + next_header.start() if next_header else len(description)
         sme = """\n\n<!-- entered by sme-reviewer -->
@@ -102,9 +103,10 @@ steps:
 
         curl -sfk -u "$user:$token" \
           "$jira/rest/api/2/issue/$issue?fields=description" \
-          >/tmp/strat-after-sme-edit.json
+        >/tmp/strat-after-sme-edit.json
         python3 - <<'PY'
         import json
+        import re
         from pathlib import Path
 
         expected = Path("/tmp/strat-sme-description.md").read_text()
@@ -113,17 +115,20 @@ steps:
         if actual != expected:
             raise SystemExit("Jira description did not retain the SME edit")
 
-        state = json.loads(Path("/app/artifacts/.integration/strat-sme-loop-initial.json").read_text())
-        path = Path(state["path"])
-        text = path.read_text()
-        if not text.startswith("---"):
-            raise SystemExit(f"strategy artifact has no frontmatter: {path}")
-        frontmatter_end = text.find("---", 3)
-        if frontmatter_end == -1:
-            raise SystemExit(f"strategy artifact frontmatter is incomplete: {path}")
-        path.write_text(text[:frontmatter_end + 3].rstrip() + "\n\n" + actual.rstrip() + "\n")
-        print(f"Synchronized Jira-authored SME input to {path}")
+        print("Jira retained the SME edit; the strategy-refine agent must import it into its local artifact")
         PY
+
+  - name: clear_review_gate_labels
+    description: "Re-open the reviewed strategy for the SME-driven refinement"
+    type: jira_api
+    params:
+      path: "/rest/api/2/issue/{{ strat_issue }}"
+      method: PUT
+      body:
+        update:
+          labels:
+            - remove: strat-creator-rubric-pass
+            - remove: strat-creator-needs-attention
 
   - name: re_refine_strategy
     description: "Re-run strategy-refine against the existing inspected strategy"
@@ -131,6 +136,7 @@ steps:
     vars:
       skill_fqn: "{{ strategy_refine_fqn }}"
       skill_issue: "{{ strat_issue }}"
+      skill_extra_kwargs: "sme_input_sync=Before_refining_fetch_the_current_RHAISTRAT_description_from_Jira_and_merge_its_Staff_Engineer_SME_Input_section_into_the_local_artifact_preserving_frontmatter_Business_Need_and_all_other_human_authored_content"
 
   - name: assert_sme_refine_count
     description: "Require the SME-driven productive refine to increment the counter"

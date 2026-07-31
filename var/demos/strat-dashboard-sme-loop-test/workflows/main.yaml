@@ -61,12 +61,13 @@ steps:
       rfe_issue: "{{ rfe_issue }}"
 
   - name: run_initial_strategy
-    description: "Create and refine a strategy from the seeded refined RFE, then stop for inspection"
-    workflow: run-strat-create-refine
+    description: "Create, refine, and review a strategy from the seeded refined RFE, then stop for inspection"
+    workflow: run-strat
     vars:
       rfe_issue: "{{ rfe_issue }}"
       strategy_create_fqn: "{{ strategy_create_fqn }}"
       strategy_refine_fqn: "{{ strategy_refine_fqn }}"
+      strategy_review_fqn: "{{ strategy_review_fqn }}"
 
   - name: discover_strat_key
     description: "Find the strategy created from the test RFE"
@@ -124,6 +125,9 @@ steps:
         count = re.search(r"(?m)^refine_count:\s*(\d+)\s*$", text)
         if not count or int(count.group(1)) != 1:
             raise SystemExit(f"expected initial refine_count=1 in {path}")
+        reviews = sorted(Path("/app/artifacts/strat-reviews").glob(f"{issue}-review.md"))
+        if len(reviews) != 1:
+            raise SystemExit(f"expected one initial strategy review for {issue}, got {len(reviews)}")
         marker = "## Staff Engineer / SME Input"
         if marker not in text:
             raise SystemExit(f"SME section missing from {path}")

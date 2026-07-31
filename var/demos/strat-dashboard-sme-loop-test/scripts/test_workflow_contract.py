@@ -16,6 +16,8 @@ def test_strategy_subworkflow_accepts_overridable_skill_fqns():
     workflow = load("workflows/run-strat.yaml")
     assert workflow["vars"]["strategy_refine_fqn"].endswith(":strategy-refine")
     steps = {step["name"]: step for step in workflow["steps"]}
+    names = [step["name"] for step in workflow["steps"]]
+    assert names.index("strat_create") < names.index("strat_refine") < names.index("strat_review")
     assert steps["strat_create"]["vars"]["skill_fqn"] == "{{ strategy_create_fqn }}"
     assert steps["strat_refine"]["vars"]["skill_fqn"] == "{{ strategy_refine_fqn }}"
     assert steps["strat_review"]["vars"]["skill_fqn"] == "{{ strategy_review_fqn }}"
@@ -45,6 +47,9 @@ def test_sme_loop_uses_supplied_branch_and_reuses_existing_strategy():
     assert initial_names.index("discover_strat_key") < initial_names.index("assert_initial_refine_count")
     assert initial_names[-1] == "assert_initial_refine_count"
     assert "run_rfe" not in initial_names
+    initial_strategy = next(step for step in initial["steps"] if step["name"] == "run_initial_strategy")
+    assert initial_strategy["workflow"] == "run-strat"
+    assert initial_strategy["vars"]["strategy_review_fqn"] == "{{ strategy_review_fqn }}"
     assert initial["vars"]["strategy_create_fqn"].startswith(
         "github.com/jctanner-opendatahub-io/strat-creator@feature/dashboard-sme-and-loop-metrics:"
     )
@@ -53,6 +58,7 @@ def test_sme_loop_uses_supplied_branch_and_reuses_existing_strategy():
     continuation = load("workflows/continue-sme-loop.yaml")
     continuation_names = [step["name"] for step in continuation["steps"]]
     assert continuation_names.index("populate_sme_input") < continuation_names.index("re_refine_strategy")
+    assert continuation_names.index("clear_review_gate_labels") < continuation_names.index("re_refine_strategy")
     assert continuation_names.index("re_refine_strategy") < continuation_names.index("review_refined_strategy")
     re_refine = next(step for step in continuation["steps"] if step["name"] == "re_refine_strategy")
     assert re_refine["vars"]["skill_fqn"] == "{{ strategy_refine_fqn }}"
@@ -69,6 +75,7 @@ def test_sme_loop_assertions_cover_counter_and_protected_sections():
     assert "refine_count=2" in final
     assert "business_need_sha256" in initial_command
     assert "Business Need section was modified" in final
+    assert "strat-reviews" in initial_command
     assert "entered by sme-reviewer" in populate
     assert "Certificate-expiry" in populate
     assert "opendatahub-io/odh-cli" in populate
@@ -85,4 +92,14 @@ def test_sme_account_is_created_before_authenticated_sme_action():
     assert "-X PUT" in populate["params"]["command"]
     assert "$jira/rest/api/2/issue/$issue" in populate["params"]["command"]
     assert "strat-sme-description-update.json" in populate["params"]["command"]
-    assert "Synchronized Jira-authored SME input" in populate["params"]["command"]
+    assert "strategy-refine agent must import it" in populate["params"]["command"]
+    assert "(?:##\\s*)?Staff Engineer / SME Input" in populate["params"]["command"]
+    assert "frontmatter is incomplete" not in populate["params"]["command"]
+    assert "path.write_text" not in populate["params"]["command"]
+    re_refine = next(step for step in continuation["steps"] if step["name"] == "re_refine_strategy")
+    assert "sme_input_sync=" in re_refine["vars"]["skill_extra_kwargs"]
+    clear_labels = next(step for step in continuation["steps"] if step["name"] == "clear_review_gate_labels")
+    assert clear_labels["params"]["body"]["update"]["labels"] == [
+        {"remove": "strat-creator-rubric-pass"},
+        {"remove": "strat-creator-needs-attention"},
+    ]

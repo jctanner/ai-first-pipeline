@@ -2,6 +2,7 @@ name: run-skill
 description: "Submit a skill job and wait for completion"
 
 vars:
+  skill_extra_kwargs: ""
   skill_model: "claude-opus-4-6"
   skill_runner: "cli"
   skill_harness: "claude-code"
@@ -21,7 +22,7 @@ steps:
           mlflow: true
           otel: true
           api_dump: true
-          extra_kwargs: ""
+          extra_kwargs: "{{ skill_extra_kwargs }}"
           extra_env: "{}"
     register: submitted_job
 
