@@ -248,8 +248,23 @@ steps:
             raise SystemExit(f"expected refine_count={expected_count} in {path}")
         if "Entered by sme-reviewer" not in text:
             raise SystemExit("SME input marker was removed")
-        if "Certificate-expiry" not in text:
-            raise SystemExit("SME input text was removed")
+        required_sme_markers = {
+            2: (
+                "current Kubernetes context",
+                "aggregated report",
+                "opendatahub-io/odh-cli",
+            ),
+            3: (
+                "schema_version: 1",
+                "stable machine-readable check_id",
+                "remediation field",
+            ),
+        }.get(expected_count, ())
+        missing_markers = [marker for marker in required_sme_markers if marker not in text]
+        if missing_markers:
+            raise SystemExit(
+                "SME input text was removed or changed: " + ", ".join(missing_markers)
+            )
         business_start = text.index("## Business Need")
         strategy_start = text.index("## Strategy")
         business_hash = hashlib.sha256(text[business_start:strategy_start].encode()).hexdigest()

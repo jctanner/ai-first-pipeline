@@ -83,6 +83,8 @@ def test_sme_loop_assertions_cover_counter_and_protected_sections():
     assert "expected_refine_count" in final
     assert "business_need_sha256" in initial_command
     assert "Business Need section was modified" in final
+    assert "current Kubernetes context" in final
+    assert "schema_version: 1" in final
     assert "strat-reviews" in initial_command
     assert "Entered by sme-reviewer" in populate
     continuation_vars = continuation["vars"]
