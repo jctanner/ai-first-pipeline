@@ -71,6 +71,7 @@ def test_sme_loop_assertions_cover_counter_and_protected_sections():
     assert "Business Need section was modified" in final
     assert "entered by sme-reviewer" in populate
     assert "Certificate-expiry" in populate
+    assert "opendatahub-io/odh-cli" in populate
 
 
 def test_sme_account_is_created_before_authenticated_sme_action():
@@ -81,3 +82,7 @@ def test_sme_account_is_created_before_authenticated_sme_action():
     assert "-u \"{{ sme_user }}:{{ sme_token }}\"" in populate["params"]["command"]
     assert "comment.get(\"author\", {})" in populate["params"]["command"]
     assert "author.get(\"name\") != \"{{ sme_user }}\"" in populate["params"]["command"]
+    assert "-X PUT" in populate["params"]["command"]
+    assert "$jira/rest/api/2/issue/$issue" in populate["params"]["command"]
+    assert "strat-sme-description-update.json" in populate["params"]["command"]
+    assert "Synchronized Jira-authored SME input" in populate["params"]["command"]

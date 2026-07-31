@@ -15,16 +15,36 @@ steps:
       method: GET
 
   - name: populate_sme_input
-    description: "Record an authenticated SME comment and populate the artifact section"
+    description: "Edit the RHAISTRAT description through Jira as the SME, then sync it for strategy-refine"
     type: shell_exec
     params:
       command: |
         set -euo pipefail
+        issue="{{ strat_issue }}"
+        jira="{{ jira_base }}"
+        user="{{ sme_user }}"
+        token="{{ sme_token }}"
+
+        python3 - <<'PY'
+        import json
+        from pathlib import Path
+
+        sme_input = """SME review entered for the strategy refine-loop integration test.
+
+        The strategy must keep the diagnostic command read-only. Certificate-expiry
+        checks should produce actionable warnings, while already-invalid certificates
+        must be treated as critical failures. The rhai-cli midstream project is
+        opendatahub-io/odh-cli; use that repository as the implementation target."""
+        Path("/tmp/strat-sme-comment-request.json").write_text(
+            json.dumps({"body": sme_input})
+        )
+        PY
+
         curl -sfk -u "{{ sme_user }}:{{ sme_token }}" \
           -H 'Content-Type: application/json' \
           -X POST \
-          "{{ jira_base }}/rest/api/2/issue/{{ strat_issue }}/comment" \
-          -d '{"body":"SME review entered for the strategy refine-loop integration test."}' \
+          "$jira/rest/api/2/issue/$issue/comment" \
+          --data-binary @/tmp/strat-sme-comment-request.json \
           >/tmp/strat-sme-comment.json
         python3 - <<'PY'
         import json
@@ -35,27 +55,74 @@ steps:
         if author.get("name") != "{{ sme_user }}":
             raise SystemExit(f"comment was not authored by {{ sme_user }}: {author}")
         PY
+
+        curl -sfk -u "$user:$token" \
+          "$jira/rest/api/2/issue/$issue?fields=description" \
+          >/tmp/strat-before-sme-edit.json
         python3 - <<'PY'
         import json
         import re
         from pathlib import Path
 
+        issue = "{{ strat_issue }}"
+        data = json.loads(Path("/tmp/strat-before-sme-edit.json").read_text())
+        description = data.get("fields", {}).get("description", "")
+        if not isinstance(description, str):
+            raise SystemExit("Jira description is not markdown text")
+        state = json.loads(Path("/app/artifacts/.integration/strat-sme-loop-initial.json").read_text())
+        path = Path(state["path"])
+        marker = "## Staff Engineer / SME Input"
+        if marker not in description:
+            raise SystemExit("SME section missing from Jira description")
+        start = description.index(marker) + len(marker)
+        next_header = re.search(r"\n## ", description[start:])
+        end = start + next_header.start() if next_header else len(description)
+        sme = """\n\n<!-- entered by sme-reviewer -->
+        SME review entered for the strategy refine-loop integration test.
+
+        The strategy must keep the diagnostic command read-only. Certificate-expiry
+        checks should produce actionable warnings, while already-invalid certificates
+        must be treated as critical failures. The rhai-cli midstream project is
+        opendatahub-io/odh-cli; use that repository as the implementation target.
+        """
+        updated = description[:start] + sme + description[end:]
+        Path("/tmp/strat-sme-description-update.json").write_text(
+            json.dumps({"fields": {"description": updated}})
+        )
+        Path("/tmp/strat-sme-description.md").write_text(updated)
+        print(f"Prepared Jira SME edit for {issue}")
+        PY
+
+        curl -sfk -u "$user:$token" \
+          -H 'Content-Type: application/json' \
+          -X PUT \
+          "$jira/rest/api/2/issue/$issue" \
+          --data-binary @/tmp/strat-sme-description-update.json \
+          >/tmp/strat-sme-edit-response.json
+
+        curl -sfk -u "$user:$token" \
+          "$jira/rest/api/2/issue/$issue?fields=description" \
+          >/tmp/strat-after-sme-edit.json
+        python3 - <<'PY'
+        import json
+        from pathlib import Path
+
+        expected = Path("/tmp/strat-sme-description.md").read_text()
+        actual = json.loads(Path("/tmp/strat-after-sme-edit.json").read_text())
+        actual = actual.get("fields", {}).get("description", "")
+        if actual != expected:
+            raise SystemExit("Jira description did not retain the SME edit")
+
         state = json.loads(Path("/app/artifacts/.integration/strat-sme-loop-initial.json").read_text())
         path = Path(state["path"])
         text = path.read_text()
-        marker = "## Staff Engineer / SME Input"
-        if marker not in text:
-            raise SystemExit(f"SME section missing from {path}")
-        start = text.index(marker) + len(marker)
-        next_header = re.search(r"\n## ", text[start:])
-        end = start + next_header.start() if next_header else len(text)
-        sme = """\n\n<!-- entered by sme-reviewer -->
-        The strategy must keep the diagnostic command read-only. Certificate-expiry
-        checks should produce actionable warnings, while already-invalid certificates
-        must be treated as critical failures.
-        """
-        path.write_text(text[:start] + sme + text[end:])
-        print(f"SME input written by sme-reviewer to {path}")
+        if not text.startswith("---"):
+            raise SystemExit(f"strategy artifact has no frontmatter: {path}")
+        frontmatter_end = text.find("---", 3)
+        if frontmatter_end == -1:
+            raise SystemExit(f"strategy artifact frontmatter is incomplete: {path}")
+        path.write_text(text[:frontmatter_end + 3].rstrip() + "\n\n" + actual.rstrip() + "\n")
+        print(f"Synchronized Jira-authored SME input to {path}")
         PY
 
   - name: re_refine_strategy
