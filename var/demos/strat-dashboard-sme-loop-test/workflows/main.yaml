@@ -171,9 +171,17 @@ steps:
       sme_feedback: |
         SME follow-up review for the strategy refine-loop integration test.
 
-        Retain the prior requirements: the diagnostic command is read-only,
-        certificate-expiry checks produce actionable warnings, already-invalid
-        certificates are critical failures, and the implementation target is
-        opendatahub-io/odh-cli. In addition, the JSON report must use stable check
-        identifiers and include a remediation hint for every failed or warning
-        result, so CI consumers can act without parsing human-readable output.
+        Resolve the remaining reporting and CI integration questions with these
+        SME decisions. JSON output must be versioned with schema_version: 1.
+        Every result must contain a stable machine-readable check_id, status,
+        and human-readable message. Every warning or critical result must
+        include a remediation field. Exit codes are deterministic: 0 for
+        all-pass results, 2 for warning-only results, and 1 whenever a critical
+        failure exists; critical failures take precedence over warnings. The
+        strategy must include acceptance tests for all three exit-code cases
+        and for one aggregated report containing multiple simultaneous failures.
+        Retain the prior SME decisions, including the read-only behavior,
+        certificate severity rules, aggregated execution, and
+        opendatahub-io/odh-cli as the implementation target. These decisions
+        belong in the Staff Engineer / SME Input section; strategy-refine must
+        determine the corresponding artifact changes.

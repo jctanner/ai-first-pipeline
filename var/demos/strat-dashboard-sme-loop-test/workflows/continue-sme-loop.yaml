@@ -8,10 +8,19 @@ vars:
   sme_feedback: >-
     SME review entered for the strategy refine-loop integration test.
 
-    The strategy must keep the diagnostic command read-only. Certificate-expiry
-    checks should produce actionable warnings, while already-invalid certificates
-    must be treated as critical failures. The rhai-cli midstream project is
-    opendatahub-io/odh-cli; use that repository as the implementation target.
+    Resolve the open implementation questions with these SME decisions: the
+    existing rhai-cli in opendatahub-io/odh-cli is the implementation target;
+    do not create a separate repository or service. The diagnostic command must
+    use the current Kubernetes context and remain strictly read-only. The first
+    release covers operator health, DSC/DSCI conditions, component readiness,
+    route accessibility, TLS certificate validity, and version consistency.
+    Checks must continue after an individual failure and return one aggregated
+    report. Missing required resources are critical failures; unavailable
+    optional checks are warnings. Retain the requirement that expiring
+    certificates produce actionable warnings and already-invalid certificates
+    are critical failures. These decisions should be reflected in the strategy
+    body and acceptance criteria, while this Jira edit remains confined to the
+    Staff Engineer / SME Input section.
   strategy_refine_fqn: "github.com/jctanner-opendatahub-io/strat-creator@feature/dashboard-sme-and-loop-metrics:strategy-refine"
   strategy_review_fqn: "github.com/jctanner-opendatahub-io/strat-creator@feature/dashboard-sme-and-loop-metrics:strategy-review"
 
