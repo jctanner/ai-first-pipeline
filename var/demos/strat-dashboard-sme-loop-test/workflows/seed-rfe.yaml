@@ -52,7 +52,21 @@ steps:
             name: Major
           components:
             - name: CLI
+          labels:
+            - rfe-creator-autofix-rubric-pass
+            - rfe-creator-feasibility-pass
+            - rfe-creator-needs-attention
+            - strat-creator-3.6
     register: rfe_result
+
+  - name: seed_refinement_comment
+    description: "Preserve the RFE Creator human-review note from the refined ticket"
+    type: jira_api
+    params:
+      path: "/rest/api/2/issue/{{ rfe_issue }}/comment"
+      method: POST
+      body:
+        body: "[RFE Creator] This RFE has been flagged for human review:\nrhai-cli is not in the RHOAI 3.5-ea.2 platform architecture inventory; strategy refinement must confirm whether this CLI exists as an out-of-band tool or needs to be created"
 
   - name: verify_rfe
     type: jira_api

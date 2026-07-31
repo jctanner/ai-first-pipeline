@@ -3,9 +3,10 @@
 This standalone Markov demo exercises the dashboard metrics work on
 `jctanner-opendatahub-io/strat-creator@feature/dashboard-sme-and-loop-metrics`.
 
-It resets Jira and shared pipeline services, creates a test RFE, runs the RFE
-speedrun, and creates/refines a strategy. The `main` workflow deliberately ends
-after the initial refine so the Jira issue and shared artifact can be inspected.
+It resets Jira and shared pipeline services, creates a seeded/refined RFE with
+the expected RFE Creator labels, and creates/refines a strategy directly. The
+`main` workflow deliberately ends after the initial refine so the Jira issue and
+shared artifact can be inspected.
 
 The continuation workflow then records an authenticated Jira comment as
 `sme-reviewer`, populates the shared strategy artifact's SME section, re-runs

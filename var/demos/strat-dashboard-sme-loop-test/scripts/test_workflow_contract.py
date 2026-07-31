@@ -21,11 +21,21 @@ def test_strategy_subworkflow_accepts_overridable_skill_fqns():
     assert steps["strat_review"]["vars"]["skill_fqn"] == "{{ strategy_review_fqn }}"
 
 
-def test_rfe_subworkflow_accepts_overridable_skill_fqns():
-    workflow = load("workflows/run-rfe.yaml")
-    steps = {step["name"]: step for step in workflow["steps"]}
-    assert steps["rfe_speedrun"]["vars"]["skill_fqn"] == "{{ rfe_speedrun_fqn }}"
-    assert steps["rfe_submit"]["vars"]["skill_fqn"] == "{{ rfe_submit_fqn }}"
+def test_seed_matches_refined_rfe_state():
+    workflow = load("workflows/seed-rfe.yaml")
+    fields = workflow["steps"][0]["params"]["body"]["fields"]
+    assert fields["summary"] == "Add rhai-cli diagnose subcommand for RHOAI deployment health checks"
+    assert fields["priority"] == {"name": "Major"}
+    assert fields["components"] == [{"name": "CLI"}]
+    assert fields["labels"] == [
+        "rfe-creator-autofix-rubric-pass",
+        "rfe-creator-feasibility-pass",
+        "rfe-creator-needs-attention",
+        "strat-creator-3.6",
+    ]
+    comment = workflow["steps"][1]["params"]["body"]["body"]
+    assert "flagged for human review" in comment
+    assert "rhai-cli is not in the RHOAI 3.5-ea.2 platform architecture inventory" in comment
 
 
 def test_sme_loop_uses_supplied_branch_and_reuses_existing_strategy():
@@ -34,9 +44,9 @@ def test_sme_loop_uses_supplied_branch_and_reuses_existing_strategy():
     assert initial_names.index("run_initial_strategy") < initial_names.index("discover_strat_key")
     assert initial_names.index("discover_strat_key") < initial_names.index("assert_initial_refine_count")
     assert initial_names[-1] == "assert_initial_refine_count"
-    assert initial["vars"]["strat_skill_owner"] == "jctanner-opendatahub-io"
-    assert initial["vars"]["strat_skill_branch"] == (
-        "feature/dashboard-sme-and-loop-metrics"
+    assert "run_rfe" not in initial_names
+    assert initial["vars"]["strategy_create_fqn"].startswith(
+        "github.com/jctanner-opendatahub-io/strat-creator@feature/dashboard-sme-and-loop-metrics:"
     )
     assert initial["vars"]["strategy_refine_fqn"].endswith(":strategy-refine")
 

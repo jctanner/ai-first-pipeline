@@ -5,7 +5,7 @@
 # Exercises the dashboard/strategy instrumentation branch through the real
 # Jira, dashboard, shared-artifact, and agent-job boundaries:
 #
-#   reset → RFE speedrun → strategy create/refine/review → SME edit → refine
+#   reset → seeded/refined RFE → strategy create/refine/review → SME edit → refine
 #
 # The first strategy pass must produce refine_count=1.  The SME edit then
 # supplies new input to the existing strategy and the second productive pass
@@ -18,14 +18,13 @@ vars:
   rfe_issue: RHAIRFE-1
   sme_user: sme-reviewer
   sme_token: sme-reviewer-token
-  strat_skill_owner: jctanner-opendatahub-io
-  strat_skill_repo: strat-creator
-  strat_skill_branch: feature/dashboard-sme-and-loop-metrics
-  rfe_speedrun_fqn: "github.com/opendatahub-io/rfe-creator@main:rfe.speedrun"
-  rfe_submit_fqn: "github.com/opendatahub-io/rfe-creator@main:rfe.submit"
-  strategy_create_fqn: "github.com/{{ strat_skill_owner }}/{{ strat_skill_repo }}@{{ strat_skill_branch }}:strategy-create"
-  strategy_refine_fqn: "github.com/{{ strat_skill_owner }}/{{ strat_skill_repo }}@{{ strat_skill_branch }}:strategy-refine"
-  strategy_review_fqn: "github.com/{{ strat_skill_owner }}/{{ strat_skill_repo }}@{{ strat_skill_branch }}:strategy-review"
+  # Keep these FQNs concrete. Markov renders workflow variables once, so
+  # composing an FQN from {{ strat_skill_owner }}, {{ strat_skill_repo }}, and
+  # {{ strat_skill_branch }} leaves the nested expressions unresolved when the
+  # value is passed through another subworkflow.
+  strategy_create_fqn: "github.com/jctanner-opendatahub-io/strat-creator@feature/dashboard-sme-and-loop-metrics:strategy-create"
+  strategy_refine_fqn: "github.com/jctanner-opendatahub-io/strat-creator@feature/dashboard-sme-and-loop-metrics:strategy-refine"
+  strategy_review_fqn: "github.com/jctanner-opendatahub-io/strat-creator@feature/dashboard-sme-and-loop-metrics:strategy-review"
 
 steps:
 
@@ -61,16 +60,8 @@ steps:
     vars:
       rfe_issue: "{{ rfe_issue }}"
 
-  - name: run_rfe
-    description: "Run RFE speedrun, submit, and rubric gate"
-    workflow: run-rfe
-    vars:
-      rfe_issue: "{{ rfe_issue }}"
-      rfe_speedrun_fqn: "{{ rfe_speedrun_fqn }}"
-      rfe_submit_fqn: "{{ rfe_submit_fqn }}"
-
   - name: run_initial_strategy
-    description: "Create and refine the initial strategy, then stop for inspection"
+    description: "Create and refine a strategy from the seeded refined RFE, then stop for inspection"
     workflow: run-strat-create-refine
     vars:
       rfe_issue: "{{ rfe_issue }}"
