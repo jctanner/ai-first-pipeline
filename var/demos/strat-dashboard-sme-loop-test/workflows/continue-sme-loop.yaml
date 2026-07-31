@@ -27,7 +27,6 @@ steps:
 
         python3 - <<'PY'
         import json
-        import re
         from pathlib import Path
 
         sme_input = """SME review entered for the strategy refine-loop integration test.
@@ -36,15 +35,22 @@ steps:
         checks should produce actionable warnings, while already-invalid certificates
         must be treated as critical failures. The rhai-cli midstream project is
         opendatahub-io/odh-cli; use that repository as the implementation target."""
-        Path("/tmp/strat-sme-comment-request.json").write_text(
-            json.dumps({"body": sme_input})
-        )
+        Path("/tmp/strat-sme-comment-request.json").write_text(json.dumps({
+            "body": {
+                "version": 1,
+                "type": "doc",
+                "content": [{
+                    "type": "paragraph",
+                    "content": [{"type": "text", "text": sme_input}],
+                }],
+            }
+        }))
         PY
 
         curl -sfk -u "{{ sme_user }}:{{ sme_token }}" \
           -H 'Content-Type: application/json' \
           -X POST \
-          "$jira/rest/api/2/issue/$issue/comment" \
+          "$jira/rest/api/3/issue/$issue/comment" \
           --data-binary @/tmp/strat-sme-comment-request.json \
           >/tmp/strat-sme-comment.json
         python3 - <<'PY'
@@ -58,62 +64,128 @@ steps:
         PY
 
         curl -sfk -u "$user:$token" \
-          "$jira/rest/api/2/issue/$issue?fields=description" \
+          "$jira/rest/api/3/issue/$issue?fields=description" \
           >/tmp/strat-before-sme-edit.json
         python3 - <<'PY'
         import json
-        import re
         from pathlib import Path
 
         issue = "{{ strat_issue }}"
         data = json.loads(Path("/tmp/strat-before-sme-edit.json").read_text())
-        description = data.get("fields", {}).get("description", "")
-        if not isinstance(description, str):
-            raise SystemExit("Jira description is not markdown text")
-        heading = re.search(
-            r"(?m)^(?:##\s*)?Staff Engineer / SME Input\s*$", description
-        )
-        if not heading:
-            raise SystemExit("SME section missing from Jira description")
-        start = heading.end()
-        next_header = re.search(r"\n## ", description[start:])
-        end = start + next_header.start() if next_header else len(description)
-        sme = """\n\n<!-- entered by sme-reviewer -->
-        SME review entered for the strategy refine-loop integration test.
+        description = data.get("fields", {}).get("description", {})
+        if not isinstance(description, dict):
+            raise SystemExit("Jira REST v3 did not return an ADF description")
 
-        The strategy must keep the diagnostic command read-only. Certificate-expiry
-        checks should produce actionable warnings, while already-invalid certificates
-        must be treated as critical failures. The rhai-cli midstream project is
-        opendatahub-io/odh-cli; use that repository as the implementation target.
-        """
-        updated = description[:start] + sme + description[end:]
-        Path("/tmp/strat-sme-description-update.json").write_text(
-            json.dumps({"fields": {"description": updated}})
+        def node_text(node):
+            if isinstance(node, dict):
+                return node.get("text", "") + "".join(
+                    node_text(child) for child in node.get("content", [])
+                )
+            if isinstance(node, list):
+                return "".join(node_text(child) for child in node)
+            return ""
+
+        content = description.get("content", [])
+        section_index = next(
+            (index for index, node in enumerate(content)
+             if node_text(node).strip() == "Staff Engineer / SME Input"),
+            None,
         )
-        Path("/tmp/strat-sme-description.md").write_text(updated)
+        if section_index is None:
+            raise SystemExit("SME section missing from Jira ADF description")
+
+        Path("/tmp/strat-sme-existing-headings.json").write_text(json.dumps([
+            node_text(node).strip()
+            for node in content
+            if isinstance(node, dict)
+            and node.get("type") == "heading"
+            and node_text(node).strip() != "Staff Engineer / SME Input"
+        ]))
+
+        section_end = len(content)
+        for index in range(section_index + 1, len(content)):
+            node = content[index]
+            if (isinstance(node, dict)
+                    and node.get("type") == "heading"
+                    and node.get("attrs", {}).get("level", 2) <= 2):
+                section_end = index
+                break
+
+        def paragraph(text):
+            return {"type": "paragraph", "content": [{"type": "text", "text": text}]}
+
+        description["content"] = content[:section_index] + [
+            {
+                "type": "heading",
+                "attrs": {"level": 2},
+                "content": [{"type": "text", "text": "Staff Engineer / SME Input"}],
+            },
+            paragraph("Entered by sme-reviewer."),
+            paragraph("SME review entered for the strategy refine-loop integration test."),
+            paragraph(
+                "The strategy must keep the diagnostic command read-only. "
+                "Certificate-expiry checks should produce actionable warnings, "
+                "while already-invalid certificates must be treated as critical "
+                "failures. The rhai-cli midstream project is opendatahub-io/odh-cli; "
+                "use that repository as the implementation target."
+            ),
+        ] + content[section_end:]
+        Path("/tmp/strat-sme-description-update.json").write_text(
+            json.dumps({"fields": {"description": description}})
+        )
         print(f"Prepared Jira SME edit for {issue}")
         PY
 
         curl -sfk -u "$user:$token" \
           -H 'Content-Type: application/json' \
           -X PUT \
-          "$jira/rest/api/2/issue/$issue" \
+          "$jira/rest/api/3/issue/$issue" \
           --data-binary @/tmp/strat-sme-description-update.json \
           >/tmp/strat-sme-edit-response.json
 
         curl -sfk -u "$user:$token" \
-          "$jira/rest/api/2/issue/$issue?fields=description" \
-        >/tmp/strat-after-sme-edit.json
+          "$jira/rest/api/3/issue/$issue?fields=description" \
+          >/tmp/strat-after-sme-edit.json
         python3 - <<'PY'
         import json
-        import re
         from pathlib import Path
 
-        expected = Path("/tmp/strat-sme-description.md").read_text()
         actual = json.loads(Path("/tmp/strat-after-sme-edit.json").read_text())
-        actual = actual.get("fields", {}).get("description", "")
-        if actual != expected:
+        description = actual.get("fields", {}).get("description", {})
+        if not isinstance(description, dict):
+            raise SystemExit("Jira description was not retained as ADF")
+        content = description.get("content", [])
+        expected_headings = json.loads(
+            Path("/tmp/strat-sme-existing-headings.json").read_text()
+        )
+        actual_headings = [
+            node.get("content", [{}])[0].get("text", "").strip()
+            for node in content
+            if isinstance(node, dict)
+            and node.get("type") == "heading"
+            and node.get("content", [{}])[0].get("text", "").strip()
+            != "Staff Engineer / SME Input"
+        ]
+        if actual_headings != expected_headings:
+            raise SystemExit("Jira description formatting changed outside the SME section")
+        text = " ".join(
+            child.get("text", "")
+            for node in content
+            if isinstance(node, dict)
+            for child in node.get("content", [])
+            if isinstance(child, dict)
+        )
+        if "SME review entered for the strategy refine-loop integration test." not in text:
             raise SystemExit("Jira description did not retain the SME edit")
+        if not any(
+            node.get("type") == "heading"
+            and node.get("attrs", {}).get("level") == 2
+            and any(child.get("text") == "Staff Engineer / SME Input"
+                    for child in node.get("content", []))
+            for node in content
+            if isinstance(node, dict)
+        ):
+            raise SystemExit("Jira description lost the formatted SME heading")
 
         print("Jira retained the SME edit; the strategy-refine agent must import it into its local artifact")
         PY
@@ -156,7 +228,7 @@ steps:
         count = re.search(r"(?m)^refine_count:\s*(\d+)\s*$", text)
         if not count or int(count.group(1)) != state["refine_count"] + 1:
             raise SystemExit(f"expected refine_count=2 in {path}")
-        if "<!-- entered by sme-reviewer -->" not in text:
+        if "Entered by sme-reviewer" not in text:
             raise SystemExit("SME input marker was removed")
         if "Certificate-expiry" not in text:
             raise SystemExit("SME input text was removed")

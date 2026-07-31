@@ -12,7 +12,9 @@ The continuation workflow then records an authenticated Jira comment as
 `sme-reviewer`, updates only the Jira description's SME section, and asks the
 `strategy-refine` agent to import that Jira-authored section into its local
 artifact before refining and reviewing the result. The workflow itself never
-edits the strategy artifact.
+edits the strategy artifact. The Jira edit uses REST v3 and Atlassian Document
+Format (ADF), matching the strategy skills so the existing description
+formatting is preserved.
 
 The workflow asserts that:
 

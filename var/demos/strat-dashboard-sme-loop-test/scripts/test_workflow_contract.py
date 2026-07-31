@@ -76,7 +76,7 @@ def test_sme_loop_assertions_cover_counter_and_protected_sections():
     assert "business_need_sha256" in initial_command
     assert "Business Need section was modified" in final
     assert "strat-reviews" in initial_command
-    assert "entered by sme-reviewer" in populate
+    assert "Entered by sme-reviewer" in populate
     assert "Certificate-expiry" in populate
     assert "opendatahub-io/odh-cli" in populate
 
@@ -90,11 +90,14 @@ def test_sme_account_is_created_before_authenticated_sme_action():
     assert "comment.get(\"author\", {})" in populate["params"]["command"]
     assert "author.get(\"name\") != \"{{ sme_user }}\"" in populate["params"]["command"]
     assert "-X PUT" in populate["params"]["command"]
-    assert "$jira/rest/api/2/issue/$issue" in populate["params"]["command"]
+    assert "$jira/rest/api/3/issue/$issue" in populate["params"]["command"]
     assert "strat-sme-description-update.json" in populate["params"]["command"]
     assert "strategy-refine agent must import it" in populate["params"]["command"]
-    assert "(?:##\\s*)?Staff Engineer / SME Input" in populate["params"]["command"]
-    assert "frontmatter is incomplete" not in populate["params"]["command"]
+    assert '"type": "heading"' in populate["params"]["command"]
+    assert "Jira REST v3 did not return an ADF description" in populate["params"]["command"]
+    assert "Jira description lost the formatted SME heading" in populate["params"]["command"]
+    assert 'description["content"] = content[:section_index]' in populate["params"]["command"]
+    assert "Jira description formatting changed outside the SME section" in populate["params"]["command"]
     assert "path.write_text" not in populate["params"]["command"]
     re_refine = next(step for step in continuation["steps"] if step["name"] == "re_refine_strategy")
     assert "sme_input_sync=" in re_refine["vars"]["skill_extra_kwargs"]
