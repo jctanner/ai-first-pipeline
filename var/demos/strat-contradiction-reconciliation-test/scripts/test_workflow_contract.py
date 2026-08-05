@@ -35,6 +35,21 @@ def test_workflow_runs_and_asserts_baseline():
     assert "Consistency Review" in assertion
 
 
+def test_fixed_workflow_uses_pushed_consistency_branch():
+    workflow = load("workflows/fixed.yaml")
+    assert workflow["vars"]["strategy_create_fqn"].startswith(
+        "github.com/jctanner-opendatahub-io/strat-creator@bugfix-review-consistency:"
+    )
+    assert workflow["vars"]["strategy_refine_fqn"].startswith(
+        "github.com/jctanner-opendatahub-io/strat-creator@bugfix-review-consistency:"
+    )
+    assert workflow["vars"]["strategy_review_fqn"].startswith(
+        "github.com/jctanner-opendatahub-io/strat-creator@bugfix-review-consistency:"
+    )
+    assert workflow["vars"]["expect_consistency_review"] == "true"
+    assert workflow["steps"][0]["workflow"] == "main"
+
+
 def test_seed_contains_the_two_conflicting_sources():
     workflow = load("workflows/seed-rfe.yaml")
     description = workflow["steps"][0]["params"]["body"]["fields"]["description"]

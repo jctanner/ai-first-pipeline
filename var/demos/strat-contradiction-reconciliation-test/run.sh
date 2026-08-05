@@ -2,9 +2,9 @@
 # Run the upstream-main contradiction reproduction demo.
 #
 # Usage:
-#   var/demos/strat-contradiction-reconciliation-test/run.sh
+#   var/demos/strat-contradiction-reconciliation-test/run.sh [main|fixed]
 #   var/demos/strat-contradiction-reconciliation-test/run.sh \
-#     --var rfe_issue=RHAIRFE-42
+#     fixed --var rfe_issue=RHAIRFE-42
 
 set -euo pipefail
 
@@ -13,6 +13,11 @@ REPO_ROOT="$(cd -- "${SCRIPT_DIR}/../../.." && pwd)"
 MARKOVD_CLI="${MARKOVD_CLI:-${REPO_ROOT}/deploy/repos/markovd/bin/markovd-cli}"
 PROJECT="${MARKOVD_PROJECT:-ai-first-pipeline}"
 DEMO="${MARKOVD_DEMO:-var-demos-strat-contradiction-reconciliation-test}"
+WORKFLOW="${1:-main}"
+
+if [[ $# -gt 0 && "${1}" != --* ]]; then
+  shift
+fi
 
 if [[ ! -x "${MARKOVD_CLI}" ]]; then
   echo "markovd-cli not found or not executable: ${MARKOVD_CLI}" >&2
@@ -24,4 +29,4 @@ cd "${REPO_ROOT}"
 "${MARKOVD_CLI}" projects sync "${PROJECT}" --wait
 "${MARKOVD_CLI}" projects import "${PROJECT}" \
   "var/demos/strat-contradiction-reconciliation-test" --kind directory
-"${MARKOVD_CLI}" runs create "${DEMO}" --workflow main "$@" --wait
+"${MARKOVD_CLI}" runs create "${DEMO}" --workflow "${WORKFLOW}" "$@" --wait

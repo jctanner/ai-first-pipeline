@@ -16,6 +16,7 @@ vars:
   strategy_create_fqn: "github.com/opendatahub-io/strat-creator@main:strategy-create"
   strategy_refine_fqn: "github.com/opendatahub-io/strat-creator@main:strategy-refine"
   strategy_review_fqn: "github.com/opendatahub-io/strat-creator@main:strategy-review"
+  expect_consistency_review: "false"
 
 steps:
   - name: reset_jira
@@ -113,13 +114,18 @@ steps:
         ):
             if heading not in review:
                 raise SystemExit(f"missing existing reviewer section: {heading}")
-        if "## Consistency Review" in review:
-            raise SystemExit("upstream main unexpectedly contains a consistency review")
+        has_consistency_review = "## Consistency Review" in review
+        expect_consistency_review = "{{ expect_consistency_review }}" == "true"
+        if has_consistency_review != expect_consistency_review:
+            raise SystemExit(
+                f"consistency review presence={has_consistency_review}, "
+                f"expected={expect_consistency_review}"
+            )
 
         print("Reproduced upstream-main baseline:")
         print(f"  strategy: {task_path}")
         print(f"  review:   {reviews[0]}")
         print("  Business Need claims DataRegistry CR")
         print("  Strategy claims FeatureStore CR")
-        print("  no Consistency Review section present")
+        print(f"  consistency review section present: {has_consistency_review}")
         PY

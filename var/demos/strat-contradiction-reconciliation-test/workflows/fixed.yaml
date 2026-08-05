@@ -1,0 +1,19 @@
+name: fixed
+description: "Run the contradiction reproduction against the consistency-review branch"
+
+vars:
+  rfe_issue: RHAIRFE-1
+  strategy_create_fqn: "github.com/jctanner-opendatahub-io/strat-creator@bugfix-review-consistency:strategy-create"
+  strategy_refine_fqn: "github.com/jctanner-opendatahub-io/strat-creator@bugfix-review-consistency:strategy-refine"
+  strategy_review_fqn: "github.com/jctanner-opendatahub-io/strat-creator@bugfix-review-consistency:strategy-review"
+  expect_consistency_review: "true"
+
+steps:
+  - name: run_fixed_reproduction
+    workflow: main
+    vars:
+      rfe_issue: "{{ rfe_issue }}"
+      strategy_create_fqn: "{{ strategy_create_fqn }}"
+      strategy_refine_fqn: "{{ strategy_refine_fqn }}"
+      strategy_review_fqn: "{{ strategy_review_fqn }}"
+      expect_consistency_review: "{{ expect_consistency_review }}"

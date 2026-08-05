@@ -30,6 +30,16 @@ bash var/demos/strat-contradiction-reconciliation-test/run.sh
 The run leaves the generated RFE, strategy, and review artifacts available in
 the shared pipeline artifact volume for inspection.
 
+After the consistency-review branch is pushed, run its fixed-mode workflow:
+
+```bash
+bash var/demos/strat-contradiction-reconciliation-test/run.sh fixed
+```
+
+The `main` workflow remains the upstream baseline. The `fixed` workflow uses
+`jctanner-opendatahub-io/strat-creator@bugfix-review-consistency` and expects a
+dedicated consistency section in the review.
+
 ## Expected baseline result
 
 The workflow succeeds while reporting that the contradiction was reproduced:
@@ -41,3 +51,6 @@ The workflow succeeds while reporting that the contradiction was reproduced:
 
 The final condition is expected for upstream `main`; it becomes the regression
 assertion when the new reviewer is implemented.
+
+Fixed-mode additionally expects the review to contain `## Consistency Review`
+while preserving the existing numeric score and verdict behavior.
