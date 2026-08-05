@@ -36,6 +36,8 @@ def test_workflow_runs_and_asserts_baseline():
     assert "contradictions-found" in assertion
     assert "Required resolution" in assertion
     assert "Open question for strategy refinement" in assertion
+    assert "strat-creator-consistency-needs-attention" in assertion
+    assert "strat-creator-rubric-pass" in assertion
 
 
 def test_fixed_workflow_uses_pushed_consistency_branch():

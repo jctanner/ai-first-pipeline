@@ -133,6 +133,22 @@ steps:
                 if required not in review:
                     raise SystemExit(f"consistency finding missing required text: {required}")
 
+        labels_payload = __import__("json").loads(__import__("subprocess").check_output([
+            "curl", "-sfk", "-u", "{{ jira_user }}:{{ jira_token }}",
+            "{{ jira_base }}/rest/api/2/issue/" + issue + "?fields=labels",
+        ]))
+        labels = set(labels_payload.get("fields", {}).get("labels", []))
+        consistency_label = "strat-creator-consistency-needs-attention"
+        if expect_consistency_review:
+            required_labels = {consistency_label, "strat-creator-needs-attention"}
+            missing_labels = required_labels - labels
+            if missing_labels:
+                raise SystemExit(f"consistency hard gate labels missing: {sorted(missing_labels)}")
+            if "strat-creator-rubric-pass" in labels:
+                raise SystemExit("consistency hard gate incorrectly left rubric-pass label")
+        elif consistency_label in labels:
+            raise SystemExit("upstream baseline unexpectedly applied consistency hard gate label")
+
         print("Reproduced strategy contradiction:")
         print(f"  strategy: {task_path}")
         print(f"  review:   {reviews[0]}")
@@ -141,4 +157,5 @@ steps:
         print(f"  consistency review section present: {has_consistency_review}")
         if expect_consistency_review:
             print("  consistency review classified contradictions-found")
+            print(f"  Jira labels: {sorted(labels)}")
         PY

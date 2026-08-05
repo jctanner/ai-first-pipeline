@@ -56,4 +56,6 @@ Fixed-mode additionally expects the review to contain `## Consistency Review`,
 classify the case as `contradictions-found`, and name the conflicting
 `DataRegistry CR`/`FeatureStore CR` claims with a required resolution and an
 explicit open question for SME/PM resolution. The existing numeric score and
-verdict behavior remain unchanged.
+verdict behavior remain unchanged, but a high-severity contradiction applies
+the `strat-creator-consistency-needs-attention` and
+`strat-creator-needs-attention` labels instead of `strat-creator-rubric-pass`.
