@@ -1,0 +1,7 @@
+dashboard_api:
+  base: http_request
+  description: "Pipeline dashboard API call"
+  params:
+    base_url: "{{ dashboard_base }}"
+    headers:
+      Accept: "application/json"

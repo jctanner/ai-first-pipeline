@@ -1,0 +1,56 @@
+"""Contract tests for the upstream-main contradiction reproduction demo."""
+
+from pathlib import Path
+
+import yaml
+
+
+ROOT = Path(__file__).parents[1]
+
+
+def load(name: str):
+    return yaml.safe_load((ROOT / name).read_text())
+
+
+def test_all_skill_fqns_use_upstream_main():
+    workflow = load("workflows/main.yaml")
+    for name in ("strategy_create_fqn", "strategy_refine_fqn", "strategy_review_fqn"):
+        assert workflow["vars"][name].startswith(
+            "github.com/opendatahub-io/strat-creator@main:"
+        )
+
+
+def test_workflow_runs_and_asserts_baseline():
+    workflow = load("workflows/main.yaml")
+    names = [step["name"] for step in workflow["steps"]]
+    assert names.index("seed_rfe") < names.index("run_strategy")
+    assert names.index("run_strategy") < names.index("discover_strat_key")
+    assert names.index("discover_strat_key") < names.index("assert_baseline_reproduction")
+    assertion = next(
+        step for step in workflow["steps"]
+        if step["name"] == "assert_baseline_reproduction"
+    )["params"]["command"]
+    assert "DataRegistry CR" in assertion
+    assert "FeatureStore CR" in assertion
+    assert "Consistency Review" in assertion
+
+
+def test_seed_contains_the_two_conflicting_sources():
+    workflow = load("workflows/seed-rfe.yaml")
+    description = workflow["steps"][0]["params"]["body"]["fields"]["description"]
+    comment = workflow["steps"][1]["params"]["body"]["body"]
+    assert "DataRegistry CR" in description
+    assert "FeatureStore CR" in comment
+    assert "Do not" in comment and "DataRegistry CRD" in comment
+    assert "[RFE Creator] The following technical implementation details were removed" in comment
+
+
+def test_run_strat_preserves_create_refine_review_order():
+    workflow = load("workflows/run-strat.yaml")
+    names = [step["name"] for step in workflow["steps"]]
+    assert names.index("strat_create") < names.index("discover_strat_key")
+    assert names.index("discover_strat_key") < names.index("set_strat_issue")
+    assert names.index("set_strat_issue") < names.index("strat_refine")
+    assert names.index("strat_refine") < names.index("strat_review")
+    assert workflow["steps"][0]["vars"]["skill_fqn"] == "{{ strategy_create_fqn }}"
+    assert workflow["steps"][4]["vars"]["skill_fqn"] == "{{ strategy_review_fqn }}"

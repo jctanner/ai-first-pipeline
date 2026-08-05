@@ -1,0 +1,79 @@
+name: seed-rfe
+description: "Create an RFE whose immutable Business Need conflicts with removed implementation context"
+
+steps:
+  - name: create_rfe
+    type: jira_api
+    params:
+      path: /rest/api/2/issue
+      method: POST
+      body:
+        fields:
+          project:
+            key: RHAIRFE
+          issuetype:
+            name: "Feature Request"
+          summary: "Support GitOps provisioning and cross-registry discovery"
+          description: |
+            h2. Problem Statement
+
+            Platform administrators need to provision and discover feature
+            registries across namespaces without manually creating resources or
+            querying each registry independently.
+
+            h2. User Flow
+
+            * An administrator creates a registry through GitOps by applying a
+            DataRegistry CR manifest.
+            * An administrator searches across the registries visible to their
+            tenant from one API endpoint.
+
+            h2. Acceptance Criteria
+
+            * GitOps provisioning accepts a DataRegistry CR manifest.
+            * Registry discovery returns matching features across all registries
+            visible to the tenant.
+            * Existing namespace isolation remains enforced.
+
+            h2. User Stories
+
+            * As a platform administrator, I want to provision registries through
+            GitOps so registry configuration is declarative and reviewable.
+            * As a data scientist, I want one search experience across my visible
+            registries so I do not need to query each namespace separately.
+
+            h2. Business Justification
+
+            Multi-tenant platform teams currently maintain registry resources by
+            hand and cannot discover features consistently across namespaces.
+          priority:
+            name: Major
+          components:
+            - name: Feature Store
+          labels:
+            - rfe-creator-autofix-rubric-pass
+            - rfe-creator-feasibility-pass
+            - strat-creator-3.6
+    register: rfe_result
+
+  - name: seed_removed_implementation_context
+    description: "Add the removed implementation context consumed by strategy-refine"
+    type: jira_api
+    params:
+      path: "/rest/api/2/issue/{{ rfe_issue }}/comment"
+      method: POST
+      body:
+        body: |
+          [RFE Creator] The following technical implementation details were removed from the RFE description during review.
+
+          Use the existing FeatureStore CR for GitOps provisioning. Do not
+          introduce a new DataRegistry CRD. The operator deploys one feature
+          server per FeatureStore CR in its namespace. Cross-registry discovery
+          therefore requires a fan-out or aggregation approach rather than a
+          single server spanning all namespaces.
+
+  - name: verify_rfe
+    type: jira_api
+    params:
+      path: "/rest/api/2/issue/{{ rfe_issue }}"
+      method: GET

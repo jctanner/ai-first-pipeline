@@ -1,0 +1,125 @@
+# ====================================================================
+# Strategy contradiction-reconciliation reproduction
+# ====================================================================
+#
+#   reset → contradictory RFE/context → strategy create/refine/review
+#
+# This intentionally uses upstream strat-creator main. The final assertion
+# describes the current baseline and should be changed when the consistency
+# reviewer is added.
+
+name: main
+description: "Reproduce a strategy contradiction that upstream main does not systematically report"
+
+vars:
+  rfe_issue: RHAIRFE-1
+  strategy_create_fqn: "github.com/opendatahub-io/strat-creator@main:strategy-create"
+  strategy_refine_fqn: "github.com/opendatahub-io/strat-creator@main:strategy-refine"
+  strategy_review_fqn: "github.com/opendatahub-io/strat-creator@main:strategy-review"
+
+steps:
+  - name: reset_jira
+    description: "Clear Jira and recreate the configured projects"
+    workflow: reset-jira
+
+  - name: reset_services
+    description: "Clear shared artifacts and runtime data"
+    workflow: reset-services
+
+  - name: seed_rfe
+    description: "Create an RFE with contradictory immutable and removed context"
+    workflow: seed-rfe
+    vars:
+      rfe_issue: "{{ rfe_issue }}"
+
+  - name: run_strategy
+    description: "Run upstream strategy create, refine, and review"
+    workflow: run-strat
+    vars:
+      rfe_issue: "{{ rfe_issue }}"
+      strategy_create_fqn: "{{ strategy_create_fqn }}"
+      strategy_refine_fqn: "{{ strategy_refine_fqn }}"
+      strategy_review_fqn: "{{ strategy_review_fqn }}"
+
+  - name: discover_strat_key
+    description: "Find the strategy created from the reproduction RFE"
+    type: shell_exec
+    params:
+      command: |
+        set -euo pipefail
+        curl -sfk -u "{{ jira_user }}:{{ jira_token }}" \
+          "{{ jira_base }}/rest/api/2/issue/{{ rfe_issue }}?fields=issuelinks" \
+          | python3 -c '
+        import json, sys
+        data = json.load(sys.stdin)
+        for link in data.get("fields", {}).get("issuelinks", []):
+            if link.get("type", {}).get("name") != "Cloners":
+                continue
+            for direction in ("inwardIssue", "outwardIssue"):
+                key = link.get(direction, {}).get("key", "")
+                if key.startswith("RHAISTRAT-"):
+                    print(key)
+                    raise SystemExit(0)
+        raise SystemExit("No linked RHAISTRAT issue found")
+        '
+    register: strat_discovery
+
+  - name: assert_baseline_reproduction
+    description: "Verify both contradictory claims survive and no consistency reviewer ran"
+    type: shell_exec
+    params:
+      command: |
+        set -euo pipefail
+        python3 - <<'PY'
+        import re
+        from pathlib import Path
+
+        issue = "{{ strat_discovery.stdout | trim }}"
+        root = Path("/app/artifacts")
+
+        task_matches = []
+        for path in sorted((root / "strat-tasks").glob("*.md")):
+            text = path.read_text()
+            frontmatter = text.split("---", 2)[1] if text.startswith("---") else ""
+            if re.search(rf"(?m)^jira_key:\s*{re.escape(issue)}\s*$", frontmatter):
+                task_matches.append((path, text))
+        if len(task_matches) != 1:
+            raise SystemExit(f"expected one strategy artifact for {issue}, got {len(task_matches)}")
+
+        task_path, task = task_matches[0]
+        business_start = task.find("## Business Need")
+        strategy_start = task.find("## Strategy")
+        if business_start < 0 or strategy_start < 0 or business_start >= strategy_start:
+            raise SystemExit(f"strategy sections missing or out of order in {task_path}")
+        business_need = task[business_start:strategy_start]
+        strategy = task[strategy_start:]
+
+        if "DataRegistry CR" not in business_need:
+            raise SystemExit("immutable Business Need does not retain DataRegistry CR")
+        if "FeatureStore CR" not in strategy:
+            raise SystemExit("refined Strategy did not select FeatureStore CR; reproduction input was not exercised")
+        if "DataRegistry CR" not in task:
+            raise SystemExit("strategy artifact no longer contains both contradictory claims")
+
+        reviews = sorted((root / "strat-reviews").glob(f"{issue}-review.md"))
+        if len(reviews) != 1:
+            raise SystemExit(f"expected one strategy review for {issue}, got {len(reviews)}")
+        review = reviews[0].read_text()
+        for heading in (
+            "## Feasibility Review",
+            "## Testability Review",
+            "## Scope Review",
+            "## Architecture Review",
+        ):
+            if heading not in review:
+                raise SystemExit(f"missing existing reviewer section: {heading}")
+        if "## Consistency Review" in review:
+            raise SystemExit("upstream main unexpectedly contains a consistency review")
+
+        print("Reproduced upstream-main baseline:")
+        print(f"  strategy: {task_path}")
+        print(f"  review:   {reviews[0]}")
+        print("  Business Need claims DataRegistry CR")
+        print("  Strategy claims FeatureStore CR")
+        print("  no Consistency Review section present")
+        PY

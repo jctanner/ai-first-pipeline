@@ -1,0 +1,33 @@
+name: run-skill
+description: "Submit a skill job and wait for completion"
+
+vars:
+  skill_extra_kwargs: ""
+  skill_model: "claude-opus-4-6"
+  skill_runner: "cli"
+  skill_harness: "claude-code"
+
+steps:
+  - name: submit
+    type: agent_job
+    params:
+      body:
+        fqn: "{{ skill_fqn }}"
+        args:
+          issue: "{{ skill_issue }}"
+          model: "{{ skill_model }}"
+          runner: "{{ skill_runner }}"
+          harness: "{{ skill_harness }}"
+          strace: true
+          mlflow: true
+          otel: true
+          api_dump: true
+          extra_kwargs: "{{ skill_extra_kwargs }}"
+          extra_env: "{}"
+    register: submitted_job
+
+  - name: wait_for_completion
+    type: agent_job_wait
+    params:
+      job_name: "{{ submitted_job.body.job_name }}"
+    register: skill_result

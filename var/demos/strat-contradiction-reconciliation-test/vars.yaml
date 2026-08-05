@@ -1,0 +1,7 @@
+jira_base: https://jira-emulator.ai-pipeline.svc.cluster.local
+jira_user: admin
+jira_token: admin
+dashboard_base: http://pipeline-dashboard.ai-pipeline.svc.cluster.local:5000
+observatory_base: http://observatory.ai-pipeline.svc.cluster.local:8000
+org: opendatahub-io
+rfe_issue: RHAIRFE-1

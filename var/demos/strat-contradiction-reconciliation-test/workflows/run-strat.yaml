@@ -1,0 +1,53 @@
+name: run-strat
+description: "Run upstream strategy create, refine, and review"
+
+vars:
+  strategy_create_fqn: "github.com/opendatahub-io/strat-creator@main:strategy-create"
+  strategy_refine_fqn: "github.com/opendatahub-io/strat-creator@main:strategy-refine"
+  strategy_review_fqn: "github.com/opendatahub-io/strat-creator@main:strategy-review"
+
+steps:
+  - name: strat_create
+    workflow: run-skill
+    vars:
+      skill_fqn: "{{ strategy_create_fqn }}"
+      skill_issue: "{{ rfe_issue }}"
+
+  - name: discover_strat_key
+    type: shell_exec
+    params:
+      command: |
+        set -euo pipefail
+        curl -sfk -u "{{ jira_user }}:{{ jira_token }}" \
+          "{{ jira_base }}/rest/api/2/issue/{{ rfe_issue }}?fields=issuelinks" \
+          | python3 -c '
+        import json, sys
+        data = json.load(sys.stdin)
+        for link in data.get("fields", {}).get("issuelinks", []):
+            if link.get("type", {}).get("name") != "Cloners":
+                continue
+            for direction in ("inwardIssue", "outwardIssue"):
+                key = link.get(direction, {}).get("key", "")
+                if key.startswith("RHAISTRAT-"):
+                    print(key)
+                    raise SystemExit(0)
+        raise SystemExit("No linked RHAISTRAT issue found")
+        '
+    register: strat_discovery
+
+  - name: set_strat_issue
+    type: set_fact
+    vars:
+      strat_issue: "{{ strat_discovery.stdout | trim }}"
+
+  - name: strat_refine
+    workflow: run-skill
+    vars:
+      skill_fqn: "{{ strategy_refine_fqn }}"
+      skill_issue: "{{ strat_issue }}"
+
+  - name: strat_review
+    workflow: run-skill
+    vars:
+      skill_fqn: "{{ strategy_review_fqn }}"
+      skill_issue: "{{ strat_issue }}"
