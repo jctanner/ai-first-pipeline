@@ -51,7 +51,18 @@ def test_fixed_workflow_uses_pushed_consistency_branch():
     assert workflow["vars"]["strategy_review_fqn"].startswith(
         "github.com/jctanner-opendatahub-io/strat-creator@bugfix-review-consistency:"
     )
-    assert workflow["vars"]["expect_consistency_review"] == "true"
+    assert workflow["vars"]["expected_consistency"] == "contradictions-found"
+    assert workflow["steps"][0]["workflow"] == "main"
+
+
+def test_resolved_workflow_records_sme_decision_and_expects_clear():
+    workflow = load("workflows/resolved.yaml")
+    for name in ("strategy_create_fqn", "strategy_refine_fqn", "strategy_review_fqn"):
+        assert workflow["vars"][name].startswith(
+            "github.com/jctanner-opendatahub-io/strat-creator@bugfix-review-consistency:"
+        )
+    assert workflow["vars"]["expected_consistency"] == "clear"
+    assert workflow["vars"]["sme_decision"]
     assert workflow["steps"][0]["workflow"] == "main"
 
 
@@ -73,4 +84,7 @@ def test_run_strat_preserves_create_refine_review_order():
     assert names.index("set_strat_issue") < names.index("strat_refine")
     assert names.index("strat_refine") < names.index("strat_review")
     assert workflow["steps"][0]["vars"]["skill_fqn"] == "{{ strategy_create_fqn }}"
-    assert workflow["steps"][4]["vars"]["skill_fqn"] == "{{ strategy_review_fqn }}"
+    review_step = next(step for step in workflow["steps"] if step["name"] == "strat_review")
+    assert review_step["vars"]["skill_fqn"] == "{{ strategy_review_fqn }}"
+    assert workflow["steps"][3]["name"] == "seed_sme_input"
+    assert workflow["steps"][3]["when"] == "sme_decision != ''"

@@ -59,3 +59,14 @@ explicit open question for SME/PM resolution. The existing numeric score and
 verdict behavior remain unchanged, but a high-severity contradiction applies
 the `strat-creator-consistency-needs-attention` and
 `strat-creator-needs-attention` labels instead of `strat-creator-rubric-pass`.
+
+To test the resolution loop, run:
+
+```bash
+bash var/demos/strat-contradiction-reconciliation-test/run.sh resolved
+```
+
+Resolved mode records an explicit SME decision that `DataRegistry CR` is the
+business-level alias for `FeatureStore CR` before refinement. It expects the
+review to return `clear`, add `strat-creator-rubric-pass`, and omit both
+needs-attention labels.

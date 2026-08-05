@@ -1,15 +1,16 @@
-name: fixed
-description: "Run the contradiction reproduction against the consistency-review branch"
+name: resolved
+description: "Resolve the contradiction with an explicit SME decision and rerun the fixed path"
 
 vars:
   rfe_issue: RHAIRFE-1
   strategy_create_fqn: "github.com/jctanner-opendatahub-io/strat-creator@bugfix-review-consistency:strategy-create"
   strategy_refine_fqn: "github.com/jctanner-opendatahub-io/strat-creator@bugfix-review-consistency:strategy-refine"
   strategy_review_fqn: "github.com/jctanner-opendatahub-io/strat-creator@bugfix-review-consistency:strategy-review"
-  expected_consistency: "contradictions-found"
+  expected_consistency: "clear"
+  sme_decision: "recorded"
 
 steps:
-  - name: run_fixed_reproduction
+  - name: run_resolved_reproduction
     workflow: main
     vars:
       rfe_issue: "{{ rfe_issue }}"
@@ -17,3 +18,4 @@ steps:
       strategy_refine_fqn: "{{ strategy_refine_fqn }}"
       strategy_review_fqn: "{{ strategy_review_fqn }}"
       expected_consistency: "{{ expected_consistency }}"
+      sme_decision: "{{ sme_decision }}"
