@@ -124,7 +124,12 @@ steps:
         if expect_consistency_review:
             if "**Consistency**: contradictions-found" not in review:
                 raise SystemExit("consistency reviewer did not classify the contradiction")
-            for required in ("DataRegistry CR", "FeatureStore CR", "Required resolution"):
+            for required in (
+                "DataRegistry CR",
+                "FeatureStore CR",
+                "Required resolution",
+                "Open question for strategy refinement",
+            ):
                 if required not in review:
                     raise SystemExit(f"consistency finding missing required text: {required}")
 

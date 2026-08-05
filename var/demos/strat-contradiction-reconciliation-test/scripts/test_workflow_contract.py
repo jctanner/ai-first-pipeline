@@ -35,6 +35,7 @@ def test_workflow_runs_and_asserts_baseline():
     assert "Consistency Review" in assertion
     assert "contradictions-found" in assertion
     assert "Required resolution" in assertion
+    assert "Open question for strategy refinement" in assertion
 
 
 def test_fixed_workflow_uses_pushed_consistency_branch():

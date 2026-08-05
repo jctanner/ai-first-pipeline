@@ -54,5 +54,6 @@ assertion when the new reviewer is implemented.
 
 Fixed-mode additionally expects the review to contain `## Consistency Review`,
 classify the case as `contradictions-found`, and name the conflicting
-`DataRegistry CR`/`FeatureStore CR` claims with a required resolution. The
-existing numeric score and verdict behavior remain unchanged.
+`DataRegistry CR`/`FeatureStore CR` claims with a required resolution and an
+explicit open question for SME/PM resolution. The existing numeric score and
+verdict behavior remain unchanged.
