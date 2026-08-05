@@ -55,13 +55,13 @@ def test_fixed_workflow_uses_pushed_consistency_branch():
     assert workflow["steps"][0]["workflow"] == "main"
 
 
-def test_resolved_workflow_records_sme_decision_and_expects_clear():
+def test_resolved_workflow_records_sme_decision_and_expects_resolved_signoff():
     workflow = load("workflows/resolved.yaml")
     for name in ("strategy_create_fqn", "strategy_refine_fqn", "strategy_review_fqn"):
         assert workflow["vars"][name].startswith(
             "github.com/jctanner-opendatahub-io/strat-creator@bugfix-review-consistency:"
         )
-    assert workflow["vars"]["expected_consistency"] == "clear"
+    assert workflow["vars"]["expected_consistency"] == "contradictions-found"
     assert workflow["vars"]["sme_decision"]
     assert workflow["steps"][0]["workflow"] == "main"
 

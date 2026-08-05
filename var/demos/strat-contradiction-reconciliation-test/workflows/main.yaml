@@ -116,6 +116,7 @@ steps:
             if heading not in review:
                 raise SystemExit(f"missing existing reviewer section: {heading}")
         expected_consistency = "{{ expected_consistency }}"
+        sme_decision = "{{ sme_decision }}"
         has_consistency_review = "## Consistency Review" in review
         if expected_consistency == "absent":
             if has_consistency_review:
@@ -147,20 +148,20 @@ steps:
         consistency_label = "strat-creator-consistency-needs-attention"
         if expected_consistency == "contradictions-found":
             required_labels = {consistency_label, "strat-creator-needs-attention"}
-            missing_labels = required_labels - labels
-            if missing_labels:
-                raise SystemExit(f"consistency hard gate labels missing: {sorted(missing_labels)}")
-            if "strat-creator-rubric-pass" in labels:
-                raise SystemExit("consistency hard gate incorrectly left rubric-pass label")
+            if sme_decision == "":
+                missing_labels = required_labels - labels
+                if missing_labels:
+                    raise SystemExit(f"consistency hard gate labels missing: {sorted(missing_labels)}")
+                if "strat-creator-rubric-pass" in labels:
+                    raise SystemExit("consistency hard gate incorrectly left rubric-pass label")
+            else:
+                if "strat-creator-rubric-pass" not in labels:
+                    raise SystemExit("resolved SME decision did not produce rubric-pass label")
+                forbidden = required_labels & labels
+                if forbidden:
+                    raise SystemExit(f"resolved SME decision retained needs-attention labels: {sorted(forbidden)}")
         elif expected_consistency != "contradictions-found" and consistency_label in labels:
             raise SystemExit("upstream baseline unexpectedly applied consistency hard gate label")
-        if expected_consistency == "clear":
-            if "strat-creator-rubric-pass" not in labels:
-                raise SystemExit("resolved SME decision did not produce rubric-pass label")
-            forbidden = {consistency_label, "strat-creator-needs-attention"} & labels
-            if forbidden:
-                raise SystemExit(f"resolved SME decision retained needs-attention labels: {sorted(forbidden)}")
-
         print("Reproduced strategy contradiction:")
         print(f"  strategy: {task_path}")
         print(f"  review:   {reviews[0]}")
