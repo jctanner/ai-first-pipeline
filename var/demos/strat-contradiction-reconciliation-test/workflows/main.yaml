@@ -66,7 +66,7 @@ steps:
     register: strat_discovery
 
   - name: assert_baseline_reproduction
-    description: "Verify both contradictory claims survive and no consistency reviewer ran"
+    description: "Verify both contradictory claims survive and the expected consistency result is present"
     type: shell_exec
     params:
       command: |
@@ -121,11 +121,19 @@ steps:
                 f"consistency review presence={has_consistency_review}, "
                 f"expected={expect_consistency_review}"
             )
+        if expect_consistency_review:
+            if "**Consistency**: contradictions-found" not in review:
+                raise SystemExit("consistency reviewer did not classify the contradiction")
+            for required in ("DataRegistry CR", "FeatureStore CR", "Required resolution"):
+                if required not in review:
+                    raise SystemExit(f"consistency finding missing required text: {required}")
 
-        print("Reproduced upstream-main baseline:")
+        print("Reproduced strategy contradiction:")
         print(f"  strategy: {task_path}")
         print(f"  review:   {reviews[0]}")
         print("  Business Need claims DataRegistry CR")
         print("  Strategy claims FeatureStore CR")
         print(f"  consistency review section present: {has_consistency_review}")
+        if expect_consistency_review:
+            print("  consistency review classified contradictions-found")
         PY

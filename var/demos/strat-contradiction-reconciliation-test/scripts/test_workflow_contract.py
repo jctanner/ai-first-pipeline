@@ -33,6 +33,8 @@ def test_workflow_runs_and_asserts_baseline():
     assert "DataRegistry CR" in assertion
     assert "FeatureStore CR" in assertion
     assert "Consistency Review" in assertion
+    assert "contradictions-found" in assertion
+    assert "Required resolution" in assertion
 
 
 def test_fixed_workflow_uses_pushed_consistency_branch():
