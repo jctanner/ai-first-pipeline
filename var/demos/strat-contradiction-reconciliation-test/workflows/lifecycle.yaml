@@ -1,0 +1,144 @@
+name: lifecycle
+description: "Run the unresolved review, SME resolution, and re-review on one Jira ticket"
+
+vars:
+  rfe_issue: RHAIRFE-1
+  strategy_create_fqn: "github.com/jctanner-opendatahub-io/strat-creator@bugfix-review-consistency:strategy-create"
+  strategy_refine_fqn: "github.com/jctanner-opendatahub-io/strat-creator@bugfix-review-consistency:strategy-refine"
+  strategy_review_fqn: "github.com/jctanner-opendatahub-io/strat-creator@bugfix-review-consistency:strategy-review"
+  sme_decision: "recorded"
+
+steps:
+  - name: reset_jira
+    workflow: reset-jira
+
+  - name: reset_services
+    workflow: reset-services
+
+  - name: seed_rfe
+    workflow: seed-rfe
+    vars:
+      rfe_issue: "{{ rfe_issue }}"
+
+  - name: initial_review
+    workflow: run-strat
+    vars:
+      rfe_issue: "{{ rfe_issue }}"
+      strategy_create_fqn: "{{ strategy_create_fqn }}"
+      strategy_refine_fqn: "{{ strategy_refine_fqn }}"
+      strategy_review_fqn: "{{ strategy_review_fqn }}"
+      create_strategy: "true"
+      sme_decision: ""
+
+  - name: discover_strat_key
+    type: shell_exec
+    params:
+      command: |
+        set -euo pipefail
+        curl -sfk -u "{{ jira_user }}:{{ jira_token }}" \
+          "{{ jira_base }}/rest/api/2/issue/{{ rfe_issue }}?fields=issuelinks" \
+          | python3 -c '
+        import json, sys
+        data = json.load(sys.stdin)
+        for link in data.get("fields", {}).get("issuelinks", []):
+            if link.get("type", {}).get("name") != "Cloners":
+                continue
+            for direction in ("inwardIssue", "outwardIssue"):
+                key = link.get(direction, {}).get("key", "")
+                if key.startswith("RHAISTRAT-"):
+                    print(key)
+                    raise SystemExit(0)
+        raise SystemExit("No linked RHAISTRAT issue found")
+        '
+    register: strat_discovery
+
+  - name: assert_attention_state
+    description: "Verify the first review placed the same ticket behind the attention gate"
+    type: shell_exec
+    params:
+      command: |
+        set -euo pipefail
+        python3 - <<'PY'
+        import json
+        import subprocess
+
+        issue = "{{ strat_discovery.stdout | trim }}"
+        payload = json.loads(subprocess.check_output([
+            "curl", "-sfk", "-u", "{{ jira_user }}:{{ jira_token }}",
+            "{{ jira_base }}/rest/api/2/issue/" + issue + "?fields=labels",
+        ]))
+        labels = set(payload.get("fields", {}).get("labels", []))
+        required = {"strat-creator-needs-attention", "strat-creator-consistency-needs-attention"}
+        if not required <= labels:
+            raise SystemExit(f"initial review did not apply both attention labels: {sorted(labels)}")
+        if "strat-creator-rubric-pass" in labels:
+            raise SystemExit("initial unresolved review incorrectly applied rubric-pass")
+        print(f"Initial review labels: {sorted(labels)}")
+        PY
+
+  - name: resolved_review
+    workflow: run-strat
+    vars:
+      rfe_issue: "{{ rfe_issue }}"
+      strategy_create_fqn: "{{ strategy_create_fqn }}"
+      strategy_refine_fqn: "{{ strategy_refine_fqn }}"
+      strategy_review_fqn: "{{ strategy_review_fqn }}"
+      create_strategy: "false"
+      sme_decision: "{{ sme_decision }}"
+
+  - name: assert_lifecycle
+    description: "Verify attention labels were replaced by rubric-pass on the same ticket"
+    type: shell_exec
+    params:
+      command: |
+        set -euo pipefail
+        python3 - <<'PY'
+        import json
+        import subprocess
+        from datetime import datetime
+        from pathlib import Path
+
+        issue = "{{ strat_discovery.stdout | trim }}"
+        payload = json.loads(subprocess.check_output([
+            "curl", "-sfk", "-u", "{{ jira_user }}:{{ jira_token }}",
+            "{{ jira_base }}/rest/api/2/issue/" + issue + "?expand=changelog&fields=labels",
+        ]))
+        labels = set(payload.get("fields", {}).get("labels", []))
+        attention = {"strat-creator-needs-attention", "strat-creator-consistency-needs-attention"}
+        if "strat-creator-rubric-pass" not in labels:
+            raise SystemExit(f"final review did not apply rubric-pass: {sorted(labels)}")
+        if attention & labels:
+            raise SystemExit(f"final review retained attention labels: {sorted(attention & labels)}")
+
+        events = []
+        for history in payload.get("changelog", {}).get("histories", []):
+            for item in history.get("items", []):
+                if item.get("field") != "labels":
+                    continue
+                before = set((item.get("fromString") or "").split())
+                after = set((item.get("toString") or "").split())
+                events.append((datetime.fromisoformat(history["created"].replace("Z", "+00:00")), before, after))
+        events.sort()
+        attention_added = [event for event in events if attention <= event[2]]
+        attention_removed = [event for event in events if attention & event[1] and not attention & event[2]]
+        pass_added = [event for event in events if "strat-creator-rubric-pass" in event[2]]
+        if not attention_added:
+            raise SystemExit("changelog has no transition into the attention state")
+        if not attention_removed:
+            raise SystemExit("changelog has no transition out of the attention state")
+        if not pass_added:
+            raise SystemExit("changelog has no rubric-pass transition")
+        if not (attention_added[0][0] < attention_removed[-1][0] < pass_added[-1][0]):
+            raise SystemExit("changelog transitions are not ordered attention -> removal -> rubric-pass")
+
+        reviews = sorted(Path("/app/artifacts/strat-reviews").glob(f"{issue}-review.md"))
+        if len(reviews) != 1:
+            raise SystemExit(f"expected one final review artifact, got {len(reviews)}")
+        review = reviews[0].read_text()
+        if "**Consistency**: clear" not in review:
+            raise SystemExit("final review did not report Consistency: clear")
+        print(f"Lifecycle verified for {issue}")
+        print("  attention labels added, then removed")
+        print("  rubric-pass added afterward")
+        print(f"  final labels: {sorted(labels)}")
+        PY

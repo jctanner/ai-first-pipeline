@@ -2,7 +2,7 @@
 # Run the upstream-main contradiction reproduction demo.
 #
 # Usage:
-#   var/demos/strat-contradiction-reconciliation-test/run.sh [main|fixed|resolved]
+#   var/demos/strat-contradiction-reconciliation-test/run.sh [main|fixed|resolved|lifecycle]
 #   var/demos/strat-contradiction-reconciliation-test/run.sh \
 #     fixed --var rfe_issue=RHAIRFE-42
 

@@ -72,3 +72,18 @@ produce a consistency result (`clear`, or a low-severity documented finding),
 and the SME decision supplies approval-ready latency, timeout, edge-case,
 operator-attribution, and scope constraints before review. The workflow expects
 `strat-creator-rubric-pass` and omits both needs-attention labels.
+
+To exercise the complete ticket lifecycle on one Jira issue, run:
+
+```bash
+bash var/demos/strat-contradiction-reconciliation-test/run.sh lifecycle
+```
+
+Lifecycle mode resets Jira once, runs the unresolved review and verifies both
+attention labels, records the SME decision, clears those labels as the human
+resolution action, reruns refinement and review without resetting Jira, and
+asserts the Jira changelog contains:
+
+```text
+attention labels added → attention labels removed → rubric-pass added
+```

@@ -5,10 +5,12 @@ vars:
   strategy_create_fqn: "github.com/opendatahub-io/strat-creator@main:strategy-create"
   strategy_refine_fqn: "github.com/opendatahub-io/strat-creator@main:strategy-refine"
   strategy_review_fqn: "github.com/opendatahub-io/strat-creator@main:strategy-review"
+  create_strategy: "true"
   sme_decision: ""
 
 steps:
   - name: strat_create
+    when: "create_strategy == 'true'"
     workflow: run-skill
     vars:
       skill_fqn: "{{ strategy_create_fqn }}"
@@ -89,6 +91,19 @@ steps:
             path.write_text(text)
         print(f"SME decision recorded in {path}")
         PY
+
+  - name: clear_attention_labels
+    description: "Record the SME resolution by clearing the prior review gate"
+    when: "sme_decision != ''"
+    type: shell_exec
+    params:
+      command: |
+        set -euo pipefail
+        curl -sfk -u "{{ jira_user }}:{{ jira_token }}" \
+          -X PUT -H 'Content-Type: application/json' \
+          --data '{"update":{"labels":[{"remove":"strat-creator-needs-attention"},{"remove":"strat-creator-consistency-needs-attention"}]}}' \
+          "{{ jira_base }}/rest/api/2/issue/{{ strat_issue }}"
+        echo "SME resolution recorded; review attention labels cleared for {{ strat_issue }}"
 
   - name: strat_refine
     workflow: run-skill
