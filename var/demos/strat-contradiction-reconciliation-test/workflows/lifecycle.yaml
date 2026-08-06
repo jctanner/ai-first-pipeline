@@ -136,6 +136,7 @@ steps:
         import subprocess
         from datetime import datetime
         from pathlib import Path
+        import yaml
 
         issue = "{{ strat_discovery.stdout | trim }}"
         payload = json.loads(subprocess.check_output([
@@ -150,30 +151,42 @@ steps:
             raise SystemExit(f"final review retained attention labels: {sorted(attention & labels)}")
 
         events = []
-        for history in payload.get("changelog", {}).get("histories", []):
-            for item in history.get("items", []):
+        for history_index, history in enumerate(payload.get("changelog", {}).get("histories", [])):
+            for item_index, item in enumerate(history.get("items", [])):
                 if item.get("field") != "labels":
                     continue
                 before = set((item.get("fromString") or "").split())
                 after = set((item.get("toString") or "").split())
-                events.append((datetime.fromisoformat(history["created"].replace("Z", "+00:00")), before, after))
+                events.append((
+                    datetime.fromisoformat(history["created"].replace("Z", "+00:00")),
+                    history_index,
+                    item_index,
+                    before,
+                    after,
+                ))
         events.sort()
-        attention_added = [event for event in events if attention <= event[2]]
-        attention_removed = [event for event in events if attention & event[1] and not attention & event[2]]
-        pass_added = [event for event in events if "strat-creator-rubric-pass" in event[2]]
+        attention_added = [event for event in events if attention <= event[4]]
+        attention_removed = [event for event in events if attention & event[3] and not attention & event[4]]
+        pass_added = [event for event in events if "strat-creator-rubric-pass" in event[4]]
         if not attention_added:
             raise SystemExit("changelog has no transition into the attention state")
         if not attention_removed:
             raise SystemExit("changelog has no transition out of the attention state")
         if not pass_added:
             raise SystemExit("changelog has no rubric-pass transition")
-        if not (attention_added[0][0] < attention_removed[-1][0] < pass_added[-1][0]):
+        if not (attention_added[0][:3] < attention_removed[-1][:3] < pass_added[-1][:3]):
             raise SystemExit("changelog transitions are not ordered attention -> removal -> rubric-pass")
 
         reviews = sorted(Path("/app/artifacts/strat-reviews").glob(f"{issue}-review.md"))
         if len(reviews) != 1:
             raise SystemExit(f"expected one final review artifact, got {len(reviews)}")
         review = reviews[0].read_text()
+        frontmatter = review.split("---", 2)
+        metadata = yaml.safe_load(frontmatter[1]) if len(frontmatter) == 3 else {}
+        if metadata.get("consistency_status") != "clear":
+            raise SystemExit("final review frontmatter is not consistency-clear")
+        if metadata.get("consistency_severities") not in (None, []):
+            raise SystemExit("final review retained consistency severities")
         if "**Consistency**: clear" not in review:
             raise SystemExit("final review did not report Consistency: clear")
         print(f"Lifecycle verified for {issue}")
