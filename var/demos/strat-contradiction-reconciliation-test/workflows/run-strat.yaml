@@ -134,13 +134,27 @@ steps:
 
         - `DataRegistry CR` is the business-level alias for the existing `FeatureStore CR` (`feast.dev/v1alpha1`); no new DataRegistry CRD is in scope.
         - `feast-module-operator` manages `FeastOperator` lifecycle, while the upstream Feast operator reconciles `FeatureStore` CRs; the discovery service consumes the latter.
-        - Discovery must meet p95 latency of 2 seconds or less for 50 visible registries, use a 500 ms per-registry timeout, and return partial results when a registry is unavailable.
-        - Acceptance tests cover empty registries, unreachable registries, timeout handling, partial results, and the 50-registry latency target.
-        - GitOps provisioning and cross-registry discovery remain one bounded strategy; the scope and acceptance criteria are approved and no critical-path decision remains open.
+        - Discovery must meet p95 latency of 5 seconds or less for 50 visible registries, use a 2 second per-registry timeout, and return partial results when a registry is unavailable.
+        - Acceptance tests cover empty registries, unreachable registries, timeout handling, partial results, SubjectAccessReview performance at 50 namespaces, and the 50-registry p95 target; AC7 uses the same 5 second threshold.
+        - OIDC and Kubernetes RBAC behavior follows each FeatureStore's AuthzConfig, with integration validation included in the test matrix.
+        - GitOps provisioning and cross-registry discovery remain one bounded strategy because both consume the same FeatureStore discovery contract and ship behind one platform capability; the scope and acceptance criteria are approved and no critical-path decision remains open.
         """.strip("\n")
         if "### SME-approved resolution constraints" not in text[strategy_start:next_section]:
             text = text[:next_section].rstrip() + "\n\n" + constraints + "\n" + text[next_section:]
-            path.write_text(text)
+        open_start = text.find("## Open Questions")
+        if open_start >= 0:
+            open_end = text.find("\n## ", open_start + len("## Open Questions"))
+            if open_end < 0:
+                open_end = len(text)
+            closed_questions = (
+                "## Open Questions\n\n"
+                "No unresolved critical-path questions remain. The SME-approved "
+                "latency, timeout, authentication, SAR validation, and bundled "
+                "scope decisions are recorded above and are testable acceptance "
+                "requirements.\n"
+            )
+            text = text[:open_start] + closed_questions + text[open_end:]
+        path.write_text(text)
         print(f"SME quality constraints applied to {path}")
         PY
 
