@@ -77,7 +77,12 @@ steps:
             "alias for the existing `FeatureStore CR` (`feast.dev/v1alpha1`). "
             "GitOps provisioning must use the existing FeatureStore CR manifest; "
             "no DataRegistry CRD is required. Update the strategy requirements "
-            "and acceptance criteria to document this mapping explicitly.\n"
+            "and acceptance criteria to document this mapping explicitly. The "
+            "SME also approves the bundled scope: specify a p95 discovery "
+            "latency target for 50 registries, per-registry timeouts with "
+            "partial results, and empty/unreachable registry test cases. Treat "
+            "these as resolved requirements rather than open questions, and "
+            "justify delivering GitOps provisioning and discovery together.\n"
         )
         if "[SME Decision]" not in section:
             text = text[:end] + decision + text[end:]
