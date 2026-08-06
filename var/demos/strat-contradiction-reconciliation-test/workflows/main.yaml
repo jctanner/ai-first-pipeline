@@ -121,6 +121,13 @@ steps:
         if expected_consistency == "absent":
             if has_consistency_review:
                 raise SystemExit("upstream baseline unexpectedly produced a consistency review")
+        elif expected_consistency == "resolved":
+            resolved_markers = (
+                "**Consistency**: clear",
+                "**Consistency**: contradictions-found",
+            )
+            if not has_consistency_review or not any(marker in review for marker in resolved_markers):
+                raise SystemExit("resolved SME decision did not produce a consistency result")
         else:
             expected_marker = f"**Consistency**: {expected_consistency}"
             if not has_consistency_review or expected_marker not in review:
@@ -160,6 +167,12 @@ steps:
                 forbidden = required_labels & labels
                 if forbidden:
                     raise SystemExit(f"resolved SME decision retained needs-attention labels: {sorted(forbidden)}")
+        elif expected_consistency == "resolved":
+            if "strat-creator-rubric-pass" not in labels:
+                raise SystemExit("resolved SME decision did not produce rubric-pass label")
+            forbidden = {consistency_label, "strat-creator-needs-attention"} & labels
+            if forbidden:
+                raise SystemExit(f"resolved SME decision retained needs-attention labels: {sorted(forbidden)}")
         elif expected_consistency != "contradictions-found" and consistency_label in labels:
             raise SystemExit("upstream baseline unexpectedly applied consistency hard gate label")
         print("Reproduced strategy contradiction:")

@@ -67,7 +67,7 @@ bash var/demos/strat-contradiction-reconciliation-test/run.sh resolved
 ```
 
 Resolved mode records an explicit SME decision that `DataRegistry CR` is the
-business-level alias for `FeatureStore CR` before refinement. The review still
-documents the frozen RFE's terminology mismatch as a medium finding, but the
-SME decision permits signoff: the workflow expects
+business-level alias for `FeatureStore CR` before refinement. The review must
+produce a consistency result (`clear`, or a low-severity documented finding),
+and the SME decision must permit signoff: the workflow expects
 `strat-creator-rubric-pass` and omits both needs-attention labels.

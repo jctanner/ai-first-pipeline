@@ -6,7 +6,7 @@ vars:
   strategy_create_fqn: "github.com/jctanner-opendatahub-io/strat-creator@bugfix-review-consistency:strategy-create"
   strategy_refine_fqn: "github.com/jctanner-opendatahub-io/strat-creator@bugfix-review-consistency:strategy-refine"
   strategy_review_fqn: "github.com/jctanner-opendatahub-io/strat-creator@bugfix-review-consistency:strategy-review"
-  expected_consistency: "contradictions-found"
+  expected_consistency: "resolved"
   sme_decision: "recorded"
 
 steps:

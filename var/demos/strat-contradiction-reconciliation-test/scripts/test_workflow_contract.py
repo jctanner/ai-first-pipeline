@@ -61,7 +61,7 @@ def test_resolved_workflow_records_sme_decision_and_expects_resolved_signoff():
         assert workflow["vars"][name].startswith(
             "github.com/jctanner-opendatahub-io/strat-creator@bugfix-review-consistency:"
         )
-    assert workflow["vars"]["expected_consistency"] == "contradictions-found"
+    assert workflow["vars"]["expected_consistency"] == "resolved"
     assert workflow["vars"]["sme_decision"]
     assert workflow["steps"][0]["workflow"] == "main"
 
