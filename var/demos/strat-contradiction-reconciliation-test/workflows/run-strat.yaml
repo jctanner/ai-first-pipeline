@@ -5,12 +5,12 @@ vars:
   strategy_create_fqn: "github.com/opendatahub-io/strat-creator@main:strategy-create"
   strategy_refine_fqn: "github.com/opendatahub-io/strat-creator@main:strategy-refine"
   strategy_review_fqn: "github.com/opendatahub-io/strat-creator@main:strategy-review"
-  create_strategy: "true"
+  create_strategy: true
   sme_decision: ""
 
 steps:
   - name: strat_create
-    when: "create_strategy == 'true'"
+    when: "create_strategy == true"
     workflow: run-skill
     vars:
       skill_fqn: "{{ strategy_create_fqn }}"

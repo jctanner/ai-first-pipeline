@@ -70,10 +70,10 @@ def test_lifecycle_workflow_reuses_one_ticket_for_both_reviews():
     workflow = load("workflows/lifecycle.yaml")
     assert workflow["steps"][0]["workflow"] == "reset-jira"
     assert workflow["steps"][3]["workflow"] == "run-strat"
-    assert workflow["steps"][3]["vars"]["create_strategy"] == "true"
+    assert workflow["steps"][3]["vars"]["create_strategy"] is True
     assert workflow["steps"][3]["vars"]["sme_decision"] == ""
     assert workflow["steps"][6]["workflow"] == "run-strat"
-    assert workflow["steps"][6]["vars"]["create_strategy"] == "false"
+    assert workflow["steps"][6]["vars"]["create_strategy"] is False
     assert workflow["steps"][6]["vars"]["sme_decision"] == "{{ sme_decision }}"
     assert "changelog" in workflow["steps"][7]["params"]["command"]
 
@@ -96,7 +96,7 @@ def test_run_strat_preserves_create_refine_review_order():
     assert names.index("set_strat_issue") < names.index("strat_refine")
     assert names.index("strat_refine") < names.index("strat_review")
     assert workflow["steps"][0]["vars"]["skill_fqn"] == "{{ strategy_create_fqn }}"
-    assert workflow["steps"][0]["when"] == "create_strategy == 'true'"
+    assert workflow["steps"][0]["when"] == "create_strategy == true"
     review_step = next(step for step in workflow["steps"] if step["name"] == "strat_review")
     assert review_step["vars"]["skill_fqn"] == "{{ strategy_review_fqn }}"
     assert workflow["steps"][3]["name"] == "seed_sme_input"

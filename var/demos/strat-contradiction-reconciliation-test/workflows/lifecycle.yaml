@@ -27,7 +27,7 @@ steps:
       strategy_create_fqn: "{{ strategy_create_fqn }}"
       strategy_refine_fqn: "{{ strategy_refine_fqn }}"
       strategy_review_fqn: "{{ strategy_review_fqn }}"
-      create_strategy: "true"
+      create_strategy: true
       sme_decision: ""
 
   - name: discover_strat_key
@@ -83,7 +83,7 @@ steps:
       strategy_create_fqn: "{{ strategy_create_fqn }}"
       strategy_refine_fqn: "{{ strategy_refine_fqn }}"
       strategy_review_fqn: "{{ strategy_review_fqn }}"
-      create_strategy: "false"
+      create_strategy: false
       sme_decision: "{{ sme_decision }}"
 
   - name: assert_lifecycle
