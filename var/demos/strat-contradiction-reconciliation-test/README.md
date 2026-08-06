@@ -69,6 +69,6 @@ bash var/demos/strat-contradiction-reconciliation-test/run.sh resolved
 Resolved mode records an explicit SME decision that `DataRegistry CR` is the
 business-level alias for `FeatureStore CR` before refinement. The review must
 produce a consistency result (`clear`, or a low-severity documented finding),
-and the SME decision also supplies the approval-ready latency, timeout, edge
-case, and scope guidance needed for the rubric. The workflow expects
+and the SME decision supplies approval-ready latency, timeout, edge-case,
+operator-attribution, and scope constraints before review. The workflow expects
 `strat-creator-rubric-pass` and omits both needs-attention labels.

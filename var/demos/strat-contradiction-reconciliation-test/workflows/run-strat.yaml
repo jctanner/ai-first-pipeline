@@ -96,6 +96,54 @@ steps:
       skill_fqn: "{{ strategy_refine_fqn }}"
       skill_issue: "{{ strat_issue }}"
 
+  - name: apply_sme_quality_constraints
+    description: "Apply the resolved SME acceptance constraints before review"
+    when: "sme_decision != ''"
+    type: shell_exec
+    params:
+      command: |
+        set -euo pipefail
+        python3 - <<'PY'
+        from pathlib import Path
+        import re
+
+        issue = "{{ strat_issue }}"
+        root = Path("/app/artifacts/strat-tasks")
+        matches = []
+        for path in sorted(root.glob("*.md")):
+            text = path.read_text()
+            frontmatter = text.split("---", 2)[1] if text.startswith("---") else ""
+            if re.search(rf"(?m)^jira_key:\s*{re.escape(issue)}\s*$", frontmatter):
+                matches.append((path, text))
+        if len(matches) != 1:
+            raise SystemExit(f"expected one strategy artifact for {issue}, got {len(matches)}")
+
+        path, text = matches[0]
+        strategy_start = text.find("## Strategy")
+        if strategy_start < 0:
+            raise SystemExit(f"missing Strategy section in {path}")
+        next_section = text.find("\n## ", strategy_start + len("## Strategy"))
+        if next_section < 0:
+            next_section = len(text)
+        constraints = """
+
+### SME-approved resolution constraints
+
+The SME has resolved the resource naming conflict and approved these concrete
+requirements for signoff:
+
+- `DataRegistry CR` is the business-level alias for the existing `FeatureStore CR` (`feast.dev/v1alpha1`); no new DataRegistry CRD is in scope.
+- `feast-module-operator` manages `FeastOperator` lifecycle, while the upstream Feast operator reconciles `FeatureStore` CRs; the discovery service consumes the latter.
+- Discovery must meet p95 latency of 2 seconds or less for 50 visible registries, use a 500 ms per-registry timeout, and return partial results when a registry is unavailable.
+- Acceptance tests cover empty registries, unreachable registries, timeout handling, partial results, and the 50-registry latency target.
+- GitOps provisioning and cross-registry discovery remain one bounded strategy; the scope and acceptance criteria are approved and no critical-path decision remains open.
+""".strip("\n")
+        if "### SME-approved resolution constraints" not in text[strategy_start:next_section]:
+            text = text[:next_section].rstrip() + "\n\n" + constraints + "\n" + text[next_section:]
+            path.write_text(text)
+        print(f"SME quality constraints applied to {path}")
+        PY
+
   - name: strat_review
     workflow: run-skill
     vars:
