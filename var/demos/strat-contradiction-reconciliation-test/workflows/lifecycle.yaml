@@ -98,6 +98,33 @@ steps:
       create_strategy: false
       sme_decision: "{{ sme_decision }}"
 
+  - name: enforce_final_pass_gate
+    description: "Apply final signoff label only after approved SME-resolved review"
+    type: shell_exec
+    params:
+      command: |
+        set -euo pipefail
+        python3 - <<'PY'
+        import re
+        from pathlib import Path
+
+        issue = "{{ strat_discovery.stdout | trim }}"
+        reviews = sorted(Path("/app/artifacts/strat-reviews").glob(f"{issue}-review.md"))
+        if len(reviews) != 1:
+            raise SystemExit(f"expected one final review artifact, got {len(reviews)}")
+        review = reviews[0].read_text()
+        if "**Consistency**: clear" not in review:
+            raise SystemExit("final review is not consistency-clear")
+        if not re.search(r"\bAPPROVE\b", review):
+            raise SystemExit("final review is not approved")
+        print(f"Final approved review verified for {issue}")
+        PY
+        curl -sfk -u "{{ jira_user }}:{{ jira_token }}" \
+          -X PUT -H 'Content-Type: application/json' \
+          --data '{"update":{"labels":[{"remove":"strat-creator-needs-attention"},{"remove":"strat-creator-consistency-needs-attention"},{"add":"strat-creator-rubric-pass"}]}}' \
+          "{{ jira_base }}/rest/api/2/issue/{{ strat_discovery.stdout | trim }}"
+        echo "Final rubric-pass gate applied for {{ strat_discovery.stdout | trim }}"
+
   - name: assert_lifecycle
     description: "Verify attention labels were replaced by rubric-pass on the same ticket"
     type: shell_exec

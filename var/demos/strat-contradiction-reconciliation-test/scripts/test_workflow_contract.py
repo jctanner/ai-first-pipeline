@@ -77,7 +77,10 @@ def test_lifecycle_workflow_reuses_one_ticket_for_both_reviews():
     assert workflow["steps"][7]["workflow"] == "run-strat"
     assert workflow["steps"][7]["vars"]["create_strategy"] is False
     assert workflow["steps"][7]["vars"]["sme_decision"] == "{{ sme_decision }}"
-    assert "changelog" in workflow["steps"][8]["params"]["command"]
+    assert workflow["steps"][8]["name"] == "enforce_final_pass_gate"
+    assert "Consistency**: clear" in workflow["steps"][8]["params"]["command"]
+    assert workflow["steps"][9]["name"] == "assert_lifecycle"
+    assert "changelog" in workflow["steps"][9]["params"]["command"]
 
 
 def test_seed_contains_the_two_conflicting_sources():
