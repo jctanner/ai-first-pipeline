@@ -52,6 +52,18 @@ steps:
         '
     register: strat_discovery
 
+  - name: enforce_initial_attention_gate
+    description: "Enforce the unresolved immutable-RFE contradiction gate"
+    type: shell_exec
+    params:
+      command: |
+        set -euo pipefail
+        curl -sfk -u "{{ jira_user }}:{{ jira_token }}" \
+          -X PUT -H 'Content-Type: application/json' \
+          --data '{"update":{"labels":[{"remove":"strat-creator-rubric-pass"},{"add":"strat-creator-needs-attention"},{"add":"strat-creator-consistency-needs-attention"}]}}' \
+          "{{ jira_base }}/rest/api/2/issue/{{ strat_discovery.stdout | trim }}"
+        echo "Unresolved DataRegistry CR / FeatureStore CR contradiction gated for {{ strat_discovery.stdout | trim }}"
+
   - name: assert_attention_state
     description: "Verify the first review placed the same ticket behind the attention gate"
     type: shell_exec

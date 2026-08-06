@@ -80,9 +80,9 @@ bash var/demos/strat-contradiction-reconciliation-test/run.sh lifecycle
 ```
 
 Lifecycle mode resets Jira once, runs the unresolved review and verifies both
-attention labels, records the SME decision, clears those labels as the human
-resolution action, reruns refinement and review without resetting Jira, and
-asserts the Jira changelog contains:
+workflow-level contradiction-gate labels, records the SME decision, clears
+those labels as the human resolution action, reruns refinement and review
+without resetting Jira, and asserts the Jira changelog contains:
 
 ```text
 attention labels added → attention labels removed → rubric-pass added

@@ -72,10 +72,12 @@ def test_lifecycle_workflow_reuses_one_ticket_for_both_reviews():
     assert workflow["steps"][3]["workflow"] == "run-strat"
     assert workflow["steps"][3]["vars"]["create_strategy"] is True
     assert workflow["steps"][3]["vars"]["sme_decision"] == ""
-    assert workflow["steps"][6]["workflow"] == "run-strat"
-    assert workflow["steps"][6]["vars"]["create_strategy"] is False
-    assert workflow["steps"][6]["vars"]["sme_decision"] == "{{ sme_decision }}"
-    assert "changelog" in workflow["steps"][7]["params"]["command"]
+    assert workflow["steps"][5]["name"] == "enforce_initial_attention_gate"
+    assert "strat-creator-consistency-needs-attention" in workflow["steps"][5]["params"]["command"]
+    assert workflow["steps"][7]["workflow"] == "run-strat"
+    assert workflow["steps"][7]["vars"]["create_strategy"] is False
+    assert workflow["steps"][7]["vars"]["sme_decision"] == "{{ sme_decision }}"
+    assert "changelog" in workflow["steps"][8]["params"]["command"]
 
 
 def test_seed_contains_the_two_conflicting_sources():
