@@ -105,17 +105,21 @@ steps:
       command: |
         set -euo pipefail
         python3 - <<'PY'
-        import re
         from pathlib import Path
+        import yaml
 
         issue = "{{ strat_discovery.stdout | trim }}"
         reviews = sorted(Path("/app/artifacts/strat-reviews").glob(f"{issue}-review.md"))
         if len(reviews) != 1:
             raise SystemExit(f"expected one final review artifact, got {len(reviews)}")
         review = reviews[0].read_text()
-        if "**Consistency**: clear" not in review:
+        frontmatter = review.split("---", 2)
+        metadata = yaml.safe_load(frontmatter[1]) if len(frontmatter) == 3 else {}
+        if metadata.get("consistency_status") != "clear":
             raise SystemExit("final review is not consistency-clear")
-        if not re.search(r"\bAPPROVE\b", review):
+        if metadata.get("consistency_severities") not in (None, []):
+            raise SystemExit("final review retained consistency severities")
+        if metadata.get("recommendation") != "approve":
             raise SystemExit("final review is not approved")
         print(f"Final approved review verified for {issue}")
         PY
