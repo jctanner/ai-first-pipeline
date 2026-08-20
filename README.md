@@ -10,7 +10,7 @@ observability, and trace-analysis services.
 This repository owns the integration layer: the Python CLI/dashboard, workflow
 definitions, container assembly, Kubernetes manifests, and operational scripts.
 Several deployed applications are independent repositories checked out under
-the gitignored `deploy/repos/` directory. The manifests and deployment script,
+the gitignored `checkouts/` directory. The manifests and deployment script,
 not the contents of every local checkout, define the component stack.
 
 The platform is designed to define, run, observe, evaluate, and govern
@@ -125,7 +125,7 @@ RFE and strategy skills live in an external repo:
 
 These are gitignored and must be cloned or populated separately.
 
-The same is true of the component source checkouts in `deploy/repos/`. At
+The same is true of the component source checkouts in `checkouts/`. At
 minimum, a full local image build expects `github-emulator`, `jira-emulator`,
 `gitlab-emulator`, `markovd`, and `observatory`; Markov workflow jobs also use
 the separately built `markov` image. Each checkout has its own development
@@ -624,7 +624,7 @@ ai-first-pipeline/
 
 ## Service Emulators
 
-The deployment stack includes local emulators for GitHub, GitLab, and Jira so the pipeline can run end-to-end without depending on external services. Each emulator lives in `deploy/repos/` and is built into a container image deployed to the cluster.
+The deployment stack includes local emulators for GitHub, GitLab, and Jira so the pipeline can run end-to-end without depending on external services. Each emulator lives in `checkouts/` and is built into a container image deployed to the cluster.
 
 | Emulator | URL | API | Purpose |
 |----------|-----|-----|---------|

@@ -34,7 +34,7 @@ Run these commands from the repository root. The repo-local CLI reads the
 project's `.markovd-cli-config.toml` automatically.
 
 ```bash
-CLI=deploy/repos/markovd/bin/markovd-cli
+CLI=checkouts/markovd/bin/markovd-cli
 
 # Make the latest project files available to markovd.
 $CLI projects sync ai-first-pipeline --wait

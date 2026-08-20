@@ -2,7 +2,7 @@ version: '1.0'
 architecture_context_commit: 292cf67f7073da32a3040f09e6a3bb904df79a60
 generated_date: '2026-05-05'
 target_version: rhoai.next
-source_reference: deploy/repos/architecture-context
+source_reference: checkouts/architecture-context
 purpose: Balanced 60-question A/B benchmark for comparing flat-file vs arch-query
   access patterns.
 questions:

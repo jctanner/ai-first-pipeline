@@ -220,7 +220,7 @@ Called from `runner.py` as a post-run hook. Silently skipped when MLFLOW_TRACKIN
 
 ### `src/agentic_ci/mlflow_tracing.py`
 
-Adapted from ambient-runner's `MLflowSessionTracer` (`deploy/repos/ambient-code.platform/components/runners/ambient-runner/ambient_runner/mlflow_observability.py`). Observer interface that both runners can call:
+Adapted from ambient-runner's `MLflowSessionTracer` (`checkouts/ambient-code.platform/components/runners/ambient-runner/ambient_runner/mlflow_observability.py`). Observer interface that both runners can call:
 
 ```python
 class MLflowRunTracer:

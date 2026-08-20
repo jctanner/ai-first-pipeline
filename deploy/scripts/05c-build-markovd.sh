@@ -16,12 +16,12 @@ fi
 
 echo "==> Building markovd image..."
 
-if [ ! -d ${PROJECT_ROOT}/deploy/repos/markovd ]; then
-  echo "ERROR: markovd repo not found at ${PROJECT_ROOT}/deploy/repos/markovd"
+if [ ! -d ${PROJECT_ROOT}/checkouts/markovd ]; then
+  echo "ERROR: markovd repo not found at ${PROJECT_ROOT}/checkouts/markovd"
   exit 1
 fi
 
-cd ${PROJECT_ROOT}/deploy/repos/markovd
+cd ${PROJECT_ROOT}/checkouts/markovd
 
 ${CONTAINER_CMD} build -t markovd:latest .
 

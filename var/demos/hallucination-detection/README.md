@@ -65,7 +65,7 @@ main
 ## Running
 
 ```bash
-deploy/repos/markovd/bin/markovd-cli projects sync hallucination-detection --wait
+checkouts/markovd/bin/markovd-cli projects sync hallucination-detection --wait
 ```
 
 ## Rules

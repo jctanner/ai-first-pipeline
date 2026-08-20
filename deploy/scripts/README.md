@@ -81,8 +81,8 @@ The `deploy-all.sh` script runs the following steps:
 ### Required Files
 
 - `/vagrant/.env` - Environment variables with credentials
-- `/vagrant/deploy/repos/github-emulator/` - GitHub emulator source
-- `/vagrant/deploy/repos/jira-emulator/` - Jira emulator source
+- `/vagrant/checkouts/github-emulator/` - GitHub emulator source
+- `/vagrant/checkouts/jira-emulator/` - Jira emulator source
 
 ### .env File Format
 

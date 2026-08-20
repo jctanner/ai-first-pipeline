@@ -9,7 +9,7 @@ import sys
 
 RUN_ID = sys.argv[1] if len(sys.argv) > 1 else "markov-run-a481f69d"
 RESULTS_DIR = os.path.join(os.path.dirname(__file__), "results")
-MARKOVD_CLI = "deploy/repos/markovd/bin/markovd-cli"
+MARKOVD_CLI = "checkouts/markovd/bin/markovd-cli"
 
 CATEGORIES = [
     "unambiguous",

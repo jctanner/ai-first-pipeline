@@ -4,7 +4,7 @@
 set -euo pipefail
 
 PROJECT_ROOT="${PROJECT_ROOT:-/vagrant}"
-REPOS_DIR="${PROJECT_ROOT}/deploy/repos"
+CHECKOUTS_DIR="${PROJECT_ROOT}/checkouts"
 
 repos=(
   "github-emulator|https://github.com/jctanner/github-emulator.git"
@@ -15,12 +15,12 @@ repos=(
   "observatory|https://github.com/opendatahub-io/observatory.git"
 )
 
-mkdir -p "${REPOS_DIR}"
+mkdir -p "${CHECKOUTS_DIR}"
 
 for repo in "${repos[@]}"; do
   name="${repo%%|*}"
   url="${repo#*|}"
-  destination="${REPOS_DIR}/${name}"
+  destination="${CHECKOUTS_DIR}/${name}"
 
   if [ -d "${destination}/.git" ]; then
     echo "==> ${name} already exists; keeping current checkout"
@@ -36,4 +36,4 @@ for repo in "${repos[@]}"; do
   git clone "${url}" "${destination}"
 done
 
-echo "Component repositories are available in ${REPOS_DIR}"
+echo "Component repositories are available in ${CHECKOUTS_DIR}"

@@ -209,12 +209,12 @@ Effect memoizes service instances by tag. When `MoveSession.defaultLayer` is pro
 
 ## Files involved
 
-- `deploy/repos/opencode/packages/server/src/handlers.ts` — Attempt 2 fix (layer wiring)
-- `deploy/repos/opencode/packages/core/src/session.ts` — `SessionV2.defaultLayer` with baked-in noop; diagnostic `_noopWithLog`
-- `deploy/repos/opencode/packages/core/src/session/execution.ts` — noop layer definition
-- `deploy/repos/opencode/packages/core/src/session/execution/local.ts` — local (real) execution layer
-- `deploy/repos/opencode/packages/core/src/control-plane/move-session.ts` — `MoveSession.defaultLayer` provides `SessionV2.defaultLayer`; primary suspect
-- `deploy/repos/opencode/packages/opencode/src/server/routes/instance/httpapi/server.ts` — `createRoutes()` includes `MoveSession.defaultLayer` at line 279
-- `deploy/repos/opencode/packages/opencode/script/build.ts` — `--no-minify` flag for debug builds
+- `checkouts/opencode/packages/server/src/handlers.ts` — Attempt 2 fix (layer wiring)
+- `checkouts/opencode/packages/core/src/session.ts` — `SessionV2.defaultLayer` with baked-in noop; diagnostic `_noopWithLog`
+- `checkouts/opencode/packages/core/src/session/execution.ts` — noop layer definition
+- `checkouts/opencode/packages/core/src/session/execution/local.ts` — local (real) execution layer
+- `checkouts/opencode/packages/core/src/control-plane/move-session.ts` — `MoveSession.defaultLayer` provides `SessionV2.defaultLayer`; primary suspect
+- `checkouts/opencode/packages/opencode/src/server/routes/instance/httpapi/server.ts` — `createRoutes()` includes `MoveSession.defaultLayer` at line 279
+- `checkouts/opencode/packages/opencode/script/build.ts` — `--no-minify` flag for debug builds
 - `scripts/run_skill_opencode_sdk.sh` — SDK entrypoint and Python driver
 - `deploy/pipeline-agent/Dockerfile` — container image (builds OpenCode from local source with `--no-minify`)

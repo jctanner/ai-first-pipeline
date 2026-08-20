@@ -30,7 +30,7 @@ The workflow asserts that:
 Run it from the repository root:
 
 ```bash
-CLI=deploy/repos/markovd/bin/markovd-cli
+CLI=checkouts/markovd/bin/markovd-cli
 scripts/run_strat_dashboard_sme_loop_test.sh
 ```
 

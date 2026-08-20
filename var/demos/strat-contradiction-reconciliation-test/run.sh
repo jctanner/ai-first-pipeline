@@ -10,7 +10,7 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd -- "${SCRIPT_DIR}/../../.." && pwd)"
-MARKOVD_CLI="${MARKOVD_CLI:-${REPO_ROOT}/deploy/repos/markovd/bin/markovd-cli}"
+MARKOVD_CLI="${MARKOVD_CLI:-${REPO_ROOT}/checkouts/markovd/bin/markovd-cli}"
 PROJECT="${MARKOVD_PROJECT:-ai-first-pipeline}"
 DEMO="${MARKOVD_DEMO:-var-demos-strat-contradiction-reconciliation-test}"
 WORKFLOW="${1:-main}"

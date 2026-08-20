@@ -6,7 +6,7 @@ commands in this note apply to all workflows in the repository; they are not
 specific to the end-to-end demo.
 
 For every command and option, see the complete
-[`markovd-cli` reference](../../deploy/repos/markovd/docs/reference/markovd-cli.md).
+[`markovd-cli` reference](../../checkouts/markovd/docs/reference/markovd-cli.md).
 
 ## Repository Configuration
 
@@ -15,7 +15,7 @@ project root so it discovers this file automatically:
 
 ```bash
 cd /path/to/ai-first-pipeline
-CLI=deploy/repos/markovd/bin/markovd-cli
+CLI=checkouts/markovd/bin/markovd-cli
 $CLI health
 ```
 
@@ -98,7 +98,7 @@ Before committing, validate the workflow directory with the local `markov` CLI
 (not `markovd-cli`):
 
 ```bash
-deploy/repos/markov/bin/markov validate var/demos/my-workflow
+checkouts/markov/bin/markov validate var/demos/my-workflow
 ```
 
 This catches missing required files (e.g. `rules.yaml`), YAML syntax errors, and

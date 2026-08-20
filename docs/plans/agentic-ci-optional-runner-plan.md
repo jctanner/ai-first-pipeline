@@ -9,7 +9,7 @@ The pipeline currently runs agents through local entrypoint scripts:
 - `scripts/run_skill_opencode.sh` for OpenCode CLI
 - `scripts/run_skill_opencode_sdk.sh` for OpenCode serve/API mode
 
-OpenCode MLflow tracing is currently tied to the `@mlflow/opencode` plugin path. That path is fragile in CLI mode because OpenCode dispatches plugin events asynchronously and then exits the Node.js process immediately. The `deploy/repos/agentic-ci` checkout shows another viable approach: use OpenCode CLI with native OpenTelemetry enabled, capture OTLP locally, then push traces to MLflow after the agent run.
+OpenCode MLflow tracing is currently tied to the `@mlflow/opencode` plugin path. That path is fragile in CLI mode because OpenCode dispatches plugin events asynchronously and then exits the Node.js process immediately. The `checkouts/agentic-ci` checkout shows another viable approach: use OpenCode CLI with native OpenTelemetry enabled, capture OTLP locally, then push traces to MLflow after the agent run.
 
 **Goal**: Install `agentic-ci` into the pipeline agent image and expose it as an optional runner path, without replacing the existing scripts. This gives us a second OpenCode execution path with different MLflow behavior and lets us compare reliability before making it the default.
 
@@ -32,10 +32,10 @@ The first useful target is `opencode + agentic-ci`, because it tests the OpenCod
 
 ### `deploy/pipeline-agent/Dockerfile`
 
-Install the local checkout from `deploy/repos/agentic-ci` into the agent image:
+Install the local checkout from `checkouts/agentic-ci` into the agent image:
 
 ```dockerfile
-COPY deploy/repos/agentic-ci /tmp/agentic-ci
+COPY checkouts/agentic-ci /tmp/agentic-ci
 RUN /app/.venv/bin/pip install /tmp/agentic-ci
 ```
 
@@ -46,7 +46,7 @@ RUN /app/.venv/bin/pip install /tmp/agentic-ci \
     && /app/.venv/bin/pip install opentelemetry-proto requests protobuf
 ```
 
-Prefer installing from the local checkout rather than PyPI so the image uses the same audited source under `deploy/repos/agentic-ci`.
+Prefer installing from the local checkout rather than PyPI so the image uses the same audited source under `checkouts/agentic-ci`.
 
 ## New Entrypoint
 
@@ -171,7 +171,7 @@ If agentic-ci writes `_run/claude-otel.jsonl`, keep that name initially to avoid
 
 ### Phase 1: Package and Smoke Test
 
-- Install local `deploy/repos/agentic-ci` into the image.
+- Install local `checkouts/agentic-ci` into the image.
 - Add `scripts/run_skill_agentic_ci.sh`.
 - Run a minimal OpenCode prompt with `MLFLOW_ENABLED=false`.
 - Verify OpenCode output is streamed and the job exits correctly.
@@ -211,7 +211,7 @@ Until then, keep `agentic-ci` opt-in.
 2. Submit `harness=opencode`, `runner=agentic-ci`, `mlflow=false`; verify the LLM is called and the job completes.
 3. Submit the same job with MLflow enabled; verify an OTEL JSONL is produced.
 4. Verify `agentic-ci mlflow-push` posts traces to `MLFLOW_TRACKING_URI`.
-5. Confirm `deploy/repos/agentic-ci` remains excluded from the outer repo commit unless intentionally vendored.
+5. Confirm `checkouts/agentic-ci` remains excluded from the outer repo commit unless intentionally vendored.
 6. Confirm `opencode + cli` and `opencode + sdk` still work as before.
 
 ## Open Questions

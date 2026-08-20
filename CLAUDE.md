@@ -53,7 +53,7 @@ python main.py <command> [options]          # Run a pipeline phase
 python main.py dashboard --port 5000       # Launch web dashboard
 make host-deploy-all                       # Build/deploy the complete K3s stack
 make host-status                           # Inspect deployed services
-deploy/repos/markovd/bin/markovd-cli projects sync ai-first-pipeline --wait
+checkouts/markovd/bin/markovd-cli projects sync ai-first-pipeline --wait
 # See var/demos/end-to-end/README.md for the complete reference scenario
 ```
 
@@ -179,7 +179,7 @@ remote_skills/rfe-creator/  # External repo (gitignored) with RFE/strategy skill
 .context/                   # External architecture context repos (gitignored)
 ```
 
-`deploy/repos/` is deliberately not source-controlled here. The build scripts
+`checkouts/` is deliberately not source-controlled here. The build scripts
 expect sibling checkouts such as `github-emulator`, `jira-emulator`,
 `gitlab-emulator`, `markov`, `markovd`, and `observatory` to be populated there.
 Changes inside those directories belong to their component repositories, not
@@ -262,18 +262,18 @@ whether work advances.
 |-----------|------|---------------------|
 | Python CLI and pipeline agent | Direct phase execution through Claude Agent SDK or OpenCode; patch validation and batch runs | `main.py`, `src/cli/`, `deploy/pipeline-agent/` |
 | Pipeline dashboard | Reviews artifacts, launches Kubernetes Jobs, streams activity, and links to platform services | `src/dashboard/`, `deploy/dashboard/` |
-| Markov | Declarative workflow CLI executed by workflow jobs | external `deploy/repos/markov/`; definitions in `var/markov-workflows/` |
-| markovd | Workflow API/UI, run state, approval gates, and Kubernetes job orchestration | external `deploy/repos/markovd/`; PostgreSQL side service |
-| Observatory | Collects CI artifacts/traces, extracts and verifies claims, and reports pipeline quality | external `deploy/repos/observatory/` |
+| Markov | Declarative workflow CLI executed by workflow jobs | external `checkouts/markov/`; definitions in `var/markov-workflows/` |
+| markovd | Workflow API/UI, run state, approval gates, and Kubernetes job orchestration | external `checkouts/markovd/`; PostgreSQL side service |
+| Observatory | Collects CI artifacts/traces, extracts and verifies claims, and reports pipeline quality | external `checkouts/observatory/` |
 | MLflow | Agent trace and experiment store | upstream MLflow image with persistent SQLite/artifacts |
 | Elasticsearch | Search index populated from MLflow traces by sync jobs/scripts | upstream Elasticsearch image |
-| GitHub emulator | GitHub REST/GraphQL, Git transport, web UI, and admin surface for isolated tests | external `deploy/repos/github-emulator/` |
-| GitLab emulator | GitLab API/git/CI test surface | external `deploy/repos/gitlab-emulator/` |
-| Jira emulator | Jira v2/v3 API, UI, snapshots, and MCP-compatible issue operations | external `deploy/repos/jira-emulator/` |
+| GitHub emulator | GitHub REST/GraphQL, Git transport, web UI, and admin surface for isolated tests | external `checkouts/github-emulator/` |
+| GitLab emulator | GitLab API/git/CI test surface | external `checkouts/gitlab-emulator/` |
+| Jira emulator | Jira v2/v3 API, UI, snapshots, and MCP-compatible issue operations | external `checkouts/jira-emulator/` |
 | GitLab Runner | Runs emulator CI jobs with the Kubernetes executor | upstream runner chart/image in `gitlab-runner` namespace |
 | Ingress/TLS | Traefik, cert-manager internal CA, and Go `*.local` host proxy | `deploy/k8s/`, `deploy/golang-reverse-proxy/` |
 
-The `deploy/repos/` directory can contain additional reference or dependency
+The `checkouts/` directory can contain additional reference or dependency
 checkouts (for example agent SDKs, agentic-ci, skill repos, and upstream tools).
 Do not assume every directory there is a deployed service; the Kubernetes
 manifests and `deploy/scripts/deploy-all.sh` are the authoritative deployment
@@ -333,7 +333,7 @@ Phases run agents in parallel via asyncio semaphore. Default 5 concurrent agents
 - `src/dashboard/webapp.py` contains the Flask dashboard with Jinja2 templates
 - The `.context/` directory holds git-cloned architecture docs; these are not checked in
 - `remote_skills/rfe-creator/` is a separate git repo cloned into place; it has its own `CLAUDE.md`
-- `deploy/repos/*` are separate, ignored repositories. Read and follow the
+- `checkouts/*` are separate, ignored repositories. Read and follow the
   component's own `AGENTS.md` or `CLAUDE.md` before changing one.
 - `deploy/scripts/deploy-all.sh` and `deploy/k8s/*.yaml` define the current
   integrated stack; older design documents under `deploy/docs/` may describe

@@ -45,11 +45,11 @@ GOOGLE_APPLICATION_CREDENTIALS=/home/pipelineagent/.config/gcloud/credentials.js
 `deploy/pipeline-agent/Dockerfile` builds the `pipeline-agent:latest` image. It contains:
 
 - Claude Code CLI from `npm install -g @anthropic-ai/claude-code`
-- OpenCode binary built from local source under `deploy/repos/opencode`
+- OpenCode binary built from local source under `checkouts/opencode`
 - Python dependencies from `pyproject.toml` and `uv.lock`
 - the project scripts under `/app/scripts`
 - local skills and skill registry data under `/app/.claude` and `/app/var`
-- agentic-ci installed from local source under `deploy/repos/agentic-ci`
+- agentic-ci installed from local source under `checkouts/agentic-ci`
 
 The image does not bake in Vertex credentials. Credentials are injected at pod runtime through Kubernetes secrets.
 

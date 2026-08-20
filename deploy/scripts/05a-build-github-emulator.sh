@@ -19,9 +19,9 @@ fi
 echo "==> Building github-emulator image with ${CONTAINER_CMD}..."
 
 # Build github-emulator if the repo exists
-if [ -d ${PROJECT_ROOT}/deploy/repos/github-emulator ]; then
+if [ -d ${PROJECT_ROOT}/checkouts/github-emulator ]; then
   echo "--- Building github-emulator image for k3s ---"
-  cd ${PROJECT_ROOT}/deploy/repos/github-emulator
+  cd ${PROJECT_ROOT}/checkouts/github-emulator
 
   if [ -f Dockerfile.k3s ]; then
     ${CONTAINER_CMD} build -f Dockerfile.k3s -t github-emulator:k3s .
@@ -34,7 +34,7 @@ if [ -d ${PROJECT_ROOT}/deploy/repos/github-emulator ]; then
     exit 1
   fi
 else
-  echo "ERROR: github-emulator repo not found at ${PROJECT_ROOT}/deploy/repos/github-emulator"
+  echo "ERROR: github-emulator repo not found at ${PROJECT_ROOT}/checkouts/github-emulator"
   exit 1
 fi
 

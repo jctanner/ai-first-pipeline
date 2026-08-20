@@ -294,7 +294,7 @@ This allows us to fix the immediate MCP problem while deferring the MLflow work.
 
 ## References
 
-- SDK Hooks Example: `deploy/repos/claude-agent-sdk/examples/hooks.py`
-- SDK Types: `deploy/repos/claude-agent-sdk/src/claude_agent_sdk/types.py`
+- SDK Hooks Example: `checkouts/claude-agent-sdk/examples/hooks.py`
+- SDK Types: `checkouts/claude-agent-sdk/src/claude_agent_sdk/types.py`
 - Current agent_runner: `lib/agent_runner.py`
 - CLI MLflow Setup: `scripts/run_skill.sh` line 94-102

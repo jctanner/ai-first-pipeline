@@ -44,7 +44,6 @@ odh-test-context
 remote_skills/
 
 # Reference repositories cloned for development
-deploy/repos/
 
 # Generated data and workspaces
 fix-workspaces/

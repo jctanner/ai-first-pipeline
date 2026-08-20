@@ -111,9 +111,9 @@ fi
 echo ""
 
 # Build github-emulator if the repo exists
-if [ -d ${PROJECT_ROOT}/deploy/repos/github-emulator ]; then
+if [ -d ${PROJECT_ROOT}/checkouts/github-emulator ]; then
   echo "--- Building github-emulator image for k3s ---"
-  cd ${PROJECT_ROOT}/deploy/repos/github-emulator
+  cd ${PROJECT_ROOT}/checkouts/github-emulator
 
   if [ -f Dockerfile.k3s ]; then
     ${CONTAINER_CMD} build -f Dockerfile.k3s -t github-emulator:k3s .
@@ -125,14 +125,14 @@ if [ -d ${PROJECT_ROOT}/deploy/repos/github-emulator ]; then
     echo "WARNING: github-emulator Dockerfile.k3s not found, skipping"
   fi
 else
-  echo "WARNING: github-emulator repo not found at ${PROJECT_ROOT}/deploy/repos/github-emulator"
+  echo "WARNING: github-emulator repo not found at ${PROJECT_ROOT}/checkouts/github-emulator"
   echo "The deployment will fail"
 fi
 
 # Build jira-emulator if the repo exists
-if [ -d ${PROJECT_ROOT}/deploy/repos/jira-emulator ]; then
+if [ -d ${PROJECT_ROOT}/checkouts/jira-emulator ]; then
   echo "--- Building jira-emulator image for k3s ---"
-  cd ${PROJECT_ROOT}/deploy/repos/jira-emulator
+  cd ${PROJECT_ROOT}/checkouts/jira-emulator
 
   if [ -f Dockerfile.k3s ]; then
     ${CONTAINER_CMD} build -f Dockerfile.k3s -t jira-emulator:k3s .
@@ -144,14 +144,14 @@ if [ -d ${PROJECT_ROOT}/deploy/repos/jira-emulator ]; then
     echo "WARNING: jira-emulator Dockerfile.k3s not found, skipping"
   fi
 else
-  echo "WARNING: jira-emulator repo not found at ${PROJECT_ROOT}/deploy/repos/jira-emulator"
+  echo "WARNING: jira-emulator repo not found at ${PROJECT_ROOT}/checkouts/jira-emulator"
   echo "The deployment will fail"
 fi
 
 # Build observatory if the repo exists
-if [ -d ${PROJECT_ROOT}/deploy/repos/observatory ]; then
+if [ -d ${PROJECT_ROOT}/checkouts/observatory ]; then
   echo "--- Building observatory image for k3s ---"
-  cd ${PROJECT_ROOT}/deploy/repos/observatory
+  cd ${PROJECT_ROOT}/checkouts/observatory
 
   ${CONTAINER_CMD} build -t observatory:latest .
   sudo k3s ctr images rm docker.io/library/observatory:latest localhost/observatory:latest 2>/dev/null || true
@@ -159,13 +159,13 @@ if [ -d ${PROJECT_ROOT}/deploy/repos/observatory ]; then
   sudo k3s ctr images tag localhost/observatory:latest docker.io/library/observatory:latest 2>/dev/null || true
   echo "Successfully built and imported observatory:latest"
 else
-  echo "WARNING: observatory repo not found at ${PROJECT_ROOT}/deploy/repos/observatory"
+  echo "WARNING: observatory repo not found at ${PROJECT_ROOT}/checkouts/observatory"
 fi
 
 # Build gitlab-emulator if the repo exists
-if [ -d ${PROJECT_ROOT}/deploy/repos/gitlab-emulator ]; then
+if [ -d ${PROJECT_ROOT}/checkouts/gitlab-emulator ]; then
   echo "--- Building gitlab-emulator image for k3s ---"
-  cd ${PROJECT_ROOT}/deploy/repos/gitlab-emulator
+  cd ${PROJECT_ROOT}/checkouts/gitlab-emulator
 
   ${CONTAINER_CMD} build -t gitlab-emulator:latest .
   sudo k3s ctr images rm docker.io/library/gitlab-emulator:latest localhost/gitlab-emulator:latest 2>/dev/null || true
@@ -173,13 +173,13 @@ if [ -d ${PROJECT_ROOT}/deploy/repos/gitlab-emulator ]; then
   sudo k3s ctr images tag localhost/gitlab-emulator:latest docker.io/library/gitlab-emulator:latest 2>/dev/null || true
   echo "Successfully built and imported gitlab-emulator:latest"
 else
-  echo "WARNING: gitlab-emulator repo not found at ${PROJECT_ROOT}/deploy/repos/gitlab-emulator"
+  echo "WARNING: gitlab-emulator repo not found at ${PROJECT_ROOT}/checkouts/gitlab-emulator"
 fi
 
 # Build markovd if the repo exists
-if [ -d ${PROJECT_ROOT}/deploy/repos/markovd ]; then
+if [ -d ${PROJECT_ROOT}/checkouts/markovd ]; then
   echo "--- Building markovd image for k3s ---"
-  cd ${PROJECT_ROOT}/deploy/repos/markovd
+  cd ${PROJECT_ROOT}/checkouts/markovd
 
   ${CONTAINER_CMD} build -t markovd:latest .
   sudo k3s ctr images rm docker.io/library/markovd:latest localhost/markovd:latest 2>/dev/null || true
@@ -187,13 +187,13 @@ if [ -d ${PROJECT_ROOT}/deploy/repos/markovd ]; then
   sudo k3s ctr images tag localhost/markovd:latest docker.io/library/markovd:latest 2>/dev/null || true
   echo "Successfully built and imported markovd:latest"
 else
-  echo "WARNING: markovd repo not found at ${PROJECT_ROOT}/deploy/repos/markovd"
+  echo "WARNING: markovd repo not found at ${PROJECT_ROOT}/checkouts/markovd"
 fi
 
 # Build the Markov job image used by markovd workflow runs
-if [ -d ${PROJECT_ROOT}/deploy/repos/markov ]; then
+if [ -d ${PROJECT_ROOT}/checkouts/markov ]; then
   echo "--- Building Markov job image for k3s ---"
-  cd ${PROJECT_ROOT}/deploy/repos/markov
+  cd ${PROJECT_ROOT}/checkouts/markov
 
   ${CONTAINER_CMD} build -t markov:latest .
   sudo k3s ctr images rm docker.io/library/markov:latest localhost/markov:latest 2>/dev/null || true
@@ -201,7 +201,7 @@ if [ -d ${PROJECT_ROOT}/deploy/repos/markov ]; then
   sudo k3s ctr images tag localhost/markov:latest docker.io/library/markov:latest 2>/dev/null || true
   echo "Successfully built and imported markov:latest"
 else
-  echo "WARNING: markov repo not found at ${PROJECT_ROOT}/deploy/repos/markov"
+  echo "WARNING: markov repo not found at ${PROJECT_ROOT}/checkouts/markov"
 fi
 
 echo "==> Image build complete!"

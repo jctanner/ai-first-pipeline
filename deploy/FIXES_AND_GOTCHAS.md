@@ -17,7 +17,7 @@ This document summarizes the issues we encountered and fixed when deploying the 
 sqlite+aiosqlite:////data/github_emulator.db
 ```
 
-**Where Fixed**: `deploy/repos/github-emulator/Dockerfile.k3s` line 28
+**Where Fixed**: `checkouts/github-emulator/Dockerfile.k3s` line 28
 
 **Why This Matters**: The working directory in the container is `/app`, so a relative path would resolve to the wrong location.
 
@@ -96,7 +96,7 @@ ports:
 
 **Root Cause**: Incorrect path in original script
 
-**Fix**: Updated to `/vagrant/deploy/repos/github-emulator`
+**Fix**: Updated to `/vagrant/checkouts/github-emulator`
 
 **Where Fixed**: `deploy/scripts/05-build-images.sh` line 62
 
@@ -246,6 +246,6 @@ Initially tried `emptyDir` to rule out PVC issues, but the problem was the DATAB
 - Main deployment guide: `deploy/GITHUB_DEPLOYMENT.md`
 - Build script: `deploy/scripts/05a-build-github-emulator.sh`
 - Deploy script: `deploy/scripts/07-deploy-github-emulator.sh`
-- Dockerfile: `deploy/repos/github-emulator/Dockerfile.k3s`
+- Dockerfile: `checkouts/github-emulator/Dockerfile.k3s`
 - Deployment manifest: `deploy/k8s/10-github-emulator.yaml`
 - ConfigMap: `deploy/k8s/09-github-emulator-config.yaml`

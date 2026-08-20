@@ -137,7 +137,7 @@ If you want to understand what the deployment script does:
 
 ```bash
 # 1. Build the image
-cd /vagrant/deploy/repos/jira-emulator
+cd /vagrant/checkouts/jira-emulator
 docker build -f Dockerfile.k3s -t jira-emulator:k3s .
 docker save jira-emulator:k3s | sudo k3s ctr images import -
 

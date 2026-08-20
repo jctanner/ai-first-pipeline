@@ -329,6 +329,6 @@ vagrant ssh -c "sudo k3s ctr images rm docker.io/library/claude-agent:latest"
 ## References
 
 - Design doc: `deploy/docs/CLAUDE-AGENTS-ON-K3S.md`
-- Company-simulator: `deploy/repos/company-simulator/`
+- Company-simulator: `checkouts/company-simulator/`
 - Pipeline dashboard (reference implementation): `deploy/k8s/20-pipeline-dashboard.yaml`
 - Secrets setup: `deploy/scripts/06-create-secrets.sh`

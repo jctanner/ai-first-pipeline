@@ -199,8 +199,8 @@ Report to Anthropic that `claude --print` should wait for configured MCP servers
 - `scripts/run_skill.sh` - Job execution wrapper using `--print` mode
 - `lib/agent_runner.py` - Python SDK runner (works correctly with MCP)
 - `pipeline-skills.yaml` - Skill configuration including MCP server mappings
-- `deploy/repos/claude-code/src/cli/print.ts` - Claude Code source showing lazy MCP connection
-- `deploy/repos/rfe-creator/.claude/skills/strat.create/SKILL.md` - Explicitly documents MCP fallback behavior
+- `checkouts/claude-code/src/cli/print.ts` - Claude Code source showing lazy MCP connection
+- `checkouts/rfe-creator/.claude/skills/strat.create/SKILL.md` - Explicitly documents MCP fallback behavior
 
 ## Test Case
 

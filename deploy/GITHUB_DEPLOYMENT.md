@@ -127,7 +127,7 @@ If you want to understand what the deployment script does:
 
 ```bash
 # 1. Build the image
-cd /vagrant/deploy/repos/github-emulator
+cd /vagrant/checkouts/github-emulator
 docker build -f Dockerfile.k3s -t github-emulator:k3s .
 docker save github-emulator:k3s | sudo k3s ctr images import -
 

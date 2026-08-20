@@ -8,7 +8,7 @@ from what the docs actually contain rather than from agent trace data.
 
 Usage:
     python scripts/generate_corpus_from_docs.py \
-        --arch-context-dir deploy/repos/architecture-context \
+        --arch-context-dir checkouts/architecture-context \
         --output var/benchmarks/arch-context/corpus-claude.yaml \
         --version rhoai.next
 """
@@ -501,7 +501,7 @@ def main():
     )
     parser.add_argument(
         "--arch-context-dir",
-        default="deploy/repos/architecture-context",
+        default="checkouts/architecture-context",
     )
     parser.add_argument(
         "--output",

@@ -49,7 +49,7 @@ MLflow confirms: experiment ID 6 exists, zero runs/traces.
 
 ## OpenCode Source (Read-Only Reference)
 
-Cloned at `deploy/repos/opencode/packages/opencode/src/`:
+Cloned at `checkouts/opencode/packages/opencode/src/`:
 - `index.ts:141` — `process.exit()` in finally block
 - `plugin/index.ts:255` — `void hook["event"]?.(...)` fire-and-forget dispatch
 - `session/status.ts:82` — `session.idle` event emission

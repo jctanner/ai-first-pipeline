@@ -447,8 +447,8 @@ cat /secrets/gcp/credentials.json
 
 ## References
 
-- Company-simulator Dockerfile: `deploy/repos/company-simulator/Dockerfile.agent`
-- Company-simulator CLAUDE.md: `deploy/repos/company-simulator/CLAUDE.md`
+- Company-simulator Dockerfile: `checkouts/company-simulator/Dockerfile.agent`
+- Company-simulator CLAUDE.md: `checkouts/company-simulator/CLAUDE.md`
 - Pipeline dashboard deployment: `deploy/k8s/20-pipeline-dashboard.yaml`
 - Secrets creation script: `deploy/scripts/06-create-secrets.sh`
 - Vertex AI docs: https://cloud.google.com/vertex-ai/docs

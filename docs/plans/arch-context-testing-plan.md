@@ -659,7 +659,7 @@ At runtime, arch-query requires `--base-dir` pointing to the architecture docs. 
 
 #### Architecture-Context Docs
 
-Cloned at runtime by the workflow's `setup_context` step (same sparse-checkout pattern as `deploy/repos/rfe-creator/scripts/fetch-architecture-context.sh`):
+Cloned at runtime by the workflow's `setup_context` step (same sparse-checkout pattern as `checkouts/rfe-creator/scripts/fetch-architecture-context.sh`):
 
 1. Sparse clone from `opendatahub-io/architecture-context` into `/app/.context/architecture-context/` (on the `pipeline-context` PVC)
 2. Sparse-checkout set to `architecture/$LATEST` and `architecture/rhoai.next`

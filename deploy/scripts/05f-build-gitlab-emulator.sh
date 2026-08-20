@@ -19,9 +19,9 @@ fi
 echo "==> Building gitlab-emulator image with ${CONTAINER_CMD}..."
 
 # Build gitlab-emulator if the repo exists
-if [ -d ${PROJECT_ROOT}/deploy/repos/gitlab-emulator ]; then
+if [ -d ${PROJECT_ROOT}/checkouts/gitlab-emulator ]; then
   echo "--- Building gitlab-emulator image for k3s ---"
-  cd ${PROJECT_ROOT}/deploy/repos/gitlab-emulator
+  cd ${PROJECT_ROOT}/checkouts/gitlab-emulator
 
   ${CONTAINER_CMD} build -t gitlab-emulator:latest .
   sudo k3s ctr images rm docker.io/library/gitlab-emulator:latest localhost/gitlab-emulator:latest 2>/dev/null || true
@@ -29,7 +29,7 @@ if [ -d ${PROJECT_ROOT}/deploy/repos/gitlab-emulator ]; then
   sudo k3s ctr images tag localhost/gitlab-emulator:latest docker.io/library/gitlab-emulator:latest 2>/dev/null || true
   echo "Successfully built and imported gitlab-emulator:latest"
 else
-  echo "ERROR: gitlab-emulator repo not found at ${PROJECT_ROOT}/deploy/repos/gitlab-emulator"
+  echo "ERROR: gitlab-emulator repo not found at ${PROJECT_ROOT}/checkouts/gitlab-emulator"
   exit 1
 fi
 

@@ -16,12 +16,12 @@ fi
 
 echo "==> Building markov image..."
 
-if [ ! -d ${PROJECT_ROOT}/deploy/repos/markov ]; then
-  echo "ERROR: markov repo not found at ${PROJECT_ROOT}/deploy/repos/markov"
+if [ ! -d ${PROJECT_ROOT}/checkouts/markov ]; then
+  echo "ERROR: markov repo not found at ${PROJECT_ROOT}/checkouts/markov"
   exit 1
 fi
 
-cd ${PROJECT_ROOT}/deploy/repos/markov
+cd ${PROJECT_ROOT}/checkouts/markov
 
 ${CONTAINER_CMD} build -t markov:latest .
 
