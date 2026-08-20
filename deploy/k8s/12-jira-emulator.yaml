@@ -35,6 +35,9 @@ metadata:
     app: jira-emulator
 spec:
   replicas: 1
+  strategy:
+    type: Recreate
+  revisionHistoryLimit: 3
   selector:
     matchLabels:
       app: jira-emulator

@@ -31,6 +31,7 @@ metadata:
     app: ingress-proxy
 spec:
   replicas: 2
+  revisionHistoryLimit: 3
   selector:
     matchLabels:
       app: ingress-proxy
