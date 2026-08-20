@@ -12,6 +12,17 @@ kubeconfig*
 .venv/
 __pycache__/
 *.pyc
+
+# Generated strat-pipeline demo data; logs and API captures may contain
+# credentials, issue content, or other environment-specific details.
+var/demos/strat-pipeline-replication/**/execution-logs/
+var/demos/strat-pipeline-replication/**/api-bodies/
+var/demos/strat-pipeline-replication/**/claude-api-bodies/
+
+# Local external checkouts and repository backups.
+checkouts
+deploy/repos.bak/
+deploy/repos.third-party/
 *.pyo
 *.egg-info/
 dist/

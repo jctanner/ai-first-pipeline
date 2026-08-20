@@ -1,0 +1,36 @@
+{
+  "version": 1,
+  "project": "redhat/rhel-ai/agentic-ci/strat-pipeline",
+  "commit": "975ccf30514449b6a42e4475815ddaad76850b2e",
+  "ci_lint": {
+    "valid": true,
+    "jobs": [
+      "batch-config",
+      "build-dashboard",
+      "reprocess-strat",
+      "single-rfe"
+    ],
+    "warnings": []
+  },
+  "scheduled_job_contract": {
+    "batch-jql": true,
+    "schedule_rule": true
+  },
+  "dashboard": {
+    "project_id": 4,
+    "ci_lint": true,
+    "pages_job": true,
+    "runtime_overrides": true
+  },
+  "pipeline_create": {
+    "id": 1883,
+    "status_at_creation": "pending",
+    "cleanup_status": "canceled",
+    "source": "api"
+  },
+  "default_and_override_check": {
+    "upstream_defaults": true,
+    "emulator_overrides": true,
+    "strat_creator_jira_support": true
+  }
+}

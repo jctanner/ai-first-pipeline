@@ -1,0 +1,13 @@
+{
+  "version": 1,
+  "sources": {
+    "strat-pipeline": {
+      "path": "deploy/repos.third-party/strat-pipeline",
+      "role": "private pipeline source",
+      "expected_remote": "git@gitlab.com:redhat/rhel-ai/agentic-ci/strat-pipeline",
+      "expected_branch": "main",
+      "baseline_commit": "14d81319af44973d592e4197b14b680684f35813",
+      "changes": "Commit local changes or export them as tracked patches before bootstrap"
+    }
+  }
+}

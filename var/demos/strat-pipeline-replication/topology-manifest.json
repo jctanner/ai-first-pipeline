@@ -1,0 +1,54 @@
+{
+  "version": 1,
+  "github": {
+    "base_url": "https://github.local",
+    "organization": "opendatahub-io",
+    "repositories": [
+      {
+        "path": "opendatahub-io/strat-creator",
+        "commit": "5761024bfdb869735e8b0636ee712569b18ef0b3",
+        "private": false
+      },
+      {
+        "path": "opendatahub-io/assess-strat",
+        "commit": "ae449845b2c8bde238ba7cd6ecd536b2c83f4a8b",
+        "private": false
+      }
+    ]
+  },
+  "gitlab": {
+    "base_url": "https://gitlab.local",
+    "groups": [
+      "redhat",
+      "redhat/rhel-ai",
+      "redhat/rhel-ai/agentic-ci"
+    ],
+    "projects": [
+      {
+        "path": "redhat/rhel-ai/agentic-ci/strat-pipeline",
+        "id": 2,
+        "default_branch": "main",
+        "visibility": "private",
+        "commit": "14d81319af44973d592e4197b14b680684f35813"
+      },
+      {
+        "path": "redhat/rhel-ai/agentic-ci/strat-pipeline-data",
+        "id": 3,
+        "default_branch": "main",
+        "visibility": "private"
+      },
+      {
+        "path": "redhat/rhel-ai/agentic-ci/strat-dashboard",
+        "id": 4,
+        "default_branch": "main",
+        "visibility": "private",
+        "commit": "0bb887f7766d10df26f25cae14c66422d6e546e4"
+      }
+    ]
+  },
+  "notes": [
+    "GitHub mirrors preserve the local main branch and tags.",
+    "GitLab data is initialized as an empty project; the dashboard is mirrored from the local source checkout.",
+    "No credentials are stored in this manifest."
+  ]
+}

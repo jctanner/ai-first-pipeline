@@ -1,0 +1,55 @@
+{
+  "version": 2,
+  "sources": {
+    "strat-creator": {
+      "source_commit": "5761024bfdb869735e8b0636ee712569b18ef0b3",
+      "adapted_commit": "1b7532ffc54b459cec342c5d8b121ee03a9fdb40",
+      "project": "opendatahub-io/strat-creator",
+      "transformations": [
+        "var/demos/strat-pipeline-replication/patches/0002-no-ssl-verify.py",
+        "var/demos/strat-pipeline-replication/patches/0004-jira-attachment-runtime-url.py",
+        "var/demos/strat-pipeline-replication/patches/0005-emulator-smoke-config.py"
+      ],
+      "files_changed": [
+        "scripts/jira_utils.py",
+        "config/engineering35-batches/generate_batches.py",
+        "scripts/fetch-architecture-context.sh",
+        "scripts/bootstrap-assess-strat.sh",
+        "eval/scripts/stage-assets.sh",
+        "config/emulator-smoke.yaml"
+      ]
+    },
+    "strat-pipeline": {
+      "source_commit": "14d81319af44973d592e4197b14b680684f35813",
+      "adapted_commit": "df65bb95d1e942e20bfdcc769e30398ec6e66f5b",
+      "project": "redhat/rhel-ai/agentic-ci/strat-pipeline",
+      "transformations": [
+        "var/demos/strat-pipeline-replication/patches/0001-local-emulator-runtime-endpoints.py",
+        "var/demos/strat-pipeline-replication/patches/0002-no-ssl-verify.py",
+        "var/demos/strat-pipeline-replication/patches/0006-no-work-pipeline-post.py",
+        "var/demos/strat-pipeline-replication/patches/0007-otel-api-bodies.py"
+      ],
+      "files_changed": [
+        ".gitlab-ci.yml",
+        "ci-scripts/clone-data-repo.sh",
+        "ci-scripts/push-results.py",
+        "ci-scripts/run-claude.sh",
+        "ci-scripts/pipeline-post.sh"
+      ]
+    },
+    "strat-dashboard": {
+      "source_commit": "0bb887f7766d10df26f25cae14c66422d6e546e4",
+      "adapted_commit": "f1ace7ac5fb0c786f5b410d6b830f24e0a64ae8d",
+      "project": "redhat/rhel-ai/agentic-ci/strat-dashboard",
+      "transformations": [
+        "var/demos/strat-pipeline-replication/patches/0003-dashboard-emulator-runtime.py"
+      ],
+      "files_changed": [
+        ".gitlab-ci.yml"
+      ]
+    }
+  },
+  "source_commit": "14d81319af44973d592e4197b14b680684f35813",
+  "adapted_commit": "df65bb95d1e942e20bfdcc769e30398ec6e66f5b",
+  "project": "redhat/rhel-ai/agentic-ci/strat-pipeline"
+}
