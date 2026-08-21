@@ -1,0 +1,27 @@
+# Local breadboard OpenShell configuration.
+#
+# This is intentionally a trusted-cluster profile for the first dashboard
+# integration. TLS and user authentication must be enabled before exposing
+# the gateway outside the cluster.
+
+image:
+  tag: "0.0.110"
+  pullPolicy: IfNotPresent
+
+supervisor:
+  image:
+    tag: "0.0.110"
+    pullPolicy: IfNotPresent
+  sideloadMethod: init-container
+
+server:
+  telemetryEnabled: false
+  # Use the pipeline namespace so sandbox pods can mount the pipeline PVCs.
+  # PVCs are namespace-scoped and cannot be mounted across namespaces.
+  sandboxNamespace: ai-pipeline
+  sandboxImage: docker.io/library/pipeline-agent:latest
+  sandboxImagePullPolicy: Never
+  workspaceStorageClass: local-path
+  disableTls: true
+  auth:
+    allowUnauthenticatedUsers: true

@@ -126,13 +126,18 @@ echo "Step 17/19: Deploying GitLab Runner..."
 bash "${SCRIPT_DIR}/15-deploy-gitlab-runner.sh"
 echo ""
 
-# Step 18: Deploy ingress proxy
-echo "Step 18/19: Deploying ingress proxy (Go reverse proxy)..."
+# Step 18: Deploy Agent Sandbox and OpenShell
+echo "Step 18/20: Deploying Agent Sandbox and OpenShell..."
+bash "${SCRIPT_DIR}/16-deploy-openshell.sh"
+echo ""
+
+# Step 19: Deploy ingress proxy
+echo "Step 19/20: Deploying ingress proxy (Go reverse proxy)..."
 bash "${SCRIPT_DIR}/09-deploy-ingress-proxy.sh"
 echo ""
 
-# Step 19: Wait for all deployments
-echo "Step 19/19: Waiting for all deployments to be ready..."
+# Step 20: Wait for all deployments
+echo "Step 20/20: Waiting for all deployments to be ready..."
 kubectl wait --for=condition=Available --timeout=300s \
   deployment/pipeline-dashboard -n ai-pipeline || true
 kubectl wait --for=condition=Available --timeout=300s \

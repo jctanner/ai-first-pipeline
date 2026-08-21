@@ -112,6 +112,7 @@ if (K8S_AVAILABLE) {
     const model = document.getElementById('model').value;
     const runner = document.getElementById('runner').value;
     const harness = document.getElementById('harness').value;
+    const execution = document.getElementById('execution').value;
     const statusDiv = document.getElementById('submit-status');
 
     if (!skill && !fqn && !prompt) {
@@ -152,11 +153,11 @@ if (K8S_AVAILABLE) {
 
       let body;
       if (prompt) {
-        body = { args };
+        body = { args, execution };
       } else if (fqn) {
-        body = { fqn, args };
+        body = { fqn, args, execution };
       } else {
-        body = { command: skill, args };
+        body = { command: skill, args, execution };
       }
       const response = await fetch('/api/jobs/submit', {
         method: 'POST',
@@ -173,6 +174,7 @@ if (K8S_AVAILABLE) {
         setPluginsVisible(false);
         document.getElementById('harness').value = 'claude-code';
         document.getElementById('harness').dispatchEvent(new Event('change'));
+        document.getElementById('execution').value = 'kubernetes';
         await refreshJobs();
         openJobModal(data.job_name);
       } else {
@@ -196,7 +198,7 @@ if (K8S_AVAILABLE) {
       const tbody = document.getElementById('jobs-tbody');
 
       if (jobs.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="9" style="text-align: center; color: #95a5a6;">No jobs found</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="10" style="text-align: center; color: #95a5a6;">No jobs found</td></tr>';
         return;
       }
 
@@ -214,6 +216,7 @@ if (K8S_AVAILABLE) {
             <td class="px-4 py-3">${job.model}</td>
             <td class="px-4 py-3">${runner}</td>
             <td class="px-4 py-3">${job.harness || 'claude-code'}</td>
+            <td class="px-4 py-3">${job.execution || 'kubernetes'}</td>
             <td class="px-4 py-3 ${statusClass}">${job.status}</td>
             <td class="px-4 py-3">${created}</td>
             <td class="px-4 py-3">${duration}</td>
@@ -259,6 +262,7 @@ if (K8S_AVAILABLE) {
       document.getElementById('modal-model').textContent = job.model || '-';
       document.getElementById('modal-runner').textContent = job.runner || 'cli';
       document.getElementById('modal-harness').textContent = job.harness || 'claude-code';
+      document.getElementById('modal-execution').textContent = job.execution || 'kubernetes';
       document.getElementById('modal-created').textContent = job.created ? new Date(job.created).toLocaleString() : '-';
       document.getElementById('modal-started').textContent = job.started ? new Date(job.started).toLocaleString() : '-';
 
@@ -347,6 +351,7 @@ if (K8S_AVAILABLE) {
         model: job.model,
         runner: job.runner || 'cli',
         harness: job.harness || 'claude-code',
+        execution: job.execution || 'kubernetes',
         extra_kwargs: job.extra_kwargs || '',
         extra_env: job.extra_env || {},
         force: !!job.force,
@@ -494,11 +499,11 @@ if (K8S_AVAILABLE) {
 
     let body;
     if (opts.prompt) {
-      body = { args };
+      body = { args, execution: opts.execution || 'kubernetes' };
     } else if (opts.fqn) {
-      body = { fqn: opts.fqn, args };
+      body = { fqn: opts.fqn, args, execution: opts.execution || 'kubernetes' };
     } else {
-      body = { command: opts.phase, args };
+      body = { command: opts.phase, args, execution: opts.execution || 'kubernetes' };
     }
 
     try {

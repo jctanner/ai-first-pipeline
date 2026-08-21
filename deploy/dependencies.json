@@ -1,0 +1,23 @@
+{
+  "schema_version": 1,
+  "dependencies": [
+    {
+      "name": "openshell",
+      "kind": "git-checkout",
+      "repository": "https://github.com/NVIDIA/openshell.git",
+      "ref": "b2ea81822bb5263679ed00ff0fbe8c08577abab5",
+      "checkout": "checkouts/openshell",
+      "chart": "deploy/helm/openshell",
+      "gateway_image_tag": "0.0.110",
+      "supervisor_image_tag": "0.0.110",
+      "notes": "The checkout's chart metadata is 0.0.0; release image tags are pinned separately."
+    },
+    {
+      "name": "agent-sandbox",
+      "kind": "kubernetes-manifest",
+      "repository": "https://github.com/kubernetes-sigs/agent-sandbox.git",
+      "ref": "v0.5.3",
+      "manifest": "https://github.com/kubernetes-sigs/agent-sandbox/releases/download/v0.5.3/sandbox.yaml"
+    }
+  ]
+}

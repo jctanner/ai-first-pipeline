@@ -34,6 +34,26 @@ except ImportError:
     def get_orchestrator():
         return None
 
+try:
+    from src.dashboard.openshell_orchestrator import (
+        OPEN_SHELL_AVAILABLE,
+        OpenShellOrchestrator,
+    )
+    _openshell_orchestrator = None
+
+    def get_openshell_orchestrator():
+        global _openshell_orchestrator
+        if _openshell_orchestrator is None:
+            _openshell_orchestrator = OpenShellOrchestrator()
+        return _openshell_orchestrator
+except ImportError:
+    OPEN_SHELL_AVAILABLE = False
+
+    def get_openshell_orchestrator():
+        return None
+
+EXECUTION_AVAILABLE = K8S_AVAILABLE or OPEN_SHELL_AVAILABLE
+
 # ---------------------------------------------------------------------------
 # In-memory pipeline state (single-process Flask dev server)
 # ---------------------------------------------------------------------------
@@ -542,7 +562,8 @@ def create_app() -> Flask:
     def jobs():
         from src.cli.skill_config import list_skills
         return render_template(
-            "jobs.html", k8s_available=K8S_AVAILABLE, skills=list_skills()
+            "jobs.html", k8s_available=EXECUTION_AVAILABLE,
+            openshell_available=OPEN_SHELL_AVAILABLE, skills=list_skills()
         )
 
     @app.route("/evals")
@@ -610,8 +631,8 @@ def create_app() -> Flask:
     @app.route("/api/mlflow/hard-clear", methods=["POST"])
     def api_mlflow_hard_clear():
         """Hard-delete all MLflow data via SQL exec into the MLflow pod."""
-        if not K8S_AVAILABLE:
-            return jsonify({"error": "K8s orchestration not available"}), 503
+        if not EXECUTION_AVAILABLE:
+            return jsonify({"error": "No pipeline execution backend is available"}), 503
 
         try:
             orchestrator = get_orchestrator()
@@ -822,8 +843,8 @@ def create_app() -> Flask:
           "status": "pending"
         }
         """
-        if not K8S_AVAILABLE:
-            return jsonify({"error": "K8s orchestration not available"}), 503
+        if not EXECUTION_AVAILABLE:
+            return jsonify({"error": "No pipeline execution backend is available"}), 503
 
         try:
             from src.cli.skill_config import parse_fqn
@@ -834,6 +855,13 @@ def create_app() -> Flask:
             args = data.get("args", {})
             if not isinstance(args, dict):
                 return jsonify({"error": "args must be an object"}), 400
+            execution = data.get("execution", args.pop("execution", "kubernetes"))
+            if execution not in ("kubernetes", "openshell"):
+                return jsonify({"error": "execution must be kubernetes or openshell"}), 400
+            if execution == "openshell" and not OPEN_SHELL_AVAILABLE:
+                return jsonify({"error": "OpenShell execution is not available"}), 503
+            if execution == "kubernetes" and not K8S_AVAILABLE:
+                return jsonify({"error": "Kubernetes execution is not available"}), 503
 
             try:
                 args["extra_env"] = _normalize_extra_env(args.get("extra_env"))
@@ -878,7 +906,7 @@ def create_app() -> Flask:
             else:
                 return jsonify({"error": "Missing required field: command, fqn, or prompt"}), 400
 
-            orchestrator = get_orchestrator()
+            orchestrator = get_openshell_orchestrator() if execution == "openshell" else get_orchestrator()
             job = orchestrator.submit_phase_job(
                 phase, issue_key, model, runner, args,
                 fqn=fqn or None,
@@ -886,7 +914,7 @@ def create_app() -> Flask:
             )
 
             return jsonify({
-                "job_name": job.metadata.name,
+                "job_name": job["name"] if execution == "openshell" else job.metadata.name,
                 "status": "pending"
             })
         except Exception as e:
@@ -911,17 +939,21 @@ def create_app() -> Flask:
           "duration": 45.2
         }, ...]
         """
-        if not K8S_AVAILABLE:
-            return jsonify({"error": "K8s orchestration not available"}), 503
+        if not EXECUTION_AVAILABLE:
+            return jsonify({"error": "No pipeline execution backend is available"}), 503
 
         try:
             phase = request.args.get("phase")
             status = request.args.get("status")
 
-            orchestrator = get_orchestrator()
-            jobs = orchestrator.list_jobs(phase=phase, status=status)
-
             results = []
+            if K8S_AVAILABLE:
+                orchestrator = get_orchestrator()
+                jobs = orchestrator.list_jobs(phase=phase, status=status)
+            else:
+                orchestrator = None
+                jobs = []
+
             for job in jobs:
                 job_status = orchestrator._get_job_status(job)
 
@@ -948,7 +980,19 @@ def create_app() -> Flask:
                     "api_dump": job.metadata.labels.get("api-dump", "true") == "true",
                     "extra_kwargs": (job.metadata.annotations or {}).get("extra_kwargs", ""),
                     "fqn": (job.metadata.annotations or {}).get("fqn", ""),
+                    "execution": "kubernetes",
                 })
+
+            if OPEN_SHELL_AVAILABLE:
+                openshell = get_openshell_orchestrator()
+                for job in openshell.list_jobs(phase=phase, status=status):
+                    started = datetime.fromisoformat(job["started"]) if job.get("started") else None
+                    completed = datetime.fromisoformat(job["completed"]) if job.get("completed") else None
+                    results.append({
+                        **job,
+                        "execution": "openshell",
+                        "duration": (completed - started).total_seconds() if started and completed else None,
+                    })
 
             return jsonify(results)
         except Exception as e:
@@ -957,12 +1001,20 @@ def create_app() -> Flask:
     @app.route("/api/jobs/<job_name>")
     def api_get_job_status(job_name):
         """Get detailed status of a specific job."""
-        if not K8S_AVAILABLE:
-            return jsonify({"error": "K8s orchestration not available"}), 503
+        if not EXECUTION_AVAILABLE:
+            return jsonify({"error": "No pipeline execution backend is available"}), 503
 
         try:
-            orchestrator = get_orchestrator()
-            status = orchestrator.get_job_status(job_name)
+            if job_name.startswith("bb-os-"):
+                if not OPEN_SHELL_AVAILABLE:
+                    return jsonify({"error": "OpenShell execution is not available"}), 503
+                status = get_openshell_orchestrator().get_job_status(job_name)
+                if "error" not in status:
+                    status["execution"] = "openshell"
+            else:
+                if not K8S_AVAILABLE:
+                    return jsonify({"error": "Kubernetes execution is not available"}), 503
+                status = get_orchestrator().get_job_status(job_name)
             return jsonify(status)
         except Exception as e:
             return jsonify({"error": str(e)}), 500
@@ -970,12 +1022,18 @@ def create_app() -> Flask:
     @app.route("/api/jobs/<job_name>/logs")
     def api_get_job_logs(job_name):
         """Get logs from a job's pod."""
-        if not K8S_AVAILABLE:
-            return jsonify({"error": "K8s orchestration not available"}), 503
+        if not EXECUTION_AVAILABLE:
+            return jsonify({"error": "No pipeline execution backend is available"}), 503
 
         try:
-            orchestrator = get_orchestrator()
-            logs = orchestrator.get_job_logs(job_name)
+            if job_name.startswith("bb-os-"):
+                if not OPEN_SHELL_AVAILABLE:
+                    return Response("OpenShell execution is not available", status=503)
+                logs = get_openshell_orchestrator().get_job_logs(job_name)
+            else:
+                if not K8S_AVAILABLE:
+                    return Response("Kubernetes execution is not available", status=503)
+                logs = get_orchestrator().get_job_logs(job_name)
 
             if logs is None:
                 return "No logs available yet", 404
@@ -987,12 +1045,18 @@ def create_app() -> Flask:
     @app.route("/api/jobs/<job_name>/stop", methods=["POST"])
     def api_stop_job(job_name):
         """Stop a running job by deleting it and its pods."""
-        if not K8S_AVAILABLE:
-            return jsonify({"error": "K8s orchestration not available"}), 503
+        if not EXECUTION_AVAILABLE:
+            return jsonify({"error": "No pipeline execution backend is available"}), 503
 
         try:
-            orchestrator = get_orchestrator()
-            stopped = orchestrator.stop_job(job_name)
+            if job_name.startswith("bb-os-"):
+                if not OPEN_SHELL_AVAILABLE:
+                    return jsonify({"error": "OpenShell execution is not available"}), 503
+                stopped = get_openshell_orchestrator().stop_job(job_name)
+            else:
+                if not K8S_AVAILABLE:
+                    return jsonify({"error": "Kubernetes execution is not available"}), 503
+                stopped = get_orchestrator().stop_job(job_name)
 
             if stopped:
                 return jsonify({"status": "stopped"})
@@ -1004,12 +1068,18 @@ def create_app() -> Flask:
     @app.route("/api/jobs/<job_name>", methods=["DELETE"])
     def api_delete_job(job_name):
         """Delete a job."""
-        if not K8S_AVAILABLE:
-            return jsonify({"error": "K8s orchestration not available"}), 503
+        if not EXECUTION_AVAILABLE:
+            return jsonify({"error": "No pipeline execution backend is available"}), 503
 
         try:
-            orchestrator = get_orchestrator()
-            deleted = orchestrator.delete_job(job_name)
+            if job_name.startswith("bb-os-"):
+                if not OPEN_SHELL_AVAILABLE:
+                    return jsonify({"error": "OpenShell execution is not available"}), 503
+                deleted = get_openshell_orchestrator().delete_job(job_name)
+            else:
+                if not K8S_AVAILABLE:
+                    return jsonify({"error": "Kubernetes execution is not available"}), 503
+                deleted = get_orchestrator().delete_job(job_name)
 
             if deleted:
                 return jsonify({"status": "deleted"})
@@ -1021,12 +1091,12 @@ def create_app() -> Flask:
     @app.route("/api/jobs/all", methods=["DELETE"])
     def api_delete_all_jobs():
         """Delete all pipeline jobs and their pods."""
-        if not K8S_AVAILABLE:
-            return jsonify({"error": "K8s orchestration not available"}), 503
+        if not EXECUTION_AVAILABLE:
+            return jsonify({"error": "No pipeline execution backend is available"}), 503
 
         try:
-            orchestrator = get_orchestrator()
-            jobs = orchestrator.list_jobs()
+            orchestrator = get_orchestrator() if K8S_AVAILABLE else None
+            jobs = orchestrator.list_jobs() if orchestrator else []
             deleted = 0
             errors = []
             for job in jobs:
@@ -1035,6 +1105,15 @@ def create_app() -> Flask:
                     deleted += 1
                 except Exception as e:
                     errors.append(f"{job.metadata.name}: {e}")
+
+            if OPEN_SHELL_AVAILABLE:
+                openshell = get_openshell_orchestrator()
+                for job in openshell.list_jobs():
+                    try:
+                        openshell.delete_job(job["name"])
+                        deleted += 1
+                    except Exception as e:
+                        errors.append(f"{job['name']}: {e}")
 
             return jsonify({"deleted": deleted, "errors": errors})
         except Exception as e:

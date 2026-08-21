@@ -336,9 +336,20 @@ $STRACE_CMD claude --model "$MODEL" --print --dangerously-skip-permissions \
   --include-hook-events --verbose "$PROMPT" 2>/tmp/claude-stderr.log > "$claude_fifo" &
 claude_pid=$!
 
+set +e
 python3 -u /app/scripts/stream-claude.py --claude-pid "$claude_pid" < "$claude_fifo"
+PARSER_EXIT_CODE=$?
+wait "$claude_pid"
+CLAUDE_EXIT_CODE=$?
+set -e
 
-EXIT_CODE=$?
+if [ "$PARSER_EXIT_CODE" -ne 0 ]; then
+  EXIT_CODE="$PARSER_EXIT_CODE"
+elif [ "$CLAUDE_EXIT_CODE" -eq 0 ] || [ "$CLAUDE_EXIT_CODE" -eq 143 ]; then
+  EXIT_CODE=0
+else
+  EXIT_CODE="$CLAUDE_EXIT_CODE"
+fi
 echo
 echo "Execution finished at: $(date)"
 echo "Exit code: $EXIT_CODE"

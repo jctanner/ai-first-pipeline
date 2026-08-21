@@ -514,13 +514,15 @@ The project includes a full K3s-based deployment stack for running the pipeline 
 ### Deployment
 
 ```bash
-# Full stack deployment (19 steps)
+# Full stack deployment (20 steps)
 make host-deploy-all
 
 # Or step by step
 make host-install-k3s
 make host-images          # Build all container images
 make host-deploy-all      # Apply k8s manifests, wait for readiness
+make host-clone-repos     # Clone core and pinned third-party checkouts
+make host-deploy-openshell # Deploy Agent Sandbox and OpenShell only
 ```
 
 ### Makefile Targets
@@ -582,15 +584,10 @@ ai-first-pipeline/
 │       └── static/js/       # Frontend JavaScript
 ├── deploy/
 │   ├── k8s/                 # Kubernetes manifests (namespace, certs, services, deployments)
-│   ├── scripts/             # Build and deployment automation (19-step deploy-all.sh)
+│   ├── dependencies.json    # Pinned third-party source/deployment dependencies
+│   ├── scripts/             # Build and deployment automation (20-step deploy-all.sh)
 │   ├── golang-reverse-proxy/  # Go reverse proxy for *.local TLS routing
-│   └── repos/               # Cloned emulator and service repos (gitignored)
-│       ├── github-emulator/ # GitHub API emulator
-│       ├── jira-emulator/   # Jira API emulator
-│       ├── gitlab-emulator/ # GitLab API/git/CI test surface
-│       ├── markov/          # Declarative workflow CLI/runner
-│       ├── markovd/         # Workflow API, React UI, and K8s orchestrator
-│       └── observatory/     # CI telemetry and claim-verification service
+│   └── golang-reverse-proxy/  # Go reverse proxy for *.local TLS routing
 ├── .claude/skills/          # Local agent skill definitions
 │   ├── bug-completeness/    # Score bug quality, classify type
 │   ├── bug-context-map/     # Map bug to architecture docs and repos

@@ -15,6 +15,11 @@ echo "==> Installing K3s on host..."
 echo "  User: ${CALLING_USER}"
 echo "  Home: ${CALLING_HOME}"
 
+echo "==> Installing deployment prerequisites..."
+export DEBIAN_FRONTEND=noninteractive
+apt-get update -qq
+apt-get install -y -qq ca-certificates curl git jq
+
 K3S_FLAGS="--disable traefik --write-kubeconfig-mode 644 --tls-san 127.0.0.1 --node-name ai-pipeline-k3s"
 
 if mountpoint -q /data 2>/dev/null; then

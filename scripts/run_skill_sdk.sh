@@ -3,10 +3,21 @@
 
 set -euo pipefail
 
+# OpenShell sandboxes provide a minimal PATH; prefer the pipeline virtualenv.
+export PATH="/app/.venv/bin:${PATH}"
+
 # Save full pod log as artifact
 LOG_DIR="/app/artifacts/jobs"
 mkdir -p "$LOG_DIR" 2>/dev/null || true
-exec > >(tee -a "${LOG_DIR}/${PIPELINE_JOB_NAME:-$(hostname)}.log") 2>&1
+LOG_FILE="${PIPELINE_LOG_FILE:-${LOG_DIR}/${PIPELINE_JOB_NAME:-$(hostname)}.log}"
+mkdir -p "$(dirname "$LOG_FILE")" 2>/dev/null || true
+exec > >(tee -a "$LOG_FILE") 2>&1
+
+PIPELINE_TMP_DIR="/app/tmp"
+if ! mkdir -p "$PIPELINE_TMP_DIR" 2>/dev/null; then
+  PIPELINE_TMP_DIR="/tmp/pipeline-tmp"
+  mkdir -p "$PIPELINE_TMP_DIR"
+fi
 
 # Parse arguments
 SKILL=""
@@ -94,10 +105,15 @@ if [ -n "$FQN" ]; then
   source "$SCRIPT_DIR/resolve_fqn.sh"
 fi
 
-# Register skill marketplaces
-echo "Registering skill marketplaces..."
-claude plugin marketplace add opendatahub-io/skills-registry || true
-claude plugin marketplace add /app/skills-registry || true
+# Register skill marketplaces unless the caller explicitly disabled plugin
+# discovery (for example, when running through an isolated OpenShell sandbox).
+if [ -n "${NO_PLUGIN_DIR:-}" ]; then
+  echo "Skipping default skill marketplaces (--no-plugin-dir)"
+else
+  echo "Registering skill marketplaces..."
+  claude plugin marketplace add opendatahub-io/skills-registry || true
+  claude plugin marketplace add /app/skills-registry || true
+fi
 
 # Discover and install plugins from pipeline-skills.yaml
 REGISTRIES=$(python3 -c "
@@ -127,7 +143,7 @@ for CACHE_ROOT in ~/.claude/plugins/cache/*/; do
       if [ -d "$VERSION_DIR" ]; then
         rm -rf "$VERSION_DIR/artifacts" "$VERSION_DIR/tmp" "$VERSION_DIR/.context"
         ln -s /app/artifacts "$VERSION_DIR/artifacts"
-        ln -s /app/tmp "$VERSION_DIR/tmp"
+        ln -s "$PIPELINE_TMP_DIR" "$VERSION_DIR/tmp"
         ln -s /app/.context "$VERSION_DIR/.context"
         echo "✓ Created symlinks for $PLUGIN_NAME/$(basename $VERSION_DIR)"
       fi
@@ -142,7 +158,7 @@ find ~/.claude/plugins/cache -name "SKILL.md" -exec sed -i '/^context: *fork/d' 
 echo
 
 # Create artifact and context directories if they don't exist
-mkdir -p /app/artifacts/rfe-tasks /app/artifacts/strat-tasks /app/tmp /app/.context
+mkdir -p /app/artifacts/rfe-tasks /app/artifacts/strat-tasks /app/.context
 
 # Resolve skill name from pipeline-skills.yaml (falls back to dash-to-dot conversion)
 # When --fqn was used, SKILL_NAME is already set by resolve_fqn.sh

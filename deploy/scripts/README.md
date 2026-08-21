@@ -13,6 +13,20 @@ sudo bash deploy-all.sh
 
 This runs all deployment steps in order.
 
+To populate the external source dependencies first, run from the repository
+root:
+
+```bash
+PROJECT_ROOT=/vagrant bash deploy/scripts/00-clone-component-repos.sh
+PROJECT_ROOT=/vagrant bash deploy/scripts/00-clone-third-party-dependencies.sh
+```
+
+The second script reads `deploy/dependencies.json` and places the pinned
+OpenShell checkout under `/vagrant/checkouts/openshell`.
+
+The OpenShell deploy script installs the pinned Helm binary automatically if
+Helm is not present.
+
 ## Individual Scripts
 
 Run these scripts in order for manual deployment:
@@ -25,6 +39,7 @@ Run these scripts in order for manual deployment:
 | `02-install-cert-manager.sh` | Install cert-manager for TLS certificates | K3s running |
 | `03-setup-certificates.sh` | Create internal CA and service certificates | cert-manager installed |
 | `04-extract-ca-cert.sh` | Extract CA certificate to ConfigMap | Certificates created |
+| `00-install-helm.sh` | Install the pinned Helm binary when needed | Root access and network |
 
 ### 2. Secrets and Configuration
 
@@ -37,6 +52,7 @@ Run these scripts in order for manual deployment:
 | Script | Description | Dependencies |
 |--------|-------------|--------------|
 | `00-clone-component-repos.sh` | Clone source repositories used by component image builds | Git and repository access |
+| `00-clone-third-party-dependencies.sh` | Clone pinned third-party deployment dependencies | Git, `jq`, and repository access |
 | `05-build-images.sh` | Build all container images | Docker installed |
 | `05a-build-github-emulator.sh` | Build GitHub emulator image only | GitHub emulator repo cloned |
 | `05b-build-jira-emulator.sh` | Build Jira emulator image only | Jira emulator repo cloned |
@@ -49,6 +65,7 @@ Run these scripts in order for manual deployment:
 | `08-deploy-jira-emulator.sh` | Deploy Jira emulator | Images built, ConfigMap applied |
 | `10-deploy-mlflow.sh` | Deploy MLflow tracking server | Storage provisioned |
 | `09-deploy-ingress-proxy.sh` | Deploy Go reverse proxy (ingress) | All services deployed |
+| `16-deploy-openshell.sh` | Deploy Agent Sandbox and the OpenShell gateway | OpenShell checkout, Helm, and K3s |
 
 ### 5. Utilities
 
@@ -83,6 +100,14 @@ The `deploy-all.sh` script runs the following steps:
 - `/vagrant/.env` - Environment variables with credentials
 - `/vagrant/checkouts/github-emulator/` - GitHub emulator source
 - `/vagrant/checkouts/jira-emulator/` - Jira emulator source
+- `/vagrant/deploy/dependencies.json` - Pinned third-party dependency metadata
+
+`deploy-all.sh` includes the Agent Sandbox/OpenShell deployment. The checked-in
+OpenShell values are intentionally for the trusted local K3s cluster: the
+gateway uses plaintext HTTP, accepts unauthenticated local requests, and
+launches the locally imported `pipeline-agent:latest` image with
+`imagePullPolicy: Never`. Replace this profile with TLS and explicit
+authentication before exposing OpenShell beyond the cluster.
 
 ### .env File Format
 

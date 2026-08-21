@@ -47,6 +47,7 @@ _total_cache_read = 0
 _total_cache_write = 0
 _last_emitted_total = 0
 _last_emitted_time = 0.0
+_result_exit_code = 0
 
 
 def emit(text):
@@ -295,6 +296,8 @@ while True:
         if result_text and last_block_type != "text":
             type_break("text")
             print(f"{CLAUDE_COLOR}\U0001f4ac Claude {result_text}{RESET}", flush=True)
+        if msg.get("is_error") or msg.get("subtype", "").startswith("error"):
+            _result_exit_code = 1
         break
 
     if msg_type != "stream_event":
@@ -378,6 +381,7 @@ while True:
 
     # Errors
     elif event_type == "error":
+        _result_exit_code = 1
         error = event.get("error", {})
         error_type = error.get("type", "unknown")
         error_msg = error.get("message", "")
@@ -388,3 +392,4 @@ while True:
         )
 
 print()
+sys.exit(_result_exit_code)

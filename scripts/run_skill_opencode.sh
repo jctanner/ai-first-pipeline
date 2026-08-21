@@ -2,6 +2,7 @@
 # K8s job wrapper - runs skills via OpenCode CLI
 
 set -euo pipefail
+export PATH="/app/.venv/bin:${PATH}"
 
 # Save full pod log as artifact
 LOG_DIR="/app/artifacts/jobs"
@@ -140,7 +141,12 @@ echo "Skill name: $SKILL_NAME"
 echo
 
 # Create artifact and context directories if they don't exist
-mkdir -p /app/artifacts/rfe-tasks /app/artifacts/strat-tasks /app/tmp /app/.context
+PIPELINE_TMP_DIR="/app/tmp"
+if ! mkdir -p "$PIPELINE_TMP_DIR" 2>/dev/null; then
+  PIPELINE_TMP_DIR="/tmp/pipeline-tmp"
+  mkdir -p "$PIPELINE_TMP_DIR"
+fi
+mkdir -p /app/artifacts/rfe-tasks /app/artifacts/strat-tasks /app/.context
 
 # Build the prompt — OpenCode uses plain text, not /skill slash commands
 # Read the SKILL.md content if available in the cloned repo or local skills

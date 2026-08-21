@@ -3,10 +3,22 @@
 
 set -euo pipefail
 
+# OpenShell sandboxes provide a minimal PATH; prefer the pipeline virtualenv
+# because the wrapper uses its installed Python dependencies.
+export PATH="/app/.venv/bin:${PATH}"
+
 # Save full pod log as artifact
 LOG_DIR="/app/artifacts/jobs"
 mkdir -p "$LOG_DIR" 2>/dev/null || true
-exec > >(tee -a "${LOG_DIR}/${PIPELINE_JOB_NAME:-$(hostname)}.log") 2>&1
+LOG_FILE="${PIPELINE_LOG_FILE:-${LOG_DIR}/${PIPELINE_JOB_NAME:-$(hostname)}.log}"
+mkdir -p "$(dirname "$LOG_FILE")" 2>/dev/null || true
+exec > >(tee -a "$LOG_FILE") 2>&1
+
+PIPELINE_TMP_DIR="/app/tmp"
+if ! mkdir -p "$PIPELINE_TMP_DIR" 2>/dev/null; then
+  PIPELINE_TMP_DIR="/tmp/pipeline-tmp"
+  mkdir -p "$PIPELINE_TMP_DIR"
+fi
 
 # Parse arguments
 SKILL=""
@@ -186,7 +198,7 @@ echo
 if [ -n "${MLFLOW_TRACKING_URI:-}" ]; then
   echo "Configuring MLflow tracing for Claude CLI..."
   # Use home directory so hooks are written to ~/.claude/settings.json (not ~/.claude/.claude/settings.json)
-  MLFLOW_AUTOLOG_ARGS=(-u "$MLFLOW_TRACKING_URI" -d /home/pipelineagent)
+  MLFLOW_AUTOLOG_ARGS=(-u "$MLFLOW_TRACKING_URI" -d "${MLFLOW_CLAUDE_HOME:-/home/pipelineagent}")
   if [ -n "${MLFLOW_EXPERIMENT_NAME:-}" ]; then
     MLFLOW_AUTOLOG_ARGS+=(-n "$MLFLOW_EXPERIMENT_NAME")
   fi
@@ -201,8 +213,12 @@ fi
 echo
 
 # Register skill marketplaces
-echo "Registering skill marketplaces..."
-claude plugin marketplace add opendatahub-io/skills-registry || true
+if [ -n "$NO_PLUGIN_DIR" ]; then
+  echo "Skipping default skill marketplace (--no-plugin-dir)"
+else
+  echo "Registering skill marketplaces..."
+  claude plugin marketplace add opendatahub-io/skills-registry || true
+fi
 
 # Register additional marketplaces from --registry args
 # Accepts FQN format: host/owner/repo@ref
@@ -489,7 +505,6 @@ mkdir -p \
   /app/artifacts/epic-reviews \
   /app/artifacts/decompose-runs \
   /app/artifacts/investigations \
-  /app/tmp \
   /app/.context
 
 # Claude Code subagents spawned by the Agent tool do not always inherit the
@@ -503,6 +518,7 @@ setup_shared_links() {
 
   for name in artifacts tmp .context; do
     local target="/app/$name"
+    [ "$name" = "tmp" ] && target="$PIPELINE_TMP_DIR"
     local link="$base/$name"
     if [ -L "$link" ]; then
       ln -sfn "$target" "$link"
@@ -630,10 +646,25 @@ $STRACE_CMD claude --model "$MODEL" --print --dangerously-skip-permissions \
   --include-hook-events --verbose "${PLUGIN_ARGS[@]}" "$PROMPT" 2>/tmp/claude-stderr.log > "$claude_fifo" &
 claude_pid=$!
 
-# Parse stream with dedicated parser (shows tool use, thinking, token counts)
+# Parse stream with dedicated parser (shows tool use, thinking, token counts).
+# Keep the parser and child statuses separate: the parser is not Claude's
+# parent, so it cannot report Claude's exit status by itself.
+set +e
 python3 -u /app/scripts/stream-claude.py --claude-pid "$claude_pid" < "$claude_fifo"
+PARSER_EXIT_CODE=$?
+wait "$claude_pid"
+CLAUDE_EXIT_CODE=$?
+set -e
 
-EXIT_CODE=$?
+# FULL RUN COMPLETE intentionally SIGTERMs Claude after the completion marker;
+# all other non-zero child/parser statuses are real failures.
+if [ "$PARSER_EXIT_CODE" -ne 0 ]; then
+  EXIT_CODE="$PARSER_EXIT_CODE"
+elif [ "$CLAUDE_EXIT_CODE" -eq 0 ] || [ "$CLAUDE_EXIT_CODE" -eq 143 ]; then
+  EXIT_CODE=0
+else
+  EXIT_CODE="$CLAUDE_EXIT_CODE"
+fi
 
 # Best-effort recovery for any local artifact directories created before the
 # fallback symlinks existed, or by tools that intentionally bypass symlinks.

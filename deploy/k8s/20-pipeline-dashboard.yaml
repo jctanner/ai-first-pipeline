@@ -95,8 +95,12 @@ spec:
               key: ATLASSIAN_MCP_URL
               optional: true
         # GCP credentials path
-        - name: GOOGLE_APPLICATION_CREDENTIALS
-          value: /home/pipelineagent/.config/gcloud/credentials.json
+            - name: GOOGLE_APPLICATION_CREDENTIALS
+              value: /home/pipelineagent/.config/gcloud/credentials.json
+            - name: OPENSHELL_GATEWAY_ENDPOINT
+              value: openshell.openshell-system.svc.cluster.local:8080
+            - name: OPENSHELL_WORKSPACE
+              value: breadboard
 
         volumeMounts:
         # Mount persistent data (new PVCs)
