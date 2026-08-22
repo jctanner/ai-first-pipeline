@@ -30,6 +30,32 @@ spec:
     name: internal-ca-issuer
     kind: Issuer
 ---
+# Certificate for the Fullsend operations dashboard
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: fullsend-dashboard-tls
+  namespace: ai-pipeline
+spec:
+  secretName: fullsend-dashboard-tls
+  duration: 8760h
+  renewBefore: 720h
+  commonName: fullsend-dashboard.ai-pipeline.svc.cluster.local
+  dnsNames:
+    - fullsend-dashboard
+    - fullsend-dashboard.ai-pipeline
+    - fullsend-dashboard.ai-pipeline.svc
+    - fullsend-dashboard.ai-pipeline.svc.cluster.local
+    - fullsend.local
+  ipAddresses:
+    - 192.168.56.10
+  privateKey:
+    algorithm: RSA
+    size: 2048
+  issuerRef:
+    name: internal-ca-issuer
+    kind: Issuer
+---
 # Certificate for Pipeline Dashboard
 apiVersion: cert-manager.io/v1
 kind: Certificate

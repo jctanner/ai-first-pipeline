@@ -1,0 +1,50 @@
+diff --git a/internal/cli/run.go b/internal/cli/run.go
+index 3e4f7eb0..182431cf 100644
+--- a/internal/cli/run.go
++++ b/internal/cli/run.go
+@@ -904 +904,12 @@ func runAgent(ctx context.Context, agentName, fullsendDir, outputBase, targetRep
+-	sandboxName := fmt.Sprintf("agent-%s-%d-%d", strings.ToLower(agentName), os.Getpid(), time.Now().Unix())
++	// OpenShell limits sandbox names to 19 characters. Keep the agent prefix
++	// readable, then append a short nanosecond-derived suffix for uniqueness.
++	// The previous PID+Unix-seconds form exceeded that limit for normal agent
++	// names such as "triage" and failed before a sandbox was created.
++	const maxSandboxNameLength = 19
++	suffix := fmt.Sprintf("%05x", uint64(time.Now().UnixNano())&0xfffff)
++	prefix := "agent-" + strings.ToLower(agentName)
++	maxPrefixLength := maxSandboxNameLength - 1 - len(suffix)
++	if len(prefix) > maxPrefixLength {
++		prefix = prefix[:maxPrefixLength]
++	}
++	sandboxName := prefix + "-" + suffix
+@@ -1231 +1242,4 @@ func runAgent(ctx context.Context, agentName, fullsendDir, outputBase, targetRep
+-	if err := bootstrapCommon(sandboxName, fullsendBinary, h); err != nil {
++	// The deterministic dummy runtime does not execute the security scanner or
++	// need a nested fullsend binary. Avoid its large binary transfer; this also
++	// keeps behaviour tests usable with minimal sandbox images.
++	if err := bootstrapCommon(sandboxName, fullsendBinary, h, rt.Name() != "dummy"); err != nil {
+@@ -1781 +1795 @@ func runAgent(ctx context.Context, agentName, fullsendDir, outputBase, targetRep
+-func bootstrapCommon(sandboxName, fullsendBinary string, h *harness.Harness) error {
++func bootstrapCommon(sandboxName, fullsendBinary string, h *harness.Harness, uploadBinary bool) error {
+@@ -1795 +1809,4 @@ func bootstrapCommon(sandboxName, fullsendBinary string, h *harness.Harness) err
+-	if localBinary == "" {
++	if !uploadBinary {
++		localBinary = ""
++	}
++	if uploadBinary && localBinary == "" {
+@@ -1821 +1838 @@ func bootstrapCommon(sandboxName, fullsendBinary string, h *harness.Harness) err
+-	if localBinary != "" {
++	if uploadBinary && localBinary != "" {
+diff --git a/internal/runtime/dummy.go b/internal/runtime/dummy.go
+index 87dcfca2..34fe3024 100644
+--- a/internal/runtime/dummy.go
++++ b/internal/runtime/dummy.go
+@@ -224 +224,4 @@ func executeBehaviourOp(rt DummyRuntime, sandboxName, repoDir string, op BehaviourOperation) error {
+-		cmd := fmt.Sprintf("curl -sf -- %s -o /dev/null", shellQuote(rawURL))
++		// Options must precede the "--" terminator. With "-o" after "--",
++		// curl treats it as a second URL and the sandbox proxy sees a request
++		// for the host "-o".
++		cmd := fmt.Sprintf("curl -sf -o /dev/null -- %s", shellQuote(rawURL))
+@@ -289 +289,2 @@ func executeBehaviourOp(rt DummyRuntime, sandboxName, repoDir string, op Behavio
+-		cmd := fmt.Sprintf("v=$(printenv -- %s); test -n \"$v\"", shellQuote(varName))
++		envFile := sandbox.SandboxWorkspace + "/.env"
++		cmd := fmt.Sprintf("if [ -f %s ]; then . %s; fi; v=$(printenv -- %s); test -n \"$v\"", shellQuote(envFile), shellQuote(envFile), shellQuote(varName))

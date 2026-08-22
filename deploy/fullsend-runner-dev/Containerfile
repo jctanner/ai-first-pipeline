@@ -1,0 +1,35 @@
+# Host-side Fullsend launcher for the local OpenShell development stack.
+# The binary creates and manages the sandbox; it is not the sandbox image.
+FROM github-emulator-actions-runner:k3s
+
+USER root
+RUN apt-get update -qq \
+    && apt-get install -y -qq --no-install-recommends openssh-client ca-certificates curl tar \
+    && rm -rf /var/lib/apt/lists/*
+
+RUN python3 -m pip install --no-cache-dir --break-system-packages "jsonschema==4.23.0"
+
+# Fullsend's upstream triage pre/post scripts use the GitHub CLI. Keep this
+# pinned and shared with the Fullsend runner image rather than relying on the
+# base GitHub emulator image to happen to contain it.
+ARG TARGETARCH=amd64
+ARG GH_VERSION=2.96.0
+ARG GH_SHA256_AMD64=83d5c2ccad5498f58bf6368acb1ab32588cf43ab3a4b1c301bf36328b1c8bd60
+ARG GH_SHA256_ARM64=06f86ec7103d41993b76cd78072f43595c34aaa56506d971d9860e67140bf909
+RUN case "${TARGETARCH}" in \
+      amd64) GH_SHA="${GH_SHA256_AMD64}" ;; \
+      arm64) GH_SHA="${GH_SHA256_ARM64}" ;; \
+      *) echo "unsupported TARGETARCH=${TARGETARCH}" >&2; exit 1 ;; \
+    esac \
+    && curl -fsSL "https://github.com/cli/cli/releases/download/v${GH_VERSION}/gh_${GH_VERSION}_linux_${TARGETARCH}.tar.gz" -o /tmp/gh.tar.gz \
+    && echo "${GH_SHA}  /tmp/gh.tar.gz" | sha256sum -c - \
+    && tar xzf /tmp/gh.tar.gz -C /tmp \
+    && install -m 0755 "/tmp/gh_${GH_VERSION}_linux_${TARGETARCH}/bin/gh" /usr/local/bin/gh \
+    && rm -rf /tmp/gh.tar.gz "/tmp/gh_${GH_VERSION}_linux_${TARGETARCH}"
+
+COPY fullsend /usr/local/bin/fullsend
+COPY openshell /usr/local/bin/openshell
+RUN chmod 0755 /usr/local/bin/fullsend /usr/local/bin/openshell
+
+ENV PATH="/usr/local/bin:${PATH}"
+ENV PYTHONPATH=""

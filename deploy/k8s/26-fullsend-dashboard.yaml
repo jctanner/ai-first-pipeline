@@ -1,0 +1,109 @@
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: fullsend-dashboard
+  namespace: ai-pipeline
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: fullsend-dashboard-readonly
+rules:
+  - apiGroups: [""]
+    resources: ["pods", "events"]
+    verbs: ["get", "list", "watch"]
+  - apiGroups: ["events.k8s.io"]
+    resources: ["events"]
+    verbs: ["get", "list", "watch"]
+  - apiGroups: ["batch"]
+    resources: ["jobs"]
+    verbs: ["get", "list", "watch"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: fullsend-dashboard-readonly
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: fullsend-dashboard-readonly
+subjects:
+  - kind: ServiceAccount
+    name: fullsend-dashboard
+    namespace: ai-pipeline
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: fullsend-dashboard
+  namespace: ai-pipeline
+  labels:
+    app: fullsend-dashboard
+spec:
+  selector:
+    app: fullsend-dashboard
+  ports:
+    - name: http
+      port: 5000
+      targetPort: 5000
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: fullsend-dashboard
+  namespace: ai-pipeline
+  labels:
+    app: fullsend-dashboard
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: fullsend-dashboard
+  template:
+    metadata:
+      labels:
+        app: fullsend-dashboard
+    spec:
+      serviceAccountName: fullsend-dashboard
+      containers:
+        - name: dashboard
+          image: fullsend-dashboard:latest
+          imagePullPolicy: Never
+          ports:
+            - name: http
+              containerPort: 5000
+          env:
+            - name: GITHUB_API_URL
+              value: https://github-emulator.ai-pipeline.svc.cluster.local/api/v3
+            - name: GITHUB_REPOS
+              value: fullsend-dev/triage-target
+            - name: GITHUB_UI_URL
+              value: https://github.local
+            - name: NO_SSL_VERIFY
+              value: "1"
+            - name: GITHUB_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: github-token
+                  key: token
+                  optional: true
+          readinessProbe:
+            httpGet:
+              path: /healthz
+              port: 5000
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: 5000
+            initialDelaySeconds: 15
+            periodSeconds: 20
+          resources:
+            requests:
+              cpu: 50m
+              memory: 96Mi
+            limits:
+              cpu: 300m
+              memory: 256Mi

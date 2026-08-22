@@ -1,0 +1,113 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: github-actions-runner
+  namespace: ai-pipeline
+  labels:
+    app: github-actions-runner
+    breadboard.dev/role: fullsend
+spec:
+  replicas: 1
+  revisionHistoryLimit: 2
+  selector:
+    matchLabels:
+      app: github-actions-runner
+  template:
+    metadata:
+      labels:
+        app: github-actions-runner
+        breadboard.dev/role: fullsend
+    spec:
+      terminationGracePeriodSeconds: 30
+      containers:
+        - name: runner
+          image: fullsend-runner-dev:k3s
+          imagePullPolicy: Never
+          command: ["/bin/sh", "-ec"]
+          args:
+            - |
+              cp /etc/breadboard-ca/ca.crt /usr/local/share/ca-certificates/breadboard-internal-ca.crt
+              update-ca-certificates
+              exec python /app/runner.py
+          env:
+            - name: GITHUB_EMULATOR_URL
+              value: https://github.local
+            - name: GITHUB_EMULATOR_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: github-actions-runner-credentials
+                  key: token
+            - name: RUNNER_REPO
+              value: fullsend-dev/triage-target
+            - name: RUNNER_NAME
+              value: fullsend-dev-runner
+            - name: RUNNER_LABELS
+              value: self-hosted,linux,fullsend
+            - name: RUNNER_WORKDIR
+              value: /runner-work
+            - name: GIT_SSL_CAINFO
+              value: /etc/ssl/certs/ca-certificates.crt
+            - name: SSL_CERT_FILE
+              value: /etc/ssl/certs/ca-certificates.crt
+            - name: FULLSEND_MINT_URL
+              value: http://fullsend-mint-dev.ai-pipeline.svc.cluster.local:8080
+            - name: FULLSEND_DEV_OIDC_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: fullsend-mint-dev-credentials
+                  key: oidc-token
+            - name: ACTIONS_ID_TOKEN_REQUEST_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: fullsend-mint-dev-credentials
+                  key: oidc-token
+            - name: CLAUDE_CODE_USE_VERTEX
+              valueFrom:
+                secretKeyRef:
+                  name: pipeline-secrets
+                  key: CLAUDE_CODE_USE_VERTEX
+                  optional: true
+            - name: CLOUD_ML_REGION
+              valueFrom:
+                secretKeyRef:
+                  name: pipeline-secrets
+                  key: CLOUD_ML_REGION
+                  optional: true
+            - name: ANTHROPIC_VERTEX_PROJECT_ID
+              valueFrom:
+                secretKeyRef:
+                  name: pipeline-secrets
+                  key: ANTHROPIC_VERTEX_PROJECT_ID
+                  optional: true
+            - name: GOOGLE_APPLICATION_CREDENTIALS
+              value: /var/run/secrets/gcp/credentials.json
+            - name: OPENSHELL_GATEWAY_ENDPOINT
+              value: http://openshell.openshell-system.svc.cluster.local:8080
+            - name: OPENSHELL_GATEWAY_NAME
+              value: openshell
+          volumeMounts:
+            - name: runner-work
+              mountPath: /runner-work
+            - name: breadboard-ca
+              mountPath: /etc/breadboard-ca
+              readOnly: true
+            - name: gcp-credentials
+              mountPath: /var/run/secrets/gcp
+              readOnly: true
+          resources:
+            requests:
+              cpu: 100m
+              memory: 128Mi
+            limits:
+              cpu: 1000m
+              memory: 1Gi
+      volumes:
+        - name: runner-work
+          emptyDir: {}
+        - name: breadboard-ca
+          configMap:
+            name: internal-ca-cert
+        - name: gcp-credentials
+          secret:
+            secretName: gcp-credentials
+            optional: true

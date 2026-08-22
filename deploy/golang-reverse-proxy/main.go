@@ -44,6 +44,14 @@ var routes = []Route{
 		Backend: "http://pipeline-dashboard.ai-pipeline.svc.cluster.local:5000",
 	},
 	{
+		Host:    "fullsend-dashboard.ai-pipeline.svc.cluster.local",
+		Backend: "http://fullsend-dashboard.ai-pipeline.svc.cluster.local:5000",
+	},
+	{
+		Host:    "fullsend.local",
+		Backend: "http://fullsend-dashboard.ai-pipeline.svc.cluster.local:5000",
+	},
+	{
 		Host:    "mlflow.ai-pipeline.svc.cluster.local",
 		Backend: "http://mlflow.ai-pipeline.svc.cluster.local:5000",
 	},
@@ -78,10 +86,10 @@ var routes = []Route{
 }
 
 var (
-	proxyCache   map[string]*httputil.ReverseProxy
-	hostToBackend map[string]string
+	proxyCache      map[string]*httputil.ReverseProxy
+	hostToBackend   map[string]string
 	sharedTransport *http.Transport
-	initOnce     sync.Once
+	initOnce        sync.Once
 )
 
 func initProxies() {

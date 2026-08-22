@@ -1,0 +1,178 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Fullsend Operations</title>
+  <style>
+    :root {
+      color-scheme: dark;
+      --bg:#0d1117;
+      --panel:#161b22;
+      --panel-hover:#1c2128;
+      --line:#30363d;
+      --muted:#8b949e;
+      --ok:#3fb950;
+      --warn:#d29922;
+      --bad:#f85149;
+      --blue:#58a6ff;
+    }
+    * { box-sizing:border-box; }
+    body { margin:0; background:var(--bg); color:#e6edf3; font:14px system-ui,sans-serif; }
+    .app-shell { display:flex; min-height:100vh; }
+    aside { width:250px; flex:0 0 250px; padding:22px 14px; border-right:1px solid var(--line); background:#0b0f14; }
+    .brand { padding:0 10px 22px; border-bottom:1px solid var(--line); }
+    .brand h1 { margin:0; font-size:21px; letter-spacing:-.02em; }
+    .brand p { margin:6px 0 0; color:var(--muted); font-size:12px; line-height:1.45; }
+    nav { display:grid; gap:5px; padding-top:18px; }
+    .nav-item { display:flex; align-items:center; gap:10px; width:100%; padding:10px 11px; border:1px solid transparent; border-radius:7px; color:#c9d1d9; background:transparent; font:inherit; text-align:left; cursor:pointer; }
+    .nav-item:hover { background:var(--panel-hover); color:#fff; }
+    .nav-item.active { color:#fff; background:#1f6feb26; border-color:#1f6feb66; }
+    .nav-icon { width:18px; color:var(--muted); text-align:center; font-size:15px; }
+    .nav-item.active .nav-icon { color:var(--blue); }
+    .nav-label { flex:1; }
+    .nav-count { min-width:22px; padding:1px 6px; border-radius:10px; color:var(--muted); background:#21262d; font-size:11px; text-align:center; }
+    .nav-item.active .nav-count { color:#c9e1ff; background:#1f6feb55; }
+    .sidebar-footer { margin:28px 10px 0; color:var(--muted); font-size:11px; line-height:1.5; }
+    main { flex:1; min-width:0; padding:28px 32px 42px; }
+    .topbar { display:flex; align-items:flex-start; justify-content:space-between; gap:20px; max-width:1500px; margin:0 auto 22px; }
+    .topbar h2 { margin:0; font-size:24px; letter-spacing:-.02em; }
+    .topbar p { margin:6px 0 0; color:var(--muted); }
+    #updated { color:var(--muted); font-size:12px; white-space:nowrap; }
+    .error { max-width:1500px; margin:0 auto 18px; border:1px solid var(--bad); color:#ffb4ad; padding:10px; border-radius:6px; white-space:pre-wrap; }
+    .view { display:none; max-width:1500px; margin:0 auto; }
+    .view.active { display:block; }
+    .panel { background:var(--panel); border:1px solid var(--line); border-radius:8px; padding:18px; overflow:auto; }
+    .panel h3 { margin:0 0 14px; font-size:17px; }
+    table { width:100%; border-collapse:collapse; }
+    th,td { text-align:left; padding:9px 8px; border-bottom:1px solid var(--line); vertical-align:top; }
+    th { color:var(--muted); font-size:12px; text-transform:uppercase; }
+    tr:last-child td { border-bottom:0; }
+    .status { font-weight:600; }
+    .success,.completed,.running { color:var(--ok); }
+    .failure,.failed { color:var(--bad); }
+    .queued,.pending,.waiting { color:var(--warn); }
+    .link { color:var(--blue); text-decoration:none; }
+    .link:hover { text-decoration:underline; }
+    .event { display:grid; grid-template-columns:150px 170px 1fr; gap:12px; padding:10px 0; border-bottom:1px solid var(--line); }
+    .event:last-child { border-bottom:0; }
+    .muted { color:var(--muted); }
+    .empty { color:var(--muted); padding:14px 0; }
+    .refresh { border:1px solid var(--line); border-radius:6px; color:#c9d1d9; background:var(--panel); padding:7px 10px; cursor:pointer; }
+    .refresh:hover { background:var(--panel-hover); color:#fff; }
+    @media (max-width:800px) {
+      .app-shell { display:block; }
+      aside { width:auto; padding:14px; border-right:0; border-bottom:1px solid var(--line); }
+      .brand { display:flex; align-items:center; justify-content:space-between; gap:12px; padding:0 4px 12px; }
+      .brand p { margin:0; text-align:right; }
+      nav { display:flex; overflow-x:auto; padding-top:12px; }
+      .nav-item { min-width:max-content; width:auto; }
+      .sidebar-footer { display:none; }
+      main { padding:20px 14px 30px; }
+      .topbar { margin-bottom:18px; }
+      .event { grid-template-columns:1fr; gap:3px; }
+    }
+  </style>
+</head>
+<body>
+  <div class="app-shell">
+    <aside>
+      <div class="brand">
+        <div><h1>Fullsend Operations</h1><p>Development stack observability</p></div>
+      </div>
+      <nav aria-label="Fullsend sections">
+        <button class="nav-item active" data-view="agents" type="button">
+          <span class="nav-icon" aria-hidden="true">●</span><span class="nav-label">Running agents</span><span class="nav-count" id="agent-count">–</span>
+        </button>
+        <button class="nav-item" data-view="actions" type="button">
+          <span class="nav-icon" aria-hidden="true">↻</span><span class="nav-label">Actions runs &amp; jobs</span><span class="nav-count" id="active-job-count">–</span>
+        </button>
+        <button class="nav-item" data-view="k8s-jobs" type="button">
+          <span class="nav-icon" aria-hidden="true">□</span><span class="nav-label">Kubernetes jobs</span><span class="nav-count" id="k8s-job-count">–</span>
+        </button>
+        <button class="nav-item" data-view="events" type="button">
+          <span class="nav-icon" aria-hidden="true">≡</span><span class="nav-label">Recent events</span><span class="nav-count" id="event-count">–</span>
+        </button>
+      </nav>
+      <div class="sidebar-footer">Read-only view of GitHub Actions and Kubernetes state. Data refreshes every five seconds.</div>
+    </aside>
+    <main>
+      <div class="topbar">
+        <div><h2 id="view-title">Running agents</h2><p id="view-description">Pods currently representing Fullsend or OpenShell agent activity.</p></div>
+        <div><div id="updated">Loading…</div><button class="refresh" id="refresh" type="button">Refresh</button></div>
+      </div>
+      <div id="errors"></div>
+
+      <section class="view active" id="view-agents">
+        <div class="panel"><h3>Running agents</h3><div id="agents"></div></div>
+      </section>
+      <section class="view" id="view-actions">
+        <div class="panel"><h3>GitHub Actions runs and jobs</h3><div id="runs"></div></div>
+      </section>
+      <section class="view" id="view-k8s-jobs">
+        <div class="panel"><h3>Fullsend Kubernetes jobs</h3><div id="k8s-jobs"></div></div>
+      </section>
+      <section class="view" id="view-events">
+        <div class="panel"><h3>Recent events</h3><div id="events"></div></div>
+      </section>
+    </main>
+  </div>
+  <script>
+    const esc = value => String(value ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+    const cls = value => String(value ?? '').toLowerCase().replace(/[^a-z0-9_-]/g, '');
+    const empty = text => `<div class="empty">${esc(text)}</div>`;
+    const views = {
+      agents: { title:'Running agents', description:'Pods currently representing Fullsend or OpenShell agent activity.' },
+      actions: { title:'Actions runs & jobs', description:'GitHub Actions workflow runs and their individual jobs.' },
+      'k8s-jobs': { title:'Kubernetes jobs', description:'Kubernetes Jobs observed in the Fullsend namespace.' },
+      events: { title:'Recent events', description:'The latest GitHub Actions and Kubernetes events collected by Fullsend.' }
+    };
+
+    function setView(name, updateHash = true) {
+      if (!views[name]) name = 'agents';
+      document.querySelectorAll('.nav-item').forEach(button => {
+        const active = button.dataset.view === name;
+        button.classList.toggle('active', active);
+        button.setAttribute('aria-current', active ? 'page' : 'false');
+      });
+      document.querySelectorAll('.view').forEach(view => view.classList.toggle('active', view.id === `view-${name}`));
+      document.querySelector('#view-title').textContent = views[name].title;
+      document.querySelector('#view-description').textContent = views[name].description;
+      if (updateHash && location.hash !== `#${name}`) history.replaceState(null, '', `#${name}`);
+    }
+
+    document.querySelectorAll('.nav-item').forEach(button => button.addEventListener('click', () => setView(button.dataset.view)));
+    window.addEventListener('hashchange', () => setView(location.hash.slice(1), false));
+    setView(location.hash.slice(1) || 'agents', false);
+
+    function render(data) {
+      const runs = data.github.repos.flatMap(repo => repo.runs.map(run => ({...run, repo:repo.name})));
+      const ghJobs = runs.flatMap(run => run.jobs.map(job => ({...job, run}))).sort((a,b) => (b.started_at||'').localeCompare(a.started_at||''));
+      const active = ghJobs.filter(job => job.status !== 'completed');
+      document.querySelector('#agent-count').textContent = data.agents.length;
+      document.querySelector('#active-job-count').textContent = active.length;
+      document.querySelector('#k8s-job-count').textContent = data.jobs.length;
+      document.querySelector('#event-count').textContent = data.events.length;
+      document.querySelector('#updated').textContent = `Updated ${new Date(data.collected_at).toLocaleTimeString()}`;
+      const errors = [...(data.sources.github.errors||[]), ...(data.sources.kubernetes.errors||[])];
+      document.querySelector('#errors').innerHTML = errors.length ? `<div class="error">${errors.map(esc).join('<br>')}</div>` : '';
+      document.querySelector('#agents').innerHTML = data.agents.length ? `<table><tr><th>Name</th><th>Namespace</th><th>Phase</th><th>Containers</th></tr>${data.agents.map(p => `<tr><td><strong>${esc(p.name)}</strong></td><td>${esc(p.namespace)}</td><td class="status ${cls(p.phase)}">${esc(p.phase)}</td><td>${p.containers.map(c => `${esc(c.name)}: ${esc(c.state)}${c.ready?' ✓':''}`).join('<br>')}</td></tr>`).join('')}</table>` : empty('No Fullsend/OpenShell agent pods are currently visible.');
+      document.querySelector('#runs').innerHTML = runs.length ? `<table><tr><th>Run</th><th>Repo / branch</th><th>Status</th><th>Jobs</th></tr>${runs.map(r => `<tr><td><a class="link" href="${esc(r.ui_url)}">${esc(r.name)}</a><br><span class="muted">#${esc(r.id)} · ${esc(r.event)}</span></td><td>${esc(r.repo)}<br>${esc(r.branch)}</td><td class="status ${cls(r.conclusion||r.status)}">${esc(r.status)} / ${esc(r.conclusion||'active')}</td><td>${r.jobs.map(j => `<div><a class="link status ${cls(j.conclusion||j.status)}" href="${esc(j.ui_url)}">${esc(j.name)}</a> — ${esc(j.status)}${j.runner_name?` <span class="muted">(${esc(j.runner_name)})</span>`:''}</div>`).join('')||'–'}</td></tr>`).join('')}</table>` : empty('No GitHub Actions runs found.');
+      document.querySelector('#k8s-jobs').innerHTML = data.jobs.length ? `<table><tr><th>Name</th><th>Status</th><th>Created</th><th>Result</th></tr>${data.jobs.map(j => `<tr><td>${esc(j.name)}</td><td class="status ${cls(j.status)}">${esc(j.status)}</td><td>${esc(j.created_at)}</td><td>${esc(j.succeeded)} succeeded / ${esc(j.failed)} failed</td></tr>`).join('')}</table>` : empty('No Fullsend Kubernetes jobs found.');
+      document.querySelector('#events').innerHTML = data.events.length ? data.events.map(e => `<div class="event"><span class="muted">${esc(e.time)}</span><strong>${esc(e.title)}</strong><span>${esc(e.detail)}${e.repo?` <span class="muted">(${esc(e.repo)} #${esc(e.run_id)})</span>`:''}</span></div>`).join('') : empty('No recent events found.');
+    }
+    async function refresh() {
+      try {
+        const response = await fetch('/api/state', {cache:'no-store'});
+        if (!response.ok) throw new Error(`HTTP ${response.status}`);
+        render(await response.json());
+      } catch (error) {
+        document.querySelector('#errors').innerHTML = `<div class="error">Dashboard refresh failed: ${esc(error)}</div>`;
+      }
+    }
+    document.querySelector('#refresh').addEventListener('click', refresh);
+    refresh();
+    setInterval(refresh, 5000);
+  </script>
+</body>
+</html>

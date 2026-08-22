@@ -78,6 +78,10 @@ spec:
           value: "8000"
         - name: GITHUB_EMULATOR_HOST
           value: "0.0.0.0"
+        - name: GITHUB_EMULATOR_BASE_URL
+          value: https://github.local
+        - name: GITHUB_EMULATOR_OIDC_ISSUER
+          value: https://github.local
         # TLS configuration
         - name: TLS_CERT_FILE
           value: /etc/tls/tls.crt

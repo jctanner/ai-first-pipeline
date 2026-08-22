@@ -67,6 +67,10 @@ echo ""
 # Step 6: Build images
 echo "Step 6/19: Building container images..."
 bash "${SCRIPT_DIR}/05-build-images.sh"
+bash "${SCRIPT_DIR}/05g-build-github-actions-runner.sh"
+bash "${SCRIPT_DIR}/05h-build-fullsend-mint-dev.sh"
+bash "${SCRIPT_DIR}/05i-build-fullsend.sh"
+bash "${SCRIPT_DIR}/05j-build-fullsend-dashboard.sh"
 echo ""
 
 # Step 7: Deploy storage
@@ -99,6 +103,7 @@ echo ""
 # Step 12: Deploy pipeline dashboard
 echo "Step 12/19: Deploying pipeline dashboard..."
 kubectl apply -f ${PROJECT_ROOT}/deploy/k8s/20-pipeline-dashboard.yaml
+bash "${SCRIPT_DIR}/23-deploy-fullsend-dashboard.sh"
 echo ""
 
 # Step 13: Deploy MLflow
@@ -136,6 +141,13 @@ echo "Step 19/20: Deploying ingress proxy (Go reverse proxy)..."
 bash "${SCRIPT_DIR}/09-deploy-ingress-proxy.sh"
 echo ""
 
+# The GitHub Actions runner depends on the mint secret and ingress proxy.
+echo "Step 20/22: Bootstrapping Fullsend mint, in-cluster DNS, and GitHub Actions runner..."
+bash "${SCRIPT_DIR}/18-deploy-fullsend-mint-dev.sh"
+bash "${SCRIPT_DIR}/17-deploy-github-actions-runner.sh"
+bash "${SCRIPT_DIR}/22-seed-fullsend-m8.sh"
+echo ""
+
 # Step 20: Wait for all deployments
 echo "Step 20/20: Waiting for all deployments to be ready..."
 kubectl wait --for=condition=Available --timeout=300s \
@@ -158,6 +170,8 @@ kubectl wait --for=condition=Available --timeout=300s \
   deployment/markovd -n ai-pipeline || true
 kubectl wait --for=condition=Available --timeout=300s \
   deployment/markovd-postgres -n ai-pipeline || true
+kubectl wait --for=condition=Available --timeout=300s \
+  deployment/github-actions-runner -n ai-pipeline || true
 echo ""
 
 # Run validations
@@ -192,6 +206,10 @@ echo ""
 echo "Pipeline Dashboard:"
 echo "  - http://${INGRESS_IP} -H 'Host: dashboard.local'"
 echo "  - http://localhost:5000 (Vagrantfile port forward)"
+echo ""
+
+echo "Fullsend Operations Dashboard:"
+echo "  - https://${INGRESS_IP} -H 'Host: fullsend.local'"
 echo ""
 
 echo "GitHub Emulator:"

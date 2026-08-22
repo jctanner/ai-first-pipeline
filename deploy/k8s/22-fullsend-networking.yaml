@@ -1,0 +1,14 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: coredns-custom
+  namespace: kube-system
+data:
+  fullsend-local.override: |
+    rewrite stop name exact github.local ingress-proxy.ai-pipeline.svc.cluster.local answer auto
+    rewrite stop name exact gitlab.local ingress-proxy.ai-pipeline.svc.cluster.local answer auto
+    rewrite stop name exact jira.local ingress-proxy.ai-pipeline.svc.cluster.local answer auto
+    rewrite stop name exact dashboard.local ingress-proxy.ai-pipeline.svc.cluster.local answer auto
+    rewrite stop name exact observatory.local ingress-proxy.ai-pipeline.svc.cluster.local answer auto
+    rewrite stop name exact mlflow.local ingress-proxy.ai-pipeline.svc.cluster.local answer auto
+    rewrite stop name exact markovd.local ingress-proxy.ai-pipeline.svc.cluster.local answer auto

@@ -269,7 +269,7 @@ For easier access from your host machine:
 
 ```bash
 # Get the VM IP (192.168.56.10)
-echo "192.168.56.10 dashboard.local github.local" | sudo tee -a /etc/hosts
+echo "192.168.56.10 dashboard.local fullsend.local github.local" | sudo tee -a /etc/hosts
 ```
 
 Then access via:

@@ -303,6 +303,29 @@ class OpenShellOrchestrator:
         }
         path.write_text(json.dumps(public, indent=2) + "\n")
 
+    def _delete_sandbox(self, client: Any, name: str) -> bool:
+        """Delete a sandbox and wait until its backing pod is gone.
+
+        OpenShell's delete RPC acknowledges the request before the compute
+        driver has necessarily removed the Kubernetes resources. Waiting here
+        keeps a completed dashboard job from leaving a terminating sandbox
+        (and pod) behind. A NOT_FOUND response is treated as successful
+        cleanup because the desired end state has already been reached.
+        """
+        try:
+            deleted = client.delete(name, workspace=self.WORKSPACE)
+        except grpc.RpcError as exc:
+            if exc.code() == grpc.StatusCode.NOT_FOUND:
+                return False
+            raise
+        if deleted:
+            client.wait_deleted(
+                name,
+                workspace=self.WORKSPACE,
+                timeout_seconds=60.0,
+            )
+        return bool(deleted)
+
     def submit_phase_job(
         self,
         phase: str,
@@ -368,8 +391,14 @@ class OpenShellOrchestrator:
             metadata["status"] = "running"
             metadata["started"] = self._now()
             self._write_metadata(metadata)
-        client = SandboxClient(self.ENDPOINT, tls=None, timeout=30.0)
+        client = None
+        # Keep the requested name even before create() returns. If the create
+        # RPC times out after the gateway accepted it, the deterministic name
+        # still lets the finally block remove the partially-created sandbox.
+        sandbox_name = name
+        cleanup_error: str | None = None
         try:
+            client = SandboxClient(self.ENDPOINT, tls=None, timeout=30.0)
             workspace_client = WorkspaceClient.from_sandbox_client(client)
             try:
                 workspace_client.get(self.WORKSPACE)
@@ -389,8 +418,10 @@ class OpenShellOrchestrator:
                 name=name,
                 labels=labels,
             )
+            sandbox_name = getattr(sandbox, "name", None) or name
             with self._lock:
                 self._jobs[name]["sandbox_id"] = sandbox.id
+                self._jobs[name]["sandbox_name"] = sandbox_name
                 self._write_metadata(self._jobs[name])
             client.wait_ready(name, workspace=self.WORKSPACE, timeout_seconds=300)
 
@@ -460,7 +491,18 @@ class OpenShellOrchestrator:
                 metadata["completed"] = self._now()
                 self._write_metadata(metadata)
         finally:
-            client.close()
+            if client is not None:
+                try:
+                    self._delete_sandbox(client, sandbox_name)
+                except Exception as exc:
+                    cleanup_error = str(exc)
+                finally:
+                    client.close()
+            if cleanup_error:
+                with self._lock:
+                    metadata = self._jobs[name]
+                    metadata["cleanup_error"] = cleanup_error
+                    self._write_metadata(metadata)
 
     def _metadata(self, name: str) -> dict[str, Any] | None:
         with self._lock:
@@ -504,7 +546,7 @@ class OpenShellOrchestrator:
             return False
         client = SandboxClient(self.ENDPOINT, tls=None, timeout=30.0)
         try:
-            deleted = client.delete(name, workspace=self.WORKSPACE)
+            deleted = self._delete_sandbox(client, name)
         finally:
             client.close()
         if deleted:
@@ -522,7 +564,7 @@ class OpenShellOrchestrator:
             return False
         client = SandboxClient(self.ENDPOINT, tls=None, timeout=30.0)
         try:
-            deleted = client.delete(name, workspace=self.WORKSPACE)
+            deleted = self._delete_sandbox(client, name)
         finally:
             client.close()
         with self._lock:

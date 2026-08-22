@@ -1,0 +1,44 @@
+# Minimal breadboard sandbox for the M4 Fullsend/OpenShell smoke.
+#
+# This intentionally starts from the already imported pipeline-agent image.
+# The production Fullsend sandbox adds Claude, security tooling, and language
+# toolchains; those belong to the later real-agent milestone. M4 only needs a
+# deterministic dummy runtime plus the shell/git/curl tools already present in
+# pipeline-agent.
+FROM pipeline-agent:latest
+
+USER root
+RUN apt-get update -qq \
+    && apt-get install -y -qq --no-install-recommends tar gzip ca-certificates curl \
+    && rm -rf /var/lib/apt/lists/*
+
+# The upstream triage agent uses gh for all GitHub reads and writes. This
+# local image keeps the development sandbox compatible with that harness.
+ARG TARGETARCH=amd64
+ARG GH_VERSION=2.96.0
+ARG GH_SHA256_AMD64=83d5c2ccad5498f58bf6368acb1ab32588cf43ab3a4b1c301bf36328b1c8bd60
+ARG GH_SHA256_ARM64=06f86ec7103d41993b76cd78072f43595c34aaa56506d971d9860e67140bf909
+RUN case "${TARGETARCH}" in \
+      amd64) GH_SHA="${GH_SHA256_AMD64}" ;; \
+      arm64) GH_SHA="${GH_SHA256_ARM64}" ;; \
+      *) echo "unsupported TARGETARCH=${TARGETARCH}" >&2; exit 1 ;; \
+    esac \
+    && curl -fsSL "https://github.com/cli/cli/releases/download/v${GH_VERSION}/gh_${GH_VERSION}_linux_${TARGETARCH}.tar.gz" -o /tmp/gh.tar.gz \
+    && echo "${GH_SHA}  /tmp/gh.tar.gz" | sha256sum -c - \
+    && tar xzf /tmp/gh.tar.gz -C /tmp \
+    && install -m 0755 "/tmp/gh_${GH_VERSION}_linux_${TARGETARCH}/bin/gh" /usr/local/bin/gh \
+    && rm -rf /tmp/gh.tar.gz "/tmp/gh_${GH_VERSION}_linux_${TARGETARCH}"
+
+# OpenShell injects its proxy CA at runtime. These variables make the same
+# CA usable by gh, curl, git, Python, and Node inside the sandbox.
+RUN mkdir -p /etc/openshell-tls \
+    && ln -sf /etc/ssl/certs/ca-certificates.crt /etc/openshell-tls/ca-bundle.pem
+ENV GIT_SSL_CAINFO=/etc/openshell-tls/ca-bundle.pem \
+    SSL_CERT_FILE=/etc/openshell-tls/ca-bundle.pem \
+    REQUESTS_CA_BUNDLE=/etc/openshell-tls/ca-bundle.pem \
+    CURL_CA_BUNDLE=/etc/openshell-tls/ca-bundle.pem \
+    NODE_EXTRA_CA_CERTS=/etc/openshell-tls/ca-bundle.pem
+
+ENV BREADBOARD_FULLSEND_SANDBOX=1
+
+USER pipelineagent

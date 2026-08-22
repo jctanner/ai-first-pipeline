@@ -1,0 +1,243 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: fullsend-m4-smoke-config
+  namespace: ai-pipeline
+  labels:
+    breadboard.dev/role: fullsend
+data:
+  config.yaml: |
+    version: "1"
+    dispatch:
+      platform: github-actions
+    defaults:
+      roles: [triage]
+      runtime: dummy
+    agents:
+      - name: triage
+        source: agents/triage.yaml
+    repos: {}
+  triage.yaml: |
+    agent: agents/triage.md
+    role: triage
+    image: fullsend-sandbox-dev:k3s
+    policy: policies/github-emulator.yaml
+    env:
+      sandbox:
+        GH_TOKEN: ${GITHUB_TOKEN}
+        GITHUB_API_URL: http://github.local/api/v3
+  github-emulator-policy.yaml: |
+    version: 1
+    filesystem_policy:
+      include_workdir: true
+      read_only: [/usr, /lib, /proc, /dev/urandom, /app, /etc, /var/log]
+      read_write: [/sandbox, /tmp, /dev/null]
+    landlock:
+      compatibility: best_effort
+    network_policies:
+      github_emulator:
+        name: github-emulator-readonly
+        endpoints:
+          - host: github.local
+            port: 80
+            protocol: rest
+            tls: none
+            enforcement: enforce
+            access: read-only
+            allowed_ips:
+              - 10.43.0.0/16
+        binaries:
+          - { path: /usr/bin/curl }
+      vertex_ai:
+        name: vertex-ai
+        endpoints:
+          - host: aiplatform.googleapis.com
+            port: 443
+            protocol: rest
+            enforcement: enforce
+            access: full
+          - host: "*.aiplatform.googleapis.com"
+            port: 443
+            protocol: rest
+            enforcement: enforce
+            access: full
+          - host: us-east5-aiplatform.googleapis.com
+            port: 443
+            protocol: rest
+            enforcement: enforce
+            access: full
+        binaries:
+          - { path: /usr/bin/node }
+          - { path: /usr/local/bin/node }
+          - { path: "/usr/local/lib/node_modules/@anthropic-ai/claude-code/**" }
+      google_auth:
+        name: google-auth
+        endpoints:
+          - host: oauth2.googleapis.com
+            port: 443
+            protocol: rest
+            enforcement: enforce
+            access: full
+        binaries:
+          - { path: /usr/bin/node }
+          - { path: /usr/local/bin/node }
+          - { path: "/usr/local/lib/node_modules/@anthropic-ai/claude-code/**" }
+  triage.md: |
+    # Fullsend triage development role
+
+    Review the checked-out target repository and produce a concise triage
+    summary in your final response. Do not modify files or contact external
+    services. This role is intentionally read-only for the Vertex smoke.
+  behaviour-current-scenario.yaml: |
+    ops:
+      - description: read the checked out repository
+        op: read_file
+        args: .github/workflows/m1-runner-smoke.yml
+      - description: receive the emulator token inside the sandbox
+        op: assert_env
+        args: GH_TOKEN
+      - description: reach the GitHub emulator through the OpenShell egress policy
+        op: url_get
+        args: http://github.local/api/v3/repos/fullsend-dev/triage-target
+      - description: write a retained Fullsend result marker
+        op: write_fixture
+        args: output/m4-smoke.txt, fixtures/m4-smoke.txt
+        content: "breadboard-fullsend-m4: sandbox execution passed\n"
+      - description: verify the retained result marker
+        op: assert_file
+        args: output/m4-smoke.txt
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: fullsend-m4-smoke
+  namespace: ai-pipeline
+  labels:
+    breadboard.dev/role: fullsend
+    breadboard.dev/milestone: m4
+spec:
+  backoffLimit: 0
+  ttlSecondsAfterFinished: 86400
+  template:
+    metadata:
+      labels:
+        app: fullsend-m4-smoke
+        breadboard.dev/role: fullsend
+    spec:
+      restartPolicy: Never
+      initContainers:
+        - name: materialize-fullsend-config
+          image: fullsend-runner-dev:k3s
+          imagePullPolicy: Never
+          command: ["/bin/sh", "-ec"]
+          args:
+            - mkdir -p /config/agents /config/behaviour && cp -RL /seed/. /config/
+          volumeMounts:
+            - name: fullsend-config-source
+              mountPath: /seed
+              readOnly: true
+            - name: fullsend-config
+              mountPath: /config
+      containers:
+        - name: fullsend
+          image: fullsend-runner-dev:k3s
+          imagePullPolicy: Never
+          command: ["/bin/sh", "-ec"]
+          args:
+            - |
+              cp /etc/breadboard-ca/ca.crt /usr/local/share/ca-certificates/breadboard-internal-ca.crt
+              update-ca-certificates
+              export GITHUB_TOKEN="$(printf '%s' "${FULLSEND_ROLE_TOKENS}" | jq -er .fullsend)"
+              rm -rf /runner-work/target
+              git clone "http://x-access-token:${GITHUB_TOKEN}@github-emulator.ai-pipeline.svc.cluster.local/fullsend-dev/triage-target.git" /runner-work/target
+              set +e
+              fullsend run triage \
+                --fullsend-dir /opt/fullsend/.fullsend \
+                --target-repo /runner-work/target \
+                --output-dir /artifacts \
+                --forge github \
+                --no-post-script
+              status=$?
+              printf '%s\n' "${status}" > /artifacts/.fullsend-status
+              touch /artifacts/.fullsend-done
+              exit 0
+          env:
+            - name: OPENSHELL_GATEWAY_ENDPOINT
+              value: http://openshell.openshell-system.svc.cluster.local:8080
+            - name: OPENSHELL_GATEWAY_NAME
+              value: openshell
+            - name: FULLSEND_ROLE_TOKENS
+              valueFrom:
+                secretKeyRef:
+                  name: fullsend-mint-dev-credentials
+                  key: role-tokens
+            - name: GOOGLE_APPLICATION_CREDENTIALS
+              value: /var/run/secrets/gcp/credentials.json
+            - name: CLAUDE_CODE_USE_VERTEX
+              valueFrom:
+                secretKeyRef:
+                  name: pipeline-secrets
+                  key: CLAUDE_CODE_USE_VERTEX
+                  optional: true
+            - name: CLOUD_ML_REGION
+              valueFrom:
+                secretKeyRef:
+                  name: pipeline-secrets
+                  key: CLOUD_ML_REGION
+                  optional: true
+            - name: ANTHROPIC_VERTEX_PROJECT_ID
+              valueFrom:
+                secretKeyRef:
+                  name: pipeline-secrets
+                  key: ANTHROPIC_VERTEX_PROJECT_ID
+                  optional: true
+          volumeMounts:
+            - name: fullsend-config
+              mountPath: /opt/fullsend/.fullsend
+            - name: runner-work
+              mountPath: /runner-work
+            - name: artifacts
+              mountPath: /artifacts
+            - name: breadboard-ca
+              mountPath: /etc/breadboard-ca
+              readOnly: true
+            - name: gcp-credentials
+              mountPath: /var/run/secrets/gcp
+              readOnly: true
+        - name: artifact-holder
+          image: fullsend-runner-dev:k3s
+          imagePullPolicy: Never
+          command: ["/bin/sh", "-ec"]
+          args:
+            - while [ ! -f /artifacts/.fullsend-done ]; do sleep 1; done; sleep 3600
+          volumeMounts:
+            - name: artifacts
+              mountPath: /artifacts
+      volumes:
+        - name: fullsend-config
+          emptyDir: {}
+        - name: fullsend-config-source
+          configMap:
+            name: fullsend-m4-smoke-config
+            items:
+              - key: config.yaml
+                path: config.yaml
+              - key: triage.yaml
+                path: agents/triage.yaml
+              - key: github-emulator-policy.yaml
+                path: policies/github-emulator.yaml
+              - key: triage.md
+                path: agents/triage.md
+              - key: behaviour-current-scenario.yaml
+                path: behaviour/current-scenario.yaml
+        - name: runner-work
+          emptyDir: {}
+        - name: artifacts
+          emptyDir: {}
+        - name: breadboard-ca
+          configMap:
+            name: internal-ca-cert
+        - name: gcp-credentials
+          secret:
+            secretName: gcp-credentials
+            optional: true

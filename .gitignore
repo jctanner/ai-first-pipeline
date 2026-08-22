@@ -21,6 +21,7 @@ var/demos/strat-pipeline-replication/**/claude-api-bodies/
 
 # Local external checkouts and repository backups.
 checkouts
+checkouts.tmp/
 checkouts.3rd-party/
 deploy/repos.bak/
 deploy/repos.third-party/

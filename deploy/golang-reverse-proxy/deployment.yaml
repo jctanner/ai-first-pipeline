@@ -114,6 +114,8 @@ spec:
     - github.local
     - jira.local
     - dashboard.local
+    - fullsend-dashboard.ai-pipeline.svc.cluster.local
+    - fullsend.local
     - mlflow.local
     - markovd.ai-pipeline.svc.cluster.local
     - markovd.local

@@ -1,0 +1,72 @@
+{
+  "schema_version": 1,
+  "scenario": {
+    "name": "fullsend-triage-comment",
+    "role": "triage",
+    "forge": "github",
+    "trigger": {
+      "kind": "workflow_dispatch",
+      "workflow_path": ".github/workflows/fullsend-triage.yml",
+      "inputs": {
+        "source_repo": "fullsend-dev/triage-target",
+        "event_type": "workflow_dispatch",
+        "issue_number": "1"
+      }
+    },
+    "target": {
+      "owner": "fullsend-dev",
+      "repository": "triage-target",
+      "issue_number": 1
+    },
+    "result": {
+      "kind": "issue_comment",
+      "marker": "<!-- fullsend-dev-stack:triage -->",
+      "minimum_count": 1
+    }
+  },
+  "credential_boundary": {
+    "mint_service": "fullsend-mint-dev",
+    "token_endpoint": "/v1/token",
+    "oidc_mode": "development-only-opaque-token",
+    "returned_token_prefix": "ghp_",
+    "scope": "target-repository-only",
+    "production_equivalent": "GitHub OIDC to GitHub App installation token"
+  },
+  "source": {
+    "fullsend_checkout": "checkouts.tmp/fullsend",
+    "harness_mode": "vendored-or-local",
+    "required_files": [
+      ".fullsend/config.yaml",
+      ".github/workflows/reusable-triage.yml",
+      "action.yml"
+    ],
+    "mirroring_deferred": true
+  },
+  "contracts": {
+    "github_api": [
+      "GET /api/v3/user",
+      "GET /api/v3/repos/fullsend-dev/triage-target",
+      "GET /api/v3/repos/fullsend-dev/triage-target/issues/1",
+      "POST /api/v3/repos/fullsend-dev/triage-target/issues/1/comments",
+      "POST /api/v3/repos/fullsend-dev/triage-target/issues/1/labels"
+    ],
+    "actions": [
+      "POST /api/v3/repos/fullsend-dev/triage-target/actions/workflows/{workflow}/dispatches",
+      "workflow_call reusable workflow expansion",
+      "repository variables and secrets",
+      "GITHUB_TOKEN and GitHub Actions environment variables"
+    ],
+    "runner": [
+      "registration token",
+      "job polling",
+      "step progress",
+      "job logs",
+      "job completion"
+    ],
+    "sandbox": [
+      "OpenShell gateway reachability",
+      "github.local resolution",
+      "breadboard internal CA trust"
+    ]
+  }
+}

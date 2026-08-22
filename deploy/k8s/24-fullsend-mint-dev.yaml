@@ -1,0 +1,71 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: fullsend-mint-dev
+  namespace: ai-pipeline
+  labels:
+    app: fullsend-mint-dev
+    breadboard.dev/role: fullsend
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: fullsend-mint-dev
+  template:
+    metadata:
+      labels:
+        app: fullsend-mint-dev
+        breadboard.dev/role: fullsend
+    spec:
+      containers:
+        - name: mint
+          image: fullsend-mint-dev:k3s
+          imagePullPolicy: Never
+          ports:
+            - name: http
+              containerPort: 8080
+          env:
+            - name: FULLSEND_DEV_OIDC_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: fullsend-mint-dev-credentials
+                  key: oidc-token
+            - name: FULLSEND_ROLE_TOKENS
+              valueFrom:
+                secretKeyRef:
+                  name: fullsend-mint-dev-credentials
+                  key: role-tokens
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: http
+            initialDelaySeconds: 2
+            periodSeconds: 5
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: http
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          resources:
+            requests:
+              cpu: 10m
+              memory: 32Mi
+            limits:
+              cpu: 100m
+              memory: 128Mi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: fullsend-mint-dev
+  namespace: ai-pipeline
+  labels:
+    app: fullsend-mint-dev
+spec:
+  selector:
+    app: fullsend-mint-dev
+  ports:
+    - name: http
+      port: 8080
+      targetPort: http

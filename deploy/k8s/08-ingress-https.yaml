@@ -121,6 +121,44 @@ spec:
             port:
               number: 5000
 ---
+# Ingress for the Fullsend operations dashboard
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: fullsend-dashboard-https
+  namespace: ai-pipeline
+  annotations:
+    cert-manager.io/issuer: internal-ca-issuer
+    traefik.ingress.kubernetes.io/router.tls: "true"
+spec:
+  ingressClassName: traefik
+  tls:
+  - hosts:
+    - fullsend-dashboard.ai-pipeline.svc.cluster.local
+    - fullsend.local
+    secretName: fullsend-dashboard-tls
+  rules:
+  - host: fullsend-dashboard.ai-pipeline.svc.cluster.local
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: fullsend-dashboard
+            port:
+              number: 5000
+  - host: fullsend.local
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: fullsend-dashboard
+            port:
+              number: 5000
+---
 # Ingress for markovd
 apiVersion: networking.k8s.io/v1
 kind: Ingress

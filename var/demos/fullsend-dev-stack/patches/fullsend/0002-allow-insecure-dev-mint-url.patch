@@ -1,0 +1,14 @@
+diff --git a/internal/mintclient/mintclient.go b/internal/mintclient/mintclient.go
+--- a/internal/mintclient/mintclient.go
++++ b/internal/mintclient/mintclient.go
+@@ -57,5 +57,9 @@ func MintToken(ctx context.Context, req MintRequest) (*MintResult, error) {
+ 	}
+ 	isLocalhost := parsed.Hostname() == "localhost" || parsed.Hostname() == "127.0.0.1"
+-	if parsed.Scheme != "https" && !isLocalhost {
++	// Development emulators may expose the mint service as plain HTTP inside
++	// an isolated cluster. Keep HTTPS mandatory by default, but allow that
++	// explicitly opted-in test environment to use NO_SSL_VERIFY=1.
++	isInsecureHTTP := parsed.Scheme == "http" && envLookup("NO_SSL_VERIFY") == "1"
++	if parsed.Scheme != "https" && !isLocalhost && !isInsecureHTTP {
+ 		return nil, fmt.Errorf("mint URL must use HTTPS")
+ 	}
