@@ -293,6 +293,20 @@ host-kubeconfig: ## Copy k3s kubeconfig to ~/.kube/config for non-sudo kubectl
 host-deploy-all: ## Run full deployment from scratch on host
 	sudo PROJECT_ROOT=$(HOST_PROJECT_ROOT) bash deploy/scripts/deploy-all.sh
 
+host-push-vertex-env: ## Update Vertex/Jira secrets from .env and restart resident consumers
+	@test -f "$(HOST_PROJECT_ROOT)/.env" || { echo "ERROR: $(HOST_PROJECT_ROOT)/.env not found"; exit 1; }
+	@echo "==> Updating pipeline secrets from .env..."
+	sudo PROJECT_ROOT="$(HOST_PROJECT_ROOT)" bash deploy/scripts/06-create-secrets.sh
+	@echo "==> Restarting workloads that consume the updated environment..."
+	@for deployment in pipeline-dashboard observatory claude-agent github-actions-runner; do \
+		if kubectl get deployment "$$deployment" -n ai-pipeline >/dev/null 2>&1; then \
+			kubectl rollout restart "deployment/$$deployment" -n ai-pipeline; \
+		else \
+			echo "  - $$deployment not deployed; skipping"; \
+		fi; \
+	done
+	@echo "✓ Vertex environment pushed and resident consumers restarted"
+
 host-clone-repos: ## Clone component and third-party source repositories into checkouts on host
 	PROJECT_ROOT=$(HOST_PROJECT_ROOT) bash deploy/scripts/00-clone-component-repos.sh
 	PROJECT_ROOT=$(HOST_PROJECT_ROOT) bash deploy/scripts/00-clone-third-party-dependencies.sh
