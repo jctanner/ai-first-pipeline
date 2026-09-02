@@ -4,6 +4,39 @@
 **Fullsend checkout:** `checkouts.tmp/fullsend.latest`  
 **Strategy checkout:** `checkouts.tmp/strat-creator`
 
+## Execution flow
+
+```text
+configuration repository or directory              target repository
+<repo>/.fullsend/                                     <repository>
+  config.yaml  ── registers ──> harness YAML          source files
+  harness/                         │                       │
+                                  image, policy,           │
+                                  skills, environment      │
+                                        │                  │
+                                        v                  v
+
+fullsend run <agent-name> --fullsend-dir ... --target-repo ...
+
+                                        │
+                                        v
+
+                         Fullsend runner CLI / runner image
+                         (host-side orchestration, not sandbox)
+                                        │ explicit harness image
+                                        v
+
+                              OpenShell gateway / driver
+                                        │
+                         uses gateway default image only
+                         when no image was requested
+                                        │
+                                        v
+
+                          agent sandbox running Claude/pi
+                          with the target repository copied in
+```
+
 ## Fullsend runner
 
 Fullsend has a real host-side runner CLI. Its executable is `fullsend`; the
