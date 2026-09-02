@@ -155,8 +155,8 @@ their handoff.
 
 ## Meaning of a thin Fullsend harness
 
-A Fullsend integration would need an adapter harness, but it would not turn
-the skill into a Markov-like primitive or duplicate its implementation.
+A Fullsend integration would need an adapter harness, but it would not
+duplicate the skill's implementation.
 
 The harness would be a small YAML profile that starts a normal Claude Code
 agent and adds only the strategy-specific configuration:
