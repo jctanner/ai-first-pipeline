@@ -13,6 +13,13 @@ relevant command is:
 fullsend run <agent-name> --fullsend-dir <configuration-dir> --target-repo <repository>
 ```
 
+`<configuration-dir>` is the directory containing Fullsend's `config.yaml`.
+By convention it is a repository's `.fullsend/` directory, so a typical value
+is `/path/to/repo/.fullsend`, not `/path/to/repo`. It may instead be a separate
+central configuration directory. It supplies the agent registry and usually
+the local harness files; `--target-repo` independently identifies the
+repository that the agent will operate on.
+
 The command resolves an agent harness, provisions an OpenShell sandbox, runs
 the selected agent runtime to completion, and emits run artifacts such as
 `metrics.json` and transcripts. The runner owns the sandbox, credentials, and
@@ -36,11 +43,34 @@ This is an added dependency of a Fullsend integration. The existing
 `strat-creator` workflow can run its Claude Code skills directly and does not
 need OpenShell in that mode.
 
+### Sandbox image selection
+
+The Fullsend harness normally selects the agent runtime image. On every run,
+Fullsend resolves the harness and passes its `image:` value to OpenShell when
+creating the sandbox. Thus an upstream Fullsend run commonly uses the image
+named by the selected role's harness: `fullsend-sandbox` for triage,
+prioritize, and retro, or `fullsend-code` for code, fix, and review.
+
+OpenShell also has a gateway-level default sandbox image. It is used only when
+the sandbox-create request does not specify an image; it does not override an
+explicit Fullsend harness image. The OpenShell instance still determines
+whether the requested image can run: its compute driver, sandbox namespace,
+image pull policy and credentials, registry reachability, and image
+compatibility must all support that image.
+
+Breadboard's Fullsend development scenario deliberately replaces the upstream
+role images in its seeded harnesses with `fullsend-sandbox-dev:k3s`. That local
+image extends `pipeline-agent:latest` with the tools needed by the Fullsend
+roles. Breadboard's OpenShell gateway separately declares
+`docker.io/library/pipeline-agent:latest` as its fallback image, but Fullsend
+runs use the explicit harness override and therefore do not use that fallback.
+
 ## Agent names and resolution
 
-`<agent-name>` is resolved from `<fullsend-dir>/config.yaml`, not inherently
-from `--target-repo`. The two directories may be the same, but have separate
-roles:
+`<agent-name>` is resolved from `config.yaml` in the configuration directory
+passed to `--fullsend-dir` (normally `<repo>/.fullsend/`), not inherently from
+`--target-repo`. The configuration and target-repository directories may be
+the same repository, but have separate roles:
 
 - `--fullsend-dir` supplies Fullsend configuration and the agent registry.
 - `--target-repo` is the repository mounted for the agent to operate on.
